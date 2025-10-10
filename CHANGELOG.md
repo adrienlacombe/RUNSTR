@@ -6,6 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-10-09
+
+### Performance
+- **Simplified Caching Strategy**: Optimized caching for 10-team app architecture
+  - Streamlined data caching mechanisms
+  - Reduced memory footprint
+  - Faster data retrieval for team-based operations
+
+### Added
+- **Event Leaderboard Enhancement**: Include paid local participants in event leaderboards
+  - More comprehensive competition rankings
+  - Better visibility of all participants
+  - Fair representation of event participants
+
+### Fixed
+- **Workout Publishing**: Use native NDK signing and publishing for workout events
+  - More reliable workout event creation
+  - Better Nostr integration for workout posting
+  - Improved signing workflow
+
+### Improved
+- **Workout Screen UI**: Enhanced workout history and tracking interfaces
+  - Improved WorkoutTabNavigator navigation
+  - Better PrivateWorkoutsTab UI/UX
+  - Enhanced EnhancedWorkoutHistoryScreen layout
+  - Additional features in WorkoutHistoryScreen
+
+### Documentation
+- **Data Architecture Guide**: Added comprehensive data architecture and caching strategy documentation
+  - Detailed caching patterns and best practices
+  - System architecture overview
+  - Performance optimization guidelines
+
 ## [0.2.2] - 2025-10-09
 
 ### Performance
