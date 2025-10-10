@@ -19,6 +19,7 @@ interface WorkoutTabNavigatorProps {
   initialTab?: WorkoutTabType;
   onRefresh?: () => void;
   onPostToNostr?: (workout: LocalWorkout) => Promise<void>;
+  onPostToSocial?: (workout: LocalWorkout) => Promise<void>;
 }
 
 export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
@@ -27,6 +28,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
   initialTab = 'public',
   onRefresh,
   onPostToNostr,
+  onPostToSocial,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkoutTabType>(initialTab);
 
@@ -71,6 +73,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             pubkey={pubkey}
             onRefresh={onRefresh}
             onPostToNostr={onPostToNostr}
+            onPostToSocial={onPostToSocial}
           />
         )}
       </View>

@@ -71,10 +71,10 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
   };
 
   /**
-   * Handle posting a local workout to Nostr
-   * Creates kind 1 social event with workout card
+   * Handle posting a local workout to Nostr as kind 1 social event
+   * Creates social post with workout card
    */
-  const handlePostToNostr = async (workout: LocalWorkout) => {
+  const handlePostToSocial = async (workout: LocalWorkout) => {
     try {
       console.log(`[EnhancedWorkoutHistory] Posting workout ${workout.id} to Nostr...`);
 
@@ -103,22 +103,73 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
       );
 
       if (result.success && result.eventId) {
-        console.log(`[EnhancedWorkoutHistory] ✅ Workout published: ${result.eventId}`);
+        console.log(`[EnhancedWorkoutHistory] ✅ Workout published as kind 1: ${result.eventId}`);
+
+        // DO NOT mark as synced - kind 1 social posts don't affect private tab
+        Alert.alert(
+          'Success',
+          'Workout posted to social feeds!'
+        );
+      } else {
+        throw new Error(result.error || 'Failed to publish workout');
+      }
+    } catch (error) {
+      console.error('[EnhancedWorkoutHistory] ❌ Post to social failed:', error);
+      Alert.alert(
+        'Error',
+        'Failed to post workout to social feeds. Please try again.'
+      );
+    }
+  };
+
+  /**
+   * Handle posting a local workout to Nostr as kind 1301 event
+   * Saves workout data for competitions
+   */
+  const handlePostToNostr = async (workout: LocalWorkout) => {
+    try {
+      console.log(`[EnhancedWorkoutHistory] Posting workout ${workout.id} as kind 1301...`);
+
+      if (!signer) {
+        Alert.alert('Error', 'No signer available. Please log in again.');
+        return;
+      }
+
+      // Convert LocalWorkout to PublishableWorkout format
+      const publishableWorkout = {
+        ...workout,
+        userId: userId,
+        source: 'manual' as const,
+        type: workout.type,
+        duration: workout.duration, // Keep in seconds for kind 1301
+        distance: workout.distance,
+        calories: workout.calories,
+        syncedAt: workout.syncedAt || new Date().toISOString(),
+      };
+
+      // Publish to Nostr as kind 1301 workout event
+      const result = await publishingService.saveWorkoutToNostr(
+        publishableWorkout,
+        signer,
+        userId
+      );
+
+      if (result.success && result.eventId) {
+        console.log(`[EnhancedWorkoutHistory] ✅ Workout published as kind 1301: ${result.eventId}`);
 
         // Mark workout as synced - IT WILL DISAPPEAR FROM PRIVATE TAB
         await localWorkoutStorage.markAsSynced(workout.id, result.eventId);
         console.log(`[EnhancedWorkoutHistory] ✅ Workout marked as synced`);
 
         Alert.alert(
-          '✅ Success',
-          'Workout posted to Nostr!\nIt will now appear in your Public tab.',
-          [{ text: 'OK' }]
+          'Success',
+          'Workout posted as kind 1301 event!\nIt will now appear in your Public tab and competitions.'
         );
       } else {
         throw new Error(result.error || 'Failed to publish workout');
       }
     } catch (error) {
-      console.error('[EnhancedWorkoutHistory] ❌ Post to Nostr failed:', error);
+      console.error('[EnhancedWorkoutHistory] ❌ Post to Nostr (1301) failed:', error);
       Alert.alert(
         'Error',
         'Failed to post workout to Nostr. Please try again.'
@@ -150,6 +201,7 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
         userId={userId}
         pubkey={pubkey}
         onPostToNostr={handlePostToNostr}
+        onPostToSocial={handlePostToSocial}
       />
 
       {/* Bottom Navigation */}

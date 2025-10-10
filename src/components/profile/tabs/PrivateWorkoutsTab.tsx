@@ -87,33 +87,42 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
 
     try {
       setPostingWorkoutId(workout.id);
+      setPostingType('nostr');
 
-      Alert.alert(
-        'Post to Nostr',
-        `Post this ${workout.type} workout as a kind 1301 event?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Post',
-            onPress: async () => {
-              try {
-                await onPostToNostr(workout);
-                // Refresh to remove from private list (it's now synced)
-                await loadPrivateWorkouts();
-                Alert.alert(' Success', 'Workout posted to Nostr');
-              } catch (error) {
-                console.error('Failed to post workout:', error);
-                Alert.alert('L Error', 'Failed to post workout to Nostr');
-              } finally {
-                setPostingWorkoutId(null);
-              }
-            },
-          },
-        ]
-      );
+      await onPostToNostr(workout);
+      // Refresh to remove from private list (it's now synced)
+      await loadPrivateWorkouts();
+      Alert.alert('Success', 'Workout posted as kind 1301 event');
     } catch (error) {
-      console.error('Post to Nostr error:', error);
+      console.error('Failed to post workout to Nostr:', error);
+      Alert.alert('Error', 'Failed to post workout to Nostr');
+    } finally {
       setPostingWorkoutId(null);
+      setPostingType(null);
+    }
+  };
+
+  const handlePostToSocial = async (workout: LocalWorkout) => {
+    if (!onPostToSocial) {
+      Alert.alert(
+        'Not Implemented',
+        'Post to social functionality will be available soon'
+      );
+      return;
+    }
+
+    try {
+      setPostingWorkoutId(workout.id);
+      setPostingType('social');
+
+      await onPostToSocial(workout);
+      Alert.alert('Success', 'Workout posted as kind 1 social post');
+    } catch (error) {
+      console.error('Failed to post workout to social:', error);
+      Alert.alert('Error', 'Failed to post workout to social');
+    } finally {
+      setPostingWorkoutId(null);
+      setPostingType(null);
     }
   };
 
@@ -170,15 +179,30 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
         <View style={styles.workoutActions}>
           <TouchableOpacity
             style={[styles.actionButton, styles.postButton]}
-            onPress={() => handlePostToNostr(localWorkout)}
-            disabled={isPosting}
+            onPress={() => handlePostToSocial(localWorkout)}
+            disabled={isPosting && postingType === 'social'}
           >
-            {isPosting ? (
+            {isPosting && postingType === 'social' ? (
               <Text style={styles.postButtonText}>Posting...</Text>
             ) : (
               <>
+                <Ionicons name="chatbubble-outline" size={16} color={theme.colors.accentText} />
+                <Text style={styles.postButtonText}>Post</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.publicButton]}
+            onPress={() => handlePostToNostr(localWorkout)}
+            disabled={isPosting && postingType === 'nostr'}
+          >
+            {isPosting && postingType === 'nostr' ? (
+              <Text style={styles.publicButtonText}>Posting...</Text>
+            ) : (
+              <>
                 <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.accentText} />
-                <Text style={styles.postButtonText}>Post to Nostr</Text>
+                <Text style={styles.publicButtonText}>Public</Text>
               </>
             )}
           </TouchableOpacity>
@@ -187,12 +211,12 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
             style={[styles.actionButton, styles.deleteButton]}
             onPress={() => handleDeleteWorkout(localWorkout.id)}
           >
-            <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
+            <Ionicons name="trash-outline" size={16} color={theme.colors.accent} />
           </TouchableOpacity>
         </View>
       </View>
     );
-  }, [workouts, postingWorkoutId]);
+  }, [workouts, postingWorkoutId, postingType]);
 
   const renderMonthlyGroup = ({ item }: { item: any }) => (
     <MonthlyWorkoutGroup
@@ -301,17 +325,26 @@ const styles = StyleSheet.create({
   },
   postButton: {
     backgroundColor: theme.colors.accent,
-    flex: 3,
+    flex: 1.5,
   },
   postButtonText: {
     color: theme.colors.accentText,
     fontSize: 14,
     fontWeight: theme.typography.weights.semiBold,
   },
+  publicButton: {
+    backgroundColor: theme.colors.accent,
+    flex: 1.5,
+  },
+  publicButtonText: {
+    color: theme.colors.accentText,
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+  },
   deleteButton: {
-    backgroundColor: theme.colors.error + '20',
+    backgroundColor: theme.colors.accent + '20',
     borderWidth: 1,
-    borderColor: theme.colors.error,
+    borderColor: theme.colors.accent,
     flex: 1,
   },
   emptyState: {
