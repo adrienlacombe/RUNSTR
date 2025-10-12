@@ -243,6 +243,9 @@ function getBackgroundLocationOptions(activityType: string): Location.LocationTa
     pausesUpdatesAutomatically: false,
     // iOS-specific: Show blue bar when tracking in background (user transparency)
     showsBackgroundLocationIndicator: true,
+    // iOS-specific: Disable deferred updates (prevents batching)
+    deferredUpdatesInterval: 0,
+    deferredUpdatesDistance: 0,
     // Android-specific: Foreground service to prevent Doze Mode from stopping tracking
     foregroundService: {
       notificationTitle: notification.title,
@@ -255,29 +258,29 @@ function getBackgroundLocationOptions(activityType: string): Location.LocationTa
     case 'running':
       return {
         ...baseOptions,
-        timeInterval: 3000, // Every 3 seconds in background
-        distanceInterval: 5,
+        timeInterval: 1000, // Every 1 second for continuous tracking (Android improvement)
+        distanceInterval: 3, // Update every 3 meters
         mayShowUserSettingsDialog: false,
       };
     case 'walking':
       return {
         ...baseOptions,
-        timeInterval: 5000, // Every 5 seconds
-        distanceInterval: 10,
+        timeInterval: 2000, // Every 2 seconds (improved from 5s)
+        distanceInterval: 5, // Update every 5 meters
         mayShowUserSettingsDialog: false,
       };
     case 'cycling':
       return {
         ...baseOptions,
-        timeInterval: 2000, // Every 2 seconds for better speed tracking
-        distanceInterval: 10,
+        timeInterval: 1000, // Every 1 second for high-speed tracking
+        distanceInterval: 5, // Update every 5 meters
         mayShowUserSettingsDialog: false,
       };
     default:
       return {
         ...baseOptions,
-        timeInterval: 5000,
-        distanceInterval: 10,
+        timeInterval: 2000,
+        distanceInterval: 5,
       };
   }
 }
