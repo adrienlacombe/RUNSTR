@@ -5,6 +5,7 @@ RUNSTR REWARDS is a React Native mobile application that transforms fitness rout
 
 📖 **For detailed overview, see**: [RUNSTR_REWARDS_OVERVIEW.md](./RUNSTR_REWARDS_OVERVIEW.md)
 📖 **For user flow documentation, see**: [APP_USER_FLOW_AND_CAPTAIN_EXPERIENCE.md](./docs/APP_USER_FLOW_AND_CAPTAIN_EXPERIENCE.md)
+🔐 **For environment setup (NWC, secrets), see**: [ENVIRONMENT_SETUP.md](./docs/ENVIRONMENT_SETUP.md)
 
 ## Strategic Direction: Three Core Pillars
 
