@@ -1,6 +1,7 @@
 /**
  * CompactWallet - Streamlined wallet display for Profile screen
- * 50% smaller than original, centered balance, no USD display
+ * Shows NWC connection status and Bitcoin features
+ * App works without wallet - connect wallet for Bitcoin features
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -13,9 +14,15 @@ import {
   Alert,
 } from 'react-native';
 import { theme } from '../../styles/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { NWCStorageService } from '../../services/wallet/NWCStorageService';
+import { NWCWalletService } from '../../services/wallet/NWCWalletService';
+import { WalletConfigModal } from '../wallet/WalletConfigModal';
+import { FEATURES } from '../../config/features';
+
+// Keep legacy imports for Cashu support (feature flagged)
 import { useWalletStore } from '../../store/walletStore';
 import { useNutzap } from '../../hooks/useNutzap';
-import { Ionicons } from '@expo/vector-icons';
 
 interface CompactWalletProps {
   onSendPress?: () => void;
@@ -28,69 +35,124 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
   onReceivePress,
   onHistoryPress,
 }) => {
-  // Subscribe directly to wallet store for real-time balance updates
-  const { balance, isInitialized, isInitializing, refreshBalance: refreshStoreBalance } = useWalletStore();
-
-  // Get claim function from hook (doesn't trigger initialization)
-  const { claimNutzaps } = useNutzap(false);
-
-  const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
+  // NWC wallet state
+  const [hasNWC, setHasNWC] = useState(false);
+  const [nwcBalance, setNwcBalance] = useState(0);
+  const [showWalletConfig, setShowWalletConfig] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const isLoading = isInitializing;
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Auto-claim handler with optional silent mode
+  // Legacy Cashu wallet state (feature flagged)
+  const { balance: cashuBalance, isInitialized, isInitializing, refreshBalance: refreshStoreBalance } = useWalletStore();
+  const { claimNutzaps } = useNutzap(false);
+  const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
+
+  // Initialize NWC wallet on mount
+  useEffect(() => {
+    const initNWC = async () => {
+      setIsLoading(true);
+      try {
+        const nwcAvailable = await NWCStorageService.hasNWC();
+        setHasNWC(nwcAvailable);
+
+        if (nwcAvailable) {
+          // Get balance
+          const balanceResult = await NWCWalletService.getBalance();
+          setNwcBalance(balanceResult.balance);
+        }
+      } catch (error) {
+        console.error('[CompactWallet] NWC init error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (FEATURES.ENABLE_NWC_WALLET) {
+      initNWC();
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Refresh NWC balance
+  const handleRefreshNWC = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const balanceResult = await NWCWalletService.getBalance();
+      setNwcBalance(balanceResult.balance);
+      console.log('[CompactWallet] NWC balance refreshed:', balanceResult.balance);
+    } catch (error) {
+      console.error('[CompactWallet] NWC refresh error:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Handle wallet config success
+  const handleWalletConfigSuccess = useCallback(async () => {
+    const nwcAvailable = await NWCStorageService.hasNWC();
+    setHasNWC(nwcAvailable);
+
+    if (nwcAvailable) {
+      // Get initial balance
+      const balanceResult = await NWCWalletService.getBalance();
+      setNwcBalance(balanceResult.balance);
+    }
+  }, []);
+
+  // Legacy Cashu handlers (feature flagged)
   const handleClaim = useCallback(async (silent: boolean = true) => {
+    if (!FEATURES.ENABLE_CASHU_WALLET) return;
+
     const result = await claimNutzaps();
     if (result.claimed > 0) {
       setLastClaimTime(new Date());
-      // Only show alert if not silent (prevents interference with modals)
       if (!silent) {
         Alert.alert(
           'Payment Received!',
           `Received ${result.claimed} sats`,
           [{ text: 'OK' }]
         );
-      } else {
-        console.log('[CompactWallet] Auto-claimed', result.claimed, 'sats (silent mode)');
       }
     }
   }, [claimNutzaps]);
 
-  // Manual refresh handler - claims nutzaps + syncs balance from proofs
-  const handleRefresh = useCallback(async () => {
+  const handleRefreshCashu = useCallback(async () => {
+    if (!FEATURES.ENABLE_CASHU_WALLET) return;
+
     setIsRefreshing(true);
     try {
-      // Claim any pending nutzaps
       await handleClaim(true);
-      // Sync balance from AsyncStorage proofs (source of truth)
       await refreshStoreBalance();
-      console.log('[CompactWallet] Manual refresh completed');
     } catch (err) {
-      console.error('[CompactWallet] Refresh failed:', err);
+      console.error('[CompactWallet] Cashu refresh failed:', err);
     } finally {
       setIsRefreshing(false);
     }
   }, [handleClaim, refreshStoreBalance]);
 
-  // Sync balance from proofs on mount (ensures display matches spendable balance)
+  // Legacy Cashu initialization (feature flagged)
   useEffect(() => {
-    if (isInitialized) {
+    if (FEATURES.ENABLE_CASHU_WALLET && isInitialized) {
       refreshStoreBalance().catch(err =>
-        console.warn('[CompactWallet] Initial balance sync failed:', err)
+        console.warn('[CompactWallet] Cashu balance sync failed:', err)
       );
     }
   }, [isInitialized, refreshStoreBalance]);
 
-  // Auto-claim on mount and periodically (silent mode to avoid Alert/Modal conflicts)
   useEffect(() => {
-    if (isInitialized) {
-      handleClaim(true); // Silent auto-claim
+    if (FEATURES.ENABLE_CASHU_WALLET && isInitialized) {
+      handleClaim(true);
       const interval = setInterval(() => {
-        handleClaim(true); // Silent periodic claim
-      }, 60000); // Every minute
+        handleClaim(true);
+      }, 60000);
       return () => clearInterval(interval);
     }
   }, [isInitialized, handleClaim]);
+
+  // Determine which wallet system to use
+  const balance = FEATURES.ENABLE_NWC_WALLET ? nwcBalance : cashuBalance;
+  const handleRefresh = FEATURES.ENABLE_NWC_WALLET ? handleRefreshNWC : handleRefreshCashu;
 
   const formatBalance = (sats: number): string => {
     if (sats >= 1000000) {
@@ -101,54 +163,86 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
     return sats.toString();
   };
 
-  // Always show wallet UI with real-time balance from store
-  // Balance updates instantly when transactions complete
+  // Render wallet UI based on NWC availability
   return (
-    <View style={styles.walletBox}>
-        {/* Centered balance with sync indicator and refresh button */}
-        <View style={styles.balanceContainer}>
-          <Text style={styles.balanceAmount}>
-            {formatBalance(balance)}
-          </Text>
-          <Text style={styles.balanceUnit}>sats</Text>
-          {(isLoading || isRefreshing) ? (
-            <ActivityIndicator
-              size="small"
-              color={theme.colors.textMuted}
-              style={styles.syncIndicator}
-            />
-          ) : (
+    <>
+      <View style={styles.walletBox}>
+        {!hasNWC && FEATURES.ENABLE_NWC_WALLET ? (
+          // No wallet configured - show connect prompt
+          <View style={styles.noWalletContainer}>
+            <View style={styles.noWalletIcon}>
+              <Ionicons name="wallet-outline" size={32} color={theme.colors.textMuted} />
+            </View>
+            <Text style={styles.noWalletText}>
+              Connect wallet for Bitcoin features
+            </Text>
             <TouchableOpacity
-              onPress={handleRefresh}
-              style={styles.refreshButton}
-              activeOpacity={0.6}
+              style={styles.connectButton}
+              onPress={() => setShowWalletConfig(true)}
+              activeOpacity={0.7}
             >
-              <Ionicons name="refresh" size={16} color={theme.colors.textMuted} />
+              <Ionicons name="add-circle-outline" size={18} color="#000000" />
+              <Text style={styles.connectButtonText}>Connect Wallet</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        ) : (
+          // Wallet configured - show balance and actions
+          <>
+            {/* Centered balance with sync indicator and refresh button */}
+            <View style={styles.balanceContainer}>
+              <Text style={styles.balanceAmount}>
+                {formatBalance(balance)}
+              </Text>
+              <Text style={styles.balanceUnit}>sats</Text>
+              {(isLoading || isRefreshing) ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.textMuted}
+                  style={styles.syncIndicator}
+                />
+              ) : (
+                <TouchableOpacity
+                  onPress={handleRefresh}
+                  style={styles.refreshButton}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="refresh" size={16} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
 
-        {/* Compact action buttons */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={onSendPress}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-up" size={16} color={theme.colors.text} />
-            <Text style={styles.actionText}>Send</Text>
-          </TouchableOpacity>
+            {/* Compact action buttons */}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={onSendPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-up" size={16} color={theme.colors.text} />
+                <Text style={styles.actionText}>Send</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={onReceivePress}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-down" size={16} color={theme.colors.text} />
-            <Text style={styles.actionText}>Receive</Text>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={onReceivePress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-down" size={16} color={theme.colors.text} />
+                <Text style={styles.actionText}>Receive</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </View>
+
+      {/* Wallet Configuration Modal */}
+      <WalletConfigModal
+        visible={showWalletConfig}
+        onClose={() => setShowWalletConfig(false)}
+        onSuccess={handleWalletConfigSuccess}
+        allowSkip={true}
+      />
+    </>
   );
 };
 
@@ -159,8 +253,43 @@ const styles = StyleSheet.create({
     borderColor: '#1a1a1a',
     borderRadius: 12,
     padding: 10,
-    height: 80, // Further reduced height
+    minHeight: 80,
     position: 'relative',
+  },
+
+  // No wallet state
+  noWalletContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+
+  noWalletIcon: {
+    marginBottom: 8,
+  },
+
+  noWalletText: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  connectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FF9D42',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+
+  connectButtonText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: '#000000',
   },
 
   // Centered balance
@@ -170,7 +299,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: -32, // Move balance up to avoid overlap with buttons (increased from -20)
+    marginTop: -32,
   },
 
   balanceAmount: {
