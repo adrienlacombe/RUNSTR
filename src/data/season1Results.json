@@ -1,0 +1,194 @@
+{
+  "lastUpdated": "2025-10-09T23:59:59Z",
+  "season": {
+    "name": "RUNSTR Season 1",
+    "startDate": "2025-07-11T00:00:00Z",
+    "endDate": "2025-10-09T23:59:59Z",
+    "prizePool": 200000,
+    "totalParticipants": 127
+  },
+  "leaderboards": {
+    "running": {
+      "activityType": "running",
+      "totalParticipants": 89,
+      "lastUpdated": 1728518399000,
+      "participants": [
+        {
+          "rank": 1,
+          "pubkey": "04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9",
+          "npub": "npub1qnyh2m77achk37762zystnhr3g5xnlvszxfygtjwd43r0haan2snhh6qv",
+          "name": "Sarah Runner",
+          "picture": "https://nostr.build/av/runner1.jpg",
+          "totalDistance": 1523400,
+          "workoutCount": 142,
+          "lastActivityDate": "2025-10-09T18:45:00Z",
+          "prize": 66667
+        },
+        {
+          "rank": 2,
+          "pubkey": "6b0530c6d5141d90748ae1b2ee8c3d209f83b3b2c73151b14c256a60dcbbe5db",
+          "npub": "npub1dv7fcxdvzgxqla2a5yek3npjpx0rk0ft9uc43hpvyknxph97ehdskekszs",
+          "name": "Mike Marathon",
+          "picture": "https://nostr.build/av/runner2.jpg",
+          "totalDistance": 1421000,
+          "workoutCount": 118,
+          "lastActivityDate": "2025-10-09T20:15:00Z",
+          "prize": 33333
+        },
+        {
+          "rank": 3,
+          "pubkey": "82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2",
+          "npub": "npub1sg2flgut6a7x6kf8hjnep226v6u0f9hn27lggsfln25gl77w0fqc87jdh",
+          "name": "Jessica Jogger",
+          "picture": "https://nostr.build/av/runner3.jpg",
+          "totalDistance": 1356200,
+          "workoutCount": 134,
+          "lastActivityDate": "2025-10-08T19:30:00Z",
+          "prize": 16667
+        },
+        {
+          "rank": 4,
+          "pubkey": "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
+          "npub": "npub180vvl2ktlx6klj3c7al6e0c25qlkpcnxyhr5xj7dxx4djl3rqcksu3mfke",
+          "name": "David Distance",
+          "totalDistance": 1298500,
+          "workoutCount": 125,
+          "lastActivityDate": "2025-10-09T21:00:00Z"
+        },
+        {
+          "rank": 5,
+          "pubkey": "7cca3f3870a5cd610d5380fa4eb9d99f826e21e1b066338c373e88c38eb3b5e9",
+          "npub": "npub10n98a0rs45hgzj5crjfxwx8fn4qndse7wp5r3fnn0r2wnrex0c5sh3e0p3",
+          "name": "Emma Endurance",
+          "totalDistance": 1245600,
+          "workoutCount": 108,
+          "lastActivityDate": "2025-10-09T16:45:00Z"
+        }
+      ]
+    },
+    "cycling": {
+      "activityType": "cycling",
+      "totalParticipants": 67,
+      "lastUpdated": 1728518399000,
+      "participants": [
+        {
+          "rank": 1,
+          "pubkey": "f62d350e69ec2ce7236ad0533ee66e6e82d72ef58d0c0c50dd68a0045e550a44",
+          "npub": "npub17ckn2r5fas8uy4d26xan6cuwqhdd04ntnswx2cx6s5qyhk252zqz54fpx",
+          "name": "Chris Cyclist",
+          "picture": "https://nostr.build/av/cyclist1.jpg",
+          "totalDistance": 3845200,
+          "workoutCount": 98,
+          "lastActivityDate": "2025-10-09T17:30:00Z",
+          "prize": 66667
+        },
+        {
+          "rank": 2,
+          "pubkey": "5959de5e479c8f64e2c5f2af2c3e6e2da40315e0e2c8e6d5df4ff4fb5c88d28e",
+          "npub": "npub1t9vaulj8nrmy7u0272eyuehz2qryxhswct8vmt05l48khe5xz28sd0pnmg",
+          "name": "Laura Lance",
+          "picture": "https://nostr.build/av/cyclist2.jpg",
+          "totalDistance": 3562300,
+          "workoutCount": 87,
+          "lastActivityDate": "2025-10-09T19:15:00Z",
+          "prize": 33333
+        },
+        {
+          "rank": 3,
+          "pubkey": "e88a0e3e3bcf99a93f96ae8beebdc87f6d4e63c9d5d475fb4f4b6f3fa3f1c6ba",
+          "npub": "npub1az0qpcln78dzwmlxmuyaawd3fa2xc6wf2h28tdz0fdmr73hnxasqxc77gn",
+          "name": "Tom TourDeFrance",
+          "totalDistance": 3421800,
+          "workoutCount": 92,
+          "lastActivityDate": "2025-10-08T20:45:00Z",
+          "prize": 16667
+        },
+        {
+          "rank": 4,
+          "pubkey": "8d4e7c88e7bf3abc5edfc5d5c0a3e8dc9cfbd2df4dc6a72b5f3b1e2b1e9a8f67",
+          "npub": "npub134r8ex370n7mc9dh7w4cpslphje0cldnhz6vthz0vhzm85dgajsqyc6sx5",
+          "name": "Amy Altitude",
+          "totalDistance": 3198600,
+          "workoutCount": 85,
+          "lastActivityDate": "2025-10-09T18:00:00Z"
+        },
+        {
+          "rank": 5,
+          "pubkey": "b69ff43e8b5355e61dd9e3a96b5a9e0c8e9c7fa5b3c9e2a5d8f4a6e9c3f5b8d7",
+          "npub": "npub1k63lgls4xd27xhveuwttdk0d6e8jujlatwhaw32m3axnx0aax4cqhmvzrh",
+          "name": "Brad Bikelife",
+          "totalDistance": 3087400,
+          "workoutCount": 79,
+          "lastActivityDate": "2025-10-09T21:30:00Z"
+        }
+      ]
+    },
+    "walking": {
+      "activityType": "walking",
+      "totalParticipants": 45,
+      "lastUpdated": 1728518399000,
+      "participants": [
+        {
+          "rank": 1,
+          "pubkey": "a8e5e7d8c9b6a5d4f3e2d1c0b9a8e7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0",
+          "npub": "npub14rj708xfk6jasulz68qtxrl8u0jatn29c88s8q80fdulhqm2svqqh8qsa8",
+          "name": "Wendy Walker",
+          "picture": "https://nostr.build/av/walker1.jpg",
+          "totalDistance": 856300,
+          "workoutCount": 178,
+          "lastActivityDate": "2025-10-09T20:00:00Z",
+          "prize": 66667
+        },
+        {
+          "rank": 2,
+          "pubkey": "d7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8e7",
+          "npub": "npub16lmwt4xrkg3lpm5ccakg90wy957rv7qahx2nt40lyzz8sxn4r9cs7xn7ka",
+          "name": "Paul Pacer",
+          "totalDistance": 798200,
+          "workoutCount": 165,
+          "lastActivityDate": "2025-10-09T18:30:00Z",
+          "prize": 33333
+        },
+        {
+          "rank": 3,
+          "pubkey": "b5a4f3e2d1c0b9a8e7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9e8d7c6b5",
+          "npub": "npub1kknfhcx3p2fsnrldw42v82lp7exd3gg6a7vvaaj0fxrhgrt8xdqqykxyq6",
+          "name": "Helen Hiker",
+          "totalDistance": 745600,
+          "workoutCount": 152,
+          "lastActivityDate": "2025-10-09T19:45:00Z",
+          "prize": 16667
+        },
+        {
+          "rank": 4,
+          "pubkey": "c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8e7f6e5d4",
+          "npub": "npub1cjeh9u7spm8t0ynhe4x89xdql8546r4kzw8s9jzal7jarnl8xgxq53w3zj",
+          "name": "Steve Steps",
+          "totalDistance": 689400,
+          "workoutCount": 143,
+          "lastActivityDate": "2025-10-08T21:15:00Z"
+        },
+        {
+          "rank": 5,
+          "pubkey": "a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9e8d7c6b5a4f3",
+          "npub": "npub150jw6sx7rwh5ldu5cxaj5chpgrnm7xm67tdz6zf7klpdxa3l20ns5dzx9v",
+          "name": "Nancy Nordic",
+          "totalDistance": 634200,
+          "workoutCount": 138,
+          "lastActivityDate": "2025-10-09T17:00:00Z"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "totalParticipants": 127,
+    "totalWorkouts": 2834,
+    "totalDistance": 45678900,
+    "prizesAwarded": 500001,
+    "winners": {
+      "running": "Sarah Runner",
+      "cycling": "Chris Cyclist",
+      "walking": "Wendy Walker"
+    }
+  }
+}

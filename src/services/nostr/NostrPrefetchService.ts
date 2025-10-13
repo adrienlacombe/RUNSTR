@@ -22,7 +22,7 @@
 import { DirectNostrProfileService } from '../user/directNostrProfileService';
 import { getNostrTeamService } from './NostrTeamService';
 import { TeamMembershipService } from '../team/teamMembershipService';
-import { getNpubFromHex, getUserNostrIdentifiers } from '../../utils/nostr';
+import { getUserNostrIdentifiers } from '../../utils/nostr';
 import unifiedCache from '../cache/UnifiedNostrCache';
 import { CacheTTL, CacheKeys } from '../../constants/cacheTTL';
 import { CaptainCache } from '../../utils/captainCache';
@@ -70,57 +70,47 @@ export class NostrPrefetchService {
 
       const { npub, hexPubkey } = identifiers;
 
-      console.log('🚀 [Prefetch] Starting PARALLEL prefetch for faster startup...');
+      console.log('🚀 [Prefetch] Starting comprehensive prefetch for zero loading states...');
 
-      // ✅ OPTIMIZATION: Group 1 - Independent fetches (run in parallel)
-      // These don't depend on each other and can fetch simultaneously
-      // ✅ FIX: Ensure progress callbacks ALWAYS fire, even on failure
-      // ✅ PERFORMANCE: Removed team discovery from prefetch - now loads on-demand in TeamDiscoveryScreen
+      // ✅ OPTIMIZATION: Fetch EVERYTHING for small app (10 teams, 20 workouts)
+      // Since data volume is tiny, we can fetch everything upfront
       await Promise.all([
         this.prefetchUserProfile(hexPubkey)
           .then(() => reportProgress('Profile loaded'))
           .catch((err) => {
             console.warn('[Prefetch] Profile failed, continuing anyway:', err?.message);
-            reportProgress('Profile loaded'); // Report progress even on failure
+            reportProgress('Profile loaded');
           }),
-        // REMOVED: Team discovery now lazy-loaded when user opens Teams tab (saves 5-10s)
-        // this.prefetchDiscoveredTeams()
-        //   .then(() => reportProgress('Teams discovered'))
-        //   .catch((err) => {
-        //     console.warn('[Prefetch] Teams failed, continuing anyway:', err?.message);
-        //     reportProgress('Teams discovered'); // CRITICAL: Report even on failure
-        //   }),
+        // ✅ FETCH TEAMS: Only ~10 teams, fetch them all upfront!
+        this.prefetchDiscoveredTeams()
+          .then(() => reportProgress('Teams discovered'))
+          .catch((err) => {
+            console.warn('[Prefetch] Teams failed, continuing anyway:', err?.message);
+            reportProgress('Teams discovered');
+          }),
         this.prefetchCompetitions()
           .then(() => reportProgress('Competitions loaded'))
           .catch((err) => {
             console.warn('[Prefetch] Competitions failed, continuing anyway:', err?.message);
-            reportProgress('Competitions loaded'); // Report even on failure
+            reportProgress('Competitions loaded');
           }),
         this.prefetchWalletInfo(hexPubkey)
           .then(() => reportProgress('Wallet initialized'))
           .catch((err) => {
             console.warn('[Prefetch] Wallet failed, continuing anyway:', err?.message);
-            reportProgress('Wallet initialized'); // Report even on failure
+            reportProgress('Wallet initialized');
           }),
       ]);
-
-      // ✅ PERFORMANCE: Skip "Teams discovered" progress step since we removed team prefetch
-      reportProgress('Teams will load on-demand');
 
       // ✅ Step 5: User Teams (depends on discovered teams, so runs after Group 1)
       reportProgress('Finding your teams...');
       await this.prefetchUserTeams(hexPubkey);
 
-      // ✅ PERFORMANCE: Skipped workout prefetch - workouts now load on-demand in WorkoutHistoryScreen
-      // This saves 5s during startup with zero UX impact (users don't see workouts until they navigate there)
-      reportProgress('Workouts will load on-demand');
-      console.log('[Prefetch] Skipping workout prefetch - will load on-demand when user opens Workout History (saves 5s)');
-
-      // REMOVED: Workout prefetch for performance
-      // await this.prefetchUserWorkouts(hexPubkey).catch(err => {
-      //   console.warn('[Prefetch] Workout fetch failed, continuing anyway:', err?.message);
-      //   reportProgress('Loading workouts...'); // Report progress even on failure
-      // });
+      // ✅ Step 6: Fetch last 20 workouts (limited for performance)
+      reportProgress('Loading recent workouts...');
+      await this.prefetchUserWorkouts(hexPubkey).catch(err => {
+        console.warn('[Prefetch] Workout fetch failed, continuing anyway:', err?.message);
+      });
 
       console.log('✅ Prefetch complete - essential data cached, non-critical data loads on-demand');
     } catch (error) {
@@ -167,23 +157,38 @@ export class NostrPrefetchService {
 
   /**
    * Prefetch user's teams
-   * ✅ PERFORMANCE: Skips team prefetch - user teams will load on-demand when needed
-   * This avoids the expensive global team discovery during app startup
+   * ✅ OPTIMIZED: Now fetches user teams since we prefetch all teams anyway
+   * This gives instant display on My Teams screen
    */
   private async prefetchUserTeams(hexPubkey: string): Promise<void> {
     try {
-      // ✅ PERFORMANCE: Skip user teams prefetch since we're not prefetching discovered teams
-      // User teams will load on-demand when user navigates to My Teams screen
-      console.log('[Prefetch] Skipping user teams prefetch - will load on-demand (saves 5-10s)');
+      const userTeams = await unifiedCache.get(
+        CacheKeys.USER_TEAMS(hexPubkey),
+        async () => {
+          const membershipService = TeamMembershipService.getInstance();
+          // Get local memberships (teams the user belongs to)
+          const memberships = await membershipService.getLocalMemberships(hexPubkey);
+          // Extract just the team info
+          return memberships.map(m => ({
+            id: m.teamId,
+            name: m.teamName,
+            captainPubkey: m.captainPubkey,
+            joinedAt: m.joinedAt,
+            status: m.status
+          }));
+        },
+        { ttl: CacheTTL.USER_TEAMS }
+      );
 
-      // Mark user teams as empty in cache for now - they'll populate when user navigates to My Teams
+      console.log(`[Prefetch] ✅ User is member of ${userTeams?.length || 0} teams`);
+    } catch (error) {
+      console.error('[Prefetch] User teams failed:', error);
+      // Set empty array as fallback
       await unifiedCache.set(
         CacheKeys.USER_TEAMS(hexPubkey),
         [],
-        { ttl: CacheTTL.USER_TEAMS }
+        CacheTTL.USER_TEAMS
       );
-    } catch (error) {
-      console.error('[Prefetch] User teams placeholder failed:', error);
     }
   }
 
@@ -273,8 +278,8 @@ export class NostrPrefetchService {
 
   /**
    * Prefetch user's recent workouts (kind 1301)
-   * CLEAN ARCHITECTURE: Fetches ONLY Nostr 1301 events (no HealthKit, no merging)
-   * OPTIMIZED: Fetches 500 workouts with 5s timeout
+   * ✅ OPTIMIZED: Now fetches only LAST 20 WORKOUTS for faster startup
+   * With 5-second timeout to prevent blocking
    */
   private async prefetchUserWorkouts(hexPubkey: string): Promise<void> {
     try {
@@ -285,15 +290,15 @@ export class NostrPrefetchService {
         return;
       }
 
-      console.log('[Prefetch] Fetching user Nostr workouts (kind 1301)...');
+      console.log('[Prefetch] Fetching last 20 user workouts (kind 1301)...');
 
-      // ✅ CLEAN: Direct Nuclear1301Service call (no merging, no HealthKit)
+      // ✅ OPTIMIZED: Fetch with limit for faster performance
       const workoutFetchPromise = (async () => {
         const { Nuclear1301Service } = await import('../fitness/Nuclear1301Service');
         const nuclear1301 = Nuclear1301Service.getInstance();
 
-        // Fetch Nostr 1301 events only
-        const nostrWorkouts = await nuclear1301.getUserWorkouts(hexPubkey);
+        // Fetch only last 20 Nostr 1301 events (limited for performance)
+        const nostrWorkouts = await nuclear1301.getUserWorkoutsWithLimit(hexPubkey, 20);
 
         // Cache in UnifiedNostrCache for instant access
         await unifiedCache.set(
@@ -302,19 +307,20 @@ export class NostrPrefetchService {
           CacheTTL.USER_WORKOUTS
         );
 
-        console.log(`[Prefetch] ✅ Cached ${nostrWorkouts.length} Nostr workouts (kind 1301)`);
+        console.log(`[Prefetch] ✅ Cached ${nostrWorkouts.length} recent workouts (limited to 20)`);
+        return nostrWorkouts;
       })();
 
-      // ✅ 5-second timeout for faster failure
+      // ✅ 3-second timeout for even faster startup
       await Promise.race([
         workoutFetchPromise,
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Workout fetch timeout')), 5000)
+          setTimeout(() => reject(new Error('Workout fetch timeout')), 3000)
         )
       ]);
     } catch (error) {
       if (error instanceof Error && error.message === 'Workout fetch timeout') {
-        console.warn('[Prefetch] Workout fetch timed out after 5s - workouts will load on demand');
+        console.warn('[Prefetch] Workout fetch timed out after 3s - workouts will load on demand');
       } else {
         console.error('[Prefetch] User workouts prefetch failed:', error);
       }
@@ -347,7 +353,7 @@ export class NostrPrefetchService {
               isOnline: state.isOnline,
               pubkey: state.pubkey,
             },
-            { ttl: CacheTTL.WALLET_INFO }
+            CacheTTL.WALLET_INFO
           );
 
           console.log('[Prefetch] Wallet initialized in background, balance:', state.balance);

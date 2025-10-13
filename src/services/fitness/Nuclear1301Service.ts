@@ -231,6 +231,103 @@ export class Nuclear1301Service {
       return [];
     }
   }
+
+  /**
+   * Get LIMITED 1301 events for user - Optimized for prefetch
+   * Fetches only specified number of most recent workouts
+   */
+  async getUserWorkoutsWithLimit(pubkey: string, limit: number = 20): Promise<NostrWorkout[]> {
+    try {
+      if (!pubkey) {
+        console.log('⚠️ No pubkey provided - returning empty array');
+        return [];
+      }
+
+      console.log(`🚀 Fetching last ${limit} workouts for user (optimized for speed)...`);
+
+      // Use NDK
+      const { nip19 } = await import('nostr-tools');
+      const NDK = await import('@nostr-dev-kit/ndk');
+
+      let hexPubkey = pubkey;
+      if (pubkey.startsWith('npub1')) {
+        const decoded = nip19.decode(pubkey);
+        hexPubkey = decoded.data as string;
+      }
+
+      // Use GlobalNDKService for shared relay connections
+      const ndk = await GlobalNDKService.getInstance();
+
+      const events: any[] = [];
+
+      // OPTIMIZED FILTER: Limited to specified number of workouts
+      const optimizedFilter = {
+        kinds: [1301],
+        authors: [hexPubkey],
+        limit: limit // Only fetch the specified number of workouts
+      };
+
+      console.log('⚡ OPTIMIZED FILTER:', optimizedFilter);
+
+      // Use NDK subscription
+      const subscription = ndk.subscribe(optimizedFilter, {
+        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY
+      });
+
+      subscription.on('event', (event: any) => {
+        if (event.kind === 1301) {
+          events.push(event);
+        }
+      });
+
+      // Shorter timeout for limited queries (2 seconds)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      subscription.stop();
+
+      console.log(`✅ Fetched ${events.length} events (limit was ${limit})`);
+
+      // Convert to NostrWorkout format
+      const workouts: NostrWorkout[] = [];
+      for (const event of events) {
+        try {
+          // Parse workout data from event
+          const tags = event.tags || [];
+          const exerciseTag = tags.find((tag: any[]) => tag[0] === 'exercise');
+          const distanceTag = tags.find((tag: any[]) => tag[0] === 'distance');
+          const durationTag = tags.find((tag: any[]) => tag[0] === 'duration');
+          const caloriesTag = tags.find((tag: any[]) => tag[0] === 'calories');
+          const titleTag = tags.find((tag: any[]) => tag[0] === 'title');
+
+          const workout: NostrWorkout = {
+            id: event.id,
+            userId: 'nostr_user',
+            type: exerciseTag?.[1] || 'other',
+            startTime: new Date(event.created_at * 1000).toISOString(),
+            endTime: new Date((event.created_at + 60) * 1000).toISOString(),
+            duration: durationTag ? parseInt(durationTag[1]) : 0,
+            distance: distanceTag ? parseFloat(distanceTag[1]) : 0,
+            calories: caloriesTag ? parseInt(caloriesTag[1]) : 0,
+            source: 'nostr',
+            nostrEventId: event.id,
+            nostrPubkey: event.pubkey,
+            syncedAt: new Date().toISOString()
+          };
+          workouts.push(workout);
+        } catch (error) {
+          console.error('❌ Failed to parse workout:', error);
+        }
+      }
+
+      // Sort by date (newest first) and return only the limit
+      return workouts
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        .slice(0, limit);
+
+    } catch (error) {
+      console.error('❌ Limited workout fetch failed:', error);
+      return [];
+    }
+  }
 }
 
 export default Nuclear1301Service.getInstance();
