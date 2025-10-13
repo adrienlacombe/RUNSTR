@@ -1,6 +1,16 @@
 # Scripts Directory
 
-This directory contains utility scripts for development, testing, and quality assurance.
+Utility scripts, test scripts, and development tools for RUNSTR.
+
+## Directory Structure
+
+```
+scripts/
+├── README.md (this file)
+├── database/ (SQL migrations and fixes - deprecated)
+├── assets/ (Asset generation scripts)
+└── [test and utility scripts]
+```
 
 ## Available Scripts
 
@@ -80,6 +90,70 @@ node scripts/query-1301-stats.js
 **Output**:
 - `stats-output.json` - Detailed workout event statistics
 - Console logs with relay connection status and event counts
+
+---
+
+### Wallet Testing Scripts
+- **clear-app-data.js** - Clear AsyncStorage and reset app state for testing
+- **recover-wallet.js** - Test wallet recovery flow and persistence
+- **test-wallet-duplicate-prevention.js** - Verify no duplicate wallet creation
+- **test-wallet-fixes.js** - Test wallet initialization and persistence fixes
+- **test-wallet-fixes.ts** - TypeScript version of wallet testing suite
+- **test-wallet-retrieval.js** - Test wallet data retrieval from storage
+
+### Amber Integration Testing
+- **test-amber-deeplink.sh** - Test Amber signer deep link integration
+- **test-amber-solutions.ts** - Test Amber signing solutions and workflows
+- **test-amber-wallet-flow.ts** - End-to-end Amber wallet flow testing
+
+### Performance Testing
+- **test-progressive-workout-loading.html** - Browser test for workout loading performance
+- **test-workout-performance-browser.html** - Browser-based workout performance testing
+
+### Nostr Testing
+- **test1301Format.js** - Validate kind 1301 workout event format compliance
+- **test-integration.js** - Integration tests for Nostr services
+
+### General Testing
+- **testRunner.js** - Custom test runner for specific test suites
+- **runTerminalTests.js** - Run tests from terminal with output formatting
+- **validateTestLogic.js** - Validate test logic and assertions
+
+---
+
+## Database Scripts (`database/`)
+
+**NOTE**: These SQL scripts are legacy from when RUNSTR used Supabase. The app now uses pure Nostr for all data storage. Scripts kept for historical reference.
+
+### Migration Scripts
+- **HYBRID_SCHEMA_MIGRATION.sql** - Hybrid schema migration for Phase 2
+- **complete-nuclear-fix.sql** - Complete database reset and rebuild
+- **nuclear-option-fix.sql** - Emergency database fix script
+
+### Targeted Fixes
+- **fix-difficulty-enum.sql** - Fix difficulty level enum constraints
+- **fix-function-overload.sql** - Fix function overload issues
+- **fix-rls-policies.sql** - Fix Row Level Security policies
+- **fix-simple-no-difficulty.sql** - Simplified fix without difficulty field
+- **fix-stored-procedure.sql** - Fix stored procedure definitions
+
+---
+
+## Asset Generation Scripts (`assets/`)
+
+Python scripts for generating app assets:
+
+- **create_circular_android_icons.py** - Generate circular Android adaptive icons
+- **generate_splash_screens.py** - Generate splash screens for iOS and Android
+- **scale_android_icons.py** - Scale and resize Android launcher icons
+
+**Requirements**: Python 3.x with Pillow (PIL) library
+
+**Usage Example**:
+```bash
+cd scripts/assets
+python3 generate_splash_screens.py
+```
 
 ---
 
@@ -164,4 +238,14 @@ The pre-launch audit returns exit code 1 if critical issues are found, failing t
 
 ---
 
-**Last Updated**: 2025-10-06
+## Related Documentation
+
+- **Testing Guide**: docs/PHASE_1_2_TESTING_GUIDE.md
+- **Pre-Launch Guide**: docs/PRE_LAUNCH_REVIEW_GUIDE.md
+- **Test Scripts Summary**: docs/TEST_SCRIPTS_SUMMARY.md
+- **Metro/Xcode Debugging**: docs/METRO_XCODE_DEBUGGING_GUIDE.md
+- **Amber Integration**: docs/AMBER_INTEGRATION.md
+
+---
+
+**Last Updated**: 2025-01-13

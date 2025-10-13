@@ -1,28 +1,66 @@
 # RUNSTR REWARDS - Claude Context
 
 ## Project Overview
-RUNSTR REWARDS is a React Native mobile application that transforms fitness routines into Bitcoin-powered team competitions through Nostr's decentralized protocol. The app creates a complete fitness economy where every user gets an auto-created Lightning wallet (implemented via NIP-60/61 protocol), enabling instant peer-to-peer Bitcoin transactions. Team members can zap satoshis to each other for motivation, captains can distribute prizes directly, and fitness teams operate as self-contained Bitcoin circular economies.
+RUNSTR REWARDS is a React Native mobile application that transforms fitness routines into Bitcoin-powered team competitions through Nostr's decentralized protocol. The app focuses on three core pillars: **Teams** (community-driven fitness groups with charity integration), **Competitions** (Bitcoin-incentivized events with ticket sales), and **Workouts** (local-first data with selective publishing). Teams receive payments via Nostr Wallet Connect (NWC), enabling instant Bitcoin transactions without platform custody. Members can pay event entry fees with any Lightning wallet (Cash App, Strike, Alby, self-custodial), and captains can challenge each other to 1v1 competitions with Bitcoin wagers.
 
 📖 **For detailed overview, see**: [RUNSTR_REWARDS_OVERVIEW.md](./RUNSTR_REWARDS_OVERVIEW.md)
 📖 **For user flow documentation, see**: [APP_USER_FLOW_AND_CAPTAIN_EXPERIENCE.md](./docs/APP_USER_FLOW_AND_CAPTAIN_EXPERIENCE.md)
+
+## Strategic Direction: Three Core Pillars
+
+RUNSTR is refocusing on three essential components that make fitness competitions work:
+
+### 1. **Teams** - Community-Driven Fitness Groups
+- Teams discovered through Nostr (kind 33404 metadata)
+- Member rosters stored in kind 30000 lists (single source of truth)
+- **Charity Integration**: Each team designates a supported charity (OpenSats, HRF, local organizations)
+- **NWC Payment Reception**: Teams receive payments via Nostr Wallet Connect connection strings
+- **No Platform Custody**: Teams control their own Lightning wallets
+
+### 2. **Competitions** - Bitcoin-Incentivized Events
+- Virtual fitness events (5Ks, cycling challenges, strength competitions)
+- **Entry Fee Tickets**: Captains set entry fees in satoshis (e.g., 2,100 sats = ~$1-2)
+- **Lightning Invoice Generation**: Using Alby MCP tools to create invoices
+- **Universal Wallet Support**: Users pay with Cash App, Strike, Alby, or self-custodial wallets
+- **Payment Detection**: Automatic confirmation via NWC polling/webhooks
+- **Instant Participation**: Payment detected → User added to event locally → Join request to captain
+- **1v1 Challenges**: Members challenge each other with Bitcoin wagers (escrow both sides, auto-payout winner)
+
+### 3. **Workouts** - Local-First Data Control
+- All workouts stored locally in AsyncStorage/SQLite until published
+- **Two Publishing Options**:
+  - Kind 1 (social posts with beautiful cards)
+  - Kind 1301 (competition entries with structured data)
+- HealthKit integration for Apple Watch/iPhone workouts
+- User has complete control over when/what to publish
+
+### Target Market: Bitcoin/Nostr Community First
+- **50,000+ addressable market** of Bitcoiners and Nostr users
+- Solves cold start problem by targeting community that already understands:
+  - Private keys (nsec) and public keys (npub)
+  - Lightning Network payments and invoices
+  - Decentralized protocols and data ownership
+- **Auto-Nsec Generation**: Bitcoiners without Nostr accounts get auto-generated keys with backup instructions
+- **Proven Product-Market Fit**: Won first place in NosFabrica challenge
 
 ## Core User & Captain Experience
 **User Flow**: Nsec login → Auto-wallet creation → Profile screen → Teams discovery → Team joining → Competition participation → Earn/send zaps
 **Captain Flow**: Teams page → Captain dashboard → Competition creation → Member management → Direct Bitcoin rewards via zaps
 
 **Key Features**:
-- **Nostr-Only Authentication**: Direct nsec login with automatic profile/workout import from stored keys
-- **Auto-Wallet Creation**: Every user gets a Lightning wallet automatically on login (NIP-60/61 implementation)
-- **P2P Bitcoin Zaps**: Tap lightning bolt for 21 sats, long-press for custom amounts
+- **Nostr-Only Authentication**: Direct nsec login with automatic profile/workout import (auto-generation for Bitcoiners)
+- **NWC Lightning Payments**: Teams receive payments via Nostr Wallet Connect connection strings
+- **Universal Wallet Support**: Users pay with ANY Lightning wallet (Cash App, Strike, Alby, self-custodial)
+- **Event Ticket Sales**: Entry fees generate Lightning invoices, payment detection triggers instant participation
+- **1v1 Bitcoin Wagers**: Challenge friends with sats on the line, automatic escrow and winner payout
+- **Charity Integration**: Team pages display selected charities (OpenSats, HRF, community organizations)
 - **HealthKit Workout Posting**: Transform Apple Health workouts into Nostr events and social media cards
 - Real-time team discovery from multiple Nostr relays
-- Captain dashboard with join request management and direct member zapping
+- Captain dashboard with join request management
 - Competition creation (7 activity types, cascading dropdowns)
 - Automatic leaderboard scoring based on captain-defined parameters
-- **Lightning Integration**: Complete NIP-60/61 implementation for instant, low-fee Bitcoin transfers
 - **Beautiful Social Cards**: Instagram-worthy workout achievement graphics with RUNSTR branding
-- **Auto-Receive**: Automatic claiming of incoming zaps every 30 seconds
-- **Bitcoin Circular Economy**: Teams operate as self-contained economies with entry fees, prizes, and peer support
+- **Performance Optimizations**: Aggressive caching eliminates loading states, instant navigation after splash
 
 **Authentication**:
 - **Simple Login Screen**: Show login screen unless npub/nsec found in local storage
@@ -35,7 +73,7 @@ RUNSTR REWARDS is a React Native mobile application that transforms fitness rout
 - **Authentication**: Nostr (nsec) - direct authentication only
 - **Fitness Data**: Kind 1301 events from Nostr relays + Apple HealthKit
 - **Team Data**: Custom Nostr event kinds for teams, leagues, events, challenges (see [nostr-native-fitness-competitions.md](./docs/nostr-native-fitness-competitions.md))
-- **Bitcoin**: Lightning payments via NIP-60/61 protocol for P2P transactions with auto-wallet creation
+- **Bitcoin**: Lightning payments via Nostr Wallet Connect (NWC) + Lightning addresses for universal wallet support
 - **Nostr Library**: NDK (@nostr-dev-kit/ndk) EXCLUSIVELY - NEVER use nostr-tools
 - **Global NDK Instance**: Single shared NDK instance via `GlobalNDKService` - reduces WebSocket connections by 90%
 - **Nostr Relays**: Damus, Primal, nos.lol, Nostr.band (4 relays via global NDK pool)
@@ -73,10 +111,11 @@ RUNSTR REWARDS is a React Native mobile application that transforms fitness rout
 - **kind 1102**: Competition results and prize distribution
 - **kind 1103**: Competition starting soon reminders
 
-### Bitcoin/Lightning Wallet
-- **kind 37375**: Wallet info (NIP-60 Lightning wallet config)
-- **kind 9321**: Nutzap events (P2P Bitcoin zap receipts)
-- **kind 7375**: Token events (ecash balance tracking)
+### Bitcoin/Lightning Payments
+- **NWC Connection Strings**: Stored in team metadata for receiving payments (nostr+walletconnect://...)
+- **Lightning Addresses**: Fallback payment method (team@getalby.com format)
+- **Invoice Generation**: Using Alby MCP tools for Lightning invoice creation
+- **Payment Detection**: Polling/webhooks via NWC for instant payment confirmation
 
 ### User Profile
 - **kind 0**: Profile metadata (name, picture, about)
@@ -122,10 +161,12 @@ Our app publishes kind 1301 events supporting all fitness activities for in-app 
 
 ## Architecture Principles
 - **File Size Limit**: Maximum 500 lines per file for maintainability
-- **Two-Page Simplicity**: Core app is just Teams and Profile tabs
+- **Three Core Pillars**: Focus on Teams, Competitions, Workouts - everything else is secondary
 - **Pure Nostr Data Model**: All team, competition, and social data from Nostr events
 - **No Backend Dependencies**: No Supabase, no traditional backend - pure Nostr
-- **Platform-Specific UX**: Different auth flows for iOS/Android
+- **NWC Payment Integration**: Non-custodial Lightning payments via Nostr Wallet Connect
+- **Performance First**: Aggressive caching eliminates loading states after initial splash
+- **Local-First Workouts**: Store locally, sync to Nostr only on user action
 - **Real Data Only**: No mock data - all functionality uses actual Nostr events + HealthKit data
 - **Folder Documentation**: Update folder READMEs when adding/removing/changing files
 
@@ -177,6 +218,280 @@ console.log(`${status.connectedRelays}/${status.relayCount} relays connected`);
 // Force reconnect if needed
 await GlobalNDKService.reconnect();
 ```
+
+## Lightning Payment Architecture (NWC)
+
+### Event Ticket Purchase Flow
+
+**User Journey:**
+```
+1. User clicks "Join Event" → sees entry fee (e.g., 2,100 sats)
+2. App generates Lightning invoice using team's NWC connection
+3. User pays from ANY Lightning wallet (Cash App, Strike, self-custodial)
+4. Payment detection (NWC webhook or polling every 5 seconds)
+5. Payment confirmed → User added to event locally (instant UX)
+6. Join request (kind 1105) published to Nostr
+7. Captain sees notification → approves request
+8. User added to official kind 30000 member list
+9. User workouts now count toward event leaderboard
+```
+
+**Technical Implementation:**
+```typescript
+// Team metadata includes NWC connection string
+interface Team {
+  nwcConnectionString?: string; // "nostr+walletconnect://..."
+  lightningAddress?: string; // "team@getalby.com" as fallback
+  charityId?: string; // "opensats", "hrf", etc.
+  charityUrl?: string; // Link to charity page
+}
+
+// Event ticket purchase service
+async purchaseEventTicket(eventId: string, userId: string) {
+  // 1. Get team's NWC connection via Alby MCP tools
+  const invoice = await mcp__alby__make_invoice({
+    amount_in_sats: event.entryFee,
+    description: `Entry fee for ${event.name}`,
+    metadata: { eventId, userId }
+  });
+
+  // 2. Show invoice to user (QR + copy button)
+  displayInvoiceModal(invoice);
+
+  // 3. Poll for payment (Alby MCP lookup_invoice)
+  const paymentDetected = await pollForPayment(invoice.payment_hash);
+
+  // 4. Add user to event locally
+  await addUserToEventLocally(eventId, userId);
+
+  // 5. Submit join request to Nostr
+  await publishJoinRequest(eventId, userId);
+
+  // 6. Navigate to event detail screen
+  navigation.navigate('EventDetail', { eventId });
+}
+```
+
+**Alby MCP Tools Integration:**
+- `mcp__alby__make_invoice()` - Generate Lightning invoices
+- `mcp__alby__lookup_invoice()` - Check payment status
+- `mcp__alby__get_info()` - Get wallet capabilities
+- `mcp__alby__get_balance()` - Check team wallet balance
+
+**Why This Works:**
+- Uses standard Lightning invoices (works with any wallet)
+- NWC enables teams to receive payments without platform custody
+- Payment detection is reliable (Alby tools provide invoice lookup)
+- Local-first UX (user sees event immediately, approval is async)
+- Captain retains control (manual approval for official roster)
+
+### 1v1 Challenge with Bitcoin Escrow
+
+**Challenge Flow:**
+```
+1. User A challenges User B to a fitness competition
+2. Both users stake Bitcoin (e.g., 10,000 sats each)
+3. Challenge parameters: goal type, deadline, activity
+4. Both users pay into escrow (separate Lightning invoices)
+5. App monitors published kind 1301 workout events
+6. Deadline expires → Determine winner from workout data
+7. Auto-payout winner via NWC (receives 20,000 sats)
+```
+
+**Data Structure:**
+```typescript
+interface Challenge {
+  id: string;
+  challengerId: string;
+  challengedId: string;
+  wagerSats: number; // Amount each participant stakes
+  goalType: 'fastest_5k' | 'most_distance' | 'workout_count';
+  activityType: 'running' | 'cycling' | 'walking' | 'strength';
+  deadline: string; // ISO timestamp
+  status: 'pending' | 'both_paid' | 'active' | 'completed';
+  escrowInvoices: {
+    challenger: string; // Lightning payment hash
+    challenged: string; // Lightning payment hash
+  };
+  winnerId?: string;
+}
+```
+
+**Implementation:**
+```typescript
+// Create challenge escrow
+async createChallengeEscrow(challenge: Challenge) {
+  // Generate two invoices (one for each participant)
+  const invoice1 = await mcp__alby__make_invoice({
+    amount_in_sats: challenge.wagerSats,
+    description: `Challenge wager: ${challenge.goalType}`,
+    metadata: { challengeId: challenge.id, userId: challenge.challengerId }
+  });
+
+  const invoice2 = await mcp__alby__make_invoice({
+    amount_in_sats: challenge.wagerSats,
+    description: `Challenge wager: ${challenge.goalType}`,
+    metadata: { challengeId: challenge.id, userId: challenge.challengedId }
+  });
+
+  // Store invoices and wait for both payments
+  return { invoice1, invoice2 };
+}
+
+// Detect both payments
+async waitForBothPayments(invoices) {
+  const [payment1, payment2] = await Promise.all([
+    pollForPayment(invoices.invoice1.payment_hash),
+    pollForPayment(invoices.invoice2.payment_hash),
+  ]);
+
+  // Mark challenge as active
+  await updateChallengeStatus(challenge.id, 'active');
+}
+
+// Determine winner and payout
+async completeChallengeWithPayout(challengeId: string) {
+  const challenge = await getChallenge(challengeId);
+  const winner = await determineWinnerFromWorkouts(challenge);
+
+  // Payout winner (total: wagerSats * 2)
+  await mcp__alby__pay_invoice({
+    invoice: winner.lightningAddress,
+    amount_in_sats: challenge.wagerSats * 2,
+  });
+
+  // Publish result to Nostr (kind 1102 notification)
+  await publishChallengeResult(challenge, winner);
+}
+```
+
+**Winner Determination:**
+- Query kind 1301 events from both participants within challenge timeframe
+- Apply challenge goal logic (fastest time, most distance, etc.)
+- Automatic and transparent (all workouts verifiable on Nostr)
+
+## Performance Optimization Strategy
+
+### Problem: Heavy Nostr Usage Causing Slowness
+
+**Current Issues:**
+- Multiple simultaneous Nostr queries on app startup
+- Loading states throughout app navigation
+- Duplicate fetches for same data
+- Unoptimized leaderboard calculations
+
+**Solution: Aggressive Caching + Prefetching**
+
+### Caching Architecture (UnifiedNostrCache)
+
+**Intelligent TTL Configuration:**
+```typescript
+// Static data (hours/days)
+USER_PROFILE: 24 hours        // Profiles rarely change
+TEAM_METADATA: 12 hours       // Team info updates infrequently
+DISCOVERED_TEAMS: 1 hour      // New teams appear occasionally
+
+// Semi-static data (minutes)
+TEAM_MEMBERS: 30 minutes      // Members join/leave occasionally
+USER_TEAMS: 30 minutes        // User's team list changes rarely
+USER_WORKOUTS: 15 minutes     // New workouts added regularly
+
+// Dynamic data (seconds)
+JOIN_REQUESTS: 1 minute       // High frequency updates
+LEADERBOARDS: 5 minutes       // Updates with new workouts
+WALLET_BALANCE: 30 seconds    // Near real-time for UX
+```
+
+### Prefetching Strategy
+
+**Splash Screen Load (2-3 seconds):**
+```typescript
+// Load everything during splash → Zero loading states after
+await Promise.all([
+  unifiedCache.get('user_profile', () => fetchProfile()),
+  unifiedCache.get('user_teams', () => fetchUserTeams()),
+  unifiedCache.get('discovered_teams', () => fetchAllTeams()),
+  unifiedCache.get('user_workouts', () => fetchRecentWorkouts()),
+  unifiedCache.get('competitions', () => fetchActiveCompetitions()),
+]);
+
+// After splash: Instant navigation, no spinners
+```
+
+### Query Optimization
+
+**Before (Slow):**
+```typescript
+// ❌ Query all workouts every time
+const workouts = await fetchWorkouts(userPubkey);  // 2-3 seconds
+setWorkouts(workouts);
+```
+
+**After (Fast):**
+```typescript
+// ✅ Use local database + periodic sync
+const localWorkouts = await workoutDatabase.getStoredWorkouts(userPubkey);
+setWorkouts(localWorkouts);  // Instant
+
+const lastSync = await getLastSyncTime();
+if (Date.now() - lastSync > 15 * 60 * 1000) {  // 15 minutes
+  syncWorkoutsFromNostr(userPubkey);  // Background sync
+}
+```
+
+### Screen-Level Optimizations
+
+**Pattern: Cache-First with Background Refresh**
+```typescript
+const MyTeamsScreen = () => {
+  const [teams, setTeams] = useState([]);
+
+  useEffect(() => {
+    // Get cached data (instant)
+    const cached = unifiedCache.getCached(CacheKeys.USER_TEAMS(userPubkey));
+    if (cached) {
+      setTeams(cached);  // Renders immediately
+    }
+
+    // Subscribe to updates
+    return unifiedCache.subscribe(CacheKeys.USER_TEAMS(userPubkey), setTeams);
+  }, []);
+
+  // Screen renders instantly with cached data
+  return <TeamsList teams={teams} />;
+};
+```
+
+### Expected Performance Improvements
+
+**Before Optimization:**
+- App startup: 5-6 seconds before interactive
+- Screen navigation: 1-2 second loading states
+- Team discovery: 3-4 seconds to show results
+- Leaderboard: 2-3 seconds to calculate rankings
+
+**After Optimization:**
+- App startup: 2-3 seconds (splash screen only)
+- Screen navigation: Instant (0 loading states)
+- Team discovery: Instant from cache
+- Leaderboard: Instant from 5-minute cache
+
+### Implementation Priority
+
+**Phase 1: Prefetching (Highest Impact)**
+- Update SplashInitScreen to prefetch all data
+- Eliminate loading states from main screens
+- Expected: 70% faster perceived performance
+
+**Phase 2: Local Database (Medium Impact)**
+- Store workouts locally in SQLite
+- Sync to Nostr only on user action
+- Expected: Instant workout display
+
+**Phase 3: Smart Invalidation (Low Impact)**
+- Event-driven cache invalidation
+- Auto-refresh on Nostr event reception
+- Expected: Always fresh data without manual refresh
 
 ## Project Structure
 ```
