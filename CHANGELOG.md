@@ -6,6 +6,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2025-10-13
+
+### Changed
+- **🔄 BREAKING: Replaced NIP-60/61 (Cashu) with NWC (Nostr Wallet Connect)**
+  - Migrated from Cashu ecash system to direct Lightning payments
+  - Integrated Alby SDK (@getalby/sdk) for wallet operations
+  - Simpler, more reliable payment infrastructure
+  - Better compatibility with existing Lightning ecosystem
+  - CompactWallet now uses NWC instead of nutzap proofs
+  - All zaps and rewards now use native Lightning instead of Cashu tokens
+
+### Added
+- **NWC Wallet Operations**: Complete NWC integration for payments and rewards
+  - RewardSenderWallet service using Alby SDK's NWCClient
+  - Daily workout reward system with NWC support
+  - Dedicated reward sender wallet configuration
+  - Comprehensive test coverage for NWC reward system
+- **Charity Integration**: Full charity zapping via Lightning
+  - CharitySection component displays team's supported charity
+  - Lightning payment support for OpenSats, HRF, and other organizations
+  - Integrated into SimpleTeamScreen with zap handlers
+- **Pull-to-Refresh**: Added to Profile screen for balance updates and team events
+  - Quick gesture to refresh wallet balance
+  - Manual refresh for team event lists
+
+### Fixed
+- **MVP Readiness Review**: Fixed 29 critical TypeScript errors (reduced from 81 to 52)
+  - Critical JSX/React type errors in App.tsx (void → ReactNode)
+  - Theme property errors (theme.colors.surface → cardBackground) across 6 files
+  - Null safety checks for npubToHex conversions in EventJoinRequestsSection
+  - Missing props in EventJoinRequestsSection (teamId, captainPubkey)
+  - Added onReject optional prop to JoinRequestCard
+  - Fixed userNpub → npub prop name in CompetitionParticipantsSection
+- **Theme Consistency**: Achieved 100% orange/black brand compliance
+  - Replaced all white text (#ffffff) with theme.colors.text (4 instances)
+  - Replaced gray text (#666 → textMuted, #999 → textDark, #ccc → textSecondary) (40+ instances)
+  - Updated 20 files for consistent brand identity across all screens
+- **Critical Distance Tracking Freeze**: Eliminated 2-minute distance freeze bug
+  - Fixed stale closure issue in ActivityTrackerScreen
+  - Distance now updates reliably throughout entire workout
+  - Ensures accurate tracking for long-duration runs, walks, and cycles
+- **Event Loading Race Condition**: Resolved using useFocusEffect for reliable event display
+  - Events now load reliably on screen focus
+  - Eliminated inconsistent event display issues
+- **Profile Screen Layout**: Restored proper layout after adding ScrollView
+  - Fixed UI layout issues introduced with scrolling functionality
+- **Wallet Balance Sync**: Synchronized NWC balance with spendable proofs before zapping
+  - Balance now accurately reflects available funds
+  - Prevents failed zaps due to stale balance data
+- **Wallet Detection**: Added backwards compatibility and auto-initialization for NWC
+  - Smarter wallet detection logic
+  - Maintains compatibility with existing wallets
+- **Event Creation and Join Approvals**: Critical fixes for competition functionality
+  - More reliable event creation workflow
+  - Better join request approval handling
+- **Android Background Distance Tracking**: Improved reliability during backgrounded workouts
+  - Better background location processing
+  - More accurate distance updates when app is backgrounded
+- **Season 1 Static Data**: Updated with actual results from Nostr
+  - Real leaderboard data instead of placeholders
+  - Accurate competition results
+
+### Improved
+- **Performance**: Major optimizations with hard-coded Season 1 and comprehensive prefetch
+  - Dramatically reduced load times for Season 1 leaderboard
+  - Better prefetching strategy during app initialization
+  - Improved overall app responsiveness
+- **Global NDK Service**: Migrated remaining services from NostrRelayManager
+  - Eliminated duplicate WebSocket connections
+  - Better connection stability and reliability
+  - More efficient Nostr operations throughout the app
+- **Workout Posting Reliability**: Enhanced using UnifiedSigningService for kind 1 events
+  - More reliable kind 1 workout posting to Nostr
+  - Better signing coordination across the app
+- **Lightning Zaps**: Automatic balance refresh after successful NWC payments
+  - Real-time balance updates post-transaction
+  - Better user feedback on payment success
+
+### Security
+- **NWC Connection Strings**: Moved sensitive NWC credentials to environment variables
+  - No hardcoded secrets in source code
+  - Better credential management practices
+  - Enhanced security for wallet operations
+
+### Documentation
+- **Project Organization**: Reorganized docs and scripts into dedicated folders
+  - Cleaner project structure
+  - Easier navigation for documentation
+- **NWC Integration**: Added comprehensive technical documentation for NWC reward system
+  - Detailed architecture overview
+  - Integration patterns and best practices
+
+### Testing
+- **Amber Wallet Diagnostics**: Added comprehensive diagnostic scripts for wallet restoration
+  - Tools to debug wallet connection issues
+  - Restoration flow testing utilities
+
+### Removed
+- **Nutzap/Cashu Infrastructure**: Phased out in favor of native Lightning via NWC
+  - Removed Cashu mint dependencies
+  - Removed ecash proof management
+  - Simplified wallet architecture with direct Lightning payments
+
 ## [0.2.3] - 2025-10-09
 
 ### Performance
