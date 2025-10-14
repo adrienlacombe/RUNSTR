@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   passwordBox: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,

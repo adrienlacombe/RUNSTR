@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     fontSize: 14,
-    color: theme.colors.secondary,
+    color: theme.colors.textSecondary,
     marginBottom: 20,
   },
   input: {

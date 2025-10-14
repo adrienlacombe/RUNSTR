@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   },
   streakContainer: {
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.cardBackground,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 8

@@ -93,12 +93,12 @@ export const WorkoutCalendarHeatmap: React.FC<WorkoutCalendarHeatmapProps> = ({
 
   const getIntensityColor = (intensity: number): string => {
     switch (intensity) {
-      case 0: return theme.colors.surface; // #0a0a0a
+      case 0: return theme.colors.cardBackground; // #0a0a0a
       case 1: return 'rgba(255, 255, 255, 0.2)'; // Light activity
       case 2: return 'rgba(255, 255, 255, 0.4)'; // Medium activity
       case 3: return 'rgba(255, 255, 255, 0.6)'; // High activity
       case 4: return 'rgba(255, 255, 255, 0.8)'; // Very high activity
-      default: return theme.colors.surface;
+      default: return theme.colors.cardBackground;
     }
   };
 

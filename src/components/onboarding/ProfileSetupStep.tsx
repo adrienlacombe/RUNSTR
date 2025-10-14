@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.cardBackground,
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderStyle: 'dashed',
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.cardBackground,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   textArea: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.cardBackground,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
