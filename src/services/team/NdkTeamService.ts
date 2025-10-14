@@ -263,11 +263,36 @@ export class NdkTeamService {
           const flashTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'flash');
           const flashUrl = flashTag?.[1] || undefined;
 
+          // Extract description - handle both old JSON format and new tag format
+          const description = (() => {
+            try {
+              // Check for 'about' tag first (new format)
+              const aboutTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'about');
+              if (aboutTag?.[1]) {
+                return aboutTag[1];
+              }
+
+              // Try parsing content as JSON (old format - e.g., Bitcoin Runners)
+              if (ndkEvent.content && ndkEvent.content.startsWith('{')) {
+                const parsed = JSON.parse(ndkEvent.content);
+                if (parsed.about) {
+                  return parsed.about;
+                }
+              }
+
+              // Fall back to content as-is (plain text)
+              return ndkEvent.content || '';
+            } catch (error) {
+              // If JSON parse fails, use content as plain text
+              return ndkEvent.content || '';
+            }
+          })();
+
           // Create minimal team object
           const simpleTeam: NostrTeam = {
             id: teamId,
             name: teamName,
-            description: ndkEvent.content || '',
+            description: description,
             captain: captainId, // Add captain field
             captainId: captainId,
             captainNpub: captainId, // For compatibility

@@ -52,7 +52,7 @@ export class WalletSync {
       this.userPubkey = hexPubkey;
 
       // ✅ PERFORMANCE: Get signer with 3s timeout to prevent blocking
-      const signerPromise = UnifiedSigningService.getSigner();
+      const signerPromise = UnifiedSigningService.getInstance().getSigner();
       const timeoutPromise = new Promise<null>((resolve) => {
         setTimeout(() => {
           console.warn('[WalletSync] Signer fetch timeout (3s) - continuing without signer');

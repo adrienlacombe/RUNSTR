@@ -12,6 +12,7 @@ import { WorkoutCard } from '../shared/WorkoutCard';
 import { HealthKitErrorBoundary } from '../../fitness/HealthKitErrorBoundary';
 import healthKitService from '../../../services/fitness/healthKitService';
 import type { Workout } from '../../../types/workout';
+import { Ionicons } from '@expo/vector-icons';
 
 interface AppleHealthTabProps {
   userId: string;
@@ -219,17 +220,22 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
   const renderWorkout = ({ item }: { item: Workout }) => (
     <WorkoutCard workout={item}>
       <View style={styles.buttonContainer}>
+        {/* Post button - Kind 1 social sharing */}
         <TouchableOpacity
-          style={[styles.postButton, styles.competeButton]}
-          onPress={() => handleCompete(item)}
-        >
-          <Text style={styles.postButtonText}>🏆 Enter Competition</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.postButton, styles.socialButton]}
+          style={[styles.actionButton, styles.postButton]}
           onPress={() => handleSocialShare(item)}
         >
-          <Text style={styles.postButtonText}>📱 Share Socially</Text>
+          <Ionicons name="chatbubble-outline" size={16} color={theme.colors.accentText} />
+          <Text style={styles.postButtonText}>Post</Text>
+        </TouchableOpacity>
+
+        {/* Public button - Kind 1301 competition entry */}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.publicButton]}
+          onPress={() => handleCompete(item)}
+        >
+          <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.accentText} />
+          <Text style={styles.publicButtonText}>Public</Text>
         </TouchableOpacity>
       </View>
     </WorkoutCard>
@@ -320,20 +326,28 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 8,
   },
-  postButton: {
+  actionButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    alignItems: 'center',
+    gap: 6,
   },
-  competeButton: {
+  postButton: {
     backgroundColor: theme.colors.accent,
   },
-  socialButton: {
-    backgroundColor: theme.colors.primary,
+  publicButton: {
+    backgroundColor: theme.colors.accent,
   },
   postButtonText: {
+    color: theme.colors.accentText,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  publicButtonText: {
     color: theme.colors.accentText,
     fontSize: 14,
     fontWeight: '600',

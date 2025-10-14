@@ -625,9 +625,9 @@ export class HealthKitService {
         return null;
       }
 
-      // Convert distance from kilometers to meters
+      // HealthKit already provides distance in meters, no conversion needed
       const distance = hkWorkout.totalDistance
-        ? Math.round(hkWorkout.totalDistance * 1000)
+        ? Math.round(hkWorkout.totalDistance)
         : 0;
 
       // Round calories
@@ -965,20 +965,62 @@ export class HealthKitService {
           }
           return true;
         }
-      ).map((workout: any) => {
+      ).map((workout: any, index: number) => {
+        // Debug: Log first workout to see ALL available properties
+        if (index === 0 && workout) {
+          console.log('📊 DEBUG: Available workout properties:', Object.keys(workout));
+          console.log('📊 DEBUG: Full workout object:', workout);
+          console.log('📊 DEBUG: Specific fields check:');
+          console.log('  - uuid:', workout.uuid);
+          console.log('  - duration:', workout.duration);
+          console.log('  - distance:', workout.distance);
+          console.log('  - totalDistance:', workout.totalDistance);
+          console.log('  - totalEnergyBurned:', workout.totalEnergyBurned);
+          console.log('  - activeEnergyBurned:', workout.activeEnergyBurned);
+          console.log('  - energyBurned:', workout.energyBurned);
+          console.log('  - workoutActivityType:', workout.workoutActivityType);
+        }
+
+        // Extract distance - HealthKit returns HKQuantity objects, not raw numbers
+        // Try to extract numeric value from HKQuantity object (.quantity, .doubleValue, or .value)
+        const distanceRaw = workout.totalDistance || workout.distance || workout.distanceInMeters;
+        const distance = distanceRaw?.quantity
+          || distanceRaw?.doubleValue
+          || distanceRaw?.value
+          || (typeof distanceRaw === 'number' ? distanceRaw : 0);
+
+        // Extract calories - HealthKit returns HKQuantity objects, not raw numbers
+        // Try to extract numeric value from HKQuantity object (.quantity, .doubleValue, or .value)
+        const caloriesRaw = workout.totalEnergyBurned || workout.activeEnergyBurned || workout.energyBurned || workout.calories;
+        const calories = caloriesRaw?.quantity
+          || caloriesRaw?.doubleValue
+          || caloriesRaw?.value
+          || (typeof caloriesRaw === 'number' ? caloriesRaw : 0);
+
+        // Debug: Log extracted values for first workout
+        if (index === 0) {
+          console.log('📊 DEBUG: Extracted values from first workout:');
+          console.log(`  - Distance raw:`, distanceRaw);
+          console.log(`  - Distance extracted:`, distance, 'meters');
+          console.log(`  - Calories raw:`, caloriesRaw);
+          console.log(`  - Calories extracted:`, calories, 'kcal');
+        }
+
         const workoutData = this.normalizeWorkout(
           {
             UUID: workout.uuid,
             startDate: workout.startDate,
             endDate: workout.endDate,
             duration: workout.duration || 0,
-            totalDistance: workout.totalDistance || 0,
-            totalEnergyBurned: workout.totalEnergyBurned || 0,
+            totalDistance: distance,
+            totalEnergyBurned: calories,
             workoutActivityType: workout.workoutActivityType || 0,
             sourceName: workout.sourceName || 'Unknown',
           },
           userId
         );
+
+        console.log(`🔍 Workout ${workout.uuid?.slice(0, 8)}: distance=${distance}m, calories=${calories}kcal, duration=${workout.duration}s`);
 
         // Return in format expected by AppleHealthTab (simplified Workout interface)
         return {

@@ -275,7 +275,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
       }
 
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
-      const signer = await UnifiedSigningService.getSigner();
+      const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
         throw new Error('Cannot access signing capability. Please ensure you are logged in.');
       }
