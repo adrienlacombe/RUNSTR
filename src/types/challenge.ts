@@ -22,6 +22,10 @@ export interface ChallengeMetadata {
   challengedPubkey: string;
   winnerId?: string; // Pubkey of winner when completed
   payoutHash?: string; // Lightning payment hash for winner payout
+  creatorLightningAddress?: string; // Creator's Lightning address for receiving payments
+  accepterLightningAddress?: string; // Accepter's Lightning address for receiving payments
+  creatorPaymentProof?: string; // Invoice paid by creator (optional tracking)
+  accepterPaymentProof?: string; // Invoice paid by accepter (optional tracking)
 }
 
 export enum ChallengeStatus {

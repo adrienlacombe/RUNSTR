@@ -1,290 +1,204 @@
 /**
  * ChallengePaymentModal - Universal payment modal for challenge wagers
- * Shows Lightning invoice, polls for payment, handles success/timeout
+ * Shows Lightning invoice QR code and copyable invoice
+ * User manually confirms payment (no automatic polling)
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
-  Clipboard,
+  Dimensions,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
 
 export interface ChallengePaymentModalProps {
   visible: boolean;
   challengeId: string;
+  challengeName: string;
   wagerAmount: number;
   invoice: string;
-  paymentHash: string;
-  userPubkey: string;
-  role: 'creator' | 'accepter';
+  role: 'creator' | 'accepter' | 'loser';
   onPaymentConfirmed: () => void;
   onCancel: () => void;
-  onTimeout: () => void;
 }
+
+const { width } = Dimensions.get('window');
 
 export const ChallengePaymentModal: React.FC<ChallengePaymentModalProps> = ({
   visible,
   challengeId,
+  challengeName,
   wagerAmount,
   invoice,
-  paymentHash,
-  userPubkey,
   role,
   onPaymentConfirmed,
   onCancel,
-  onTimeout,
 }) => {
-  const [isPolling, setIsPolling] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
   const [copied, setCopied] = useState(false);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Start polling when modal becomes visible
-  useEffect(() => {
-    if (visible && invoice && paymentHash) {
-      startPolling();
-      startCountdown();
-    } else {
-      stopPolling();
-      stopCountdown();
-    }
-
-    return () => {
-      stopPolling();
-      stopCountdown();
-    };
-  }, [visible, invoice, paymentHash]);
-
-  /**
-   * Start polling for payment confirmation
-   */
-  const startPolling = () => {
-    if (isPolling) return;
-
-    console.log('⏳ Starting payment polling...');
-    setIsPolling(true);
-
-    // Poll immediately
-    checkPayment();
-
-    // Then poll every 5 seconds
-    pollIntervalRef.current = setInterval(() => {
-      checkPayment();
-    }, 5000);
-
-    // Set timeout (10 minutes)
-    timeoutRef.current = setTimeout(() => {
-      handleTimeout();
-    }, 10 * 60 * 1000);
-  };
-
-  /**
-   * Stop polling
-   */
-  const stopPolling = () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    setIsPolling(false);
-  };
-
-  /**
-   * Start countdown timer
-   */
-  const startCountdown = () => {
-    setTimeRemaining(600); // Reset to 10 minutes
-    countdownRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          stopCountdown();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  /**
-   * Stop countdown timer
-   */
-  const stopCountdown = () => {
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-      countdownRef.current = null;
-    }
-  };
-
-  /**
-   * Check if payment has been confirmed
-   */
-  const checkPayment = async () => {
+  const handleCopyInvoice = async () => {
     try {
-      const result = await challengeEscrowService.checkInvoicePayment(paymentHash);
-
-      if (result.success && result.settled) {
-        console.log('✅ Payment confirmed!');
-        stopPolling();
-        stopCountdown();
-
-        // Record payment
-        await challengeEscrowService.recordPayment(
-          challengeId,
-          userPubkey,
-          paymentHash,
-          invoice
-        );
-
-        // Notify parent
-        onPaymentConfirmed();
-      }
+      await Clipboard.setStringAsync(invoice);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      Alert.alert('Copied!', 'Lightning invoice copied to clipboard');
     } catch (error) {
-      console.error('Error checking payment:', error);
+      Alert.alert('Error', 'Failed to copy invoice');
     }
   };
 
-  /**
-   * Handle payment timeout
-   */
-  const handleTimeout = () => {
-    stopPolling();
-    stopCountdown();
+  const handlePaid = () => {
     Alert.alert(
-      'Payment Timeout',
-      'Payment was not received within 10 minutes. The challenge will be cancelled.',
+      'Confirm Payment',
+      'Have you paid this invoice from your Lightning wallet?',
       [
+        { text: 'Not Yet', style: 'cancel' },
         {
-          text: 'OK',
-          onPress: onTimeout,
+          text: 'Yes, I Paid',
+          style: 'default',
+          onPress: onPaymentConfirmed,
         },
       ]
     );
   };
 
-  /**
-   * Handle cancel
-   */
-  const handleCancel = () => {
-    Alert.alert(
-      'Cancel Payment',
-      'Are you sure you want to cancel? The challenge will not be created.',
-      [
-        {
-          text: 'Keep Waiting',
-          style: 'cancel',
-        },
-        {
-          text: 'Cancel Challenge',
-          style: 'destructive',
-          onPress: () => {
-            stopPolling();
-            stopCountdown();
-            onCancel();
-          },
-        },
-      ]
-    );
+  const getRoleText = () => {
+    if (role === 'creator') return 'Challenge Wager';
+    if (role === 'accepter') return 'Challenge Wager';
+    return 'Challenge Payout';
   };
 
-  /**
-   * Copy invoice to clipboard
-   */
-  const handleCopyInvoice = () => {
-    Clipboard.setString(invoice);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const getDescription = () => {
+    if (role === 'loser') {
+      return `You lost the challenge. Pay ${wagerAmount.toLocaleString()} sats to the winner.`;
+    }
+    return 'Pay your wager to join this challenge.';
   };
-
-  /**
-   * Format time remaining as MM:SS
-   */
-  const formatTimeRemaining = () => {
-    const minutes = Math.floor(timeRemaining / 60);
-    const seconds = timeRemaining % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const roleText = role === 'creator' ? 'Creating' : 'Accepting';
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{roleText} Challenge</Text>
-            <Text style={styles.wagerAmount}>{wagerAmount.toLocaleString()} sats</Text>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onCancel}
+    >
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{getRoleText()}</Text>
+          <TouchableOpacity onPress={onCancel} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.content}>
+          {/* Challenge Info */}
+          <View style={styles.challengeInfo}>
+            <Text style={styles.challengeName}>{challengeName}</Text>
+            <View style={styles.amountContainer}>
+              <Ionicons name="flash" size={20} color={theme.colors.accent} />
+              <Text style={styles.amount}>{wagerAmount.toLocaleString()} sats</Text>
+            </View>
+            <Text style={styles.description}>{getDescription()}</Text>
           </View>
 
           {/* QR Code */}
           <View style={styles.qrContainer}>
-            <QRCode
-              value={invoice}
-              size={200}
-              backgroundColor={theme.colors.cardBackground}
-              color={theme.colors.text}
-            />
+            <View style={styles.qrCodeWrapper}>
+              <QRCode
+                value={invoice}
+                size={Math.min(width - 100, 280)}
+                backgroundColor="#ffffff"
+                color="#000000"
+              />
+            </View>
+            <Text style={styles.qrLabel}>Scan with any Lightning wallet</Text>
           </View>
 
-          {/* Instructions */}
-          <Text style={styles.instructions}>
-            Scan QR code or copy invoice below to pay with your Lightning wallet
-          </Text>
-
-          {/* Invoice Text (truncated) */}
-          <View style={styles.invoiceContainer}>
-            <Text style={styles.invoiceText} numberOfLines={2} ellipsizeMode="middle">
-              {invoice}
-            </Text>
-          </View>
-
-          {/* Copy Button */}
-          <TouchableOpacity style={styles.copyButton} onPress={handleCopyInvoice}>
-            <Text style={styles.copyButtonText}>
-              {copied ? '✓ Copied' : 'Copy Invoice'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Status */}
-          <View style={styles.statusContainer}>
-            {isPolling && (
-              <>
-                <ActivityIndicator size="small" color={theme.colors.accent} />
-                <Text style={styles.statusText}>Waiting for payment...</Text>
-              </>
-            )}
-          </View>
-
-          {/* Countdown */}
-          <View style={styles.countdownContainer}>
-            <Text style={styles.countdownText}>Time remaining: {formatTimeRemaining()}</Text>
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+          {/* Invoice */}
+          <View style={styles.invoiceSection}>
+            <Text style={styles.invoiceLabel}>Lightning Invoice</Text>
+            <TouchableOpacity
+              onPress={handleCopyInvoice}
+              style={styles.invoiceContainer}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.invoice} numberOfLines={3} ellipsizeMode="middle">
+                {invoice}
+              </Text>
+              <View style={styles.copyIndicator}>
+                <Ionicons
+                  name={copied ? 'checkmark-circle' : 'copy-outline'}
+                  size={18}
+                  color={copied ? '#4CAF50' : theme.colors.accent}
+                />
+                <Text style={[styles.copyText, copied && styles.copiedText]}>
+                  {copied ? 'Copied!' : 'Tap to copy'}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
-          {/* Warning */}
-          <Text style={styles.warning}>
-            Do not close this screen until payment is confirmed
+          {/* Instructions */}
+          <View style={styles.instructionsContainer}>
+            <Text style={styles.instructionsTitle}>How to Pay:</Text>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Scan QR code or tap to copy invoice
+              </Text>
+            </View>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Pay from Cash App, Strike, Alby, or any Lightning wallet
+              </Text>
+            </View>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Click "I Paid" below after completing payment
+              </Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <TouchableOpacity
+            style={styles.paidButton}
+            onPress={handlePaid}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark-circle" size={20} color={theme.colors.accentText} />
+            <Text style={styles.paidButtonText}>I Paid This Invoice</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={onCancel}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+
+          {/* Note */}
+          <Text style={styles.note}>
+            {role === 'loser'
+              ? 'This completes the challenge after you confirm payment.'
+              : 'The challenge will become active after both participants confirm payment.'}
           </Text>
         </View>
       </View>
@@ -293,115 +207,220 @@ export const ChallengePaymentModal: React.FC<ChallengePaymentModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+  },
+
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+  },
+
+  closeButton: {
+    padding: 4,
+  },
+
+  content: {
+    flex: 1,
     padding: 20,
   },
-  modalContainer: {
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.large,
-    width: '100%',
-    maxWidth: 400,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  header: {
+
+  // Challenge Info
+  challengeInfo: {
     alignItems: 'center',
     marginBottom: 24,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+
+  challengeName: {
+    fontSize: 18,
+    fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.cardBackground,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: theme.borderRadius.medium,
     marginBottom: 8,
   },
-  wagerAmount: {
+
+  amount: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: theme.typography.weights.bold,
     color: theme.colors.accent,
   },
-  qrContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.medium,
-    marginBottom: 20,
-  },
-  instructions: {
+
+  description: {
     fontSize: 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
+    marginTop: 8,
   },
-  invoiceContainer: {
-    backgroundColor: theme.colors.prizeBackground,
-    borderRadius: theme.borderRadius.small,
-    padding: 12,
+
+  // QR Code
+  qrContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+
+  qrCodeWrapper: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: theme.borderRadius.large,
     marginBottom: 12,
   },
-  invoiceText: {
-    fontSize: 12,
+
+  qrLabel: {
+    fontSize: 14,
     color: theme.colors.textMuted,
-    fontFamily: 'monospace',
   },
-  copyButton: {
-    backgroundColor: theme.colors.accent,
+
+  // Invoice
+  invoiceSection: {
+    marginBottom: 24,
+  },
+
+  invoiceLabel: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+
+  invoiceContainer: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.medium,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 20,
+    padding: 14,
   },
-  copyButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+
+  invoice: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: theme.colors.textMuted,
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+
+  copyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+
+  copyText: {
+    fontSize: 13,
+    color: theme.colors.accent,
+    fontWeight: theme.typography.weights.medium,
+  },
+
+  copiedText: {
+    color: '#4CAF50',
+  },
+
+  // Instructions
+  instructionsContainer: {
+    marginBottom: 24,
+    backgroundColor: theme.colors.cardBackground,
+    padding: 16,
+    borderRadius: theme.borderRadius.medium,
+  },
+
+  instructionsTitle: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+
+  step: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: theme.typography.weights.bold,
     color: theme.colors.accentText,
   },
-  statusContainer: {
+
+  stepText: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    lineHeight: 20,
+  },
+
+  // Buttons
+  paidButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 12,
-    minHeight: 30,
-  },
-  statusText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-  },
-  countdownContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  countdownText: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-  },
-  actions: {
-    marginBottom: 12,
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.colors.buttonBorder,
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 16,
     borderRadius: theme.borderRadius.medium,
-    paddingVertical: 12,
+    marginBottom: 12,
+  },
+
+  paidButtonText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.accentText,
+  },
+
+  cancelButton: {
     alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: theme.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 12,
   },
+
   cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.textMuted,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
   },
-  warning: {
+
+  // Note
+  note: {
     fontSize: 12,
     color: theme.colors.textMuted,
     textAlign: 'center',
-    lineHeight: 16,
+    fontStyle: 'italic',
   },
 });
