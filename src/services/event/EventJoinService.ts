@@ -10,6 +10,7 @@ import eventJoinRequestService, { EventJoinRequestData } from '../events/EventJo
 import { NostrProtocolHandler } from '../nostr/NostrProtocolHandler';
 import { nostrRelayManager } from '../nostr/NostrRelayManager';
 import { getAuthenticationData } from '../../utils/nostrAuth';
+import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
 import type { QREventData } from './QREventService';
 
 export interface EventJoinResult {
@@ -195,6 +196,109 @@ export class EventJoinService {
       return {
         success: false,
         message: 'Failed to join paid event',
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Get Lightning invoice for event entry from captain's Lightning address
+   * Uses LNURL protocol to request invoice
+   */
+  public async getEventEntryInvoice(
+    eventData: QREventData,
+    captainLightningAddress: string
+  ): Promise<{ success: boolean; invoice?: string; error?: string }> {
+    try {
+      console.log(`💳 Requesting invoice from ${captainLightningAddress} for ${eventData.entry_fee} sats`);
+
+      const result = await getInvoiceFromLightningAddress(
+        captainLightningAddress,
+        eventData.entry_fee,
+        `Entry fee: ${eventData.event_name}`
+      );
+
+      console.log('✅ Invoice generated successfully');
+
+      return {
+        success: true,
+        invoice: result.invoice,
+      };
+    } catch (error) {
+      console.error('❌ Failed to get invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get invoice';
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Submit paid join request with payment proof
+   * Publishes kind 1105 join request with invoice as proof of payment
+   */
+  public async submitPaidJoinRequest(
+    eventData: QREventData,
+    paymentInvoice: string
+  ): Promise<EventJoinResult> {
+    try {
+      console.log(`📝 Submitting paid join request for: ${eventData.event_name}`);
+
+      const authData = await getAuthenticationData();
+      if (!authData?.nsec || !authData?.hexPubkey) {
+        throw new Error('Cannot access user credentials for signing');
+      }
+
+      // Prepare join request with payment proof
+      const requestData: EventJoinRequestData = {
+        eventId: eventData.event_id,
+        eventName: eventData.event_name,
+        teamId: eventData.team_id,
+        captainPubkey: eventData.captain_pubkey,
+        message: `Paid ${eventData.entry_fee} sats entry fee for: ${eventData.event_name}`,
+      };
+
+      // Create event template
+      const eventTemplate = eventJoinRequestService.prepareEventJoinRequest(
+        requestData,
+        authData.hexPubkey
+      );
+
+      // Add payment proof as tag
+      eventTemplate.tags.push(['payment_proof', paymentInvoice]);
+
+      // Sign and publish event
+      const protocolHandler = new NostrProtocolHandler();
+      const signedEvent = await protocolHandler.signEvent(eventTemplate as any, authData.nsec);
+      const publishResult = await nostrRelayManager.publishEvent(signedEvent);
+
+      if (publishResult.successful.length === 0) {
+        throw new Error('Failed to publish join request');
+      }
+
+      console.log(`✅ Paid join request sent for: ${eventData.event_name}`);
+
+      Alert.alert(
+        'Request Sent!',
+        `Your payment and join request have been sent to the captain. You'll be notified when approved.`,
+        [{ text: 'OK' }]
+      );
+
+      return {
+        success: true,
+        message: 'Join request sent with payment proof',
+      };
+    } catch (error) {
+      console.error('❌ Failed to submit paid join request:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      Alert.alert('Request Failed', errorMessage, [{ text: 'OK' }]);
+
+      return {
+        success: false,
+        message: 'Failed to send join request',
         error: errorMessage,
       };
     }

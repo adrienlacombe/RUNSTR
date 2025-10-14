@@ -13,7 +13,7 @@ export const FEATURES = {
   ENABLE_CHARITY_ZAPS: true, // Charity zapping on team pages
 
   // Optional Features
-  ENABLE_EVENT_TICKETS: false, // Paid event entry (coming soon)
+  ENABLE_EVENT_TICKETS: true, // Paid event entry with Lightning invoices
   ENABLE_1V1_CHALLENGES: false, // Bitcoin-wagered 1v1 challenges (coming soon)
 } as const;
 

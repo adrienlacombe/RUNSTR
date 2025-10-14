@@ -228,6 +228,11 @@ export class NostrCompetitionService {
         tags.push(['prize_pool', eventData.prizePoolSats.toString()]);
       }
 
+      // Add Lightning address tag if defined
+      if (eventData.lightningAddress) {
+        tags.push(['lightning_address', eventData.lightningAddress]);
+      }
+
       const eventTemplate: EventTemplate = {
         kind: 30101,
         content: JSON.stringify(eventDefinition),

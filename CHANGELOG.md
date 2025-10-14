@@ -6,6 +6,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2025-10-14
+
+### Added
+- **⚡ Universal Lightning Event Payments**: Paid events now accept ANY Lightning wallet
+  - EventPaymentModal component with QR code display for universal wallet support
+  - Lightning address field in event creation wizard for captains
+  - LNURL utility module implementing LNURL-pay protocol (LUD-16)
+  - Supports Cash App, Strike, Alby, Wallet of Satoshi, and all Lightning wallets
+  - QR code generation for easy mobile wallet scanning
+  - Manual invoice copying for desktop wallets
+  - Payment proof system via kind 1105 join request tags
+
+### Changed
+- **Event Payment Flow**: Replaced NWC-only payments with universal LNURL system
+  - EventDetailScreen displays payment modal with QR code for paid events
+  - EventJoinService now generates LNURL invoices from captain's Lightning address
+  - Payment confirmation flow with join request submission after payment
+  - Enabled ENABLE_EVENT_TICKETS feature flag for production use
+
+### Technical
+- **LNURL Protocol Integration**: Full LNURL-pay implementation
+  - `src/utils/lnurl.ts`: Complete LNURL utility with invoice generation
+  - `fetchLNURLPayDetails()`: Fetches payment details from Lightning addresses
+  - `requestInvoiceFromLNURL()`: Generates invoices via LNURL callback
+  - `getInvoiceFromLightningAddress()`: Convenience function for full flow
+  - `isValidLightningAddress()`: Lightning address validation
+- **Event Metadata Enhancement**:
+  - Added `lightningAddress` field to NostrEventDefinition type
+  - Lightning address stored in kind 30101 event tags
+  - Payment invoice included in kind 1105 join requests as proof
+- **UI Components**:
+  - EventPaymentModal: Full-screen payment interface with QR code
+  - Step-by-step payment instructions
+  - Real-time copy feedback for invoice strings
+  - Confirmation dialog before submitting join request
+
+### User Experience
+- **Captain Workflow**: Add Lightning address during event creation → Receive payments directly
+- **Participant Workflow**: Join paid event → See QR code → Pay from any wallet → Confirm payment → Join request sent
+- **Wallet Flexibility**: No longer requires app-specific NWC wallet setup for event payments
+- **Better Accessibility**: Works with mainstream wallets like Cash App and Strike
+
 ## [0.2.4] - 2025-10-13
 
 ### Changed

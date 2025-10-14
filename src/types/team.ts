@@ -21,6 +21,7 @@ export interface Team {
   charityId?: string; // ID of the charity this team supports (e.g., 'opensats', 'hrf')
   shopUrl?: string; // Validated marketplace URL (Shopstr or Plebeian Market)
   flashUrl?: string; // Flash subscription URL for team content
+  lightningAddress?: string; // Captain's Lightning address for receiving payments (e.g., "captain@getalby.com")
 }
 
 // League/Leaderboard Types

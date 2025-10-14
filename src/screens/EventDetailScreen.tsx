@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../styles/theme';
 import { SimpleLeagueDisplay } from '../components/team/SimpleLeagueDisplay';
+import { EventPaymentModal } from '../components/event/EventPaymentModal';
+import { eventJoinService } from '../services/event/EventJoinService';
 import type { RootStackParamList } from '../types';
 
 type EventDetailRouteProp = RouteProp<RootStackParamList, 'EventDetail'>;
@@ -46,6 +48,8 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState('');
 
   useEffect(() => {
     loadEventData();
@@ -178,8 +182,29 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         created_at: Math.floor(Date.now() / 1000),
       };
 
-      // Use EventJoinService (handles payment + join request)
-      const { eventJoinService } = await import('../services/event/EventJoinService');
+      // Check if this is a paid event with Lightning address
+      if (eventData.entryFeesSats > 0 && eventData.lightningAddress) {
+        console.log('💳 Paid event with Lightning address - generating invoice...');
+
+        // Generate Lightning invoice via LNURL
+        const invoiceResult = await eventJoinService.getEventEntryInvoice(
+          qrEventData,
+          eventData.lightningAddress
+        );
+
+        if (!invoiceResult.success || !invoiceResult.invoice) {
+          throw new Error(invoiceResult.error || 'Failed to generate invoice');
+        }
+
+        // Show payment modal with invoice
+        setPaymentInvoice(invoiceResult.invoice);
+        setShowPaymentModal(true);
+
+        console.log('✅ Invoice generated - showing payment modal');
+        return; // Exit early - payment confirmation will handle the rest
+      }
+
+      // Free event or paid event without Lightning address (fallback to NWC)
       const result = await eventJoinService.joinEvent(qrEventData);
 
       if (result.success) {
@@ -192,7 +217,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           activityType: eventData.activityType,
           eventDate: eventData.eventDate,
           entryFeePaid: eventData.entryFeesSats || 0,
-          paymentMethod: 'nutzap',
+          paymentMethod: 'lightning',
           paidAt: Date.now(),
           status: 'pending_approval',
           localOnly: true,
@@ -207,6 +232,64 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
     } catch (error) {
       console.error('❌ Failed to join event:', error);
       Alert.alert('Error', 'Failed to join event. Please try again.');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handlePaymentConfirmed = async () => {
+    if (!eventData || !paymentInvoice) return;
+
+    setIsJoining(true);
+    try {
+      console.log('✅ User confirmed payment - submitting join request...');
+
+      // Create QREventData format
+      const qrEventData = {
+        type: 'paid_event' as const,
+        event_id: eventData.id,
+        team_id: eventData.teamId,
+        event_name: eventData.name,
+        event_date: eventData.eventDate,
+        activity_type: eventData.activityType,
+        entry_fee: eventData.entryFeesSats || 0,
+        captain_pubkey: eventData.captainPubkey,
+        description: eventData.description,
+        created_at: Math.floor(Date.now() / 1000),
+      };
+
+      // Submit join request with payment proof
+      const result = await eventJoinService.submitPaidJoinRequest(
+        qrEventData,
+        paymentInvoice
+      );
+
+      if (result.success) {
+        // Store participation locally for instant UX
+        const { EventParticipationStore } = await import('../services/event/EventParticipationStore');
+        await EventParticipationStore.addParticipation({
+          eventId: eventData.id,
+          eventName: eventData.name,
+          teamId: eventData.teamId,
+          activityType: eventData.activityType,
+          eventDate: eventData.eventDate,
+          entryFeePaid: eventData.entryFeesSats || 0,
+          paymentMethod: 'lightning',
+          paidAt: Date.now(),
+          status: 'pending_approval',
+          localOnly: true,
+        });
+
+        // Update UI
+        setIsParticipant(true);
+        setShowPaymentModal(false);
+
+        console.log('✅ Paid join request submitted successfully');
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to submit join request:', error);
+      Alert.alert('Error', 'Failed to submit join request. Please try again.');
     } finally {
       setIsJoining(false);
     }
@@ -436,6 +519,19 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Payment Modal */}
+      <EventPaymentModal
+        visible={showPaymentModal}
+        eventName={eventData?.name || ''}
+        amountSats={eventData?.entryFeesSats || 0}
+        invoice={paymentInvoice}
+        onPaid={handlePaymentConfirmed}
+        onCancel={() => {
+          setShowPaymentModal(false);
+          setIsJoining(false);
+        }}
+      />
     </SafeAreaView>
   );
 };

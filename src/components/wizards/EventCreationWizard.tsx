@@ -90,6 +90,7 @@ interface EventData {
   targetValue?: number;
   targetUnit?: string;
   prizePoolSats: number | undefined; // Prize pool amount in sats
+  lightningAddress?: string; // Captain's Lightning address for receiving payments
 }
 
 interface EventCreationWizardProps {
@@ -120,6 +121,7 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
     eventName: '',
     description: '',
     prizePoolSats: undefined,
+    lightningAddress: '',
   });
 
   // Reset wizard when opened
@@ -136,6 +138,7 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         eventName: '',
         description: '',
         prizePoolSats: undefined,
+        lightningAddress: '',
       });
     }
   }, [visible]);
@@ -252,6 +255,7 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         targetValue: eventData.targetValue,
         targetUnit: eventData.targetUnit,
         prizePoolSats: eventData.prizePoolSats,
+        lightningAddress: eventData.lightningAddress,
       };
 
       console.log('🎯 Creating event:', eventCreationData);
@@ -632,6 +636,24 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                     />
                     <Text style={styles.formHelper}>
                       💰 You'll receive {eventData.entryFeesSats} sats per participant
+                    </Text>
+
+                    {/* Lightning Address Input */}
+                    <Text style={[styles.formLabel, { marginTop: 16 }]}>
+                      Lightning Address (Required for Payment)
+                    </Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={eventData.lightningAddress}
+                      onChangeText={(text) => updateSettings('lightningAddress', text)}
+                      placeholder="captain@getalby.com"
+                      placeholderTextColor={theme.colors.textMuted}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <Text style={styles.formHelper}>
+                      ⚡ Participants will pay this Lightning address from any wallet (Cash App, Strike, Alby, etc.)
                     </Text>
                   </>
                 )}

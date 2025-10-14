@@ -123,6 +123,7 @@ export interface NostrEventDefinition {
   targetValue?: number;
   targetUnit?: string;
   prizePoolSats?: number; // Optional prize pool amount in sats
+  lightningAddress?: string; // Captain's Lightning address for receiving entry fees (e.g., "captain@getalby.com")
 
   // Status
   status: 'upcoming' | 'active' | 'completed' | 'cancelled';
