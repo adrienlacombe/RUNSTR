@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   activityAmount: {
     alignItems: 'flex-end',
@@ -210,10 +210,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   amountNegative: {
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   amountTime: {
     fontSize: 10,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
 });

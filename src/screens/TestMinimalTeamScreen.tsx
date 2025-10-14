@@ -46,13 +46,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
   },
   text: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 16,
     marginBottom: 10,
   },
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: 'bold',
   },

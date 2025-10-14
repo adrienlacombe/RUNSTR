@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textMuted,
     marginBottom: 24,
   },
   formGroup: {
@@ -270,14 +270,14 @@ const styles = StyleSheet.create({
   },
   currencyText: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   currencyTextActive: {
     color: theme.colors.text,
   },
   conversionHint: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
     marginTop: 4,
   },
   qrContainer: {
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   qrDescription: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
     textAlign: 'center',
   },
   invoiceInput: {

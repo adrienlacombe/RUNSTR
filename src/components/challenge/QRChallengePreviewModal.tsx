@@ -17,8 +17,12 @@ import {
 import { theme } from '../../styles/theme';
 import type { QRChallengeData } from '../../services/challenge/QRChallengeService';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
+import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
+import { challengeNotificationHandler } from '../../services/notifications/ChallengeNotificationHandler';
+import { getUserNostrIdentifiers } from '../../utils/nostr';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 import type { ActivityType } from '../../types/challenge';
+import { ChallengePaymentModal } from './ChallengePaymentModal';
 
 // Activity icons mapping
 const ACTIVITY_ICONS: Record<ActivityType, string> = {
@@ -55,16 +59,77 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
 
+  // Payment state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState('');
+  const [paymentHash, setPaymentHash] = useState('');
+  const [currentUserPubkey, setCurrentUserPubkey] = useState('');
+
   if (!challengeData) {
     return null;
   }
 
+  /**
+   * Handle accept - first show payment modal (scanner pays)
+   */
   const handleAccept = async () => {
     try {
       setIsAccepting(true);
 
+      // Get user identifiers
+      const userIdentifiers = await getUserNostrIdentifiers();
+      if (!userIdentifiers?.hexPubkey) {
+        throw new Error('User not authenticated');
+      }
+
+      setCurrentUserPubkey(userIdentifiers.hexPubkey);
+
+      // Initialize payment record for QR challenge
+      await challengeEscrowService.initializePaymentRecord(
+        challengeData.challenge_id,
+        challengeData.wager,
+        challengeData.creator_pubkey,
+        userIdentifiers.hexPubkey
+      );
+
+      // Generate Lightning invoice for scanner (accepter role)
+      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
+        challengeData.challenge_id,
+        challengeData.wager,
+        userIdentifiers.hexPubkey,
+        'accepter'
+      );
+
+      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
+        throw new Error(invoiceResult.error || 'Failed to generate invoice');
+      }
+
+      // Show payment modal
+      setPaymentInvoice(invoiceResult.invoice);
+      setPaymentHash(invoiceResult.paymentHash);
+      setShowPaymentModal(true);
+
+      console.log('⚡ Payment modal shown for QR challenge scanner...');
+    } catch (error) {
+      console.error('Failed to initiate payment:', error);
+      Alert.alert(
+        'Payment Setup Failed',
+        error instanceof Error ? error.message : 'An error occurred'
+      );
+      setIsAccepting(false);
+    }
+  };
+
+  /**
+   * Handle payment confirmed - now actually accept QR challenge
+   */
+  const handlePaymentConfirmed = async () => {
+    try {
+      console.log('✅ Payment confirmed, accepting QR challenge...');
+      setShowPaymentModal(false);
+
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
-      const signer = await UnifiedSigningService.getSigner();
+      const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
         throw new Error('Cannot access signing capability. Please ensure you are logged in.');
       }
@@ -79,16 +144,35 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
         throw new Error(result.error || 'Failed to accept challenge');
       }
 
-      // Show success
-      Alert.alert('Challenge Accepted!', 'The challenge is now active', [
-        {
-          text: 'OK',
-          onPress: () => {
-            if (onAccept) onAccept();
-            onClose();
+      // Create payment required notification for creator
+      const userIdentifiers = await getUserNostrIdentifiers();
+      if (userIdentifiers?.hexPubkey) {
+        await challengeNotificationHandler.createPaymentRequiredNotification(
+          challengeData.challenge_id,
+          userIdentifiers.hexPubkey,
+          {
+            activityType: challengeData.activity,
+            metric: challengeData.metric,
+            duration: challengeData.duration,
+            wagerAmount: challengeData.wager,
+          }
+        );
+      }
+
+      // Show success with creator payment reminder
+      Alert.alert(
+        'Challenge Accepted!',
+        `You've paid your ${challengeData.wager} sats wager. The creator has been notified to pay their wager to activate the challenge.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (onAccept) onAccept();
+              onClose();
+            },
           },
-        },
-      ]);
+        ]
+      );
     } catch (error) {
       console.error('Failed to accept QR challenge:', error);
       Alert.alert(
@@ -98,6 +182,24 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
     } finally {
       setIsAccepting(false);
     }
+  };
+
+  /**
+   * Handle payment cancelled
+   */
+  const handlePaymentCancelled = () => {
+    setShowPaymentModal(false);
+    setIsAccepting(false);
+    Alert.alert('Payment Cancelled', 'Challenge was not accepted.');
+  };
+
+  /**
+   * Handle payment timeout
+   */
+  const handlePaymentTimeout = () => {
+    setShowPaymentModal(false);
+    setIsAccepting(false);
+    Alert.alert('Payment Timeout', 'Challenge was not accepted due to payment timeout.');
   };
 
   const handleDecline = () => {
@@ -215,6 +317,22 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
           </View>
         </View>
       </View>
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
+        <ChallengePaymentModal
+          visible={showPaymentModal}
+          challengeId={challengeData.challenge_id}
+          wagerAmount={challengeData.wager}
+          invoice={paymentInvoice}
+          paymentHash={paymentHash}
+          userPubkey={currentUserPubkey}
+          role="accepter"
+          onPaymentConfirmed={handlePaymentConfirmed}
+          onCancel={handlePaymentCancelled}
+          onTimeout={handlePaymentTimeout}
+        />
+      )}
     </Modal>
   );
 };

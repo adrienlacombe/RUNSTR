@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
 
   activityTitle: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
 
   activityItem: {
     fontSize: 12,
-    color: '#ccc',
+    color: theme.colors.textSecondary,
     lineHeight: 12 * 1.2, // 14.4 for readability
   },
 });

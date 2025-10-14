@@ -67,12 +67,12 @@ const styles = StyleSheet.create({
 
   prizeCurrency: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textMuted,
     fontWeight: '500',
   },
 
   recentPayout: {
     fontSize: 11,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
 });

@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textMuted,
     fontWeight: '500',
   },
   activeTabText: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#999',
+    color: theme.colors.textDark,
   },
   listContent: {
     padding: 16,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
   participantCount: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   wager: {
     fontSize: 12,
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textMuted,
     marginTop: 16,
     marginBottom: 8,
   },

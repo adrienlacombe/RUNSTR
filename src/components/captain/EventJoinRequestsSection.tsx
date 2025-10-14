@@ -376,6 +376,8 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                         message: request.message,
                         nostrEvent: request.nostrEvent,
                       }}
+                      teamId={teamId}
+                      captainPubkey={captainPubkey}
                       onApprove={() =>
                         handleApproveRequest(
                           request.id,

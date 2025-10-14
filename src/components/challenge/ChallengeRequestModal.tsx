@@ -17,7 +17,10 @@ import {
 import { theme } from '../../styles/theme';
 import type { PendingChallenge } from '../../services/challenge/ChallengeRequestService';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
+import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
+import { getUserNostrIdentifiers } from '../../utils/nostr';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
+import { ChallengePaymentModal } from './ChallengePaymentModal';
 
 export interface ChallengeRequestModalProps {
   visible: boolean;
@@ -48,16 +51,69 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
 
+  // Payment state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState('');
+  const [paymentHash, setPaymentHash] = useState('');
+  const [currentUserPubkey, setCurrentUserPubkey] = useState('');
+
   if (!challenge) {
     return null;
   }
 
+  /**
+   * Handle accept - first show payment modal
+   */
   const handleAccept = async () => {
     try {
       setIsAccepting(true);
 
+      // Get user identifiers
+      const userIdentifiers = await getUserNostrIdentifiers();
+      if (!userIdentifiers?.hexPubkey) {
+        throw new Error('User not authenticated');
+      }
+
+      setCurrentUserPubkey(userIdentifiers.hexPubkey);
+
+      // Generate Lightning invoice for accepter
+      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
+        challenge.challengeId,
+        challenge.wagerAmount,
+        userIdentifiers.hexPubkey,
+        'accepter'
+      );
+
+      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
+        throw new Error(invoiceResult.error || 'Failed to generate invoice');
+      }
+
+      // Show payment modal
+      setPaymentInvoice(invoiceResult.invoice);
+      setPaymentHash(invoiceResult.paymentHash);
+      setShowPaymentModal(true);
+
+      console.log('⚡ Payment modal shown for accepter...');
+    } catch (error) {
+      console.error('Failed to initiate payment:', error);
+      Alert.alert(
+        'Payment Setup Failed',
+        error instanceof Error ? error.message : 'An error occurred'
+      );
+      setIsAccepting(false);
+    }
+  };
+
+  /**
+   * Handle payment confirmed - now actually accept challenge
+   */
+  const handlePaymentConfirmed = async () => {
+    try {
+      console.log('✅ Payment confirmed, accepting challenge...');
+      setShowPaymentModal(false);
+
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
-      const signer = await UnifiedSigningService.getSigner();
+      const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
         throw new Error('Cannot access signing capability. Please ensure you are logged in.');
       }
@@ -93,12 +149,30 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
     }
   };
 
+  /**
+   * Handle payment cancelled
+   */
+  const handlePaymentCancelled = () => {
+    setShowPaymentModal(false);
+    setIsAccepting(false);
+    Alert.alert('Payment Cancelled', 'Challenge was not accepted.');
+  };
+
+  /**
+   * Handle payment timeout
+   */
+  const handlePaymentTimeout = () => {
+    setShowPaymentModal(false);
+    setIsAccepting(false);
+    Alert.alert('Payment Timeout', 'Challenge was not accepted due to payment timeout.');
+  };
+
   const handleDecline = async () => {
     try {
       setIsDeclining(true);
 
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
-      const signer = await UnifiedSigningService.getSigner();
+      const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
         throw new Error('Cannot access signing capability. Please ensure you are logged in.');
       }
@@ -225,6 +299,22 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
           </View>
         </View>
       </View>
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
+        <ChallengePaymentModal
+          visible={showPaymentModal}
+          challengeId={challenge.challengeId}
+          wagerAmount={challenge.wagerAmount}
+          invoice={paymentInvoice}
+          paymentHash={paymentHash}
+          userPubkey={currentUserPubkey}
+          role="accepter"
+          onPaymentConfirmed={handlePaymentConfirmed}
+          onCancel={handlePaymentCancelled}
+          onTimeout={handlePaymentTimeout}
+        />
+      )}
     </Modal>
   );
 };

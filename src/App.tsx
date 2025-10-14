@@ -659,8 +659,8 @@ const AppContent: React.FC = () => {
           {({ navigation, route }) => (
             <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ color: theme.colors.textBright, fontSize: 18, marginBottom: 20 }}>Challenge Leaderboard</Text>
-              <Text style={{ color: '#666', fontSize: 14 }}>Challenge ID: {route.params?.challengeId}</Text>
-              <Text style={{ color: '#666', fontSize: 14, marginTop: 10 }}>Coming Soon</Text>
+              <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>Challenge ID: {route.params?.challengeId}</Text>
+              <Text style={{ color: theme.colors.textMuted, fontSize: 14, marginTop: 10 }}>Coming Soon</Text>
               <TouchableOpacity
                 style={{ marginTop: 30, padding: 12, backgroundColor: theme.colors.orangeDeep, borderRadius: 8 }}
                 onPress={() => navigation.goBack()}
@@ -884,7 +884,7 @@ const errorStyles = StyleSheet.create({
     textAlign: 'center',
   },
   error: {
-    color: '#ffffff',
+    color: theme.colors.text,
     fontSize: 16,
     marginBottom: 32,
     textAlign: 'center',

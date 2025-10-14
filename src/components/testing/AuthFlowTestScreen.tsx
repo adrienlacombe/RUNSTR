@@ -389,7 +389,7 @@ export const AuthFlowTestScreen: React.FC = () => {
               </Text>
 
               {result.duration && (
-                <Text style={{ color: '#ccc', fontSize: 12 }}>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
                   Duration: {result.duration}ms
                 </Text>
               )}
@@ -403,7 +403,7 @@ export const AuthFlowTestScreen: React.FC = () => {
               {result.data && (
                 <Text
                   style={{
-                    color: '#ccc',
+                    color: theme.colors.textSecondary,
                     fontSize: 12,
                     marginTop: 5,
                     fontFamily: 'monospace',

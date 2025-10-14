@@ -12,21 +12,36 @@ export interface ChallengeMetadata {
   target?: string; // Target value (e.g., "5000" for 5K meters)
   wager: number; // Amount in satoshis
   status: ChallengeStatus;
+  paymentStatus?: PaymentStatus; // Bitcoin payment status
+  creatorPaid?: boolean; // Has creator paid their wager
+  accepterPaid?: boolean; // Has accepter paid their wager
   createdAt: number; // Unix timestamp
   startsAt: number; // Unix timestamp
   expiresAt: number; // Unix timestamp
   challengerPubkey: string;
   challengedPubkey: string;
   winnerId?: string; // Pubkey of winner when completed
+  payoutHash?: string; // Lightning payment hash for winner payout
 }
 
 export enum ChallengeStatus {
   PENDING = 'pending',     // Waiting for acceptance
-  ACTIVE = 'active',       // Challenge accepted and ongoing
+  AWAITING_CREATOR_PAYMENT = 'awaiting_creator_payment', // Creator needs to pay
+  AWAITING_ACCEPTER_PAYMENT = 'awaiting_accepter_payment', // Accepter needs to pay
+  ACTIVE = 'active',       // Challenge accepted and ongoing (both paid)
   COMPLETED = 'completed', // Challenge finished
   DECLINED = 'declined',   // Challenge rejected
   EXPIRED = 'expired',     // Challenge expired without response
   CANCELLED = 'cancelled'  // Challenge cancelled by creator
+}
+
+export enum PaymentStatus {
+  NOT_STARTED = 'not_started',
+  AWAITING_CREATOR = 'awaiting_creator',
+  AWAITING_ACCEPTER = 'awaiting_accepter',
+  FULLY_FUNDED = 'fully_funded',
+  COMPLETED = 'completed',
+  REFUNDED = 'refunded',
 }
 
 export interface ChallengeRequest {

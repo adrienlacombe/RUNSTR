@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   workoutCount: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#999', // Gray for secondary info
+    color: theme.colors.textDark, // Gray for secondary info
   },
 
   folderContent: {

@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
     lineHeight: 16,
     marginBottom: 12,
   },
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   thresholdLabel: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   thresholdInput: {
     width: 80,
@@ -167,6 +167,6 @@ const styles = StyleSheet.create({
   },
   thresholdUnit: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
 });

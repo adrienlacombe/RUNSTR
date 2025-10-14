@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   errorDescription: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textMuted,
     lineHeight: 20,
     marginBottom: 16,
     textAlign: 'center',
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   offlineDescription: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textMuted,
     lineHeight: 16,
   },
 });

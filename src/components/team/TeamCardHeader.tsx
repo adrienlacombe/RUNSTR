@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
 
   teamAbout: {
     fontSize: 13,
-    color: '#999',
+    color: theme.colors.textDark,
     lineHeight: 13 * 1.3, // 16.9
   },
 

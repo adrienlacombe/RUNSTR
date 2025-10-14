@@ -47,7 +47,7 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
     }
     return {
       text: 'Connected',
-      color: '#666',
+      color: theme.colors.textMuted,
       dotColor: '#fff',
     };
   };
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     fontWeight: '600',
@@ -194,11 +194,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   balanceDisabled: {
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   balanceUSD: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textMuted,
     marginBottom: 16,
   },
   actions: {
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionTextDisabled: {
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   primaryAction: {
     backgroundColor: theme.colors.text,

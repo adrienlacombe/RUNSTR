@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   earningsPeriod: {
     fontSize: 11,
-    color: '#666',
+    color: theme.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 6,
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   earningsChange: {
     fontSize: 10,
-    color: '#666',
+    color: theme.colors.textMuted,
   },
   earningsChangePositive: {
     color: theme.colors.text,

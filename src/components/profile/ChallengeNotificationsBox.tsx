@@ -15,11 +15,22 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { challengeNotificationHandler, type ChallengeNotification } from '../../services/notifications/ChallengeNotificationHandler';
+import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
+import { getUserNostrIdentifiers } from '../../utils/nostr';
+import { ChallengePaymentModal } from '../challenge/ChallengePaymentModal';
 
 export const ChallengeNotificationsBox: React.FC = () => {
   const [notifications, setNotifications] = useState<ChallengeNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState('');
+  const [paymentHash, setPaymentHash] = useState('');
+  const [paymentChallengeId, setPaymentChallengeId] = useState('');
+  const [paymentWagerAmount, setPaymentWagerAmount] = useState(0);
+  const [currentUserPubkey, setCurrentUserPubkey] = useState('');
 
   useEffect(() => {
     // Load initial notifications
@@ -44,11 +55,11 @@ export const ChallengeNotificationsBox: React.FC = () => {
   const loadNotifications = () => {
     try {
       const allNotifications = challengeNotificationHandler.getNotifications();
-      // Only show request-type notifications that haven't been read
-      const pendingRequests = allNotifications.filter(
-        (n) => n.type === 'request' && !n.read
+      // Show both request-type and payment_required notifications that haven't been read
+      const pendingNotifications = allNotifications.filter(
+        (n) => (n.type === 'request' || n.type === 'payment_required') && !n.read
       );
-      setNotifications(pendingRequests);
+      setNotifications(pendingNotifications);
     } catch (error) {
       console.error('Failed to load challenge notifications:', error);
     } finally {
@@ -111,6 +122,86 @@ export const ChallengeNotificationsBox: React.FC = () => {
     );
   };
 
+  /**
+   * Handle "Pay to Activate" button for QR challenges
+   */
+  const handlePayToActivate = async (notification: ChallengeNotification) => {
+    try {
+      setProcessingId(notification.id);
+
+      // Get user identifiers
+      const userIdentifiers = await getUserNostrIdentifiers();
+      if (!userIdentifiers?.hexPubkey) {
+        throw new Error('User not authenticated');
+      }
+
+      setCurrentUserPubkey(userIdentifiers.hexPubkey);
+
+      // Generate Lightning invoice for creator
+      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
+        notification.challengeId,
+        notification.wagerAmount,
+        userIdentifiers.hexPubkey,
+        'creator'
+      );
+
+      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
+        throw new Error(invoiceResult.error || 'Failed to generate invoice');
+      }
+
+      // Show payment modal
+      setPaymentInvoice(invoiceResult.invoice);
+      setPaymentHash(invoiceResult.paymentHash);
+      setPaymentChallengeId(notification.challengeId);
+      setPaymentWagerAmount(notification.wagerAmount);
+      setShowPaymentModal(true);
+
+      console.log('⚡ Payment modal shown for QR challenge creator...');
+    } catch (error) {
+      console.error('Failed to initiate payment:', error);
+      Alert.alert(
+        'Payment Setup Failed',
+        error instanceof Error ? error.message : 'An error occurred'
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  /**
+   * Handle payment confirmed - mark notification as complete
+   */
+  const handlePaymentConfirmed = () => {
+    console.log('✅ Creator payment confirmed!');
+    setShowPaymentModal(false);
+
+    // Remove from pending list
+    setNotifications((prev) =>
+      prev.filter((n) => n.challengeId !== paymentChallengeId)
+    );
+
+    Alert.alert(
+      'Challenge Activated!',
+      `Your ${paymentWagerAmount} sats payment confirmed. The challenge is now active!`
+    );
+  };
+
+  /**
+   * Handle payment cancelled
+   */
+  const handlePaymentCancelled = () => {
+    setShowPaymentModal(false);
+    Alert.alert('Payment Cancelled', 'Challenge was not activated.');
+  };
+
+  /**
+   * Handle payment timeout
+   */
+  const handlePaymentTimeout = () => {
+    setShowPaymentModal(false);
+    Alert.alert('Payment Timeout', 'Challenge was not activated due to payment timeout.');
+  };
+
   // Don't show the box if there are no pending challenges
   if (!loading && notifications.length === 0) {
     return null;
@@ -163,41 +254,81 @@ export const ChallengeNotificationsBox: React.FC = () => {
 
               {/* Action Buttons */}
               <View style={styles.actions}>
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.declineButton,
-                    processingId === notification.id && styles.disabledButton,
-                  ]}
-                  onPress={() => handleDecline(notification.id)}
-                  disabled={processingId === notification.id}
-                >
-                  {processingId === notification.id ? (
-                    <ActivityIndicator size="small" color={theme.colors.textMuted} />
-                  ) : (
-                    <Text style={styles.declineButtonText}>Decline</Text>
-                  )}
-                </TouchableOpacity>
+                {notification.type === 'payment_required' ? (
+                  // Payment Required: Show single "Pay to Activate" button
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.payToActivateButton,
+                      processingId === notification.id && styles.disabledButton,
+                    ]}
+                    onPress={() => handlePayToActivate(notification)}
+                    disabled={processingId === notification.id}
+                  >
+                    {processingId === notification.id ? (
+                      <ActivityIndicator size="small" color={theme.colors.accentText} />
+                    ) : (
+                      <Text style={styles.payToActivateButtonText}>
+                        Pay {notification.wagerAmount} sats to Activate
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  // Regular Request: Show Accept/Decline buttons
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        styles.declineButton,
+                        processingId === notification.id && styles.disabledButton,
+                      ]}
+                      onPress={() => handleDecline(notification.id)}
+                      disabled={processingId === notification.id}
+                    >
+                      {processingId === notification.id ? (
+                        <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                      ) : (
+                        <Text style={styles.declineButtonText}>Decline</Text>
+                      )}
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.acceptButton,
-                    processingId === notification.id && styles.disabledButton,
-                  ]}
-                  onPress={() => handleAccept(notification.id)}
-                  disabled={processingId === notification.id}
-                >
-                  {processingId === notification.id ? (
-                    <ActivityIndicator size="small" color={theme.colors.accentText} />
-                  ) : (
-                    <Text style={styles.acceptButtonText}>Accept</Text>
-                  )}
-                </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        styles.acceptButton,
+                        processingId === notification.id && styles.disabledButton,
+                      ]}
+                      onPress={() => handleAccept(notification.id)}
+                      disabled={processingId === notification.id}
+                    >
+                      {processingId === notification.id ? (
+                        <ActivityIndicator size="small" color={theme.colors.accentText} />
+                      ) : (
+                        <Text style={styles.acceptButtonText}>Accept</Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             </View>
           ))}
         </View>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
+        <ChallengePaymentModal
+          visible={showPaymentModal}
+          challengeId={paymentChallengeId}
+          wagerAmount={paymentWagerAmount}
+          invoice={paymentInvoice}
+          paymentHash={paymentHash}
+          userPubkey={currentUserPubkey}
+          role="creator"
+          onPaymentConfirmed={handlePaymentConfirmed}
+          onCancel={handlePaymentCancelled}
+          onTimeout={handlePaymentTimeout}
+        />
       )}
     </View>
   );
@@ -320,6 +451,15 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
   },
   acceptButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.background,
+  },
+  payToActivateButton: {
+    backgroundColor: '#FF8C00', // Orange for payment action
+    flex: 1,
+  },
+  payToActivateButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.background,

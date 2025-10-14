@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
 
   statLabel: {
     fontSize: 11,
-    color: '#666',
+    color: theme.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     fontWeight: '400',

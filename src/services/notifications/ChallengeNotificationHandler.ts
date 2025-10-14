@@ -18,9 +18,9 @@ import type { ChallengeNotificationMetadata } from '../../types/unifiedNotificat
 
 export interface ChallengeNotification {
   id: string;
-  type: 'request' | 'accepted' | 'declined';
+  type: 'request' | 'accepted' | 'declined' | 'payment_required';
   challengeId: string;
-  challengerPubkey: string;
+  challengerPubkey: string; // For requests, this is who challenged. For payment_required, this is who accepted
   challengerName?: string;
   challengerPicture?: string;
   activityType: string;
@@ -29,6 +29,8 @@ export interface ChallengeNotification {
   wagerAmount: number;
   timestamp: number;
   read: boolean;
+  accepterPubkey?: string; // For payment_required notifications - who accepted the QR challenge
+  accepterName?: string;
 }
 
 export type ChallengeNotificationCallback = (notification: ChallengeNotification) => void;
@@ -331,6 +333,54 @@ export class ChallengeNotificationHandler {
   }
 
   /**
+   * Create payment required notification for QR challenge creator
+   * Called when someone scans and pays their wager
+   */
+  async createPaymentRequiredNotification(
+    challengeId: string,
+    accepterPubkey: string,
+    challengeData: {
+      activityType: string;
+      metric: string;
+      duration: number;
+      wagerAmount: number;
+    }
+  ): Promise<void> {
+    try {
+      // Get accepter's profile
+      const accepterProfile = await nostrProfileService.getProfile(accepterPubkey);
+
+      const notification: ChallengeNotification = {
+        id: `payment_${challengeId}`,
+        type: 'payment_required',
+        challengeId,
+        challengerPubkey: accepterPubkey, // The person who accepted (for display)
+        challengerName: accepterProfile?.display_name || accepterProfile?.name || 'Someone',
+        challengerPicture: accepterProfile?.picture,
+        accepterPubkey,
+        accepterName: accepterProfile?.display_name || accepterProfile?.name,
+        activityType: challengeData.activityType,
+        metric: challengeData.metric,
+        duration: challengeData.duration,
+        wagerAmount: challengeData.wagerAmount,
+        timestamp: Date.now(),
+        read: false,
+      };
+
+      // Add to notifications
+      this.notifications.set(notification.id, notification);
+      this.notifyCallbacks(notification);
+
+      // Publish to unified store
+      await this.publishToUnifiedStore(notification);
+
+      console.log(`Payment required notification created for challenge: ${challengeId}`);
+    } catch (error) {
+      console.error('Failed to create payment required notification:', error);
+    }
+  }
+
+  /**
    * Publish challenge notification to unified store
    */
   private async publishToUnifiedStore(notification: ChallengeNotification): Promise<void> {
@@ -346,7 +396,26 @@ export class ChallengeNotificationHandler {
         wagerAmount: notification.wagerAmount,
       };
 
-      if (notification.type === 'request') {
+      if (notification.type === 'payment_required') {
+        await unifiedNotificationStore.addNotification(
+          'challenge_payment_required',
+          'Pay to Activate Challenge',
+          `${notification.challengerName || 'Someone'} accepted your challenge! Pay ${notification.wagerAmount} sats to activate.`,
+          metadata,
+          {
+            icon: 'wallet',
+            actions: [
+              {
+                id: 'pay',
+                type: 'pay_challenge_wager',
+                label: 'Pay to Activate',
+                isPrimary: true,
+              },
+            ],
+            nostrEventId: notification.challengeId,
+          }
+        );
+      } else if (notification.type === 'request') {
         await unifiedNotificationStore.addNotification(
           'challenge_request',
           `${notification.challengerName || 'Someone'} challenged you!`,
