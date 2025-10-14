@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
-import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
+import { challengePaymentService } from '../../services/challenge/ChallengePaymentService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 import type { ActivityConfiguration } from '../../types/challenge';
@@ -27,9 +27,8 @@ import type { DiscoveredNostrUser } from '../../services/user/UserDiscoveryServi
 // Step components
 import { ActivityConfigurationStep } from './steps/ActivityConfigurationStep';
 import { ChallengeReviewStep } from './steps/ChallengeReviewStep';
-import { ChallengePaymentModal } from '../challenge/ChallengePaymentModal';
 
-type QuickChallengeStep = 'activity_config' | 'review' | 'payment';
+type QuickChallengeStep = 'activity_config' | 'review';
 
 export interface QuickChallengeWizardProps {
   opponent: DiscoveredNostrUser | {
@@ -77,13 +76,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
   const [currentStep, setCurrentStep] = useState<QuickChallengeStep>('activity_config');
   const [configuration, setConfiguration] = useState<Partial<ActivityConfiguration>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Payment state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentInvoice, setPaymentInvoice] = useState('');
-  const [paymentHash, setPaymentHash] = useState('');
-  const [challengeId, setChallengeId] = useState('');
-  const [currentUserPubkey, setCurrentUserPubkey] = useState('');
+  const [lightningAddress, setLightningAddress] = useState('');
 
   // Normalize opponent data to DiscoveredNostrUser format
   const normalizedOpponent: DiscoveredNostrUser = {
@@ -106,11 +99,12 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
           configuration.wagerAmount !== undefined
         );
       case 'review':
-        return true;
+        // Require Lightning address for paid challenges
+        return configuration.wagerAmount === 0 || !!lightningAddress?.trim();
       default:
         return false;
     }
-  }, [currentStep, configuration]);
+  }, [currentStep, configuration, lightningAddress]);
 
   // Navigation handlers
   const handleNext = useCallback(async () => {
@@ -123,11 +117,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
         setCurrentStep('review');
         break;
       case 'review':
-        // Move to payment step
-        await handleInitiatePayment();
-        break;
-      case 'payment':
-        // Payment completed, now send challenge
+        // Send challenge directly (no payment needed from creator)
         await handleSendChallenge();
         break;
     }
@@ -140,123 +130,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
   }, [currentStep]);
 
   /**
-   * Initiate payment process
-   * Generates invoice and shows payment modal
-   */
-  const handleInitiatePayment = useCallback(async () => {
-    if (!configuration.activityType || !configuration.metric ||
-        configuration.duration === undefined || configuration.wagerAmount === undefined) {
-      Alert.alert('Error', 'Please complete all required fields');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      // Get user identifiers
-      const userIdentifiers = await getUserNostrIdentifiers();
-      if (!userIdentifiers?.hexPubkey) {
-        throw new Error('User not authenticated');
-      }
-
-      // Store current user pubkey for payment modal
-      setCurrentUserPubkey(userIdentifiers.hexPubkey);
-
-      // Generate temporary challenge ID
-      const tempChallengeId = `challenge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      setChallengeId(tempChallengeId);
-
-      // Initialize payment record
-      await challengeEscrowService.initializePaymentRecord(
-        tempChallengeId,
-        configuration.wagerAmount,
-        userIdentifiers.hexPubkey,
-        opponent.pubkey
-      );
-
-      // Generate Lightning invoice
-      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
-        tempChallengeId,
-        configuration.wagerAmount,
-        userIdentifiers.hexPubkey,
-        'creator'
-      );
-
-      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
-        throw new Error(invoiceResult.error || 'Failed to generate invoice');
-      }
-
-      // Set payment details and show modal
-      setPaymentInvoice(invoiceResult.invoice);
-      setPaymentHash(invoiceResult.paymentHash);
-      setShowPaymentModal(true);
-      setCurrentStep('payment');
-
-      console.log('⚡ Payment modal shown, waiting for payment...');
-    } catch (error) {
-      console.error('Failed to initiate payment:', error);
-
-      const errorMessage =
-        error instanceof Error ? error.message : 'An unexpected error occurred';
-
-      Alert.alert(
-        'Payment Setup Failed',
-        errorMessage,
-        [
-          {
-            text: 'Try Again',
-            onPress: () => setIsSubmitting(false),
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              setIsSubmitting(false);
-              onCancel();
-            },
-          },
-        ]
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [opponent, configuration, onCancel]);
-
-  /**
-   * Handle payment confirmed - send challenge request
-   */
-  const handlePaymentConfirmed = useCallback(async () => {
-    console.log('✅ Payment confirmed, sending challenge...');
-    setShowPaymentModal(false);
-    await handleSendChallenge();
-  }, []);
-
-  /**
-   * Handle payment cancelled
-   */
-  const handlePaymentCancelled = useCallback(() => {
-    setShowPaymentModal(false);
-    setCurrentStep('review');
-    Alert.alert(
-      'Payment Cancelled',
-      'Challenge was not created. No charge was made.'
-    );
-  }, []);
-
-  /**
-   * Handle payment timeout
-   */
-  const handlePaymentTimeout = useCallback(() => {
-    setShowPaymentModal(false);
-    setCurrentStep('review');
-    Alert.alert(
-      'Payment Timeout',
-      'Challenge was not created due to payment timeout.'
-    );
-  }, []);
-
-  /**
-   * Send challenge request (after payment confirmed)
+   * Send challenge request with Lightning address
    */
   const handleSendChallenge = useCallback(async () => {
     if (!configuration.activityType || !configuration.metric ||
@@ -288,6 +162,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
           metric: configuration.metric,
           duration: configuration.duration,
           wagerAmount: configuration.wagerAmount,
+          creatorLightningAddress: lightningAddress || undefined,
         },
         signer
       );
@@ -410,6 +285,8 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
             <ChallengeReviewStep
               opponent={normalizedOpponent}
               configuration={configuration as ActivityConfiguration}
+              lightningAddress={lightningAddress}
+              onLightningAddressChange={setLightningAddress}
               onEditConfiguration={handleEditConfiguration}
             />
           </View>
@@ -436,28 +313,13 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
                   (!isValid || isSubmitting) && styles.nextButtonTextDisabled,
                 ]}
               >
-                {currentStep === 'review' ? 'Continue to Payment' : 'Next'}
+                {currentStep === 'review' ? 'Send Challenge' : 'Next'}
               </Text>
             )}
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Payment Modal */}
-      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
-        <ChallengePaymentModal
-          visible={showPaymentModal}
-          challengeId={challengeId}
-          wagerAmount={configuration.wagerAmount || 0}
-          invoice={paymentInvoice}
-          paymentHash={paymentHash}
-          userPubkey={currentUserPubkey}
-          role="creator"
-          onPaymentConfirmed={handlePaymentConfirmed}
-          onCancel={handlePaymentCancelled}
-          onTimeout={handlePaymentTimeout}
-        />
-      )}
     </SafeAreaView>
   );
 };

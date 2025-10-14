@@ -12,7 +12,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  TextInput,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../styles/theme';
 import type { DiscoveredNostrUser } from '../../../services/user/UserDiscoveryService';
 import type { ActivityConfiguration } from '../../../types/challenge';
@@ -21,6 +23,8 @@ import { ACTIVITY_METRICS } from '../../../types/challenge';
 interface ChallengeReviewStepProps {
   opponent: DiscoveredNostrUser;
   configuration: ActivityConfiguration;
+  lightningAddress?: string;
+  onLightningAddressChange?: (address: string) => void;
   onEditOpponent?: () => void;
   onEditConfiguration?: () => void;
 }
@@ -28,6 +32,8 @@ interface ChallengeReviewStepProps {
 export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
   opponent,
   configuration,
+  lightningAddress,
+  onLightningAddressChange,
   onEditOpponent,
   onEditConfiguration,
 }) => {
@@ -179,6 +185,36 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
               {(configuration.wagerAmount * 2).toLocaleString()} sats
             </Text>
           </View>
+        </View>
+      </View>
+
+      {/* Lightning Address Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Lightning Address (Required)</Text>
+
+        <View style={styles.lightningCard}>
+          <View style={styles.lightningHeader}>
+            <Ionicons name="flash" size={20} color={theme.colors.accent} />
+            <Text style={styles.lightningTitle}>Your Payment Address</Text>
+          </View>
+
+          <TextInput
+            style={styles.lightningInput}
+            value={lightningAddress}
+            onChangeText={onLightningAddressChange}
+            placeholder="you@getalby.com"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <Text style={styles.lightningHelper}>
+            ⚡ Your opponent will pay this address when accepting the challenge
+          </Text>
+          <Text style={styles.lightningHelper}>
+            💰 If you win, you'll receive {(configuration.wagerAmount * 2).toLocaleString()} sats here
+          </Text>
         </View>
       </View>
 
@@ -404,5 +440,39 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     lineHeight: 18,
     textAlign: 'center',
+  },
+  lightningCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 16,
+  },
+  lightningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  lightningTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  lightningInput: {
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  lightningHelper: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 4,
   },
 });

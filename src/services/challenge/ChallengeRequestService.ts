@@ -29,6 +29,7 @@ export interface ChallengeRequestData {
   wagerAmount: number;
   startDate?: number;
   endDate?: number;
+  creatorLightningAddress?: string; // Creator's Lightning address for receiving payment
 }
 
 export interface PendingChallenge {
@@ -45,6 +46,8 @@ export interface PendingChallenge {
   requestedAt: number;
   expiresAt: number;
   status: 'pending' | 'accepted' | 'declined' | 'expired';
+  creatorLightningAddress?: string; // Creator's Lightning address
+  accepterLightningAddress?: string; // Accepter's Lightning address (added when accepting)
 }
 
 export interface ChallengeEventListener {
@@ -167,6 +170,7 @@ export class ChallengeRequestService {
       const wagerAmount = parseInt(event.tags.find((t) => t[0] === 'wager')?.[1] || '0', 10);
       const startDate = parseInt(event.tags.find((t) => t[0] === 'start-date')?.[1] || '0', 10);
       const endDate = parseInt(event.tags.find((t) => t[0] === 'end-date')?.[1] || '0', 10);
+      const creatorLightningAddress = event.tags.find((t) => t[0] === 'lightning-address')?.[1];
 
       if (!challengedPubkey || !activityType || !metric) {
         console.warn('Invalid challenge request event - missing required fields');
@@ -189,6 +193,7 @@ export class ChallengeRequestService {
         requestedAt: event.created_at || Math.floor(Date.now() / 1000),
         expiresAt: expiresAt * 1000,
         status: 'pending',
+        creatorLightningAddress,
       };
     } catch (error) {
       console.error('Failed to parse challenge request:', error);
@@ -228,6 +233,11 @@ export class ChallengeRequestService {
         ['t', 'fitness'],
         ['t', requestData.activityType],
       ];
+
+      // Add Lightning address if provided
+      if (requestData.creatorLightningAddress) {
+        tags.push(['lightning-address', requestData.creatorLightningAddress]);
+      }
 
       const content = `Challenge: ${requestData.activityType} - ${requestData.metric} for ${requestData.duration} days. Wager: ${requestData.wagerAmount} sats.`;
 
