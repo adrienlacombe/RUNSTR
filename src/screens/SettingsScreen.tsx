@@ -32,7 +32,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { useWalletStore } from '../store/walletStore';
+import { NWCStorageService } from '../services/wallet/NWCStorageService';
+import { WalletConfigModal } from '../components/wallet/WalletConfigModal';
 
 interface SettingsScreenProps {
   currentTeam?: Team;
@@ -97,9 +98,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     announceLiveSplits: false,
   });
 
-  // Wallet creation state
-  const { walletExists, createWallet, initialize: initializeWallet } = useWalletStore();
-  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  // NWC Wallet state
+  const [hasNWC, setHasNWC] = useState(false);
+  const [showWalletConfig, setShowWalletConfig] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Alert state for CustomAlert
@@ -125,6 +126,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Load user's nsec for backup feature
       const nsec = await AsyncStorage.getItem('@runstr:user_nsec');
       setUserNsec(nsec);
+
+      // Check NWC wallet status
+      const nwcAvailable = await NWCStorageService.hasNWC();
+      setHasNWC(nwcAvailable);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -293,33 +298,37 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const handleCreateWallet = async () => {
-    setIsCreatingWallet(true);
-    try {
-      await createWallet();
-      setAlertTitle('Wallet Created');
-      setAlertMessage('Your RUNSTR Lightning wallet has been created successfully!');
-      setAlertButtons([{ text: 'OK' }]);
-      setAlertVisible(true);
-    } catch (error) {
-      console.error('Wallet creation failed:', error);
-      setAlertTitle('Creation Failed');
-      setAlertMessage('Failed to create wallet. Please try again.');
-      setAlertButtons([{ text: 'OK' }]);
-      setAlertVisible(true);
-    } finally {
-      setIsCreatingWallet(false);
-    }
+  const handleWalletConfigSuccess = async () => {
+    // Reload NWC status after successful configuration
+    const nwcAvailable = await NWCStorageService.hasNWC();
+    setHasNWC(nwcAvailable);
+  };
+
+  const handleDisconnectWallet = async () => {
+    setAlertTitle('Disconnect Wallet?');
+    setAlertMessage('This will remove your wallet connection. You can reconnect anytime.');
+    setAlertButtons([
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: async () => {
+          await NWCStorageService.clearNWC();
+          setHasNWC(false);
+        },
+      },
+    ]);
+    setAlertVisible(true);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      console.log('[SettingsScreen] Pull-to-refresh: Re-initializing wallet...');
-      await initializeWallet();
-      console.log('[SettingsScreen] Wallet re-initialized successfully');
+      console.log('[SettingsScreen] Pull-to-refresh: Reloading settings...');
+      await loadSettings();
+      console.log('[SettingsScreen] Settings reloaded successfully');
     } catch (error) {
-      console.error('[SettingsScreen] Wallet refresh failed:', error);
+      console.error('[SettingsScreen] Settings refresh failed:', error);
     } finally {
       setIsRefreshing(false);
     }
@@ -449,31 +458,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               }
             />
 
-            {/* Wallet Status & Creation */}
+            {/* NWC Wallet Connection */}
             <View style={styles.settingItem}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>
-                  {walletExists ? 'Lightning Wallet' : 'Create Wallet'}
-                </Text>
+                <Text style={styles.settingTitle}>Wallet Connection</Text>
                 <Text style={styles.settingSubtitle}>
-                  {walletExists
-                    ? 'Your RUNSTR wallet is active'
-                    : 'Create a Lightning wallet to send/receive sats'}
+                  {hasNWC
+                    ? 'NWC wallet connected'
+                    : 'Connect Lightning wallet for Bitcoin features'}
                 </Text>
               </View>
-              {walletExists ? (
-                <Text style={styles.statusCheck}>✓</Text>
+              {hasNWC ? (
+                <TouchableOpacity
+                  style={styles.disconnectButton}
+                  onPress={handleDisconnectWallet}
+                >
+                  <Text style={styles.disconnectButtonText}>Disconnect</Text>
+                </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  style={[styles.createButton, isCreatingWallet && styles.buttonDisabled]}
-                  onPress={handleCreateWallet}
-                  disabled={isCreatingWallet}
+                  style={styles.createButton}
+                  onPress={() => setShowWalletConfig(true)}
                 >
-                  {isCreatingWallet ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.createButtonText}>Create</Text>
-                  )}
+                  <Text style={styles.createButtonText}>Connect</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -707,6 +714,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         buttons={alertButtons}
         onClose={() => setAlertVisible(false)}
       />
+
+      {/* Wallet Configuration Modal */}
+      <WalletConfigModal
+        visible={showWalletConfig}
+        onClose={() => setShowWalletConfig(false)}
+        onSuccess={handleWalletConfigSuccess}
+        allowSkip={true}
+      />
     </SafeAreaView>
   );
 };
@@ -870,6 +885,19 @@ const styles = StyleSheet.create({
 
   createButtonText: {
     color: '#000',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  disconnectButton: {
+    backgroundColor: theme.colors.error,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+
+  disconnectButtonText: {
+    color: '#fff',
     fontSize: 13,
     fontWeight: '600',
   },
