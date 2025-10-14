@@ -160,6 +160,11 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
       const privateKeyHex = nsecToPrivateKey(authData.nsec);
       const captainHexPubkey = npubToHex(authData.npub);
 
+      if (!captainHexPubkey) {
+        Alert.alert('Error', 'Invalid captain public key');
+        return;
+      }
+
       // Get current participant list
       const dTag = `event-${eventId}-participants`;
       const currentList = await listService.getList(captainHexPubkey, dTag);
@@ -444,7 +449,7 @@ const styles = StyleSheet.create({
   eventGroup: {
     marginBottom: 16,
     borderRadius: 8,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.cardBackground,
     overflow: 'hidden',
   },
   eventHeader: {

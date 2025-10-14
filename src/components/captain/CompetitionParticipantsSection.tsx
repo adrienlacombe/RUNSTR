@@ -297,10 +297,8 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
               {approvedParticipants.map((participant) => (
                 <View key={participant.hexPubkey} style={styles.participantItem}>
                   <ZappableUserRow
-                    userNpub={participant.npub || ''}
-                    userName={participant.name || 'Unknown'}
-                    userAvatar={participant.avatar}
-                    lastSeen={new Date(participant.joinedAt).toISOString()}
+                    npub={participant.npub || ''}
+                    fallbackName={participant.name || 'Unknown'}
                   />
                   <TouchableOpacity
                     style={styles.removeButton}

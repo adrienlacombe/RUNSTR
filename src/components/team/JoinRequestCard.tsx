@@ -19,8 +19,9 @@ interface JoinRequestCardProps {
   request: JoinRequest;
   teamId: string;
   captainPubkey: string;
-  onApprove: (requestId: string, requesterPubkey: string) => void;
-  onDeny: (requestId: string) => void;
+  onApprove: (requestId: string, requesterPubkey: string) => void | Promise<void>;
+  onDeny?: (requestId: string) => void;
+  onReject?: () => void; // Alias for onDeny (used by EventJoinRequestsSection)
   style?: any;
 }
 
@@ -30,6 +31,7 @@ export const JoinRequestCard: React.FC<JoinRequestCardProps> = ({
   captainPubkey,
   onApprove,
   onDeny,
+  onReject,
   style,
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -134,7 +136,13 @@ export const JoinRequestCard: React.FC<JoinRequestCardProps> = ({
         {
           text: 'Deny',
           style: 'destructive',
-          onPress: () => onDeny(request.id),
+          onPress: () => {
+            if (onReject) {
+              onReject();
+            } else if (onDeny) {
+              onDeny(request.id);
+            }
+          },
         },
       ]
     );

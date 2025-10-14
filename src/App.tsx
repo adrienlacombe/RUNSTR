@@ -94,6 +94,7 @@ import { appInitializationService } from './services/initialization/AppInitializ
 import { theme } from './styles/theme';
 import unifiedCache from './services/cache/UnifiedNostrCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { challengeCompletionService } from './services/challenge/ChallengeCompletionService';
 
 // Types for authenticated app navigation
 type AuthenticatedStackParamList = {
@@ -269,6 +270,11 @@ const AppContent: React.FC = () => {
           } else {
             console.log('[App] ℹ️  Wallet already initialized, skipping');
           }
+
+          // ✅ CHALLENGE COMPLETION: Start monitoring active challenges
+          console.log('[App] 🏁 Starting challenge completion monitoring...');
+          challengeCompletionService.startMonitoring();
+          console.log('[App] ✅ Challenge completion monitoring active');
         } catch (error) {
           console.error('[App] ❌ App data initialization error:', error);
           // Don't block app - initialization errors are non-critical
@@ -276,6 +282,12 @@ const AppContent: React.FC = () => {
       };
 
       initializeData();
+
+      // Cleanup: Stop monitoring when component unmounts (user logs out)
+      return () => {
+        console.log('[App] 🛑 Stopping challenge completion monitoring...');
+        challengeCompletionService.stopMonitoring();
+      };
     }, [user.id]);
 
     return (
@@ -367,11 +379,11 @@ const AppContent: React.FC = () => {
               );
             }
 
+            console.log('[App.tsx] ⏳ SUSPENSE FALLBACK RENDERING - Waiting for lazy component');
             return (
               <React.Suspense
                 fallback={
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-                    {console.log('[App.tsx] ⏳ SUSPENSE FALLBACK RENDERING - Waiting for lazy component')}
                     <ActivityIndicator size="large" color={theme.colors.text} />
                   </View>
                 }
