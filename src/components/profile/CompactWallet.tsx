@@ -173,8 +173,11 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
             <View style={styles.noWalletIcon}>
               <Ionicons name="wallet-outline" size={32} color={theme.colors.textMuted} />
             </View>
-            <Text style={styles.noWalletText}>
-              Connect wallet for Bitcoin features
+            <Text style={styles.noWalletTitle}>
+              Connect Wallet to Send Bitcoin
+            </Text>
+            <Text style={styles.noWalletDescription}>
+              Connect your Lightning wallet (NWC) to send zaps, pay event fees, and make challenge wagers
             </Text>
             <TouchableOpacity
               style={styles.connectButton}
@@ -184,6 +187,9 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
               <Ionicons name="add-circle-outline" size={18} color="#000000" />
               <Text style={styles.connectButtonText}>Connect Wallet</Text>
             </TouchableOpacity>
+            <Text style={styles.receiveNote}>
+              💡 Set your Lightning address in profile to receive Bitcoin
+            </Text>
           </View>
         ) : (
           // Wallet configured - show balance and actions
@@ -269,11 +275,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  noWalletText: {
-    fontSize: 13,
+  noWalletTitle: {
+    fontSize: 15,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+
+  noWalletDescription: {
+    fontSize: 12,
     color: theme.colors.textMuted,
     marginBottom: 12,
     textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 8,
   },
 
   connectButton: {
@@ -284,6 +300,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
+  },
+
+  receiveNote: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    marginTop: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 
   connectButtonText: {

@@ -1,19 +1,24 @@
 /**
  * ChallengeCompletionService
- * Handles challenge expiration, winner determination, and automatic payouts
+ * Handles challenge expiration, winner determination, and payout invoice generation
  * Monitors active challenges and executes completion flow
+ *
+ * NEW: Uses Lightning addresses for direct payment flow (no escrow)
  */
 
 import { challengeService } from '../competition/ChallengeService';
-import { challengeEscrowService } from './ChallengeEscrowService';
+import { challengePaymentService } from './ChallengePaymentService';
 import type { ChallengeMetadata } from '../../types/challenge';
 import type { LeaderboardEntry } from '../competition/ChallengeService';
 
 export interface CompletionResult {
   success: boolean;
   winnerId?: string;
+  loserId?: string;
   isTie?: boolean;
-  payoutExecuted?: boolean;
+  payoutInvoice?: string; // Invoice for loser to pay winner
+  winnerLightningAddress?: string;
+  loserLightningAddress?: string;
   error?: string;
 }
 
@@ -64,16 +69,14 @@ export class ChallengeCompletionService {
 
   /**
    * Check all active challenges for expiration
+   * NEW: Queries Nostr for active challenges instead of escrow records
    */
   private async checkExpiredChallenges(): Promise<void> {
     try {
-      // Get all payment records that are fully funded but not completed
-      const allPayments = await challengeEscrowService.getAllPaymentRecords();
-      const activeChallenges = allPayments.filter(
-        (p) => p.status === 'fully_funded'
-      );
+      // Get all active challenges from challengeService
+      const activeChallenges = await challengeService.getActiveChallenges();
 
-      if (activeChallenges.length === 0) {
+      if (!activeChallenges || activeChallenges.length === 0) {
         console.log('✅ No active challenges to check');
         return;
       }
@@ -81,23 +84,16 @@ export class ChallengeCompletionService {
       console.log(`🔍 Checking ${activeChallenges.length} active challenges...`);
 
       const now = Date.now();
-      for (const payment of activeChallenges) {
+      for (const challenge of activeChallenges) {
         try {
-          // Get challenge metadata
-          const challenge = await challengeService.getChallenge(payment.challengeId);
-          if (!challenge) {
-            console.log(`⚠️ Challenge not found: ${payment.challengeId}`);
-            continue;
-          }
-
           // Check if expired
           const expiresAt = challenge.expiresAt * 1000; // Convert to milliseconds
           if (now >= expiresAt) {
-            console.log(`⏰ Challenge expired: ${payment.challengeId}`);
-            await this.completeChallenge(payment.challengeId);
+            console.log(`⏰ Challenge expired: ${challenge.challengeId}`);
+            await this.completeChallenge(challenge.challengeId);
           }
         } catch (error) {
-          console.error(`Error checking challenge ${payment.challengeId}:`, error);
+          console.error(`Error checking challenge ${challenge.challengeId}:`, error);
         }
       }
     } catch (error) {
@@ -106,7 +102,8 @@ export class ChallengeCompletionService {
   }
 
   /**
-   * Complete a challenge - determine winner and execute payout
+   * Complete a challenge - determine winner and generate payout invoice
+   * NEW: Returns invoice for loser to pay winner (no automatic payout)
    */
   async completeChallenge(challengeId: string): Promise<CompletionResult> {
     try {
@@ -118,67 +115,79 @@ export class ChallengeCompletionService {
         throw new Error('Challenge not found');
       }
 
-      // Get payment status
-      const payment = await challengeEscrowService.getPaymentStatus(challengeId);
-      if (!payment) {
-        throw new Error('Payment record not found');
+      // Validate Lightning addresses are present
+      if (!challenge.creatorLightningAddress) {
+        throw new Error('Creator Lightning address not found');
       }
-
-      if (payment.status !== 'fully_funded') {
-        throw new Error('Challenge not fully funded');
+      if (!challenge.accepterLightningAddress) {
+        throw new Error('Accepter Lightning address not found');
       }
 
       // Determine winner from leaderboard
-      const winner = await this.determineWinner(challengeId);
+      const winnerPubkey = await this.determineWinner(challengeId);
 
-      if (!winner) {
-        console.log('⚠️ No workouts found - refunding both participants');
-        // TODO: Handle refund for no workouts
+      if (!winnerPubkey) {
+        console.log('⚠️ No workouts found - no payout generated');
         return {
           success: true,
-          error: 'No workouts found - manual refund required',
+          error: 'No workouts found - challenge abandoned',
         };
       }
 
-      if (winner === 'tie') {
-        console.log('🤝 Tie detected - splitting pot');
-        // Handle tie
-        await challengeEscrowService.handleTie(
-          challengeId,
-          payment.creatorPubkey,
-          payment.accepterPubkey
-        );
-
+      if (winnerPubkey === 'tie') {
+        console.log('🤝 Tie detected - no payout');
+        // TODO: Send notification to both participants about tie
         return {
           success: true,
           isTie: true,
         };
       }
 
-      // We have a winner - execute payout
-      console.log(`🏆 Winner: ${winner.slice(0, 8)}...`);
+      // We have a winner - determine loser and generate payout invoice
+      console.log(`🏆 Winner: ${winnerPubkey.slice(0, 8)}...`);
 
-      // For now, we need Lightning address to auto-payout
-      // TODO: Get winner's Lightning address from profile
-      const payoutResult = await challengeEscrowService.payoutWinner(
-        challengeId,
-        winner
-        // winnerLightningAddress // TODO: Pass when available
+      // Determine loser pubkey and get Lightning addresses
+      const isCreatorWinner = winnerPubkey === challenge.challengerPubkey;
+      const loserPubkey = isCreatorWinner ? challenge.challengedPubkey : challenge.challengerPubkey;
+      const winnerLightningAddress = isCreatorWinner
+        ? challenge.creatorLightningAddress
+        : challenge.accepterLightningAddress;
+      const loserLightningAddress = isCreatorWinner
+        ? challenge.accepterLightningAddress
+        : challenge.creatorLightningAddress;
+
+      console.log(`💰 Generating payout invoice from loser to winner...`);
+      console.log(`   Winner: ${winnerLightningAddress}`);
+      console.log(`   Loser pays: ${challenge.wagerAmount * 2} sats`);
+
+      // Generate payout invoice (loser pays winner the full pot)
+      const payoutResult = await challengePaymentService.generatePayoutInvoice(
+        winnerLightningAddress,
+        challenge.wagerAmount * 2, // Winner takes all
+        challengeId
       );
 
-      if (payoutResult.success) {
-        console.log(`✅ Payout executed: ${payoutResult.payoutHash}`);
-      } else {
-        console.log(`⚠️ Payout pending: ${payoutResult.error}`);
+      if (!payoutResult.success || !payoutResult.invoice) {
+        throw new Error(payoutResult.error || 'Failed to generate payout invoice');
       }
 
-      // TODO: Send notifications to both participants (kind 1102)
+      console.log(`✅ Payout invoice generated`);
+      console.log(`   Invoice: ${payoutResult.invoice.substring(0, 50)}...`);
+
+      // TODO: Send notification to both participants (kind 1102)
+      // - Winner: "You won! Waiting for opponent to pay..."
+      // - Loser: "You lost. Please pay the payout invoice."
+
+      // Update challenge status to completed
+      await challengeService.updateChallengeStatus(challengeId, 'completed', winnerPubkey);
 
       return {
         success: true,
-        winnerId: winner,
-        payoutExecuted: payoutResult.success,
-        error: payoutResult.error,
+        winnerId: winnerPubkey,
+        loserId: loserPubkey,
+        payoutInvoice: payoutResult.invoice,
+        winnerLightningAddress,
+        loserLightningAddress,
       };
     } catch (error) {
       console.error('Failed to complete challenge:', error);
@@ -244,29 +253,24 @@ export class ChallengeCompletionService {
 
   /**
    * Get all challenges that are ready for completion
-   * (expired and fully funded)
+   * (expired and active)
+   * NEW: Queries active challenges from Nostr instead of payment records
    */
   async getExpiredChallenges(): Promise<string[]> {
     try {
-      const allPayments = await challengeEscrowService.getAllPaymentRecords();
-      const activeChallenges = allPayments.filter(
-        (p) => p.status === 'fully_funded'
-      );
+      const activeChallenges = await challengeService.getActiveChallenges();
 
       const expiredIds: string[] = [];
       const now = Date.now();
 
-      for (const payment of activeChallenges) {
+      for (const challenge of activeChallenges) {
         try {
-          const challenge = await challengeService.getChallenge(payment.challengeId);
-          if (challenge) {
-            const expiresAt = challenge.expiresAt * 1000;
-            if (now >= expiresAt) {
-              expiredIds.push(payment.challengeId);
-            }
+          const expiresAt = challenge.expiresAt * 1000;
+          if (now >= expiresAt) {
+            expiredIds.push(challenge.challengeId);
           }
         } catch (error) {
-          console.error(`Error checking challenge ${payment.challengeId}:`, error);
+          console.error(`Error checking challenge ${challenge.challengeId}:`, error);
         }
       }
 
@@ -278,27 +282,11 @@ export class ChallengeCompletionService {
   }
 
   /**
-   * Handle payment timeout refunds
-   * Refund creator if accepter never pays within 72 hours
+   * DEPRECATED: No payment timeouts in new Lightning address flow
+   * Payments are direct between users, not held in escrow
    */
   async checkPaymentTimeouts(): Promise<void> {
-    try {
-      const allPayments = await challengeEscrowService.getAllPaymentRecords();
-      const pendingPayments = allPayments.filter(
-        (p) => p.status === 'awaiting_accepter'
-      );
-
-      const now = Date.now();
-
-      for (const payment of pendingPayments) {
-        if (payment.expiresAt && now >= payment.expiresAt) {
-          console.log(`⏰ Payment timeout for challenge: ${payment.challengeId}`);
-          await challengeEscrowService.refundCreator(payment.challengeId);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to check payment timeouts:', error);
-    }
+    console.log('⚠️ checkPaymentTimeouts is deprecated - no escrow in new payment flow');
   }
 }
 

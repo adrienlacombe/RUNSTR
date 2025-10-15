@@ -62,8 +62,7 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
   // Payment state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState('');
-  const [paymentHash, setPaymentHash] = useState('');
-  const [currentUserPubkey, setCurrentUserPubkey] = useState('');
+  const [challengeName, setChallengeName] = useState('');
 
   if (!challengeData) {
     return null;
@@ -82,8 +81,6 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
         throw new Error('User not authenticated');
       }
 
-      setCurrentUserPubkey(userIdentifiers.hexPubkey);
-
       // Initialize payment record for QR challenge
       await challengeEscrowService.initializePaymentRecord(
         challengeData.challenge_id,
@@ -100,13 +97,13 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
         'accepter'
       );
 
-      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
+      if (!invoiceResult.success || !invoiceResult.invoice) {
         throw new Error(invoiceResult.error || 'Failed to generate invoice');
       }
 
       // Show payment modal
       setPaymentInvoice(invoiceResult.invoice);
-      setPaymentHash(invoiceResult.paymentHash);
+      setChallengeName(`${challengeData.activity_type} challenge`);
       setShowPaymentModal(true);
 
       console.log('⚡ Payment modal shown for QR challenge scanner...');
@@ -191,15 +188,6 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
     setShowPaymentModal(false);
     setIsAccepting(false);
     Alert.alert('Payment Cancelled', 'Challenge was not accepted.');
-  };
-
-  /**
-   * Handle payment timeout
-   */
-  const handlePaymentTimeout = () => {
-    setShowPaymentModal(false);
-    setIsAccepting(false);
-    Alert.alert('Payment Timeout', 'Challenge was not accepted due to payment timeout.');
   };
 
   const handleDecline = () => {
@@ -319,18 +307,16 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
       </View>
 
       {/* Payment Modal */}
-      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
+      {showPaymentModal && paymentInvoice && (
         <ChallengePaymentModal
           visible={showPaymentModal}
           challengeId={challengeData.challenge_id}
+          challengeName={challengeName}
           wagerAmount={challengeData.wager}
           invoice={paymentInvoice}
-          paymentHash={paymentHash}
-          userPubkey={currentUserPubkey}
           role="accepter"
           onPaymentConfirmed={handlePaymentConfirmed}
           onCancel={handlePaymentCancelled}
-          onTimeout={handlePaymentTimeout}
         />
       )}
     </Modal>

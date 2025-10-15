@@ -1,12 +1,10 @@
 /**
  * CharityZapService - Handle zapping team charities
- * Generates Lightning invoices and processes payments to charity Lightning addresses
+ * Generates Lightning invoices from charity Lightning addresses
+ * No NWC wallet required - works with any Lightning wallet
  */
 
-import { Alert } from 'react-native';
 import { getCharityById } from '../../constants/charities';
-import { NWCWalletService } from '../wallet/NWCWalletService';
-import { NWCStorageService } from '../wallet/NWCStorageService';
 
 export interface CharityZapResult {
   success: boolean;
@@ -14,24 +12,30 @@ export interface CharityZapResult {
   error?: string;
 }
 
+export interface CharityInvoiceResult {
+  success: boolean;
+  invoice?: string;
+  amount?: number;
+  charityName?: string;
+  error?: string;
+}
+
 class CharityZapServiceClass {
   /**
-   * Prompt user for zap amount and send to charity
+   * Generate Lightning invoice for charity donation
+   * Returns invoice for user to pay with any Lightning wallet
    */
-  async zapCharity(
+  async generateCharityInvoice(
     charityId: string,
-    charityName: string
-  ): Promise<CharityZapResult> {
+    amountSats: number
+  ): Promise<CharityInvoiceResult> {
     try {
-      // Check if user has wallet configured
-      const hasWallet = await NWCStorageService.hasNWC();
-      if (!hasWallet) {
-        Alert.alert(
-          'Wallet Required',
-          'Please connect your wallet to send zaps.',
-          [{ text: 'OK' }]
-        );
-        return { success: false, error: 'No wallet configured' };
+      // Validate amount
+      if (!amountSats || amountSats <= 0) {
+        return {
+          success: false,
+          error: 'Invalid amount. Please enter a positive number.',
+        };
       }
 
       // Get charity info
@@ -40,36 +44,28 @@ class CharityZapServiceClass {
         return { success: false, error: 'Charity not found' };
       }
 
-      // Show amount input modal (using Alert.prompt for simplicity)
-      return new Promise((resolve) => {
-        Alert.prompt(
-          `⚡ Zap ${charityName}`,
-          'Enter amount in sats',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => resolve({ success: false, error: 'Cancelled' }),
-            },
-            {
-              text: 'Send',
-              onPress: async (amountStr) => {
-                const result = await this.sendZapToCharity(
-                  charity.lightningAddress,
-                  charityName,
-                  amountStr || '0'
-                );
-                resolve(result);
-              },
-            },
-          ],
-          'plain-text',
-          '',
-          'numeric'
-        );
-      });
+      // Request invoice from charity's Lightning address
+      const invoice = await this.requestInvoiceFromLightningAddress(
+        charity.lightningAddress,
+        amountSats,
+        `Donation to ${charity.name} via RUNSTR`
+      );
+
+      if (!invoice) {
+        return {
+          success: false,
+          error: 'Failed to generate invoice from charity. Please try again.'
+        };
+      }
+
+      return {
+        success: true,
+        invoice,
+        amount: amountSats,
+        charityName: charity.name,
+      };
     } catch (error) {
-      console.error('[CharityZap] Error:', error);
+      console.error('[CharityZap] Error generating invoice:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -78,60 +74,11 @@ class CharityZapServiceClass {
   }
 
   /**
-   * Send zap to charity Lightning address
+   * Get charity information by ID
+   * Useful for UI to display charity details before generating invoice
    */
-  private async sendZapToCharity(
-    lightningAddress: string,
-    charityName: string,
-    amountStr: string
-  ): Promise<CharityZapResult> {
-    try {
-      const amount = parseInt(amountStr);
-
-      // Validate amount
-      if (isNaN(amount) || amount <= 0) {
-        Alert.alert('Invalid Amount', 'Please enter a valid amount in sats.');
-        return { success: false, error: 'Invalid amount' };
-      }
-
-      // Request invoice from Lightning address
-      const invoice = await this.requestInvoiceFromLightningAddress(
-        lightningAddress,
-        amount,
-        `Donation to ${charityName} via RUNSTR`
-      );
-
-      if (!invoice) {
-        Alert.alert('Error', 'Failed to generate invoice from charity.');
-        return { success: false, error: 'Invoice generation failed' };
-      }
-
-      // Pay invoice using NWC
-      const paymentResult = await NWCWalletService.sendPayment(invoice);
-
-      if (paymentResult.success) {
-        Alert.alert(
-          '⚡ Zap Sent!',
-          `${amount} sats sent to ${charityName}`,
-          [{ text: 'OK' }]
-        );
-        return { success: true, amount };
-      } else {
-        Alert.alert(
-          'Payment Failed',
-          paymentResult.error || 'Could not send zap. Please try again.',
-          [{ text: 'OK' }]
-        );
-        return { success: false, error: paymentResult.error };
-      }
-    } catch (error) {
-      console.error('[CharityZap] Send error:', error);
-      Alert.alert('Error', 'Failed to send zap. Please try again.');
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
+  getCharityInfo(charityId: string) {
+    return getCharityById(charityId);
   }
 
   /**
@@ -205,32 +152,6 @@ class CharityZapServiceClass {
     }
   }
 
-  /**
-   * Preset zap amounts for quick donations
-   */
-  async zapCharityWithPreset(
-    charityId: string,
-    charityName: string,
-    amount: number
-  ): Promise<CharityZapResult> {
-    try {
-      const charity = getCharityById(charityId);
-      if (!charity) {
-        return { success: false, error: 'Charity not found' };
-      }
-
-      return await this.sendZapToCharity(
-        charity.lightningAddress,
-        charityName,
-        amount.toString()
-      );
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  }
 }
 
 export const CharityZapService = new CharityZapServiceClass();

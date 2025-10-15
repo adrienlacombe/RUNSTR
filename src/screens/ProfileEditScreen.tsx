@@ -322,6 +322,13 @@ export const ProfileEditScreen: React.FC = () => {
                 keyboardType="email-address"
               />
               {errors.lud16 && <Text style={styles.error}>{errors.lud16}</Text>}
+              <View style={styles.helperTextContainer}>
+                <Ionicons name="information-circle-outline" size={14} color={theme.colors.textMuted} />
+                <Text style={styles.helperText}>
+                  Your Lightning address allows others to send you Bitcoin tips (zaps).
+                  This is where you'll receive rewards, challenge winnings, and donations.
+                </Text>
+              </View>
             </View>
 
             {/* Website */}
@@ -450,5 +457,18 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: 'right',
     marginTop: 4,
+  },
+  helperTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  helperText: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    lineHeight: 16,
   },
 });

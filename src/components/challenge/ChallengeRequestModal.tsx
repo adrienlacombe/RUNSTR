@@ -13,11 +13,14 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  TextInput,
+  ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import type { PendingChallenge } from '../../services/challenge/ChallengeRequestService';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
-import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
+import { challengePaymentService } from '../../services/challenge/ChallengePaymentService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 import { ChallengePaymentModal } from './ChallengePaymentModal';
@@ -51,49 +54,77 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
 
+  // Lightning address collection state
+  const [showLightningInput, setShowLightningInput] = useState(false);
+  const [lightningAddress, setLightningAddress] = useState('');
+
   // Payment state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState('');
-  const [paymentHash, setPaymentHash] = useState('');
-  const [currentUserPubkey, setCurrentUserPubkey] = useState('');
+  const [challengeName, setChallengeName] = useState('');
 
   if (!challenge) {
     return null;
   }
 
   /**
-   * Handle accept - first show payment modal
+   * Handle accept - first collect Lightning address
    */
-  const handleAccept = async () => {
+  const handleAccept = () => {
+    // For paid challenges, collect Lightning address first
+    if (challenge.wagerAmount > 0) {
+      setShowLightningInput(true);
+    } else {
+      // For free challenges, accept directly
+      handleAcceptWithAddress('');
+    }
+  };
+
+  /**
+   * Handle accept after Lightning address is provided
+   */
+  const handleAcceptWithAddress = async (accepterAddress: string) => {
     try {
       setIsAccepting(true);
+      setShowLightningInput(false);
 
-      // Get user identifiers
-      const userIdentifiers = await getUserNostrIdentifiers();
-      if (!userIdentifiers?.hexPubkey) {
-        throw new Error('User not authenticated');
+      // Validate Lightning address for paid challenges
+      if (challenge.wagerAmount > 0) {
+        if (!accepterAddress || !accepterAddress.includes('@')) {
+          throw new Error('Please provide a valid Lightning address (e.g., you@getalby.com)');
+        }
+
+        // Validate creator has Lightning address
+        if (!challenge.creatorLightningAddress) {
+          throw new Error('Challenge creator has not provided a Lightning address');
+        }
+
+        // Generate invoice from creator's Lightning address
+        console.log(`⚡ Generating invoice from creator's address: ${challenge.creatorLightningAddress}`);
+        const invoiceResult = await challengePaymentService.generateWagerInvoice(
+          challenge.creatorLightningAddress,
+          challenge.wagerAmount,
+          challenge.challengeId,
+          'accepter'
+        );
+
+        if (!invoiceResult.success || !invoiceResult.invoice) {
+          throw new Error(invoiceResult.error || 'Failed to generate invoice');
+        }
+
+        // Store accepter's Lightning address for later
+        setLightningAddress(accepterAddress);
+
+        // Show payment modal
+        setPaymentInvoice(invoiceResult.invoice);
+        setChallengeName(`${challenge.activityType} challenge`);
+        setShowPaymentModal(true);
+
+        console.log('⚡ Payment modal shown for accepter...');
+      } else {
+        // Free challenge - accept directly
+        await handlePaymentConfirmed();
       }
-
-      setCurrentUserPubkey(userIdentifiers.hexPubkey);
-
-      // Generate Lightning invoice for accepter
-      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
-        challenge.challengeId,
-        challenge.wagerAmount,
-        userIdentifiers.hexPubkey,
-        'accepter'
-      );
-
-      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
-        throw new Error(invoiceResult.error || 'Failed to generate invoice');
-      }
-
-      // Show payment modal
-      setPaymentInvoice(invoiceResult.invoice);
-      setPaymentHash(invoiceResult.paymentHash);
-      setShowPaymentModal(true);
-
-      console.log('⚡ Payment modal shown for accepter...');
     } catch (error) {
       console.error('Failed to initiate payment:', error);
       Alert.alert(
@@ -119,9 +150,11 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
       }
 
       // Accept challenge (signs and publishes kind 1106 + kind 30000)
+      // Include accepter's Lightning address if this is a paid challenge
       const result = await challengeRequestService.acceptChallenge(
         challenge.challengeId,
-        signer
+        signer,
+        lightningAddress || undefined
       );
 
       if (!result.success) {
@@ -156,15 +189,6 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
     setShowPaymentModal(false);
     setIsAccepting(false);
     Alert.alert('Payment Cancelled', 'Challenge was not accepted.');
-  };
-
-  /**
-   * Handle payment timeout
-   */
-  const handlePaymentTimeout = () => {
-    setShowPaymentModal(false);
-    setIsAccepting(false);
-    Alert.alert('Payment Timeout', 'Challenge was not accepted due to payment timeout.');
   };
 
   const handleDecline = async () => {
@@ -300,19 +324,81 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
         </View>
       </View>
 
+      {/* Lightning Address Input Modal */}
+      <Modal
+        visible={showLightningInput}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowLightningInput(false);
+          setIsAccepting(false);
+        }}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Your Lightning Address</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  setShowLightningInput(false);
+                  setIsAccepting(false);
+                }}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.lightningInputSection}>
+              <Text style={styles.lightningLabel}>
+                If you win this challenge, you'll receive {(challenge.wagerAmount * 2).toLocaleString()} sats at this address:
+              </Text>
+
+              <View style={styles.lightningInputContainer}>
+                <Ionicons name="flash" size={20} color={theme.colors.accent} style={styles.lightningIcon} />
+                <TextInput
+                  style={styles.lightningInput}
+                  value={lightningAddress}
+                  onChangeText={setLightningAddress}
+                  placeholder="you@getalby.com"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus={true}
+                />
+              </View>
+
+              <Text style={styles.lightningHelper}>
+                💡 Get a free Lightning address at getalby.com
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.continueButton,
+                !lightningAddress.includes('@') && styles.buttonDisabled,
+              ]}
+              onPress={() => handleAcceptWithAddress(lightningAddress)}
+              disabled={!lightningAddress.includes('@')}
+            >
+              <Text style={styles.continueButtonText}>Continue to Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Payment Modal */}
-      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
+      {showPaymentModal && paymentInvoice && (
         <ChallengePaymentModal
           visible={showPaymentModal}
           challengeId={challenge.challengeId}
+          challengeName={challengeName}
           wagerAmount={challenge.wagerAmount}
           invoice={paymentInvoice}
-          paymentHash={paymentHash}
-          userPubkey={currentUserPubkey}
           role="accepter"
           onPaymentConfirmed={handlePaymentConfirmed}
           onCancel={handlePaymentCancelled}
-          onTimeout={handlePaymentTimeout}
         />
       )}
     </Modal>
@@ -451,5 +537,49 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  lightningInputSection: {
+    paddingVertical: 20,
+  },
+  lightningLabel: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  lightningInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  lightningIcon: {
+    marginRight: 8,
+  },
+  lightningInput: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    paddingVertical: 12,
+  },
+  lightningHelper: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  continueButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.medium,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.accentText,
   },
 });

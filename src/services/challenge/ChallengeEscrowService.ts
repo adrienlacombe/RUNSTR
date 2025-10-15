@@ -1,6 +1,35 @@
 /**
  * ChallengeEscrowService
- * Handles all Bitcoin payment logic for 1v1 challenges
+ *
+ * ⚠️ DEPRECATED - DO NOT USE FOR NEW FEATURES ⚠️
+ *
+ * This service is deprecated and should not be used for new challenge implementations.
+ * It relied on global Alby MCP tools for custodial escrow payments, which is not aligned
+ * with the app's non-custodial payment architecture.
+ *
+ * MIGRATION PATH:
+ * - Use ChallengePaymentService instead (src/services/challenge/ChallengePaymentService.ts)
+ * - New flow uses Lightning addresses + LNURL for direct non-custodial payments
+ * - Creator provides Lightning address when creating challenge
+ * - Accepter pays creator's Lightning address directly (no escrow)
+ * - Accepter provides their own Lightning address when accepting
+ * - Winner determined at challenge expiry
+ * - Loser pays winner via Lightning address (manual "I Paid" confirmation)
+ *
+ * WHY DEPRECATED:
+ * - Used global Alby MCP tools (not suitable for production)
+ * - Custodial escrow pattern (app doesn't control funds)
+ * - Automatic polling for payments (inefficient and unreliable)
+ * - Does not support universal Lightning wallet compatibility
+ *
+ * WHAT TO USE INSTEAD:
+ * - ChallengePaymentService.generateWagerInvoice() - Generate invoices from Lightning addresses
+ * - ChallengePaymentService.generatePayoutInvoice() - Generate payout invoices for winners
+ * - ChallengePaymentModal with manual "I Paid" confirmation
+ * - ChallengeRequestModal for collecting accepter's Lightning address
+ * - ChallengeCompletionService for winner determination and payout invoice generation
+ *
+ * LEGACY CODE - Handles all Bitcoin payment logic for 1v1 challenges
  * Two-payment escrow: Creator pays → Accepter pays → Winner receives 2x amount
  */
 

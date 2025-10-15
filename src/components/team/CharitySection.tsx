@@ -1,6 +1,7 @@
 /**
  * CharitySection - Display team's supported charity with zap button
  * Shows charity info below team bio on team detail screens
+ * Works with ANY Lightning wallet - no NWC required
  */
 
 import React from 'react';
@@ -15,27 +16,20 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { getCharityById } from '../../constants/charities';
-import { NWCStorageService } from '../../services/wallet/NWCStorageService';
+import { CharityZapService } from '../../services/charity/CharityZapService';
+import { CharityPaymentModal } from '../charity/CharityPaymentModal';
 
 interface CharitySectionProps {
   charityId?: string;
-  onZapCharity: (charityId: string, charityName: string) => void;
 }
 
 export const CharitySection: React.FC<CharitySectionProps> = ({
   charityId,
-  onZapCharity,
 }) => {
-  const [hasWallet, setHasWallet] = React.useState(false);
-
-  // Check wallet status on mount
-  React.useEffect(() => {
-    const checkWallet = async () => {
-      const walletConfigured = await NWCStorageService.hasNWC();
-      setHasWallet(walletConfigured);
-    };
-    checkWallet();
-  }, []);
+  const [showPaymentModal, setShowPaymentModal] = React.useState(false);
+  const [paymentInvoice, setPaymentInvoice] = React.useState('');
+  const [paymentAmount, setPaymentAmount] = React.useState(0);
+  const [charityName, setCharityName] = React.useState('');
 
   // If no charity selected, don't render anything
   if (!charityId) {
@@ -50,22 +44,76 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
   }
 
   const handleZapPress = () => {
-    if (!hasWallet) {
-      Alert.alert(
-        'Wallet Required',
-        'Please connect your wallet in your profile to send zaps.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
+    // Prompt user for donation amount
+    Alert.prompt(
+      `Donate to ${charity.name}`,
+      'Enter amount in sats:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async (amountText) => {
+            if (!amountText) return;
 
-    onZapCharity(charity.id, charity.name);
+            const amount = parseInt(amountText, 10);
+            if (isNaN(amount) || amount <= 0) {
+              Alert.alert('Invalid Amount', 'Please enter a valid number of sats.');
+              return;
+            }
+
+            try {
+              // Generate Lightning invoice
+              const result = await CharityZapService.generateCharityInvoice(
+                charity.id,
+                amount
+              );
+
+              if (!result.success || !result.invoice) {
+                Alert.alert(
+                  'Invoice Generation Failed',
+                  result.error || 'Unable to generate invoice. Please try again.'
+                );
+                return;
+              }
+
+              // Show payment modal
+              setPaymentInvoice(result.invoice);
+              setPaymentAmount(amount);
+              setCharityName(charity.name);
+              setShowPaymentModal(true);
+            } catch (error) {
+              console.error('[CharitySection] Error generating invoice:', error);
+              Alert.alert(
+                'Error',
+                'Failed to generate invoice. Please try again.'
+              );
+            }
+          },
+        },
+      ],
+      'plain-text',
+      '',
+      'numeric'
+    );
   };
 
   const handleLearnMore = () => {
     if (charity.website) {
       Linking.openURL(charity.website);
     }
+  };
+
+  const handlePaymentConfirmed = () => {
+    setShowPaymentModal(false);
+    Alert.alert(
+      'Thank You!',
+      `Your donation to ${charityName} has been sent. Thank you for making a difference!`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handlePaymentCancelled = () => {
+    setShowPaymentModal(false);
   };
 
   return (
@@ -97,22 +145,26 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
         {/* Zap Button */}
         <TouchableOpacity
           onPress={handleZapPress}
-          style={[styles.zapButton, !hasWallet && styles.zapButtonDisabled]}
-          disabled={!hasWallet}
+          style={styles.zapButton}
           activeOpacity={0.7}
         >
-          <Ionicons name="flash" size={20} color={hasWallet ? '#000000' : theme.colors.textMuted} />
-          <Text style={[styles.zapButtonText, !hasWallet && styles.zapButtonTextDisabled]}>
+          <Ionicons name="flash" size={20} color="#000000" />
+          <Text style={styles.zapButtonText}>
             Zap
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Wallet Required Message */}
-      {!hasWallet && (
-        <Text style={styles.walletRequiredText}>
-          Connect wallet in your profile to support {charity.name}
-        </Text>
+      {/* Payment Modal */}
+      {showPaymentModal && paymentInvoice && (
+        <CharityPaymentModal
+          visible={showPaymentModal}
+          charityName={charityName}
+          amount={paymentAmount}
+          invoice={paymentInvoice}
+          onPaymentConfirmed={handlePaymentConfirmed}
+          onCancel={handlePaymentCancelled}
+        />
       )}
     </View>
   );
@@ -194,27 +246,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
-  zapButtonDisabled: {
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-
   zapButtonText: {
     fontSize: 15,
     fontWeight: theme.typography.weights.semiBold,
     color: '#000000',
-  },
-
-  zapButtonTextDisabled: {
-    color: theme.colors.textMuted,
-  },
-
-  walletRequiredText: {
-    fontSize: 12,
-    color: theme.colors.textTertiary,
-    marginTop: 8,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
 });

@@ -118,26 +118,40 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Subtitle */}
             <Text style={styles.subtitle}>
-              Connect your Lightning wallet to enable Bitcoin features
+              Connect your Lightning wallet to send Bitcoin payments
             </Text>
+
+            {/* NWC Explanation */}
+            <View style={styles.explanationBox}>
+              <Text style={styles.explanationTitle}>What is NWC?</Text>
+              <Text style={styles.explanationText}>
+                Nostr Wallet Connect (NWC) lets you send Bitcoin payments directly from your Lightning wallet.
+                It's like connecting your bank to an app - but with Bitcoin!
+              </Text>
+              <Text style={[styles.explanationText, styles.explanationNote]}>
+                Note: You don't need NWC to receive Bitcoin. Set your Lightning address in your profile to receive
+                payments from challenges, rewards, and zaps.
+              </Text>
+            </View>
 
             {/* Benefits List */}
             <View style={styles.benefitsList}>
-              <View style={styles.benefitItem}>
-                <Ionicons name="flash" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Earn sats for workouts</Text>
-              </View>
+              <Text style={styles.benefitsTitle}>With NWC you can:</Text>
               <View style={styles.benefitItem}>
                 <Ionicons name="send" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Send zaps to friends</Text>
+                <Text style={styles.benefitText}>Send zaps to teammates</Text>
               </View>
               <View style={styles.benefitItem}>
                 <Ionicons name="ticket" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Join paid events</Text>
+                <Text style={styles.benefitText}>Pay for event entry fees</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <Ionicons name="trophy" size={20} color="#FF9D42" />
+                <Text style={styles.benefitText}>Place wagers on 1v1 challenges</Text>
               </View>
               <View style={styles.benefitItem}>
                 <Ionicons name="heart" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Support charities</Text>
+                <Text style={styles.benefitText}>Donate to team charities</Text>
               </View>
             </View>
 
@@ -234,11 +248,43 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: theme.colors.textMuted,
-    marginBottom: 24,
+    marginBottom: 20,
     lineHeight: 22,
+  },
+  explanationBox: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: '#FF9D42',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  explanationTitle: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  explanationText: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  explanationNote: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: '#FF9D42',
+    marginBottom: 0,
   },
   benefitsList: {
     marginBottom: 24,
+  },
+  benefitsTitle: {
+    fontSize: 15,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 12,
   },
   benefitItem: {
     flexDirection: 'row',

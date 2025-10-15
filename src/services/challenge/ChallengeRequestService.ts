@@ -302,7 +302,8 @@ export class ChallengeRequestService {
    */
   async acceptChallenge(
     challengeId: string,
-    privateKeyOrSigner: string | NDKSigner
+    privateKeyOrSigner: string | NDKSigner,
+    accepterLightningAddress?: string
   ): Promise<{ success: boolean; listId?: string; error?: string }> {
     try {
       const challenge = this.pendingChallenges.get(challengeId);
@@ -327,6 +328,11 @@ export class ChallengeRequestService {
         ['p', challenge.challengerPubkey],
         ['t', 'challenge-accept'],
       ];
+
+      // Add accepter's Lightning address if provided
+      if (accepterLightningAddress) {
+        acceptTags.push(['accepter-lightning-address', accepterLightningAddress]);
+      }
 
       const acceptContent = `Challenge accepted: ${challenge.activityType} - ${challenge.metric}`;
 
@@ -380,6 +386,14 @@ export class ChallengeRequestService {
           ['challenger', challenge.challengerPubkey],
           ['challenged', challenge.challengedPubkey]
         );
+
+        // Add Lightning addresses for payout
+        if (challenge.creatorLightningAddress) {
+          listEvent.tags.push(['creator-lightning-address', challenge.creatorLightningAddress]);
+        }
+        if (accepterLightningAddress) {
+          listEvent.tags.push(['accepter-lightning-address', accepterLightningAddress]);
+        }
       }
 
       console.log('🔄 Publishing kind 30000 participant list...');

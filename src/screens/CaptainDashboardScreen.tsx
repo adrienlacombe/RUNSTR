@@ -18,8 +18,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import { Picker } from '@react-native-picker/picker'; // REMOVED: No longer needed without charity feature
-// import { CHARITIES, getCharityById } from '../constants/charities'; // REMOVED: Charity feature removed
+import { Picker } from '@react-native-picker/picker';
+import { CHARITIES, getCharityById } from '../constants/charities';
 import { validateShopUrl, getShopDisplayName, validateFlashUrl } from '../utils/validation';
 import { theme } from '../styles/theme';
 // BottomNavigation removed - Captain Dashboard has back button
@@ -128,9 +128,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   const [selectedEventQRString, setSelectedEventQRString] = useState('');
   const [selectedEventDeepLink, setSelectedEventDeepLink] = useState('');
 
-  // REMOVED: Charity state - charity feature removed
-  // const [selectedCharityId, setSelectedCharityId] = useState<string | undefined>(undefined);
-  // const [showCharityModal, setShowCharityModal] = useState(false);
+  // Charity state for team charity management
+  const [selectedCharityId, setSelectedCharityId] = useState<string | undefined>(undefined);
+  const [showCharityModal, setShowCharityModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [shopUrl, setShopUrl] = useState<string>(data.team.shopUrl || '');
   const [shopUrlInput, setShopUrlInput] = useState<string>('');
@@ -152,6 +152,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   const [editedActivityTypes, setEditedActivityTypes] = useState('');
   const [editedBannerUrl, setEditedBannerUrl] = useState('');
   const [bannerUrlError, setBannerUrlError] = useState('');
+  const [editedCharityId, setEditedCharityId] = useState<string | undefined>(undefined);
   const [bannerPreviewLoading, setBannerPreviewLoading] = useState(false);
 
   // Check if team has kind 30000 list on mount and load members
@@ -453,7 +454,12 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
           setShopUrl(currentTeam.shopUrl);
         }
 
-        // REMOVED: Flash URL loading - Flash feature removed
+        // Set charity ID if exists
+        if (currentTeam.charityId) {
+          console.log('🎗️ Loaded team charity:', currentTeam.charityId);
+          setSelectedCharityId(currentTeam.charityId);
+          setEditedCharityId(currentTeam.charityId);
+        }
 
         // Extract banner URL with fallback to Nostr event tags
         let bannerUrl = currentTeam.bannerImage;
@@ -531,7 +537,13 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       tags.push(['t', 'fitness']);
       tags.push(['t', 'runstr']);
 
-      // REMOVED: Charity preservation - charity feature removed
+      // Add or preserve charity
+      if (editedCharityId) {
+        tags.push(['charity', editedCharityId]);
+      } else if (currentTeamData?.charityId && editedCharityId !== '') {
+        // Preserve existing charity if not explicitly removed
+        tags.push(['charity', currentTeamData.charityId]);
+      }
 
       // Preserve shop URL if exists
       if (currentTeamData?.shopUrl || shopUrl) {
@@ -1205,6 +1217,30 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
               </View>
             )}
 
+            {/* Charity Selection */}
+            <Text style={styles.inputLabel}>Support a Charity (Optional)</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={editedCharityId || 'none'}
+                onValueChange={(value) => setEditedCharityId(value === 'none' ? undefined : value)}
+                style={styles.picker}
+              >
+                <Picker.Item label="No charity selected" value="none" />
+                {CHARITIES.map(charity => (
+                  <Picker.Item
+                    key={charity.id}
+                    label={charity.name}
+                    value={charity.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+            {editedCharityId && (
+              <Text style={styles.helperText}>
+                {getCharityById(editedCharityId)?.description}
+              </Text>
+            )}
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -1217,6 +1253,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                     setEditedTeamLocation(currentTeamData.location || '');
                     setEditedActivityTypes(currentTeamData.tags?.join(', ') || '');
                     setEditedBannerUrl(currentTeamData.bannerImage || '');
+                    setEditedCharityId(currentTeamData.charityId || undefined);
                     setBannerUrlError('');
                   }
                 }}
