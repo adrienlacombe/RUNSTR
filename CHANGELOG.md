@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2025-10-16
+
+### Fixed
+- **Critical: NDK Connection Stability** - Resolved relay connection drops causing "0/3 relays connected" errors
+  - Added real-time connection event monitoring (connect/disconnect/notice events)
+  - Implemented 30-second keepalive heartbeat to maintain WebSocket connections
+  - Added 10-second debouncing to prevent rapid reconnection attempts
+  - Fixed WalletSync infinite retry loops
+  - Connection state now accurately reflects actual relay connectivity
+- **Android Splash Screen** - Fixed cropped ostrich display, now shows full orange logo + RUNSTR text
+  - Previously showed ostrich in circle with head/feet cut off
+  - Now displays complete branding on app launch
+
+### Changed
+- **iOS App Icon** - Updated from logo+text to ostrich-only for cleaner home screen appearance
+- **iOS Splash Screen** - Updated from black/white to orange branding for consistent visual identity
+- **App Icon Consistency** - iOS now matches Android's clean icon design
+
+### Documentation
+- **CLAUDE.md Optimization** - Reduced from 991 to 504 lines (49% reduction) for better maintainability
+  - Moved detailed content to dedicated docs files
+  - Improved navigation with cross-references
+  - Cleaner project context for development
+
 ## [0.2.6] - 2025-10-14
 
 ### Added
