@@ -1,0 +1,360 @@
+# Kind 1301 Workout Event Specification
+
+This document defines the complete specification for kind 1301 workout events used in RUNSTR and compatible fitness applications.
+
+## Overview
+
+Kind 1301 is a Nostr event kind for publishing fitness tracking data. RUNSTR publishes kind 1301 events supporting all fitness activities for in-app competitions and external leaderboard compatibility.
+
+## Event Structure
+
+### Basic Format
+
+```json
+{
+  "kind": 1301,
+  "content": "Completed a running workout with RUNSTR!",
+  "tags": [
+    ["d", "workout_uuid_12345"],
+    ["title", "Morning Run"],
+    ["exercise", "running"],
+    ["distance", "5.2", "km"],
+    ["duration", "00:30:45"],
+    ["source", "RUNSTR"],
+    ["client", "RUNSTR", "0.2.6"],
+    ["t", "Running"]
+  ],
+  "pubkey": "user_hex_pubkey",
+  "created_at": 1234567890,
+  "id": "event_id",
+  "sig": "signature"
+}
+```
+
+## Required Tags
+
+### `d` - Unique Identifier
+```typescript
+["d", "unique_workout_id"]
+```
+- **Purpose**: Unique identifier for deduplication
+- **Format**: Any unique string (UUID recommended)
+- **Example**: `["d", "workout_2024-01-15_123456"]`
+
+### `title` - Human-Readable Title
+```typescript
+["title", "Morning Run"]
+```
+- **Purpose**: Display name for the workout
+- **Format**: Plain text string
+- **Example**: `["title", "Evening Cycling Session"]`
+
+### `exercise` - Activity Type
+```typescript
+["exercise", "running"]
+```
+- **Purpose**: Specifies the type of fitness activity
+- **Format**: Lowercase full word
+- **Valid Values**:
+  - **Cardio**: `running`, `walking`, `cycling`, `hiking`, `swimming`, `rowing`
+  - **Strength**: `strength` (includes pushups, pullups, situps, weights, gym)
+  - **Wellness**: `yoga`, `meditation`
+  - **Other**: Any manually-entered workout type
+
+### `distance` - Distance (if applicable)
+```typescript
+["distance", "5.2", "km"]
+```
+- **Purpose**: Distance covered during workout
+- **Format**: **Three separate array elements** - tag name, value, unit
+- **Valid Units**: `km`, `mi`, `m`, `ft`
+- **Example**: `["distance", "3.1", "mi"]`
+- **Note**: NOT `["distance", "5.2 km"]` - value and unit must be separate
+
+### `duration` - Workout Duration
+```typescript
+["duration", "00:30:45"]
+```
+- **Purpose**: Total time spent on workout
+- **Format**: `HH:MM:SS` (hours:minutes:seconds)
+- **Example**: `["duration", "01:15:30"]` for 1 hour 15 minutes 30 seconds
+- **Note**: NOT seconds (e.g., NOT `["duration", "1845"]`)
+
+### `source` - Application Identifier
+```typescript
+["source", "RUNSTR"]
+```
+- **Purpose**: Identifies the app that created the workout
+- **Format**: Application name
+- **Example**: `["source", "Strava"]`, `["source", "Garmin"]`
+
+### `client` - Client Info with Version
+```typescript
+["client", "RUNSTR", "0.2.6"]
+```
+- **Purpose**: Client name and version for compatibility tracking
+- **Format**: Client name, version number
+- **Example**: `["client", "RUNSTR", "0.2.6"]`
+
+### `t` - Hashtag
+```typescript
+["t", "Running"]
+```
+- **Purpose**: Hashtag for social discoverability
+- **Format**: Capitalized activity type
+- **Example**: `["t", "Cycling"]`, `["t", "Strength"]`
+
+## Optional Tags
+
+### `calories` - Calorie Count
+```typescript
+["calories", "312"]
+```
+- **Purpose**: Calories burned during workout
+- **Format**: Integer as string
+- **Example**: `["calories", "450"]`
+
+### `elevation_gain` - Elevation Gain
+```typescript
+["elevation_gain", "50", "m"]
+```
+- **Purpose**: Vertical elevation gained
+- **Format**: Three elements - tag name, value, unit
+- **Valid Units**: `m`, `ft`
+- **Example**: `["elevation_gain", "164", "ft"]`
+
+### `avg_heart_rate` - Average Heart Rate
+```typescript
+["avg_heart_rate", "142"]
+```
+- **Purpose**: Average heart rate in BPM
+- **Format**: Integer as string
+- **Example**: `["avg_heart_rate", "155"]`
+
+### `max_heart_rate` - Maximum Heart Rate
+```typescript
+["max_heart_rate", "175"]
+```
+- **Purpose**: Peak heart rate in BPM
+- **Format**: Integer as string
+- **Example**: `["max_heart_rate", "182"]`
+
+## Content Field
+
+The `content` field must be **plain text**, NOT JSON.
+
+**Valid Examples:**
+```
+"Completed a running workout with RUNSTR!"
+"Morning 5K run - felt great!"
+"Strength training session at the gym"
+```
+
+**Invalid Example:**
+```json
+"{\"distance\": \"5.2\", \"duration\": \"00:30:45\"}"  // ❌ NO JSON
+```
+
+## Supported Activities
+
+### Cardio Activities
+- **running** - Road running, trail running, treadmill
+- **walking** - Walking, power walking, hiking on flat terrain
+- **cycling** - Road cycling, mountain biking, stationary bike
+- **hiking** - Trail hiking with elevation
+- **swimming** - Pool swimming, open water swimming
+- **rowing** - Rowing machine, outdoor rowing
+
+### Strength Activities
+- **strength** - Covers all strength training:
+  - Weight lifting
+  - Bodyweight exercises (pushups, pullups, situps)
+  - Gym workouts
+  - Resistance training
+
+### Wellness Activities
+- **yoga** - Yoga sessions, stretching
+- **meditation** - Meditation, mindfulness practice
+
+### Other Activities
+- Any manually-entered workout type is valid
+- Use lowercase descriptive names
+
+## Validation Rules
+
+### Exercise Type Format
+- ✅ **Correct**: `["exercise", "running"]` (lowercase full word)
+- ❌ **Incorrect**: `["exercise", "run"]` (shortened)
+- ❌ **Incorrect**: `["exercise", "Running"]` (capitalized)
+
+### Distance Format
+- ✅ **Correct**: `["distance", "5.2", "km"]` (separate elements)
+- ❌ **Incorrect**: `["distance", "5.2 km"]` (combined)
+- ❌ **Incorrect**: `["distance", 5.2, "km"]` (number instead of string)
+
+### Duration Format
+- ✅ **Correct**: `["duration", "00:30:45"]` (HH:MM:SS)
+- ❌ **Incorrect**: `["duration", "1845"]` (seconds)
+- ❌ **Incorrect**: `["duration", "30:45"]` (missing hours)
+
+## Competition Compatibility
+
+### RUNSTR In-App Competitions
+RUNSTR supports **all activity types** for in-app competitions:
+- Running, walking, cycling, hiking, swimming, rowing
+- Strength training workouts
+- Yoga and meditation sessions
+
+### External RUNSTR Leaderboards
+External leaderboards (runstr.app website) currently support **cardio activities only**:
+- Running, walking, cycling, hiking, swimming, rowing
+- Strength and wellness activities are NOT included in external leaderboards
+
+## Example Events
+
+### Running Workout
+```json
+{
+  "kind": 1301,
+  "content": "Morning 5K run - beautiful weather!",
+  "tags": [
+    ["d", "workout_2024-01-15_082345"],
+    ["title", "Morning 5K"],
+    ["exercise", "running"],
+    ["distance", "5.0", "km"],
+    ["duration", "00:28:15"],
+    ["calories", "285"],
+    ["elevation_gain", "45", "m"],
+    ["avg_heart_rate", "142"],
+    ["source", "RUNSTR"],
+    ["client", "RUNSTR", "0.2.6"],
+    ["t", "Running"]
+  ]
+}
+```
+
+### Strength Training
+```json
+{
+  "kind": 1301,
+  "content": "Full body strength workout at the gym",
+  "tags": [
+    ["d", "workout_2024-01-15_183000"],
+    ["title", "Full Body Strength"],
+    ["exercise", "strength"],
+    ["duration", "01:15:00"],
+    ["calories", "420"],
+    ["source", "RUNSTR"],
+    ["client", "RUNSTR", "0.2.6"],
+    ["t", "Strength"]
+  ]
+}
+```
+
+### Cycling with Elevation
+```json
+{
+  "kind": 1301,
+  "content": "Hill climbing cycling session",
+  "tags": [
+    ["d", "workout_2024-01-15_164500"],
+    ["title", "Hill Climb"],
+    ["exercise", "cycling"],
+    ["distance", "25.5", "km"],
+    ["duration", "01:22:30"],
+    ["calories", "540"],
+    ["elevation_gain", "320", "m"],
+    ["avg_heart_rate", "158"],
+    ["max_heart_rate", "178"],
+    ["source", "RUNSTR"],
+    ["client", "RUNSTR", "0.2.6"],
+    ["t", "Cycling"]
+  ]
+}
+```
+
+## Publishing Workflow
+
+### RUNSTR Two-Button System
+
+Users can publish workouts in two ways:
+
+1. **"Save to Nostr" (kind 1301)**
+   - Creates kind 1301 event for competition entry
+   - No social card generated
+   - Counts toward team leaderboards
+   - Used for competition participation
+
+2. **"Post to Nostr" (kind 1)**
+   - Creates kind 1 social post with beautiful card
+   - Generates Instagram-worthy achievement graphic
+   - Appears in social feeds
+   - Used for sharing accomplishments
+
+### HealthKit Integration
+
+RUNSTR automatically imports Apple HealthKit workouts and converts them to kind 1301 format:
+
+```typescript
+// HealthKit workout → kind 1301 conversion
+const workout = await HealthKit.getWorkout(workoutId);
+
+const kind1301Event = {
+  kind: 1301,
+  content: `Completed a ${workout.activityType} workout with RUNSTR!`,
+  tags: [
+    ["d", workout.uuid],
+    ["title", workout.name],
+    ["exercise", mapHealthKitActivity(workout.activityType)],
+    ["distance", workout.totalDistance.toString(), "km"],
+    ["duration", formatDuration(workout.duration)],
+    ["calories", workout.totalEnergyBurned.toString()],
+    ["source", "RUNSTR"],
+    ["client", "RUNSTR", version],
+    ["t", capitalizeActivity(workout.activityType)]
+  ]
+};
+```
+
+## Query Patterns
+
+### Fetch User Workouts
+```typescript
+const filter = {
+  kinds: [1301],
+  authors: [userPubkey],
+  since: startTimestamp,
+  until: endTimestamp
+};
+
+const workouts = await ndk.fetchEvents(filter);
+```
+
+### Fetch Team Member Workouts
+```typescript
+const filter = {
+  kinds: [1301],
+  authors: teamMemberPubkeys,  // Array of pubkeys
+  since: competitionStartTime,
+  until: competitionEndTime
+};
+
+const workouts = await ndk.fetchEvents(filter);
+```
+
+### Filter by Activity Type
+```typescript
+const filter = {
+  kinds: [1301],
+  authors: [userPubkey],
+  '#exercise': ['running']  // Only running workouts
+};
+
+const runningWorkouts = await ndk.fetchEvents(filter);
+```
+
+## Related Documentation
+
+- 📖 **For competition architecture**: [nostr-native-fitness-competitions.md](./nostr-native-fitness-competitions.md)
+- 📖 **For HealthKit integration**: [HEALTHKIT_IMPLEMENTATION_GUIDE.md](./HEALTHKIT_IMPLEMENTATION_GUIDE.md)
+- 📖 **For workout publishing**: See main CLAUDE.md App Flow Architecture section

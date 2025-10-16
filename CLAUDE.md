@@ -128,37 +128,19 @@ RUNSTR is refocusing on three essential components that make fitness competition
 - **Leaderboards** = query kind 30000 for members → query kind 1301 from those members → calculate locally
 - **No backend database** - pure client-side Nostr queries
 
-## Kind 1301 Workout Event Format (In-App Competition Support)
+## Kind 1301 Workout Event Format
 
-Our app publishes kind 1301 events supporting all fitness activities for in-app competitions:
+**Overview**: RUNSTR publishes kind 1301 events for fitness tracking, supporting all activities for in-app competitions.
 
-**Event Structure**:
-- **Kind**: 1301 (fitness tracking event)
-- **Content**: Plain text description (e.g., "Completed a running with RUNSTR!")
-- **Tags** (REQUIRED for competition support):
-  - `['d', 'unique_workout_id']` - Unique identifier for the workout
-  - `['title', 'Morning Run']` - Human-readable title
-  - `['exercise', 'running']` - Activity type: **running, walking, cycling, hiking, swimming, rowing, strength, yoga, meditation, other**
-  - `['distance', '5.2', 'km']` - Distance value and unit (separate array elements)
-  - `['duration', '00:30:45']` - Duration in HH:MM:SS format
-  - `['source', 'RUNSTR']` - App identification
-  - `['client', 'RUNSTR', '0.1.3']` - Client info with version
-  - `['t', 'Running']` - Hashtag for activity type
-  - `['calories', '312']` - Optional: Calorie count
-  - `['elevation_gain', '50', 'm']` - Optional: Elevation gain with unit
+**Critical Format Rules**:
+- Content must be plain text, NOT JSON
+- Exercise type: lowercase full words (`running`, not `run`)
+- Distance: separate array elements `['distance', '5.2', 'km']`
+- Duration: HH:MM:SS format (`00:30:45`)
 
-**Supported Activities**:
-- **Cardio**: running, walking, cycling, hiking, swimming, rowing
-- **Strength**: strength (includes pushups, pullups, situps, weights, gym)
-- **Wellness**: yoga, meditation
-- **Other**: any manually-entered workout type
+**Supported Activities**: running, walking, cycling, hiking, swimming, rowing, strength, yoga, meditation, other
 
-**Important Notes**:
-- Content field must be plain text, NOT JSON
-- Exercise type must be lowercase full words (running, not run)
-- Distance must include both value and unit as separate array elements
-- Duration must be in HH:MM:SS format, not seconds
-- Format supports both external RUNSTR leaderboards (cardio only) and in-app competitions (all types)
+📖 **For complete event specification, tag requirements, and examples, see**: [docs/KIND_1301_SPEC.md](./docs/KIND_1301_SPEC.md)
 
 ## Architecture Principles
 - **File Size Limit**: Maximum 500 lines per file for maintainability
@@ -222,277 +204,32 @@ await GlobalNDKService.reconnect();
 
 ## Lightning Payment Architecture (NWC)
 
-### Event Ticket Purchase Flow
+**Overview**: RUNSTR uses Lightning payments for event tickets, 1v1 challenges, and team payments via Nostr Wallet Connect (NWC).
 
-**User Journey:**
-```
-1. User clicks "Join Event" → sees entry fee (e.g., 2,100 sats)
-2. App generates Lightning invoice using team's NWC connection
-3. User pays from ANY Lightning wallet (Cash App, Strike, self-custodial)
-4. Payment detection (NWC webhook or polling every 5 seconds)
-5. Payment confirmed → User added to event locally (instant UX)
-6. Join request (kind 1105) published to Nostr
-7. Captain sees notification → approves request
-8. User added to official kind 30000 member list
-9. User workouts now count toward event leaderboard
-```
+**Key Features:**
+- Event ticket sales with entry fees (e.g., 2,100 sats)
+- 1v1 challenge wagers with Bitcoin escrow
+- Payment detection via Alby MCP tools
+- Universal wallet support (Cash App, Strike, Alby, self-custodial)
+- Non-custodial team wallets via NWC connection strings
 
-**Technical Implementation:**
-```typescript
-// Team metadata includes NWC connection string
-interface Team {
-  nwcConnectionString?: string; // "nostr+walletconnect://..."
-  lightningAddress?: string; // "team@getalby.com" as fallback
-  charityId?: string; // "opensats", "hrf", etc.
-  charityUrl?: string; // Link to charity page
-}
-
-// Event ticket purchase service
-async purchaseEventTicket(eventId: string, userId: string) {
-  // 1. Get team's NWC connection via Alby MCP tools
-  const invoice = await mcp__alby__make_invoice({
-    amount_in_sats: event.entryFee,
-    description: `Entry fee for ${event.name}`,
-    metadata: { eventId, userId }
-  });
-
-  // 2. Show invoice to user (QR + copy button)
-  displayInvoiceModal(invoice);
-
-  // 3. Poll for payment (Alby MCP lookup_invoice)
-  const paymentDetected = await pollForPayment(invoice.payment_hash);
-
-  // 4. Add user to event locally
-  await addUserToEventLocally(eventId, userId);
-
-  // 5. Submit join request to Nostr
-  await publishJoinRequest(eventId, userId);
-
-  // 6. Navigate to event detail screen
-  navigation.navigate('EventDetail', { eventId });
-}
-```
-
-**Alby MCP Tools Integration:**
-- `mcp__alby__make_invoice()` - Generate Lightning invoices
-- `mcp__alby__lookup_invoice()` - Check payment status
-- `mcp__alby__get_info()` - Get wallet capabilities
-- `mcp__alby__get_balance()` - Check team wallet balance
-
-**Why This Works:**
-- Uses standard Lightning invoices (works with any wallet)
-- NWC enables teams to receive payments without platform custody
-- Payment detection is reliable (Alby tools provide invoice lookup)
-- Local-first UX (user sees event immediately, approval is async)
-- Captain retains control (manual approval for official roster)
-
-### 1v1 Challenge with Bitcoin Escrow
-
-**Challenge Flow:**
-```
-1. User A challenges User B to a fitness competition
-2. Both users stake Bitcoin (e.g., 10,000 sats each)
-3. Challenge parameters: goal type, deadline, activity
-4. Both users pay into escrow (separate Lightning invoices)
-5. App monitors published kind 1301 workout events
-6. Deadline expires → Determine winner from workout data
-7. Auto-payout winner via NWC (receives 20,000 sats)
-```
-
-**Data Structure:**
-```typescript
-interface Challenge {
-  id: string;
-  challengerId: string;
-  challengedId: string;
-  wagerSats: number; // Amount each participant stakes
-  goalType: 'fastest_5k' | 'most_distance' | 'workout_count';
-  activityType: 'running' | 'cycling' | 'walking' | 'strength';
-  deadline: string; // ISO timestamp
-  status: 'pending' | 'both_paid' | 'active' | 'completed';
-  escrowInvoices: {
-    challenger: string; // Lightning payment hash
-    challenged: string; // Lightning payment hash
-  };
-  winnerId?: string;
-}
-```
-
-**Implementation:**
-```typescript
-// Create challenge escrow
-async createChallengeEscrow(challenge: Challenge) {
-  // Generate two invoices (one for each participant)
-  const invoice1 = await mcp__alby__make_invoice({
-    amount_in_sats: challenge.wagerSats,
-    description: `Challenge wager: ${challenge.goalType}`,
-    metadata: { challengeId: challenge.id, userId: challenge.challengerId }
-  });
-
-  const invoice2 = await mcp__alby__make_invoice({
-    amount_in_sats: challenge.wagerSats,
-    description: `Challenge wager: ${challenge.goalType}`,
-    metadata: { challengeId: challenge.id, userId: challenge.challengedId }
-  });
-
-  // Store invoices and wait for both payments
-  return { invoice1, invoice2 };
-}
-
-// Detect both payments
-async waitForBothPayments(invoices) {
-  const [payment1, payment2] = await Promise.all([
-    pollForPayment(invoices.invoice1.payment_hash),
-    pollForPayment(invoices.invoice2.payment_hash),
-  ]);
-
-  // Mark challenge as active
-  await updateChallengeStatus(challenge.id, 'active');
-}
-
-// Determine winner and payout
-async completeChallengeWithPayout(challengeId: string) {
-  const challenge = await getChallenge(challengeId);
-  const winner = await determineWinnerFromWorkouts(challenge);
-
-  // Payout winner (total: wagerSats * 2)
-  await mcp__alby__pay_invoice({
-    invoice: winner.lightningAddress,
-    amount_in_sats: challenge.wagerSats * 2,
-  });
-
-  // Publish result to Nostr (kind 1102 notification)
-  await publishChallengeResult(challenge, winner);
-}
-```
-
-**Winner Determination:**
-- Query kind 1301 events from both participants within challenge timeframe
-- Apply challenge goal logic (fastest time, most distance, etc.)
-- Automatic and transparent (all workouts verifiable on Nostr)
+📖 **For complete implementation details, code examples, and payment flows, see**: [docs/LIGHTNING_IMPLEMENTATION.md](./docs/LIGHTNING_IMPLEMENTATION.md)
 
 ## Performance Optimization Strategy
 
-### Problem: Heavy Nostr Usage Causing Slowness
+**Problem**: Heavy Nostr usage causing slow app startup and loading states throughout navigation.
 
-**Current Issues:**
-- Multiple simultaneous Nostr queries on app startup
-- Loading states throughout app navigation
-- Duplicate fetches for same data
-- Unoptimized leaderboard calculations
+**Solution**: Aggressive caching with intelligent TTLs + prefetching during splash screen.
 
-**Solution: Aggressive Caching + Prefetching**
+**Key Strategies:**
+- **Prefetching**: Load all critical data during splash (2-3 seconds) → Zero loading states after
+- **Cache-First Pattern**: Show cached data immediately, fetch fresh in background
+- **Smart TTLs**: 24hrs for profiles, 5min for leaderboards, 30sec for wallet balance
+- **Batch Queries**: Combine multiple Nostr filters into single fetchEvents call
 
-### Caching Architecture (UnifiedNostrCache)
+**Expected Results**: App startup 2-3 seconds, instant screen navigation, 70% faster perceived performance.
 
-**Intelligent TTL Configuration:**
-```typescript
-// Static data (hours/days)
-USER_PROFILE: 24 hours        // Profiles rarely change
-TEAM_METADATA: 12 hours       // Team info updates infrequently
-DISCOVERED_TEAMS: 1 hour      // New teams appear occasionally
-
-// Semi-static data (minutes)
-TEAM_MEMBERS: 30 minutes      // Members join/leave occasionally
-USER_TEAMS: 30 minutes        // User's team list changes rarely
-USER_WORKOUTS: 15 minutes     // New workouts added regularly
-
-// Dynamic data (seconds)
-JOIN_REQUESTS: 1 minute       // High frequency updates
-LEADERBOARDS: 5 minutes       // Updates with new workouts
-WALLET_BALANCE: 30 seconds    // Near real-time for UX
-```
-
-### Prefetching Strategy
-
-**Splash Screen Load (2-3 seconds):**
-```typescript
-// Load everything during splash → Zero loading states after
-await Promise.all([
-  unifiedCache.get('user_profile', () => fetchProfile()),
-  unifiedCache.get('user_teams', () => fetchUserTeams()),
-  unifiedCache.get('discovered_teams', () => fetchAllTeams()),
-  unifiedCache.get('user_workouts', () => fetchRecentWorkouts()),
-  unifiedCache.get('competitions', () => fetchActiveCompetitions()),
-]);
-
-// After splash: Instant navigation, no spinners
-```
-
-### Query Optimization
-
-**Before (Slow):**
-```typescript
-// ❌ Query all workouts every time
-const workouts = await fetchWorkouts(userPubkey);  // 2-3 seconds
-setWorkouts(workouts);
-```
-
-**After (Fast):**
-```typescript
-// ✅ Use local database + periodic sync
-const localWorkouts = await workoutDatabase.getStoredWorkouts(userPubkey);
-setWorkouts(localWorkouts);  // Instant
-
-const lastSync = await getLastSyncTime();
-if (Date.now() - lastSync > 15 * 60 * 1000) {  // 15 minutes
-  syncWorkoutsFromNostr(userPubkey);  // Background sync
-}
-```
-
-### Screen-Level Optimizations
-
-**Pattern: Cache-First with Background Refresh**
-```typescript
-const MyTeamsScreen = () => {
-  const [teams, setTeams] = useState([]);
-
-  useEffect(() => {
-    // Get cached data (instant)
-    const cached = unifiedCache.getCached(CacheKeys.USER_TEAMS(userPubkey));
-    if (cached) {
-      setTeams(cached);  // Renders immediately
-    }
-
-    // Subscribe to updates
-    return unifiedCache.subscribe(CacheKeys.USER_TEAMS(userPubkey), setTeams);
-  }, []);
-
-  // Screen renders instantly with cached data
-  return <TeamsList teams={teams} />;
-};
-```
-
-### Expected Performance Improvements
-
-**Before Optimization:**
-- App startup: 5-6 seconds before interactive
-- Screen navigation: 1-2 second loading states
-- Team discovery: 3-4 seconds to show results
-- Leaderboard: 2-3 seconds to calculate rankings
-
-**After Optimization:**
-- App startup: 2-3 seconds (splash screen only)
-- Screen navigation: Instant (0 loading states)
-- Team discovery: Instant from cache
-- Leaderboard: Instant from 5-minute cache
-
-### Implementation Priority
-
-**Phase 1: Prefetching (Highest Impact)**
-- Update SplashInitScreen to prefetch all data
-- Eliminate loading states from main screens
-- Expected: 70% faster perceived performance
-
-**Phase 2: Local Database (Medium Impact)**
-- Store workouts locally in SQLite
-- Sync to Nostr only on user action
-- Expected: Instant workout display
-
-**Phase 3: Smart Invalidation (Low Impact)**
-- Event-driven cache invalidation
-- Auto-refresh on Nostr event reception
-- Expected: Always fresh data without manual refresh
+📖 **For complete caching architecture, implementation patterns, and optimization techniques, see**: [docs/PERFORMANCE_GUIDE.md](./docs/PERFORMANCE_GUIDE.md)
 
 ## Project Structure
 ```
@@ -620,50 +357,7 @@ Simple two-tab interface with dark theme:
 - `npm run lint` - Code linting
 
 ### **Android APK Build System**
-**Build Infrastructure:**
-- **Android Studio**: Installed at `/Applications/Android Studio.app`
-- **Android SDK**: Located at `~/Library/Android/sdk`
-- **Java Runtime**: Bundled with Android Studio at `/Applications/Android Studio.app/Contents/jbr/Contents/Home`
-- **Gradle Wrapper**: Project includes `android/gradlew` for consistent builds
-- **Configuration**: Requires `android/local.properties` file pointing to SDK location
-
-**Building Android APK:**
-```bash
-# 1. Create local.properties if it doesn't exist
-echo "sdk.dir=$HOME/Library/Android/sdk" > android/local.properties
-
-# 2. Set JAVA_HOME to Android Studio's bundled JDK
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-
-# 3. Clean previous builds (optional but recommended)
-cd android && ./gradlew clean
-
-# 4. Build release APK
-./gradlew assembleRelease
-
-# 5. APK output location
-# android/app/build/outputs/apk/release/app-release.apk
-```
-
-**Build Output:**
-- **APK Location**: `android/app/build/outputs/apk/release/app-release.apk`
-- **Size**: ~120MB (includes all native libraries and assets)
-- **Signing**: Uses debug keystore (for testing/direct distribution, not Play Store)
-- **Version Info**: Defined in `android/app/build.gradle` (versionCode and versionName)
-
-**Version Management:**
-- **Version Name**: Set in `app.json` (`"version": "0.1.8"`)
-- **Version Code**: Set in `android/app/build.gradle` (`versionCode 8`)
-- **Package ID**: `com.anonymous.runstr.project`
-- **Target SDK**: API 35 (Android 15)
-- **Min SDK**: API 24 (Android 7.0)
-
-**Important Notes:**
-- ✅ All build tools come from Android Studio installation (no separate downloads needed)
-- ✅ Gradle wrapper handles dependency downloads automatically
-- ✅ Build works from command line without opening Android Studio IDE
-- ⚠️ Debug keystore signing is for testing only - production builds need release keystore
-- ⚠️ First build may take 5-10 minutes as Gradle downloads dependencies
+📖 **For complete Android build instructions, signing configuration, and troubleshooting, see**: [docs/ANDROID_BUILD.md](./docs/ANDROID_BUILD.md)
 
 ### **Change Types & Required Actions**
 **JavaScript/TypeScript Changes (src/ files):**
@@ -714,117 +408,30 @@ cd android && ./gradlew clean
 **Note:** No phase should be marked "complete" until TypeScript compiles without errors, folder READMEs are current, and lessons learned have been reviewed.
 
 ## Pre-Launch Review System
-**IMPORTANT: Use this system before any major release or launch.**
+**Use before major releases:**
+- **Automated**: `npm run audit:pre-launch` (generates AUDIT_REPORT.md with categorized issues)
+- **Manual**: Use `docs/CLAUDE_REVIEW_PROMPT.md` for deep Claude analysis
 
-The project includes a comprehensive pre-launch review system with both automated and manual review capabilities.
-
-### Automated Audit (5 minutes)
-```bash
-npm run audit:pre-launch
-```
-
-**What it checks:**
-- ✅ Error boundaries and try-catch blocks
-- ✅ Loading states on data-fetching screens
-- ✅ Memory leaks (useEffect cleanup)
-- ✅ Hardcoded colors vs theme usage
-- ✅ Console.log statements
-- ✅ AsyncStorage error handling
-- ✅ Unbounded Nostr queries (performance)
-- ✅ Empty state handling
-
-**Output:** Generates `AUDIT_REPORT.md` with categorized issues (Critical, High, Medium, Low)
-
-### Manual Claude Review (90 minutes)
-For deep analysis requiring human judgment:
-
-1. Open a new Claude conversation
-2. Paste the content from `CLAUDE_REVIEW_PROMPT.md`
-3. Claude will systematically review:
-   - TypeScript compilation and build errors
-   - Authentication and wallet security
-   - Nostr connection stability
-   - Loading/error/empty states
-   - Navigation edge cases
-   - Performance bottlenecks
-   - UI consistency and accessibility
-   - Launch readiness checklist
-
-**Output:** Comprehensive report with prioritized, actionable recommendations
-
-### When to Use
-- **Automated Audit**: Run daily during pre-launch week, after major changes
-- **Manual Review**: Before initial launch, before major releases, quarterly health checks
-
-### Review Priority Levels
-- 🔴 **Critical**: Fix before launch (crashes, data loss, security issues)
-- 🟠 **High**: Quick wins (loading states, performance, UX gaps)
-- 🟡 **Medium**: Post-launch OK (UI polish, consistency)
-- 🟢 **Low**: Technical debt (refactoring, documentation)
-
-### Complete Documentation
-📖 **See**: `PRE_LAUNCH_REVIEW_GUIDE.md` for detailed workflow and usage instructions
-📖 **See**: `PRE_LAUNCH_REVIEW_SCRIPT.md` for Claude's manual review guide
-📖 **See**: `CLAUDE_REVIEW_PROMPT.md` for ready-to-paste Claude prompt
-
-**Note:** Always fix Critical issues before launch. High-priority items are recommended if time permits.
+📖 **For complete workflow and usage instructions, see**: [docs/PRE_LAUNCH_REVIEW_GUIDE.md](./docs/PRE_LAUNCH_REVIEW_GUIDE.md)
 
 ## Git Workflow Requirements
-**MANDATORY: After every successful fix or feature implementation:**
+**Commit after every successful fix or feature:**
 
-1. **Commit Successful Changes:**
-   ```bash
-   git add .
-   git status                    # Verify changes are appropriate
-   git commit -m "descriptive message about the fix/feature"
-   git push origin main         # Save progress to GitHub
-   ```
+**Commit Guidelines:**
+- Use prefix format: `Fix:`, `Feature:`, `Refactor:`, `Docs:`
+- ✅ Commit: successful fixes, completed features, updated folder READMEs
+- ❌ Don't commit: broken code, TypeScript errors, out-of-sync folder READMEs
 
-2. **Commit Message Guidelines:**
-   - **Fix commits**: "Fix: [brief description of what was fixed]"
-   - **Feature commits**: "Feature: [brief description of new functionality]" 
-   - **Refactor commits**: "Refactor: [what was improved/reorganized]"
-   - **Documentation commits**: "Docs: [what documentation was added/updated]"
-
-3. **When to Commit:**
-   - ✅ After successfully fixing a bug or error
-   - ✅ After completing a new feature or component
-   - ✅ After major refactoring that improves code structure
-   - ✅ After updating documentation or configuration
-   - ✅ After updating folder README.md files when adding/removing/changing files
-   - ❌ Do NOT commit broken or incomplete implementations
-   - ❌ Do NOT commit if TypeScript compilation fails
-   - ❌ Do NOT commit if folder READMEs are out of sync with actual files
-
-4. **Progress Preservation:**
-   - Each commit serves as a checkpoint to prevent work loss
-   - Enables easy rollback if new changes introduce issues
-   - Creates clear development history for future reference
-   - Facilitates team collaboration and code review
-
-**Note:** This rule ensures continuous progress preservation and maintains a clean development history on GitHub.
+**Commands:**
+```bash
+git add . && git status && git commit -m "Fix: description" && git push origin main
+```
 
 ## Folder Documentation Requirements
-**MANDATORY: Maintain folder README files throughout development:**
-
-1. **Update Folder READMEs When Making Changes:**
-   - Add new files → Update relevant folder's README.md with file description
-   - Remove files → Remove entry from folder's README.md  
-   - Significantly modify file purpose → Update description in folder's README.md
-   - Create new folders → Add README.md with file listings and descriptions
-
-2. **README Format Guidelines:**
-   - Keep descriptions concise (1-2 sentences max per file)
-   - Focus on file purpose, not implementation details
-   - List subdirectories with brief explanations
-   - Example: "**authService.ts** - Main authentication coordination service"
-
-3. **Coverage Requirements:**
-   - Every folder in src/ must have a README.md
-   - READMEs must list all .ts/.tsx files in that folder
-   - Update READMEs as part of any file modification commit
-
-**Note:** Folder READMEs serve as quick reference guides and help maintain codebase understanding.
+**Update folder READMEs when adding/removing/changing files:**
+- Every src/ folder must have README.md listing all files
+- Keep descriptions concise (1-2 sentences per file)
+- Update READMEs as part of file modification commits
 
 ## Current Development Status - Captain Navigation Fixed (Jan 2025)
 ✅ Project structure and architecture established
@@ -843,64 +450,7 @@ For deep analysis requiring human judgment:
 ✅ **Pure Nostr Competition System** - Kind 30000 member lists, 1301 queries, dynamic leaderboards
 ✅ All TypeScript compilation successful - Core services production-ready
 
-## Captain Detection Architecture (WORKING)
-**The Problem We Solved**:
-- Captain status was being detected correctly in TeamCard but lost during navigation
-- Multiple conflicting captain detection methods causing inconsistent results
-- EnhancedTeamScreen was recalculating instead of trusting navigation params
 
-**The Solution**:
-1. **Single Source of Truth**: TeamCard component detects captain from Nostr team events
-2. **Caching Layer**: `CaptainCache` utility stores status in AsyncStorage when detected
-3. **Navigation Trust**: Navigation handlers read from cache, pass in params
-4. **Component Trust**: EnhancedTeamScreen trusts params without recalculation
-5. **Clean Architecture**: Removed duplicate `TeamDashboardScreen.tsx` and navigation paths
-
-**Captain Flow**:
-- Team Discovery → TeamCard detects & caches → User clicks team
-- Navigation reads cache → Passes `userIsCaptain: true` in params
-- EnhancedTeamScreen receives params → Shows Captain Dashboard button
-- Button click → Navigate to CaptainDashboardScreen with full management features
-
-## Latest Implementation - Pure Nostr Competition System
-**Completed Architecture** (December 2024):
-- `NostrListService` - Enhanced with member add/remove methods for kind 30000 lists
-- `TeamMemberCache` - 5-minute caching layer for team member lists with real-time sync
-- `Competition1301QueryService` - Queries kind 1301 workout events using proven NDK pattern
-- `LeagueRankingService` - Refactored to use pure Nostr queries (no database dependency)
-- Captain dashboard wired to modify Nostr lists when approving/removing members
-
-**System Capabilities**:
-- Team members stored in kind 30000 Nostr lists (single source of truth)
-- Competitions are dynamic queries against members' 1301 workout events
-- Leaderboards calculated real-time based on wizard parameters
-- Captain approves join request → member added to kind 30000 list
-- Captain removes member → updated list published to Nostr
-- All scoring algorithms work: distance, streaks, consistency, pace, calories
-- Zero backend dependencies - pure client-side Nostr operations
-
-## Recent Major Implementation - HealthKit Workout Posting & Social Cards
-**Completed Services** (All <500 lines):
-- `WorkoutMergeService.ts` - Unified workout display combining HealthKit + Nostr workouts (~300 lines)
-- `WorkoutPublishingService.ts` - Nostr event creation for kind 1301 (competition) and kind 1 (social) (~400 lines)
-- `WorkoutCardGenerator.ts` - SVG-based beautiful social media cards with RUNSTR branding (~500 lines)
-- `WorkoutActionButtons.tsx` - UI controls for "Save to Nostr" and "Post to Nostr" (~200 lines)
-- Enhanced `WorkoutHistoryScreen.tsx` - Unified workout timeline with posting controls (~500 lines)
-
-**System Features**:
-- **Two-Button Posting System**: "Save to Nostr" (kind 1301 for competitions) vs "Post to Nostr" (kind 1 social feeds)
-- **Beautiful Social Cards**: 4 SVG templates (Achievement, Progress, Minimal, Stats) with RUNSTR branding
-- **Smart Status Tracking**: Prevents duplicate posting, shows completion states, persists across sessions
-- **Achievement Recognition**: Automatic badges for PRs, distance milestones, calorie achievements
-- **Motivational Content**: Workout-type-specific inspirational quotes and achievement callouts
-- **Unified Workout Display**: Seamless merging of HealthKit and Nostr workouts with source identification
-- **Instagram-Worthy Cards**: Professional gradients, activity icons, stats displays, motivational messaging
-
-**In-App Notification Implementation**:
-- `NostrNotificationEventHandler.ts` - Real-time competition event processing (kinds 1101, 1102, 1103)
-- `NotificationService.ts` - In-app notification display (no push)
-- Notifications only appear while app is active
-- No external push notification services used
 
 ## Competition Architecture (Wizard-Driven Leaderboards)
 
@@ -942,45 +492,9 @@ For deep analysis requiring human judgment:
 - **Why this matters**: Mixing NDK with nostr-tools causes crypto errors and initialization failures
 - **Key generation**: Use `NDKPrivateKeySigner.generate()` NOT `generateSecretKey()` from nostr-tools
 
-## Lessons Learned from Phase 1 Troubleshooting
+## Lessons Learned
+📖 **For detailed troubleshooting history and prevention strategies, see**: [docs/LESSONS_LEARNED.md](./docs/LESSONS_LEARNED.md)
 
-### 1. Navigation Architecture Conflicts
-**Issue**: Expo Router and React Navigation cannot coexist - they create conflicting navigation containers causing blank screens.
-**Solution**: Remove `expo-router` plugin from app.json and use standard React Navigation with NavigationContainer.
-**Prevention**: Choose one navigation solution early and stick with it throughout the project.
-
-### 2. Expo Entry Point Configuration
-**Issue**: Incorrect imports in index.js (`expo/build/Expo.fx` doesn't exist) prevent bundle resolution.
-**Solution**: Use proper `registerRootComponent` from 'expo' package for app registration.
-**Prevention**: Always verify Expo documentation for correct entry point patterns.
-
-### 3. Bundle Resolution Debugging
-**Issue**: "No bundle URL present" errors indicate Metro bundler cannot serve the JavaScript bundle.
-**Solution**: Check network connectivity with `curl http://localhost:8081/index.bundle?platform=ios` to verify bundle serving.
-**Prevention**: Test bundle availability before investigating complex navigation issues.
-
-### 4. TypeScript Interface Consistency
-**Issue**: Service interfaces must match actual usage patterns to prevent runtime errors.
-**Solution**: Ensure all methods and properties are properly defined in TypeScript interfaces.
-**Prevention**: Run `npm run typecheck` frequently during development.
-
-### 5. Expo vs React Native Relationship
-**Key Understanding**: Expo is a framework built on top of React Native that provides full App Store deployment capabilities through EAS (Expo Application Services). No need to "eject" to vanilla React Native for store deployment.
-
-## Lightning P2P Bitcoin System
-**Complete NIP-60/61 Protocol Implementation**:
-- **Auto-Wallet Creation**: Every user automatically gets a Lightning wallet on login
-- **Instant Zaps**: Tap lightning bolt for 21 sats, long-press for custom amounts
-- **Auto-Receive**: Background service claims incoming zaps every 30 seconds
-- **Transaction History**: Full logging of all sent/received payments
-- **Technical Infrastructure**: Uses NIP-60/61 protocol with mint.coinos.io backend
-- **Instant Transfers**: Lightning enables instant, private Bitcoin transfers
-
-**Zap UI Throughout App**:
-- Lightning bolt buttons on user profiles and team member lists
-- Custom amount modal with preset options (21, 100, 500, 1000, 5000 sats)
-- Visual feedback on successful sends
-- Balance display with manual refresh option
 
 ## Important Notes
 - All files must stay under 500 lines of code for maintainability
