@@ -11,19 +11,21 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Dimensions,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { CustomAlert } from '../ui/CustomAlert';
 
 interface EventPaymentModalProps {
   visible: boolean;
   eventName: string;
   amountSats: number;
   invoice: string;
+  paymentDestination?: 'captain' | 'charity';
+  paymentRecipientName?: string;
   onPaid: () => void;
   onCancel: () => void;
 }
@@ -35,35 +37,58 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
   eventName,
   amountSats,
   invoice,
+  paymentDestination,
+  paymentRecipientName,
   onPaid,
   onCancel,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message: string;
+    buttons: Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
 
   const handleCopyInvoice = async () => {
     try {
       await Clipboard.setStringAsync(invoice);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      Alert.alert('Copied!', 'Lightning invoice copied to clipboard');
+      setAlertConfig({
+        title: 'Copied!',
+        message: 'Lightning invoice copied to clipboard',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } catch (error) {
-      Alert.alert('Error', 'Failed to copy invoice');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to copy invoice',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     }
   };
 
   const handlePaid = () => {
-    Alert.alert(
-      'Confirm Payment',
-      'Have you paid this invoice from your Lightning wallet?',
-      [
+    setAlertConfig({
+      title: 'Confirm Payment',
+      message: 'Have you paid this invoice from your Lightning wallet?',
+      buttons: [
         { text: 'Not Yet', style: 'cancel' },
         {
           text: 'Yes, I Paid',
           style: 'default',
           onPress: onPaid,
         },
-      ]
-    );
+      ],
+    });
+    setAlertVisible(true);
   };
 
   return (
@@ -94,6 +119,19 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
               <Ionicons name="flash" size={20} color={theme.colors.accent} />
               <Text style={styles.amount}>{amountSats.toLocaleString()} sats</Text>
             </View>
+            {paymentDestination && paymentRecipientName && (
+              <View style={styles.paymentDestinationContainer}>
+                <Ionicons
+                  name={paymentDestination === 'charity' ? 'heart' : 'person-circle'}
+                  size={16}
+                  color={theme.colors.textMuted}
+                />
+                <Text style={styles.paymentDestinationText}>
+                  Payment to: {paymentDestination === 'charity' ? 'Charity - ' : 'Captain - '}
+                  {paymentRecipientName}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* QR Code */}
@@ -185,6 +223,15 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
             Your join request will be sent to the captain for approval after payment.
           </Text>
         </ScrollView>
+
+        {/* Custom Alert Modal */}
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={() => setAlertVisible(false)}
+        />
       </View>
     </Modal>
   );
@@ -251,6 +298,24 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.accent,
+  },
+
+  // Payment Destination
+  paymentDestinationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.small,
+  },
+
+  paymentDestinationText: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    fontWeight: theme.typography.weights.medium,
   },
 
   // QR Code
