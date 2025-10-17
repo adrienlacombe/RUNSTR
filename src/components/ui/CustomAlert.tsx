@@ -96,6 +96,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                 <Text
                   style={[
                     styles.buttonText,
+                    button.style === 'cancel' && styles.cancelButtonText,
                     button.style === 'destructive' && styles.destructiveButtonText,
                   ]}
                 >
@@ -245,6 +246,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.background, // Black text on orange
+  },
+  cancelButtonText: {
+    color: theme.colors.text, // Light orange text for visibility on dark background
   },
   destructiveButtonText: {
     color: theme.colors.text, // Light orange on red

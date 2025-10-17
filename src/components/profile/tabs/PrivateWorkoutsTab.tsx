@@ -13,10 +13,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
+import { CustomAlert } from '../../ui/CustomAlert';
 import { EnhancedWorkoutCard } from '../shared/EnhancedWorkoutCard';
 import { MonthlyWorkoutGroup, groupWorkoutsByMonth } from '../shared/MonthlyWorkoutGroup';
 import localWorkoutStorage from '../../../services/fitness/LocalWorkoutStorageService';
@@ -44,6 +44,16 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [postingWorkoutId, setPostingWorkoutId] = useState<string | null>(null);
   const [postingType, setPostingType] = useState<'social' | 'nostr' | null>(null);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message: string;
+    buttons: Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
 
   useEffect(() => {
     loadPrivateWorkouts();
@@ -78,10 +88,12 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
 
   const handlePostToNostr = async (workout: LocalWorkout) => {
     if (!onPostToNostr) {
-      Alert.alert(
-        'Not Implemented',
-        'Post to Nostr functionality will be available soon'
-      );
+      setAlertConfig({
+        title: 'Not Implemented',
+        message: 'Post to Nostr functionality will be available soon',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
       return;
     }
 
@@ -92,10 +104,20 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
       await onPostToNostr(workout);
       // Refresh to remove from private list (it's now synced)
       await loadPrivateWorkouts();
-      Alert.alert('Success', 'Workout posted as kind 1301 event');
+      setAlertConfig({
+        title: 'Success',
+        message: 'Workout posted as kind 1301 event',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } catch (error) {
       console.error('Failed to post workout to Nostr:', error);
-      Alert.alert('Error', 'Failed to post workout to Nostr');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to post workout to Nostr',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } finally {
       setPostingWorkoutId(null);
       setPostingType(null);
@@ -104,10 +126,12 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
 
   const handlePostToSocial = async (workout: LocalWorkout) => {
     if (!onPostToSocial) {
-      Alert.alert(
-        'Not Implemented',
-        'Post to social functionality will be available soon'
-      );
+      setAlertConfig({
+        title: 'Not Implemented',
+        message: 'Post to social functionality will be available soon',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
       return;
     }
 
@@ -116,10 +140,20 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
       setPostingType('social');
 
       await onPostToSocial(workout);
-      Alert.alert('Success', 'Workout posted as kind 1 social post');
+      setAlertConfig({
+        title: 'Success',
+        message: 'Workout posted as kind 1 social post',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } catch (error) {
       console.error('Failed to post workout to social:', error);
-      Alert.alert('Error', 'Failed to post workout to social');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to post workout to social',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } finally {
       setPostingWorkoutId(null);
       setPostingType(null);
@@ -127,10 +161,10 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
-    Alert.alert(
-      'Delete Workout',
-      'Are you sure you want to delete this workout? This cannot be undone.',
-      [
+    setAlertConfig({
+      title: 'Delete Workout',
+      message: 'Are you sure you want to delete this workout? This cannot be undone.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
@@ -139,15 +173,21 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
             try {
               await localWorkoutStorage.deleteWorkout(workoutId);
               await loadPrivateWorkouts();
-              console.log(` Deleted workout ${workoutId}`);
+              console.log(` Deleted workout ${workoutId}`);
             } catch (error) {
               console.error('Failed to delete workout:', error);
-              Alert.alert('Error', 'Failed to delete workout');
+              setAlertConfig({
+                title: 'Error',
+                message: 'Failed to delete workout',
+                buttons: [{ text: 'OK', style: 'default' }],
+              });
+              setAlertVisible(true);
             }
           },
         },
-      ]
-    );
+      ],
+    });
+    setAlertVisible(true);
   };
 
   // Convert LocalWorkout to UnifiedWorkout for compatibility
@@ -265,6 +305,15 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
             </Text>
           </View>
         }
+      />
+
+      {/* Custom Alert Modal */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertVisible(false)}
       />
     </View>
   );
