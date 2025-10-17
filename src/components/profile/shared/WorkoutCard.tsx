@@ -37,7 +37,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
     !meters
       ? '--'
       : meters < 1000
-      ? `${meters}m`
+      ? `${meters.toFixed(2)}m`
       : `${(meters / 1000).toFixed(2)}km`;
 
   const formatDuration = (seconds: number): string => {
