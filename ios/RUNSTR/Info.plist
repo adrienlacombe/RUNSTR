@@ -51,6 +51,8 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>RUNSTR needs camera access to take profile pictures and scan QR codes for Lightning payments.</string>
     <key>NSHealthShareUsageDescription</key>
     <string>RUNSTR needs access to your workout data to automatically sync your fitness activities and calculate team rankings for Bitcoin rewards.</string>
     <key>NSHealthUpdateUsageDescription</key>
@@ -61,8 +63,10 @@
     <string>RUNSTR needs location access to continue tracking your workout when the app is in the background.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>RUNSTR needs location access to track your running, walking, and cycling activities.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>RUNSTR needs camera access to scan QR codes for Lightning payments and team invitations.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>RUNSTR needs access to your photos to select a profile picture.</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>location</string>

@@ -74,6 +74,13 @@
     "plugins": [
       "expo-apple-authentication",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "RUNSTR needs access to your photos to select a profile picture.",
+          "cameraPermission": "RUNSTR needs camera access to take profile pictures and scan QR codes for Lightning payments."
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "RUNSTR needs location access to track your running, walking, and cycling activities accurately.",

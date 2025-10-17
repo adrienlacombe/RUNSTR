@@ -15,10 +15,12 @@ import {
   Platform,
   Alert,
   Image,
+  ActionSheetIOS,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Device from 'expo-device';
 import { theme } from '../../styles/theme';
 import { validateName, validateBio, validateLightningAddress, validateUrl } from '../../utils/profileValidation';
 import { EditableProfile } from '../../services/nostr/NostrProfilePublisher';
@@ -75,19 +77,33 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
   };
 
   const handlePickImage = async () => {
+    console.log('[ProfileSetup] handlePickImage called');
     try {
       // Request permissions
+      console.log('[ProfileSetup] Requesting photo library permissions...');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('[ProfileSetup] Photo library permission status:', status);
 
       if (status !== 'granted') {
+        console.warn('[ProfileSetup] Photo library permission denied');
         Alert.alert(
           'Permission Required',
-          'Please grant photo library access to select a profile picture'
+          'Please grant photo library access in Settings to select a profile picture.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => {
+              if (Platform.OS === 'ios') {
+                // On iOS, we can't directly open settings, but user can navigate manually
+                Alert.alert('Open Settings', 'Please go to Settings > RUNSTR > Photos and enable access.');
+              }
+            }}
+          ]
         );
         return;
       }
 
       // Launch image picker
+      console.log('[ProfileSetup] Launching image library...');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -95,63 +111,134 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
         quality: 0.8,
       });
 
+      console.log('[ProfileSetup] Image picker result:', { canceled: result.canceled, assetsCount: result.assets?.length });
+
       if (!result.canceled && result.assets[0]) {
+        console.log('[ProfileSetup] Image selected:', result.assets[0].uri);
         setProfilePicture(result.assets[0].uri);
+      } else {
+        console.log('[ProfileSetup] Image selection canceled by user');
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      console.error('[ProfileSetup] Error picking image:', error);
+      Alert.alert(
+        'Error',
+        'Failed to pick image. Please try again or contact support if the issue persists.'
+      );
     }
   };
 
   const handleTakePhoto = async () => {
+    console.log('[ProfileSetup] handleTakePhoto called');
     try {
+      // Check if device has camera
+      const hasCamera = await ImagePicker.getCameraPermissionsAsync();
+      console.log('[ProfileSetup] Camera permissions check:', hasCamera);
+
       // Request permissions
+      console.log('[ProfileSetup] Requesting camera permissions...');
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('[ProfileSetup] Camera permission status:', status);
 
       if (status !== 'granted') {
+        console.warn('[ProfileSetup] Camera permission denied');
         Alert.alert(
           'Permission Required',
-          'Please grant camera access to take a profile picture'
+          'Please grant camera access in Settings to take a profile picture.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => {
+              if (Platform.OS === 'ios') {
+                Alert.alert('Open Settings', 'Please go to Settings > RUNSTR > Camera and enable access.');
+              }
+            }}
+          ]
         );
         return;
       }
 
       // Launch camera
+      console.log('[ProfileSetup] Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
 
+      console.log('[ProfileSetup] Camera result:', { canceled: result.canceled, assetsCount: result.assets?.length });
+
       if (!result.canceled && result.assets[0]) {
+        console.log('[ProfileSetup] Photo captured:', result.assets[0].uri);
         setProfilePicture(result.assets[0].uri);
+      } else {
+        console.log('[ProfileSetup] Photo capture canceled by user');
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      console.error('[ProfileSetup] Error taking photo:', error);
+      Alert.alert(
+        'Error',
+        'Failed to take photo. Please try again or use the photo library instead.'
+      );
     }
   };
 
-  const handlePhotoOptions = () => {
-    Alert.alert(
-      'Profile Picture',
-      'Choose a photo source',
-      [
+  const handlePhotoOptions = async () => {
+    console.log('[ProfileSetup] handlePhotoOptions called');
+    console.log('[ProfileSetup] Device info:', {
+      deviceType: Device.deviceType,
+      platform: Platform.OS,
+      isPad: Platform.OS === 'ios' && Platform.isPad,
+    });
+
+    // Check if camera is available
+    const cameraPermissions = await ImagePicker.getCameraPermissionsAsync();
+    const cameraAvailable = cameraPermissions.canAskAgain || cameraPermissions.granted;
+    console.log('[ProfileSetup] Camera available:', cameraAvailable, cameraPermissions);
+
+    // Use ActionSheetIOS on iOS for better iPad support
+    if (Platform.OS === 'ios') {
+      const options = cameraAvailable
+        ? ['Take Photo', 'Choose from Library', 'Cancel']
+        : ['Choose from Library', 'Cancel'];
+      const cancelButtonIndex = cameraAvailable ? 2 : 1;
+
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Take Photo',
-          onPress: handleTakePhoto,
+          options,
+          cancelButtonIndex,
+          title: 'Profile Picture',
+          message: 'Choose a photo source',
         },
-        {
-          text: 'Choose from Library',
-          onPress: handlePickImage,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+        async (buttonIndex) => {
+          console.log('[ProfileSetup] ActionSheet button pressed:', buttonIndex);
+          if (cameraAvailable) {
+            if (buttonIndex === 0) {
+              await handleTakePhoto();
+            } else if (buttonIndex === 1) {
+              await handlePickImage();
+            }
+          } else {
+            if (buttonIndex === 0) {
+              await handlePickImage();
+            }
+          }
+        }
+      );
+    } else {
+      // Android - use Alert
+      const buttons = cameraAvailable
+        ? [
+            { text: 'Take Photo', onPress: handleTakePhoto },
+            { text: 'Choose from Library', onPress: handlePickImage },
+            { text: 'Cancel', style: 'cancel' as const },
+          ]
+        : [
+            { text: 'Choose from Library', onPress: handlePickImage },
+            { text: 'Cancel', style: 'cancel' as const },
+          ];
+
+      Alert.alert('Profile Picture', 'Choose a photo source', buttons);
+    }
   };
 
   const handleRemovePhoto = () => {
@@ -195,7 +282,9 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
   };
 
   const handleContinue = () => {
+    console.log('[ProfileSetup] handleContinue called');
     if (!validateForm()) {
+      console.warn('[ProfileSetup] Form validation failed');
       return;
     }
 
@@ -222,7 +311,14 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
       profile.lud16 = lightningAddress.trim();
     }
 
+    console.log('[ProfileSetup] Profile data prepared:', Object.keys(profile));
     onContinue(profile);
+  };
+
+  const handleSkipPress = () => {
+    console.log('[ProfileSetup] Skip button pressed');
+    console.log('[ProfileSetup] isLoading state:', isLoading);
+    onSkip();
   };
 
   return (
@@ -252,6 +348,8 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
             style={styles.photoContainer}
             onPress={handlePhotoOptions}
             activeOpacity={0.8}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            testID="profile-photo-button"
           >
             {profilePicture ? (
               <>
@@ -260,6 +358,8 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
                   style={styles.removePhotoButton}
                   onPress={handleRemovePhoto}
                   activeOpacity={0.8}
+                  hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                  testID="remove-photo-button"
                 >
                   <Ionicons name="close-circle" size={28} color={theme.colors.error} />
                 </TouchableOpacity>
@@ -363,9 +463,11 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity
           style={styles.skipButton}
-          onPress={onSkip}
+          onPress={handleSkipPress}
           disabled={isLoading}
           activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+          testID="profile-skip-button"
         >
           <Text style={styles.skipButtonText}>Skip for now</Text>
         </TouchableOpacity>
@@ -375,6 +477,8 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
           onPress={handleContinue}
           disabled={isLoading}
           activeOpacity={0.8}
+          hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+          testID="profile-continue-button"
         >
           <Text style={styles.continueButtonText}>
             {isLoading ? 'Saving...' : 'Continue'}
