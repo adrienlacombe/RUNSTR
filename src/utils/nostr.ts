@@ -360,8 +360,10 @@ export async function clearNostrStorage(): Promise<void> {
       STORAGE_KEYS.HEX_PUBKEY,
       STORAGE_KEYS.AUTH_METHOD,
       '@runstr:user_nsec', // Also clear wallet nsec
+      '@runstr:amber_pubkey', // SECURITY: Clear Amber cached pubkey to force re-authentication
+      '@runstr:auth_method', // SECURITY: Clear auth method to prevent cached login
     ]);
-    console.log('Nostr storage cleared');
+    console.log('✅ Nostr storage cleared (including Amber authentication data)');
   } catch (error) {
     console.error('Error clearing Nostr storage:', error);
   }

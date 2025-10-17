@@ -218,16 +218,18 @@ export class AmberNDKSigner implements NDKSigner {
     });
 
     try {
-      // NIP-55 requires event to be URI-encoded in the data field, not in extras
+      // NIP-55 CRITICAL: Event must be RAW JSON in URI, NOT percent-encoded
+      // Per NIP-55 spec: Uri.parse("nostrsigner:$eventJson") - raw JSON string
+      // Using encodeURIComponent() breaks Amber parsing (turns { into %7B, etc.)
       const eventJson = JSON.stringify(unsignedEvent);
-      const encodedEvent = encodeURIComponent(eventJson);
-      const nostrsignerUri = `nostrsigner:${encodedEvent}`;
+      const nostrsignerUri = `nostrsigner:${eventJson}`;  // ✅ RAW JSON per NIP-55
 
-      console.log('[Amber DEBUG] Sign event URI (NIP-55 compliant):', {
+      console.log('[Amber DEBUG] Sign event URI (NIP-55 raw JSON format):', {
         type: 'sign_event',
         eventKind: unsignedEvent.kind,
         uriLength: nostrsignerUri.length,
-        eventJsonLength: eventJson.length
+        eventJsonLength: eventJson.length,
+        rawJsonSample: eventJson.substring(0, 100) + '...'
       });
 
       // Use IntentLauncher with timeout to prevent indefinite hangs

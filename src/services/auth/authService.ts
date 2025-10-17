@@ -98,6 +98,15 @@ export class AuthService {
         console.warn('⚠️ AuthService: Wallet store reset skipped:', err);
       }
 
+      // SECURITY: Clear UnifiedSigningService cache (critical for Amber logout)
+      try {
+        const { UnifiedSigningService } = await import('./UnifiedSigningService');
+        UnifiedSigningService.getInstance().clearCache();
+        console.log('✅ AuthService: UnifiedSigningService cache cleared');
+      } catch (err) {
+        console.warn('⚠️ AuthService: UnifiedSigningService cache clear skipped:', err);
+      }
+
       console.log('✅ AuthService: Sign out complete - all caches and data cleared');
 
       return {
