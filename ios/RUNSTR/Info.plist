@@ -25,7 +25,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.8</string>
+    <string>0.3.0</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -52,7 +52,7 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>RUNSTR needs camera access to take profile pictures and scan QR codes for Lightning payments.</string>
+    <string>RUNSTR needs camera access to take profile pictures and scan QR codes to join fitness challenges and events.</string>
     <key>NSHealthShareUsageDescription</key>
     <string>RUNSTR needs access to your workout data to automatically sync your fitness activities and calculate team rankings for Bitcoin rewards.</string>
     <key>NSHealthUpdateUsageDescription</key>

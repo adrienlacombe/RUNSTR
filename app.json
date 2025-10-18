@@ -2,7 +2,7 @@
   "expo": {
     "name": "RUNSTR",
     "slug": "runstr.project",
-    "version": "0.2.8",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "runstrproject",
@@ -41,6 +41,7 @@
       }
     },
     "android": {
+      "versionCode": 27,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -77,7 +78,7 @@
         "expo-image-picker",
         {
           "photosPermission": "RUNSTR needs access to your photos to select a profile picture.",
-          "cameraPermission": "RUNSTR needs camera access to take profile pictures and scan QR codes for Lightning payments."
+          "cameraPermission": "RUNSTR needs camera access to take profile pictures and scan QR codes to join fitness challenges and events."
         }
       ],
       [

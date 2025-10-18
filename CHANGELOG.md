@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-10-17
+
+### Fixed
+- **iOS App Store Submission**: Resolved critical issues preventing App Store approval
+  - Fixed app crash when selecting photos from library (missing NSPhotoLibraryUsageDescription)
+  - Improved skip button responsiveness on iPad with proper touch targets (hitSlop)
+  - Enhanced error handling for photo library and camera access permissions
+- **Android Version Management**: Fixed versionCode inconsistency preventing Zapstore updates
+  - Corrected versionCode sequence to prevent downgrade errors
+  - Explicit versionCode management ensures proper update flow
+- **Event Payment Verification**: Complete payment verification system with dual-path confirmation
+  - NWC-connected wallets auto-verify payments via transaction polling
+  - Manual verification option for users paying with any Lightning wallet
+  - Payment status tracking and UI feedback for join request flow
+
+### Changed
+- **Permission Descriptions**: Updated camera permission text for accuracy
+  - Changed from "Lightning payments" to "challenges and events"
+  - Reflects actual QR code scanning functionality for event/challenge participation
+  - Consistent messaging across iOS (Info.plist) and app.json configuration
+
+### Improved
+- **iPad Compatibility**: Enhanced touch targets across onboarding and profile setup
+  - Added hitSlop to all interactive buttons for better iPad usability
+  - Improved ActionSheetIOS usage for better modal presentation
+  - Better error messaging and user guidance for permission flows
+
 ## [0.2.8] - 2025-10-17
 
 ### Fixed
