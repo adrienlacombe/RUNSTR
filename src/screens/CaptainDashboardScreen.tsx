@@ -109,16 +109,6 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   const [eventWizardVisible, setEventWizardVisible] = useState(false);
   const [leagueWizardVisible, setLeagueWizardVisible] = useState(false);
 
-  // REMOVED: Kind 30000 list state - teams no longer require member lists
-  // const [hasKind30000List, setHasKind30000List] = useState<boolean | null>(null);
-  // const [isCreatingList, setIsCreatingList] = useState(false);
-
-  // REMOVED: Member management state - teams no longer require member management
-  // const [teamMembers, setTeamMembers] = useState<string[]>([]);
-  // const [isLoadingMembers, setIsLoadingMembers] = useState(false);
-  // const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  // const [newMemberNpub, setNewMemberNpub] = useState('');
-
   // Competition state
   const [activeCompetitions, setActiveCompetitions] = useState<any[]>([]);
 
@@ -155,24 +145,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   const [editedCharityId, setEditedCharityId] = useState<string | undefined>(undefined);
   const [bannerPreviewLoading, setBannerPreviewLoading] = useState(false);
 
-  // Check if team has kind 30000 list on mount and load members
   // Initialize team data on mount
   React.useEffect(() => {
     const initializeTeam = async () => {
       await loadActiveCompetitions();
-      // Get the correct captain ID first
-      const authData = await getAuthenticationData();
-      let captainIdToUse = captainId;
-      if (captainId?.startsWith('npub')) {
-        const converted = npubToHex(captainId);
-        captainIdToUse = converted || authData?.hexPubkey || captainId;
-      } else if (!captainId && authData?.hexPubkey) {
-        captainIdToUse = authData.hexPubkey;
-      }
-
-      // REMOVED: checkForKind30000List() - teams no longer require member lists
-
-      // Load current team data (for Edit Team functionality)
       await loadTeamData();
     };
 
@@ -311,17 +287,8 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
   // Wizard handlers
   const handleShowEventWizard = async () => {
-    // Check if team has kind 30000 list before allowing competition creation
-    if (hasKind30000List === false) {
-      Alert.alert(
-        'Setup Required',
-        'Create a team member list before starting competitions',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    // Check for existing active events
+    // ✅ FIXED: Teams are now bookmarks - no member list required
+    // Check for existing active events only
     try {
       const { NostrCompetitionService } = await import('../services/nostr/NostrCompetitionService');
       const activeCompetitions = await NostrCompetitionService.checkActiveCompetitions(teamId);
@@ -341,17 +308,8 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   };
 
   const handleShowLeagueWizard = async () => {
-    // Check if team has kind 30000 list before allowing competition creation
-    if (hasKind30000List === false) {
-      Alert.alert(
-        'Setup Required',
-        'Create a team member list before starting competitions',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    // Check for existing active leagues
+    // ✅ FIXED: Teams are now bookmarks - no member list required
+    // Check for existing active leagues only
     try {
       const { NostrCompetitionService } = await import('../services/nostr/NostrCompetitionService');
       const activeCompetitions = await NostrCompetitionService.checkActiveCompetitions(teamId);

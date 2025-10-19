@@ -52,17 +52,17 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
     try {
       setIsLoadingParticipants(true);
 
-      // Get team members who are participating in this event
-      const TeamMemberCache = (await import('../services/team/TeamMemberCache')).TeamMemberCache.getInstance();
-      const members = await TeamMemberCache.getTeamMembers(
-        eventData.teamId,
-        eventData.captainPubkey
+      // Get event-specific participants from kind 30000 list
+      const NostrListService = (await import('../services/nostr/NostrListService')).NostrListService.getInstance();
+      const eventParticipants = await NostrListService.getListMembers(
+        eventData.captainPubkey,  // Author of the participant list
+        `event-${eventId}-participants`  // Event-specific d-tag
       );
 
-      setParticipants(members);
-      console.log(`📊 Loaded ${members.length} participants for event ${eventId}`);
+      setParticipants(eventParticipants);
+      console.log(`📊 Loaded ${eventParticipants.length} event participants (not team members) for event ${eventId}`);
     } catch (error) {
-      console.error('❌ Failed to load participants:', error);
+      console.error('❌ Failed to load event participants:', error);
     } finally {
       setIsLoadingParticipants(false);
     }

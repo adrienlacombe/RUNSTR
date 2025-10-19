@@ -81,18 +81,18 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       console.log('✅ Event loaded:', event.name);
       setEventData(event);
 
-      // PHASE 2: Team members (show participant count ASAP)
+      // PHASE 2: Event participants (show participant count ASAP)
       setLoadingMembers(true);
-      console.log('⏳ Fetching team members...');
+      console.log('⏳ Fetching event participants...');
 
-      const TeamMemberCache = (await import('../services/team/TeamMemberCache')).TeamMemberCache.getInstance();
-      const members = await TeamMemberCache.getTeamMembers(
-        event.teamId,
-        event.captainPubkey
+      const NostrListService = (await import('../services/nostr/NostrListService')).NostrListService.getInstance();
+      const eventParticipants = await NostrListService.getListMembers(
+        event.captainPubkey,  // Author of the participant list
+        `event-${eventId}-participants`  // Event-specific d-tag
       );
 
-      console.log(`✅ Found ${members.length} team members`);
-      setParticipants(members);
+      console.log(`✅ Found ${eventParticipants.length} event participants (not team members)`);
+      setParticipants(eventParticipants);
       setLoadingMembers(false);
 
       // Check if current user is a participant and/or captain
@@ -100,9 +100,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       let userPaidLocally = false;
 
       if (userHexPubkey) {
-        const isUserParticipant = members.includes(userHexPubkey);
+        const isUserParticipant = eventParticipants.includes(userHexPubkey);
         setIsParticipant(isUserParticipant);
-        console.log(`User is${isUserParticipant ? '' : ' not'} a participant`);
+        console.log(`User is${isUserParticipant ? '' : ' not'} an event participant`);
 
         // Check if user is the captain
         const isUserCaptain = event.captainPubkey === userHexPubkey;
@@ -125,12 +125,12 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
       // Merge official participants with local paid user (if applicable)
       const participantsForLeaderboard =
-        userHexPubkey && userPaidLocally && !members.includes(userHexPubkey)
-          ? [...members, userHexPubkey]
-          : members;
+        userHexPubkey && userPaidLocally && !eventParticipants.includes(userHexPubkey)
+          ? [...eventParticipants, userHexPubkey]
+          : eventParticipants;
 
-      if (participantsForLeaderboard.length > members.length) {
-        console.log(`📊 Including ${participantsForLeaderboard.length - members.length} local paid participant(s) in leaderboard`);
+      if (participantsForLeaderboard.length > eventParticipants.length) {
+        console.log(`📊 Including ${participantsForLeaderboard.length - eventParticipants.length} local paid participant(s) in leaderboard`);
       }
 
       const SimpleLeaderboardService = (await import('../services/competition/SimpleLeaderboardService')).default;

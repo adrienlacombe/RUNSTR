@@ -3,6 +3,16 @@
 ## Instructions for Claude Sonnet 4.5
 This script guides you through a systematic pre-launch review of the RUNSTR app. Focus on **quick, high-impact, safe improvements** that will enhance the initial launch experience. Prioritize user-facing issues over internal refactoring.
 
+**Updated**: January 2025 - Reflects current three-pillar architecture (Teams, Competitions, Workouts)
+
+## Current Architecture Context (January 2025)
+- **Three Core Pillars**: Teams (kind 33404 metadata, kind 30000 rosters), Competitions (kind 30100 leagues, kind 30101 events), Workouts (local HealthKit → kind 1301)
+- **Global NDK**: Single shared NDK instance via `GlobalNDKService` (4 relays: Damus, Primal, nos.lol, Nostr.band)
+- **NWC Payments**: Teams receive via Nostr Wallet Connect, users pay with ANY Lightning wallet (Cash App, Strike, Alby)
+- **Payment Verification**: Dual-path system (NWC auto-verify + manual override for captains)
+- **HealthKit Integration**: Transform Apple Health workouts into Nostr events + beautiful social cards
+- **No Supabase**: Pure Nostr-only data model
+
 ## Review Process
 
 ### Phase 1: Critical Issues Audit (15 minutes)
@@ -23,15 +33,16 @@ npm run lint
 **Files to audit**:
 - `src/contexts/AuthContext.tsx`
 - `src/services/auth/*`
-- `src/services/nutzap/NutzapService.ts`
-- `src/services/nutzap/WalletInitializationService.ts`
+- `src/services/wallet/NWCWalletService.ts` (updated from NutzapService)
+- `src/services/wallet/WalletInitializationService.ts`
 
 **Check for**:
-- ✅ Error boundaries around wallet initialization
+- ✅ Error boundaries around NWC wallet initialization
 - ✅ Graceful fallback if wallet creation fails
 - ✅ Clear user messaging for auth failures
-- ✅ No exposed private keys in logs
+- ✅ No exposed nsec/private keys in logs
 - ✅ Proper AsyncStorage key cleanup on logout
+- ✅ NWC connection string encryption/storage
 
 **Output**: List any missing error handling or security issues.
 
@@ -95,18 +106,25 @@ npm run lint
 
 #### 3.1 Nostr Event Query Optimization
 **Files to audit**:
-- `src/services/competition/leaderboardService.ts`
-- `src/services/fitness/*`
-- `src/services/team/*`
+- `src/services/competition/SimpleLeaderboardService.ts` (updated architecture)
+- `src/services/competition/SimpleCompetitionService.ts`
+- `src/services/fitness/NdkWorkoutService.ts`
+- `src/services/team/NdkTeamService.ts`
+- `src/services/chat/ChatService.ts`
 
 **Check for**:
-- ✅ Proper date range filters (avoid unbounded queries)
-- ✅ Pagination or limits on large result sets
+- ✅ Proper date range filters with `since`/`until` (avoid unbounded queries)
+- ✅ Query limits (e.g., `limit: 100` for competitions, `limit: 500` for workouts)
 - ✅ Deduplication of events (by event.id)
-- ✅ Cache invalidation strategy
+- ✅ Cache invalidation strategy (5min for leaderboards, 24hr for profiles)
 - ✅ No redundant queries (check for duplicate fetchEvents calls)
+- ✅ Use of GlobalNDKService.getInstance() instead of creating new NDK instances
 
 **Output**: List any unbounded queries or missing optimizations.
+
+**Known Issues** (from 2025-10-14 audit):
+- 20+ unbounded queries identified (ChatService.ts, SimpleCompetitionService.ts, etc.)
+- Verify these have been fixed with proper limits
 
 #### 3.2 Memory Leak Prevention
 **Scan for**:
@@ -122,6 +140,13 @@ grep -r "useEffect" src/screens/ src/components/
 - ✅ Proper dependency arrays
 
 **Output**: List any useEffect hooks missing cleanup functions.
+
+**Known Critical Issues** (from 2025-10-14 audit):
+Must verify these 4 files have cleanup functions:
+- `src/components/profile/tabs/PublicWorkoutsTab.tsx:53`
+- `src/components/team/JoinRequestsSection.tsx:56`
+- `src/components/ui/NostrConnectionStatus.tsx:32`
+- `src/screens/ProfileImportScreen.tsx:47`
 
 #### 3.3 AsyncStorage Key Management
 **Files to audit**:
@@ -179,10 +204,12 @@ grep -r "useEffect" src/screens/ src/components/
 - Relay timeouts
 
 **Check these screens**:
-- Login screen
-- Teams discovery
-- Competition leaderboards
-- Wallet operations
+- Login screen (nsec authentication)
+- Teams discovery (kind 33404 queries)
+- Competition leaderboards (kind 1301 workout queries)
+- Wallet operations (NWC Lightning payments)
+- HealthKit workout posting (kind 1 social posts)
+- Payment verification (NWC transaction lookups)
 
 **Output**: Identify screens that crash or freeze without network.
 
@@ -198,14 +225,18 @@ grep -r "useEffect" src/screens/ src/components/
 
 #### 5.3 Data Validation
 **Files to audit**:
-- `src/services/competition/leaderboardService.ts`
-- `src/services/fitness/WorkoutDataProcessor.ts`
+- `src/services/competition/SimpleLeaderboardService.ts`
+- `src/services/fitness/workoutDataProcessor.ts`
+- `src/services/event/EventJoinRequestService.ts` (payment proof validation)
+- `src/components/captain/PaymentVerificationBadge.tsx` (payment verification)
 
 **Check for**:
 - ✅ Null/undefined checks before accessing properties
 - ✅ Array bounds checking
-- ✅ Type guards for unknown data
-- ✅ Graceful degradation on malformed events
+- ✅ Type guards for unknown data (Nostr events)
+- ✅ Graceful degradation on malformed kind 1301 events
+- ✅ Payment hash extraction validation
+- ✅ Invoice format validation
 
 **Output**: List any potential null pointer crashes.
 
@@ -230,11 +261,18 @@ grep -r "useEffect" src/screens/ src/components/
 #### 6.3 Performance Baseline
 **Measure on physical device**:
 - [ ] App cold start time < 3 seconds
-- [ ] Team discovery loads < 2 seconds
-- [ ] Leaderboard calculation < 1 second
-- [ ] Zap send completes < 3 seconds
+- [ ] Team discovery (kind 33404 queries) loads < 2 seconds
+- [ ] Leaderboard calculation (kind 1301 aggregation) < 1 second
+- [ ] Lightning payment (NWC invoice generation) completes < 3 seconds
+- [ ] HealthKit workout sync < 2 seconds per workout
+- [ ] Profile import (kind 0 events) < 1 second
 
 **Output**: Report any performance bottlenecks.
+
+**Recent Optimizations** (should improve scores):
+- Global NDK architecture (90% reduction in WebSocket connections)
+- Aggressive caching (24hr profiles, 5min leaderboards, 30sec wallet balance)
+- Prefetching during splash screen
 
 ---
 
@@ -284,21 +322,26 @@ grep -r "useEffect" src/screens/ src/components/
 
 ### Prioritization Matrix:
 **Fix NOW (Critical)**:
-- Crashes on core flows (login, wallet, zaps)
+- TypeScript compilation errors (blocks production build)
+- Crashes on core flows (login, NWC wallet, Lightning payments)
+- Memory leaks (useEffect cleanup missing)
 - Data loss or corruption risks
-- Security vulnerabilities
+- Security vulnerabilities (exposed nsec/keys)
 - Zero-state or network failure crashes
 
 **Fix if Time (High Impact)**:
+- Unbounded Nostr queries (performance risk)
 - Missing loading states on key screens
 - Confusing error messages
 - Performance bottlenecks (>3s loads)
+- Navigation dead ends
 - Visual inconsistencies
 
 **Post-Launch (Nice-to-Have)**:
 - Code refactoring for maintainability
 - Additional accessibility features
 - Minor visual polish
+- Console.log cleanup
 - Internal documentation
 
 ### Safety Filter:

@@ -3,7 +3,7 @@
  * Replaces EnhancedTeamScreen to fix navigation freeze issues
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -61,9 +61,17 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch team events when screen comes into focus
+  // ✅ PERFORMANCE: Debounce timer to prevent rapid navigation fetches
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
+
+  // ✅ PERFORMANCE: Instant cache-first display with debouncing
   useFocusEffect(
     useCallback(() => {
+      // ✅ DEBOUNCE: Clear any pending fetch from rapid navigation
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
       const fetchEvents = async () => {
         console.log('[SimpleTeamScreen] 🔍 useFocusEffect triggered - Team data check:', {
           hasData: !!data,
@@ -79,20 +87,20 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
           return;
         }
 
-        // Step 1: Check cache first and display immediately
-        const cachedEvents = await unifiedCache.getCachedAsync(CacheKeys.COMPETITIONS);
+        // ✅ INSTANT: Check cache synchronously (no await) and display immediately
+        const cachedEvents = unifiedCache.getCached(CacheKeys.COMPETITIONS);
         if (cachedEvents && Array.isArray(cachedEvents)) {
           // Filter cached events for this specific team
           const teamCachedEvents = cachedEvents.filter((event: any) => event.teamId === team.id);
-          console.log('[SimpleTeamScreen] 📱 Cache hit: Displaying', teamCachedEvents.length, 'cached events immediately');
+          console.log('[SimpleTeamScreen] ⚡ Cache hit: Displaying', teamCachedEvents.length, 'cached events INSTANTLY');
           setEvents(teamCachedEvents);
-          setLoadingEvents(false); // Hide spinner immediately since we have cached data
+          setLoadingEvents(false); // ✅ Hide spinner immediately - UI is instant
         } else {
           console.log('[SimpleTeamScreen] 📱 Cache miss: No cached events, will show spinner');
           setLoadingEvents(true); // Only show spinner on first load when no cache
         }
 
-        // Step 2: Fetch fresh data in background (non-blocking)
+        // ✅ NON-BLOCKING: Fetch fresh data in background (UI already responsive)
         console.log('[SimpleTeamScreen] 🔄 Starting background fetch for fresh events...');
         SimpleCompetitionService.getInstance().getTeamEvents(team.id)
           .then((freshEvents) => {
@@ -107,7 +115,17 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
           });
       };
 
-      fetchEvents();
+      // ✅ DEBOUNCE: Only fetch if user stays on page for 150ms (prevents rapid back-forward)
+      debounceTimerRef.current = setTimeout(() => {
+        fetchEvents();
+      }, 150);
+
+      // Cleanup: cancel pending fetch if user navigates away quickly
+      return () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+      };
     }, [team?.id, data, team])
   );
 
@@ -251,9 +269,23 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
           <Text style={styles.sectionTitle}>Events</Text>
 
           {loadingEvents ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.colors.text} />
-              <Text style={styles.loadingText}>Loading events...</Text>
+            // ✅ SKELETON UI: Show lightweight placeholders instead of spinner
+            <View style={styles.contentList}>
+              {[1, 2, 3].map((i) => (
+                <View key={`skeleton-${i}`} style={styles.skeletonCard}>
+                  <View style={styles.skeletonHeader}>
+                    <View style={styles.skeletonIcon} />
+                    <View style={styles.skeletonTextContainer}>
+                      <View style={styles.skeletonTitle} />
+                      <View style={styles.skeletonSubtitle} />
+                    </View>
+                  </View>
+                  <View style={styles.skeletonFooter}>
+                    <View style={styles.skeletonBadge} />
+                    <View style={styles.skeletonBadge} />
+                  </View>
+                </View>
+              ))}
             </View>
           ) : events.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -577,6 +609,54 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 14,
     color: theme.colors.textMuted,
+  },
+
+  // ✅ SKELETON UI STYLES: Lightweight placeholders for loading states
+  skeletonCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 12,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  skeletonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.border,
+    marginRight: 12,
+  },
+  skeletonTextContainer: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonTitle: {
+    height: 16,
+    width: '60%',
+    backgroundColor: theme.colors.border,
+    borderRadius: 4,
+  },
+  skeletonSubtitle: {
+    height: 14,
+    width: '40%',
+    backgroundColor: theme.colors.border,
+    borderRadius: 4,
+  },
+  skeletonFooter: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  skeletonBadge: {
+    height: 14,
+    width: 80,
+    backgroundColor: theme.colors.border,
+    borderRadius: 4,
   },
 });
 

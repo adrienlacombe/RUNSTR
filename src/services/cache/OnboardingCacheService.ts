@@ -5,7 +5,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NostrTeamService } from '../team/NostrTeamService';
 import { NdkTeamService } from '../team/NdkTeamService';
 
 const CACHE_KEYS = {

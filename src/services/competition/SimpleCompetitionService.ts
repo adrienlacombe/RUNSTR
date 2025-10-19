@@ -70,10 +70,11 @@ export class SimpleCompetitionService {
         limit: 500, // Fetch many leagues for caching
       };
 
+      // ✅ PERFORMANCE: Reduced timeout from 5s → 3s for faster failures
       const events = await Promise.race([
         ndk.fetchEvents(filter),
         new Promise<Set<NDKEvent>>((resolve) =>
-          setTimeout(() => resolve(new Set()), 5000)  // 5s timeout
+          setTimeout(() => resolve(new Set()), 3000)  // 3s timeout
         )
       ]);
       const leagues: League[] = [];
@@ -118,10 +119,11 @@ export class SimpleCompetitionService {
         limit: 500, // Fetch many events for caching
       };
 
+      // ✅ PERFORMANCE: Reduced timeout from 5s → 3s for faster failures
       const events = await Promise.race([
         ndk.fetchEvents(filter),
         new Promise<Set<NDKEvent>>((resolve) =>
-          setTimeout(() => resolve(new Set()), 5000)  // 5s timeout
+          setTimeout(() => resolve(new Set()), 3000)  // 3s timeout
         )
       ]);
       const competitionEvents: CompetitionEvent[] = [];
