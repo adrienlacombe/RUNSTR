@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
@@ -20,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { QRDisplayModal } from '../components/qr/QRDisplayModal';
 import { EventTransactionHistory } from '../components/captain/EventTransactionHistory';
+import { EventJoinRequestsSection } from '../components/captain/EventJoinRequestsSection';
 import QRCodeService from '../services/qr/QRCodeService';
 import type { EventQRData } from '../services/qr/QRCodeService';
 import type { RootStackParamList } from '../types';
@@ -43,6 +46,16 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
   const [eventQRData, setEventQRData] = useState<EventQRData | null>(null);
   const [participants, setParticipants] = useState<string[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Participant profile interface
+  interface ParticipantProfile {
+    pubkey: string;
+    name?: string;
+    picture?: string;
+    displayName: string;
+  }
+  const [participantProfiles, setParticipantProfiles] = useState<ParticipantProfile[]>([]);
 
   useEffect(() => {
     loadParticipants();
@@ -60,12 +73,77 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
       );
 
       setParticipants(eventParticipants);
-      console.log(`📊 Loaded ${eventParticipants.length} event participants (not team members) for event ${eventId}`);
+      console.log(`📊 Loaded ${eventParticipants.length} event participants for event ${eventId}`);
+
+      // Fetch profiles for each participant
+      const ProfileService = (await import('../services/user/profileService')).ProfileService;
+      const profiles: ParticipantProfile[] = await Promise.all(
+        eventParticipants.map(async (pubkey) => {
+          try {
+            const profile = await ProfileService.getUserProfile(pubkey);
+            return {
+              pubkey,
+              name: profile?.name,
+              picture: profile?.picture,
+              displayName: profile?.name || `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+            };
+          } catch (error) {
+            console.warn(`Failed to load profile for ${pubkey.slice(0, 16)}:`, error);
+            return {
+              pubkey,
+              displayName: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+            };
+          }
+        })
+      );
+
+      setParticipantProfiles(profiles);
+      console.log(`✅ Loaded ${profiles.length} participant profiles`);
     } catch (error) {
       console.error('❌ Failed to load event participants:', error);
     } finally {
       setIsLoadingParticipants(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadParticipants();
+    setIsRefreshing(false);
+  };
+
+  const handleRemoveParticipant = async (participantPubkey: string, participantName: string) => {
+    Alert.alert(
+      'Remove Participant',
+      `Are you sure you want to remove ${participantName} from this event?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Removing participant:', participantPubkey.slice(0, 20));
+
+              // Remove from kind 30000 participant list
+              const NostrListService = (await import('../services/nostr/NostrListService')).NostrListService.getInstance();
+              await NostrListService.removeMember(
+                `event-${eventId}-participants`,  // d-tag
+                participantPubkey                  // member to remove
+              );
+
+              // Refresh participant list
+              await loadParticipants();
+
+              Alert.alert('Success', `${participantName} has been removed from the event`);
+            } catch (error) {
+              console.error('❌ Failed to remove participant:', error);
+              Alert.alert('Error', 'Failed to remove participant. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleGenerateQR = async () => {
@@ -131,7 +209,18 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.accent}
+            colors={[theme.colors.accent]}
+          />
+        }
+      >
         {/* Event Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.captainBadge}>
@@ -189,28 +278,58 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
             </View>
           ) : (
             <View style={styles.participantsList}>
-              {participants.map((participantPubkey, index) => (
-                <View key={participantPubkey} style={styles.participantItem}>
+              {participantProfiles.map((profile, index) => (
+                <View key={profile.pubkey} style={styles.participantItem}>
                   <View style={styles.participantInfo}>
-                    <View style={styles.participantAvatar}>
-                      <Text style={styles.participantAvatarText}>
-                        {index === 0 ? 'C' : (index + 1).toString()}
-                      </Text>
-                    </View>
+                    {/* Avatar with profile picture or initial */}
+                    {profile.picture ? (
+                      <Image
+                        source={{ uri: profile.picture }}
+                        style={styles.participantAvatarImage}
+                      />
+                    ) : (
+                      <View style={styles.participantAvatar}>
+                        <Text style={styles.participantAvatarText}>
+                          {profile.displayName.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+
                     <View style={styles.participantDetails}>
-                      <Text style={styles.participantPubkey}>
-                        {participantPubkey.slice(0, 16)}...
-                      </Text>
+                      <Text style={styles.participantName}>{profile.displayName}</Text>
                       <Text style={styles.participantRole}>
                         {index === 0 ? 'Captain' : 'Participant'}
                       </Text>
                     </View>
                   </View>
+
+                  {/* Remove Button (don't show for captain) */}
+                  {index !== 0 && (
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => handleRemoveParticipant(profile.pubkey, profile.displayName)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </View>
           )}
         </View>
+
+        {/* Join Requests Section */}
+        <EventJoinRequestsSection
+          captainPubkey={eventData.captainPubkey}
+          teamId={eventData.teamId}
+          onMemberApproved={async () => {
+            // Refresh participant list when request is approved
+            console.log('✅ Join request approved - refreshing participant list');
+            await loadParticipants();
+          }}
+          style={styles.joinRequestsSection}
+        />
 
         {/* Transaction History (only for paid events with NWC) */}
         {eventData.entryFeesSats && eventData.entryFeesSats > 0 && (
@@ -430,6 +549,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  participantAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.cardBackground,
+  },
   participantAvatarText: {
     fontSize: 16,
     fontWeight: '600',
@@ -444,9 +569,22 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: 2,
   },
+  participantName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 2,
+  },
   participantRole: {
     fontSize: 12,
     color: theme.colors.textMuted,
+  },
+  removeButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   controlButton: {
     flexDirection: 'row',
@@ -463,6 +601,9 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   transactionHistory: {
+    marginTop: 16,
+  },
+  joinRequestsSection: {
     marginTop: 16,
   },
 });
