@@ -103,7 +103,10 @@ export async function startBackgroundLocationTracking(
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
 
     if (!isRegistered) {
-      console.log('Background task not registered, cannot start background tracking');
+      console.error('[BackgroundLocationTask] ERROR: Task not registered!');
+      console.error('[BackgroundLocationTask] This task must be imported in index.js BEFORE app initialization');
+      console.error('[BackgroundLocationTask] Add: import "./src/services/activity/BackgroundLocationTask"');
+      console.error(`[BackgroundLocationTask] Platform: ${Platform.OS}`);
       return false;
     }
 
@@ -124,10 +127,13 @@ export async function startBackgroundLocationTracking(
     // Start location updates
     await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, locationOptions);
 
-    console.log(`Started background tracking for ${activityType}`);
+    console.log(`[BackgroundLocationTask] ✅ Started background tracking for ${activityType} on ${Platform.OS}`);
     return true;
   } catch (error) {
-    console.error('Failed to start background location tracking:', error);
+    console.error('[BackgroundLocationTask] ❌ Failed to start background location tracking:', error);
+    console.error(`[BackgroundLocationTask] Platform: ${Platform.OS}`);
+    console.error(`[BackgroundLocationTask] Session ID: ${sessionId}`);
+    console.error(`[BackgroundLocationTask] Activity: ${activityType}`);
     return false;
   }
 }

@@ -7,6 +7,48 @@
 import { nwc } from '@getalby/sdk';
 import { NWCStorageService } from './NWCStorageService';
 
+/**
+ * Timeout wrapper for SDK calls
+ * Prevents hanging on network issues
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    ),
+  ]);
+}
+
+/**
+ * Retry wrapper with exponential backoff
+ * Retries failed operations up to maxRetries times
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      console.log(`[Retry] Attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+
+      // Don't delay after last attempt
+      if (attempt < maxRetries) {
+        const delay = delayMs * attempt; // Exponential backoff: 1s, 2s, 3s
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error('All retry attempts failed');
+}
+
 export interface SendPaymentResult {
   success: boolean;
   preimage?: string;
@@ -97,8 +139,9 @@ class NWCWalletServiceClass {
   }
 
   /**
-   * Get wallet balance
+   * Get wallet balance with retry logic
    * Returns 0 if wallet not configured or error occurs
+   * Retries up to 3 times with exponential backoff
    */
   async getBalance(): Promise<WalletBalance> {
     try {
@@ -115,8 +158,16 @@ class NWCWalletServiceClass {
         return { balance: 0, error: 'Wallet not initialized' };
       }
 
-      // Get balance using NWC client
-      const result = await this.nwcClient.getBalance();
+      // Get balance with retry and timeout
+      const result = await withRetry(
+        () => withTimeout(
+          this.nwcClient!.getBalance(),
+          30000, // 30 second timeout
+          'Balance fetch timeout'
+        ),
+        3, // 3 retries
+        1000 // 1 second initial delay
+      );
 
       if (result && typeof result.balance === 'number') {
         // Update connection status
@@ -176,11 +227,15 @@ class NWCWalletServiceClass {
         };
       }
 
-      // Send payment using NWC client
-      const result = await this.nwcClient.payInvoice({
-        invoice,
-        amount: amount || undefined,
-      });
+      // Send payment using NWC client with timeout
+      const result = await withTimeout(
+        this.nwcClient.payInvoice({
+          invoice,
+          amount: amount || undefined,
+        }),
+        30000, // 30 second timeout for payments
+        'Payment timeout - please check your wallet'
+      );
 
       if (result && result.preimage) {
         console.log('[NWC] Payment successful');
@@ -191,7 +246,7 @@ class NWCWalletServiceClass {
         return {
           success: true,
           preimage: result.preimage,
-          fee: result.fee_paid,
+          fee: result.fees_paid, // SDK uses plural "fees_paid"
         };
       }
 
@@ -263,12 +318,15 @@ class NWCWalletServiceClass {
         };
       }
 
-      // Create invoice using NWC client
-      const result = await this.nwcClient.makeInvoice({
-        amount: amountSats,
-        description: description || 'RUNSTR payment',
-        // Note: @getalby/sdk uses simpler params than MCP
-      });
+      // Create invoice using NWC client with timeout
+      const result = await withTimeout(
+        this.nwcClient.makeInvoice({
+          amount: amountSats,
+          description: description || 'RUNSTR payment',
+        }),
+        30000, // 30 second timeout
+        'Invoice creation timeout'
+      );
 
       if (result && result.invoice) {
         console.log('[NWC] Invoice created successfully');
@@ -329,12 +387,16 @@ class NWCWalletServiceClass {
         lookupParam = { payment_hash: invoiceOrHash };
       }
 
-      // Lookup invoice using NWC client
-      const result = await this.nwcClient.lookupInvoice(lookupParam);
+      // Lookup invoice using NWC client with timeout
+      const result = await withTimeout(
+        this.nwcClient.lookupInvoice(lookupParam),
+        10000, // 10 second timeout
+        'Invoice lookup timeout'
+      );
 
       if (result) {
         return {
-          paid: result.settled || false,
+          paid: result.state === 'settled', // SDK returns state field, not settled boolean
           success: true,
         };
       }
@@ -468,8 +530,12 @@ class NWCWalletServiceClass {
         return { success: false, error: 'Wallet not initialized' };
       }
 
-      // List transactions using NWC client
-      const result = await this.nwcClient.listTransactions(params || {});
+      // List transactions using NWC client with timeout
+      const result = await withTimeout(
+        this.nwcClient.listTransactions(params || {}),
+        30000, // 30 second timeout
+        'Transaction list timeout'
+      );
 
       if (result && result.transactions) {
         return {

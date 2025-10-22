@@ -278,6 +278,9 @@ export const RunningTrackerScreen: React.FC = () => {
     // Save workout to local storage BEFORE showing modal
     // This ensures data persists even if user dismisses modal
     try {
+      // Get start position for weather lookup
+      const startPosition = session.positions[0];
+
       const workoutId = await LocalWorkoutStorageService.saveGPSWorkout({
         type: 'running',
         distance: session.distance,
@@ -286,6 +289,9 @@ export const RunningTrackerScreen: React.FC = () => {
         elevation: session.elevationGain,
         pace,
         splits: session.splits,
+        // Pass GPS coordinates for weather lookup
+        startLatitude: startPosition?.latitude,
+        startLongitude: startPosition?.longitude,
       });
 
       console.log(`✅ GPS workout saved locally: ${workoutId}`);

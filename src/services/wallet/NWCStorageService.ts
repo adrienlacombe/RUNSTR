@@ -7,6 +7,7 @@
 
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { nwc } from '@getalby/sdk';
 
 // SecureStore has key length limits, use shorter keys
 const SECURE_KEYS = {
@@ -88,10 +89,12 @@ class NWCStorageServiceClass {
   }
 
   /**
-   * Test NWC connection using Alby MCP tools
+   * Test NWC connection using Alby SDK
    * Returns true if connection works, false otherwise
    */
   async testConnection(nwcString: string): Promise<boolean> {
+    let testClient: nwc.NWCClient | null = null;
+
     try {
       // Format check first
       if (!this.validateFormat(nwcString)) {
@@ -99,19 +102,39 @@ class NWCStorageServiceClass {
         return false;
       }
 
-      // Test connection by getting wallet info
-      // Note: Alby MCP tools will use the NWC string from environment/config
-      // This is a placeholder for actual implementation
-      // In production, you'll configure Alby MCP to use the NWC string
+      console.log('[NWC] Testing connection with Alby SDK...');
 
-      console.log('[NWC] Testing connection...');
+      // Create temporary NWC client
+      testClient = new nwc.NWCClient({
+        nostrWalletConnectUrl: nwcString,
+      });
 
-      // For now, return true if format is valid
-      // Real implementation will use: await mcp__alby__get_wallet_service_info()
+      // Test connection with 10-second timeout
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Connection test timeout')), 10000)
+      );
+
+      const infoPromise = testClient.getInfo();
+      const info = await Promise.race([infoPromise, timeoutPromise]);
+
+      console.log('[NWC] Connection test successful:', {
+        alias: info.alias || 'Unknown',
+        methods: info.methods?.slice(0, 3) || [],
+      });
+
       return true;
     } catch (error) {
       console.error('[NWC] Connection test failed:', error);
       return false;
+    } finally {
+      // Close test client connection
+      if (testClient) {
+        try {
+          testClient.close();
+        } catch (e) {
+          // Ignore close errors
+        }
+      }
     }
   }
 

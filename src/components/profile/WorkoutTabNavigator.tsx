@@ -1,7 +1,7 @@
 /**
- * WorkoutTabNavigator - Simple tab switcher between Public, Private, and Apple workouts
+ * WorkoutTabNavigator - Simple tab switcher between Public, Local, and Apple workouts
  * Public: 1301 notes from Nostr (cache-first instant display)
- * Private: Local Activity Tracker workouts (zero loading time)
+ * Local: Local Activity Tracker workouts (zero loading time)
  * Apple: HealthKit workouts with post buttons
  */
 
@@ -24,6 +24,7 @@ interface WorkoutTabNavigatorProps {
   onPostToSocial?: (workout: LocalWorkout) => Promise<void>;
   onCompeteHealthKit?: (workout: any) => Promise<void>;
   onSocialShareHealthKit?: (workout: any) => Promise<void>;
+  onNavigateToAnalytics?: () => void;
 }
 
 export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
@@ -35,6 +36,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
   onPostToSocial,
   onCompeteHealthKit,
   onSocialShareHealthKit,
+  onNavigateToAnalytics,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkoutTabType>(initialTab);
 
@@ -59,7 +61,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           activeOpacity={0.7}
         >
           <Text style={[styles.tabText, activeTab === 'private' && styles.tabTextActive]}>
-            Private
+            Local
           </Text>
           {activeTab === 'private' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
@@ -91,6 +93,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             onRefresh={onRefresh}
             onPostToNostr={onPostToNostr}
             onPostToSocial={onPostToSocial}
+            onNavigateToAnalytics={onNavigateToAnalytics}
           />
         ) : (
           <AppleHealthTab

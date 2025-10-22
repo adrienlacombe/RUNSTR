@@ -4,7 +4,7 @@
  * App works without wallet (tracking, free events)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -16,6 +16,10 @@ import {
   Alert,
   ScrollView,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -36,6 +40,14 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
 }) => {
   const [nwcString, setNwcString] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+
+  // Reset validation state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setIsValidating(false);
+      setNwcString('');
+    }
+  }, [visible]);
 
   const handleSave = async () => {
     if (!nwcString.trim()) {
@@ -89,6 +101,29 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
     );
   };
 
+  const handleCancel = () => {
+    Keyboard.dismiss();
+    if (isValidating) {
+      Alert.alert(
+        'Cancel Validation?',
+        'Connection test is in progress. Are you sure you want to cancel?',
+        [
+          { text: 'Continue Testing', style: 'cancel' },
+          {
+            text: 'Cancel',
+            style: 'destructive',
+            onPress: () => {
+              setIsValidating(false);
+              onClose();
+            },
+          },
+        ]
+      );
+    } else {
+      onClose();
+    }
+  };
+
   const handleHelp = () => {
     Alert.alert(
       'What is NWC?',
@@ -104,18 +139,30 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Connect Wallet</Text>
-            <TouchableOpacity onPress={handleHelp} style={styles.helpButton}>
-              <Ionicons name="help-circle-outline" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-          </View>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.overlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardAvoid}
+          >
+            <View style={styles.modal}>
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <Text style={styles.title}>Connect Wallet</Text>
+                </View>
+                <View style={styles.headerRight}>
+                  <TouchableOpacity onPress={handleHelp} style={styles.helpButton}>
+                    <Ionicons name="help-circle-outline" size={24} color={theme.colors.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
+                    <Ionicons name="close" size={24} color={theme.colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Subtitle */}
             <Text style={styles.subtitle}>
               Connect your Lightning wallet to send Bitcoin payments
@@ -169,6 +216,9 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isValidating}
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={Keyboard.dismiss}
               />
               <Text style={styles.inputHint}>
                 Paste your NWC connection string from Alby or another wallet
@@ -207,9 +257,11 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
                 Your wallet stays in your control. RUNSTR never has access to your funds.
               </Text>
             </View>
-          </ScrollView>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -219,6 +271,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'flex-end',
+  },
+  keyboardAvoid: {
+    width: '100%',
   },
   modal: {
     backgroundColor: theme.colors.background,
@@ -237,12 +292,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
   },
   helpButton: {
+    padding: 4,
+  },
+  closeButton: {
     padding: 4,
   },
   subtitle: {

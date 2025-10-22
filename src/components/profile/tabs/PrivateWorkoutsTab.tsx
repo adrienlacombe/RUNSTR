@@ -1,6 +1,6 @@
 /**
  * PrivateWorkoutsTab - Display local Activity Tracker workouts (unsynced)
- * Shows only workouts that haven't been posted to Nostr yet
+ * Shows only workouts stored locally that haven't been posted to Nostr yet
  * Zero loading time - instant display from local AsyncStorage
  * When workout is posted to Nostr, it's marked as synced and disappears from this tab
  */
@@ -19,6 +19,7 @@ import { Card } from '../../ui/Card';
 import { CustomAlert } from '../../ui/CustomAlert';
 import { EnhancedWorkoutCard } from '../shared/EnhancedWorkoutCard';
 import { MonthlyWorkoutGroup, groupWorkoutsByMonth } from '../shared/MonthlyWorkoutGroup';
+import { AdvancedAnalyticsCard } from '../AdvancedAnalyticsCard';
 import localWorkoutStorage from '../../../services/fitness/LocalWorkoutStorageService';
 import type { LocalWorkout } from '../../../services/fitness/LocalWorkoutStorageService';
 import type { UnifiedWorkout } from '../../../services/fitness/workoutMergeService';
@@ -31,6 +32,7 @@ interface PrivateWorkoutsTabProps {
   onRefresh?: () => void;
   onPostToNostr?: (workout: LocalWorkout) => Promise<void>;
   onPostToSocial?: (workout: LocalWorkout) => Promise<void>;
+  onNavigateToAnalytics?: () => void;
 }
 
 export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
@@ -39,6 +41,7 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   onRefresh,
   onPostToNostr,
   onPostToSocial,
+  onNavigateToAnalytics,
 }) => {
   const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -61,15 +64,15 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
 
   const loadPrivateWorkouts = async () => {
     try {
-      console.log('=� Loading private (unsynced) workouts from local storage...');
+      console.log('🔍 Loading local (unsynced) workouts from local storage...');
 
       // Zero loading time - instant from AsyncStorage
       const unsyncedWorkouts = await localWorkoutStorage.getUnsyncedWorkouts();
 
-      console.log(` Loaded ${unsyncedWorkouts.length} private workouts (instant display)`);
+      console.log(` Loaded ${unsyncedWorkouts.length} local workouts (instant display)`);
       setWorkouts(unsyncedWorkouts);
     } catch (error) {
-      console.error('L Failed to load private workouts:', error);
+      console.error('❌ Failed to load local workouts:', error);
       setWorkouts([]);
     }
   };
@@ -102,7 +105,7 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
       setPostingType('nostr');
 
       await onPostToNostr(workout);
-      // Refresh to remove from private list (it's now synced)
+      // Refresh to remove from local list (it's now synced)
       await loadPrivateWorkouts();
       setAlertConfig({
         title: 'Success',
@@ -173,7 +176,7 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
             try {
               await localWorkoutStorage.deleteWorkout(workoutId);
               await loadPrivateWorkouts();
-              console.log(` Deleted workout ${workoutId}`);
+              console.log(`✅ Deleted workout ${workoutId}`);
             } catch (error) {
               console.error('Failed to delete workout:', error);
               setAlertConfig({
@@ -271,7 +274,7 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
       <View style={styles.container}>
         <Card style={styles.emptyState}>
           <Ionicons name="phone-portrait-outline" size={64} color={theme.colors.textMuted} />
-          <Text style={styles.emptyStateTitle}>No Private Workouts</Text>
+          <Text style={styles.emptyStateTitle}>No Local Workouts</Text>
           <Text style={styles.emptyStateText}>
             Record workouts with the Activity Tracker to see them here.
             Once posted to Nostr, they'll move to the Public tab.
@@ -296,14 +299,22 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
           />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.headerText}>
-              {workouts.length} private workout{workouts.length !== 1 ? 's' : ''}
-            </Text>
-            <Text style={styles.headerSubtext}>
-              Not posted to Nostr yet
-            </Text>
-          </View>
+          <>
+            {/* Advanced Analytics Card */}
+            {onNavigateToAnalytics && (
+              <AdvancedAnalyticsCard onPress={onNavigateToAnalytics} />
+            )}
+
+            {/* Header with workout count */}
+            <View style={styles.header}>
+              <Text style={styles.headerText}>
+                {workouts.length} local workout{workouts.length !== 1 ? 's' : ''}
+              </Text>
+              <Text style={styles.headerSubtext}>
+                Not posted to Nostr yet
+              </Text>
+            </View>
+          </>
         }
       />
 

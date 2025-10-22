@@ -29,6 +29,30 @@ export interface LocalWorkout {
   sets?: number;
   notes?: string;
 
+  // Meditation-specific fields
+  meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+  mindfulnessRating?: number; // 1-5
+
+  // Diet/Fasting-specific fields
+  mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  mealTime?: string; // ISO timestamp
+  fastingDuration?: number; // seconds
+
+  // Strength training-specific fields
+  exerciseType?: 'pushups' | 'pullups' | 'situps' | 'squats' | 'planks' | 'burpees' | string;
+  repsBreakdown?: number[]; // Array of reps per set (e.g., [20, 18, 15])
+  restTime?: number; // Rest between sets in seconds
+
+  // Weather context fields
+  weather?: {
+    temp: number; // Temperature in Celsius
+    feelsLike: number; // Feels like temperature
+    description: string; // e.g., "Clear sky"
+    icon: string; // Weather icon code
+    humidity?: number; // Humidity percentage
+    windSpeed?: number; // Wind speed in m/s
+  };
+
   // Metadata
   createdAt: string; // ISO timestamp
   syncedToNostr: boolean;
@@ -86,11 +110,41 @@ export class LocalWorkoutStorageService {
     pace?: number; // minutes per km
     speed?: number; // km/h
     splits?: Split[];
+    // Optional: GPS coordinates for weather lookup
+    startLatitude?: number;
+    startLongitude?: number;
   }): Promise<string> {
     try {
       const workoutId = await this.generateWorkoutId();
       const now = new Date().toISOString();
       const startTime = new Date(Date.now() - workout.duration * 1000).toISOString();
+
+      // Fetch weather conditions if GPS coordinates available
+      let weather;
+      if (workout.startLatitude && workout.startLongitude) {
+        try {
+          const { weatherService } = await import('../activity/WeatherService');
+          const conditions = await weatherService.getWeatherForWorkout(
+            workout.startLatitude,
+            workout.startLongitude
+          );
+
+          if (conditions) {
+            weather = {
+              temp: conditions.temp,
+              feelsLike: conditions.feelsLike,
+              description: conditions.description,
+              icon: conditions.icon,
+              humidity: conditions.humidity,
+              windSpeed: conditions.windSpeed,
+            };
+            console.log(`✅ Weather recorded: ${conditions.temp}°C, ${conditions.description}`);
+          }
+        } catch (weatherError) {
+          console.warn('⚠️ Failed to fetch weather, continuing without:', weatherError);
+          // Non-critical - continue saving workout without weather
+        }
+      }
 
       const localWorkout: LocalWorkout = {
         id: workoutId,
@@ -104,6 +158,7 @@ export class LocalWorkoutStorageService {
         pace: workout.pace,
         speed: workout.speed,
         splits: workout.splits,
+        weather, // Add weather data
         source: 'gps_tracker',
         createdAt: now,
         syncedToNostr: false,
@@ -128,6 +183,17 @@ export class LocalWorkoutStorageService {
     reps?: number;
     sets?: number;
     notes?: string;
+    // Meditation fields
+    meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+    mindfulnessRating?: number;
+    // Diet/Fasting fields
+    mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+    mealTime?: string;
+    fastingDuration?: number;
+    // Strength training fields
+    exerciseType?: string;
+    repsBreakdown?: number[];
+    restTime?: number;
   }): Promise<string> {
     try {
       const workoutId = await this.generateWorkoutId();
@@ -152,6 +218,18 @@ export class LocalWorkoutStorageService {
         reps: workout.reps,
         sets: workout.sets,
         notes: workout.notes,
+        // Meditation fields
+        meditationType: workout.meditationType,
+        mindfulnessRating: workout.mindfulnessRating,
+        // Diet/Fasting fields
+        mealType: workout.mealType,
+        mealTime: workout.mealTime,
+        fastingDuration: workout.fastingDuration,
+        // Strength training fields
+        exerciseType: workout.exerciseType,
+        repsBreakdown: workout.repsBreakdown,
+        restTime: workout.restTime,
+        // Metadata
         source: 'manual_entry',
         createdAt: now,
         syncedToNostr: false,

@@ -434,6 +434,37 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
             )}
           </View>
 
+          {/* Effort Score Banner */}
+          {(() => {
+            const effortScore = activityMetricsService.calculateEffortScore(
+              workout.type,
+              workout.distance,
+              workout.duration,
+              workout.elevation || 0,
+              workout.pace
+            );
+            const effortLevel = activityMetricsService.getEffortLevel(effortScore);
+
+            return (
+              <View style={[styles.effortBanner, { backgroundColor: effortLevel.color + '20' }]}>
+                <View style={styles.effortScoreContainer}>
+                  <Text style={styles.effortEmoji}>{effortLevel.emoji}</Text>
+                  <View style={styles.effortTextContainer}>
+                    <Text style={[styles.effortScore, { color: effortLevel.color }]}>
+                      {effortScore}
+                    </Text>
+                    <Text style={[styles.effortLabel, { color: effortLevel.color }]}>
+                      Effort Score
+                    </Text>
+                  </View>
+                  <Text style={[styles.effortLevel, { color: effortLevel.color }]}>
+                    {effortLevel.label}
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
+
           {/* Splits Section */}
           {workout.type === 'running' &&
             workout.splits &&
@@ -787,5 +818,42 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: 8,
     textAlign: 'center',
+  },
+  effortBanner: {
+    borderRadius: theme.borderRadius.medium,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  effortScoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  effortEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  effortTextContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  effortScore: {
+    fontSize: 36,
+    fontWeight: theme.typography.weights.bold,
+    marginBottom: 2,
+  },
+  effortLabel: {
+    fontSize: 11,
+    fontWeight: theme.typography.weights.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  effortLevel: {
+    fontSize: 18,
+    fontWeight: theme.typography.weights.bold,
+    textTransform: 'uppercase',
+    marginLeft: 12,
   },
 });

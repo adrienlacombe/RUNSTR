@@ -25,6 +25,9 @@ import FEATURE_FLAGS from '../constants/featureFlags';
 import { LoadingOverlay } from '../components/ui/LoadingStates';
 import { BottomNavigation } from '../components/ui/BottomNavigation';
 
+// Screens
+import { AdvancedAnalyticsScreen } from './AdvancedAnalyticsScreen';
+
 // Two-Tab Workout Components
 import { WorkoutTabNavigator } from '../components/profile/WorkoutTabNavigator';
 import type { LocalWorkout } from '../services/fitness/LocalWorkoutStorageService';
@@ -44,6 +47,7 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
 }) => {
   const [signer, setSigner] = useState<NDKSigner | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Services - localWorkoutStorage is already a singleton instance
   const publishingService = WorkoutPublishingService.getInstance();
@@ -185,6 +189,15 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
     );
   }
 
+  // Show Advanced Analytics screen if active
+  if (showAnalytics) {
+    return (
+      <AdvancedAnalyticsScreen
+        onNavigateBack={() => setShowAnalytics(false)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -202,6 +215,7 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
         pubkey={pubkey}
         onPostToNostr={handlePostToNostr}
         onPostToSocial={handlePostToSocial}
+        onNavigateToAnalytics={() => setShowAnalytics(true)}
       />
 
       {/* Bottom Navigation */}

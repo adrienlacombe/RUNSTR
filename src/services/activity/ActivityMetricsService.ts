@@ -19,6 +19,7 @@ export interface ActivityMetrics {
   calories?: number;
   elevationGain?: number; // meters
   averageSpeed?: number; // km/h or mph
+  effortScore?: number; // 0-100 intensity score
 }
 
 export interface FormattedMetrics {
@@ -295,6 +296,76 @@ class ActivityMetricsService {
       value: meters / 1000,
       unit: 'km'
     };
+  }
+
+  /**
+   * Calculate effort score (0-100) based on workout intensity
+   * Factors: distance, pace variation, elevation, duration
+   */
+  calculateEffortScore(
+    activityType: 'running' | 'walking' | 'cycling',
+    distanceMeters: number,
+    durationSeconds: number,
+    elevationGainMeters: number = 0,
+    pace?: number
+  ): number {
+    if (distanceMeters <= 0 || durationSeconds <= 0) {
+      return 0;
+    }
+
+    const distanceKm = distanceMeters / 1000;
+    const durationMinutes = durationSeconds / 60;
+    const speedKmh = (distanceKm / durationMinutes) * 60;
+
+    // Base score from distance and time (0-40 points)
+    let baseScore = Math.min(40, (distanceKm * 5) + (durationMinutes * 0.5));
+
+    // Intensity score from speed (0-30 points)
+    let intensityScore = 0;
+    switch (activityType) {
+      case 'running':
+        // Running: 6 km/h = 0 points, 20 km/h = 30 points
+        intensityScore = Math.min(30, Math.max(0, (speedKmh - 6) * 2));
+        break;
+      case 'walking':
+        // Walking: 3 km/h = 0 points, 8 km/h = 30 points
+        intensityScore = Math.min(30, Math.max(0, (speedKmh - 3) * 6));
+        break;
+      case 'cycling':
+        // Cycling: 10 km/h = 0 points, 40 km/h = 30 points
+        intensityScore = Math.min(30, Math.max(0, (speedKmh - 10) * 1));
+        break;
+    }
+
+    // Elevation score (0-30 points)
+    // 100m elevation = 10 points, 300m+ = 30 points
+    const elevationScore = Math.min(30, (elevationGainMeters / 100) * 10);
+
+    // Total effort score (0-100)
+    const totalScore = Math.round(baseScore + intensityScore + elevationScore);
+
+    return Math.min(100, Math.max(0, totalScore));
+  }
+
+  /**
+   * Get effort level label for display
+   */
+  getEffortLevel(effortScore: number): {
+    label: string;
+    color: string;
+    emoji: string;
+  } {
+    if (effortScore >= 80) {
+      return { label: 'Extreme', color: '#FF3B30', emoji: '🔥' };
+    } else if (effortScore >= 60) {
+      return { label: 'Hard', color: '#FF9500', emoji: '💪' };
+    } else if (effortScore >= 40) {
+      return { label: 'Moderate', color: '#FFCC00', emoji: '⚡' };
+    } else if (effortScore >= 20) {
+      return { label: 'Light', color: '#34C759', emoji: '✨' };
+    } else {
+      return { label: 'Easy', color: '#5AC8FA', emoji: '🌟' };
+    }
   }
 }
 

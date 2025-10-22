@@ -200,18 +200,16 @@ export class SimpleLocationTrackingService {
         (location) => this.handleLocationUpdate(location)
       );
 
-      // 3.5. Android-specific: Start background location task
-      if (Platform.OS === 'android') {
-        const backgroundStarted = await startBackgroundLocationTracking(
-          activityType,
-          this.sessionId || `session_${Date.now()}`
-        );
+      // 3.5. Start background location task (iOS and Android)
+      const backgroundStarted = await startBackgroundLocationTracking(
+        activityType,
+        this.sessionId || `session_${Date.now()}`
+      );
 
-        if (backgroundStarted) {
-          console.log('[ANDROID] Background location task started');
-        } else {
-          console.warn('[ANDROID] Failed to start background task - continuing with foreground only');
-        }
+      if (backgroundStarted) {
+        console.log(`[${Platform.OS.toUpperCase()}] Background location task started`);
+      } else {
+        console.warn(`[${Platform.OS.toUpperCase()}] Failed to start background task - continuing with foreground only`);
       }
 
       // 4. Activate KeepAwake to prevent GPS throttling
@@ -458,10 +456,8 @@ export class SimpleLocationTrackingService {
     this.pauseStartTime = Date.now();
     this.pauseCount++; // Track number of pauses
 
-    // Android-specific: Pause background tracking
-    if (Platform.OS === 'android') {
-      await pauseBackgroundTracking();
-    }
+    // Pause background tracking (iOS and Android)
+    await pauseBackgroundTracking();
 
     console.log('[SimpleLocationTrackingService] Tracking paused');
   }
@@ -483,10 +479,8 @@ export class SimpleLocationTrackingService {
     this.pauseStartTime = 0;
     this.lastPosition = null; // Reset to avoid jumps after pause
 
-    // Android-specific: Resume background tracking
-    if (Platform.OS === 'android') {
-      await resumeBackgroundTracking();
-    }
+    // Resume background tracking (iOS and Android)
+    await resumeBackgroundTracking();
 
     console.log(`[SimpleLocationTrackingService] Tracking resumed (paused for ${(pauseDuration / 1000).toFixed(0)}s)`);
   }
@@ -508,21 +502,19 @@ export class SimpleLocationTrackingService {
       this.locationSubscription = null;
     }
 
-    // Android-specific: Stop background task and merge locations
-    if (Platform.OS === 'android') {
-      await stopBackgroundLocationTracking();
+    // Stop background task and merge locations (iOS and Android)
+    await stopBackgroundLocationTracking();
 
-      // Get and merge background locations
-      const backgroundLocations = await getAndClearBackgroundLocations();
-      if (backgroundLocations.length > 0) {
-        console.log(`[ANDROID] Merging ${backgroundLocations.length} background locations`);
+    // Get and merge background locations
+    const backgroundLocations = await getAndClearBackgroundLocations();
+    if (backgroundLocations.length > 0) {
+      console.log(`[${Platform.OS.toUpperCase()}] Merging ${backgroundLocations.length} background locations`);
 
-        // Add background locations to session
-        this.positions.push(...backgroundLocations);
+      // Add background locations to session
+      this.positions.push(...backgroundLocations);
 
-        // Recalculate distance with merged locations
-        this.distance = this.calculateTotalDistance(this.positions);
-      }
+      // Recalculate distance with merged locations
+      this.distance = this.calculateTotalDistance(this.positions);
     }
 
     // Deactivate KeepAwake

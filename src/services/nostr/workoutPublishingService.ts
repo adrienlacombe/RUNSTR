@@ -39,6 +39,17 @@ export interface PublishableWorkout extends Workout {
   // Enhanced tracking data
   positions?: Array<{ latitude: number; longitude: number; timestamp: number }>;
   pauseCount?: number;
+  // Meditation-specific fields
+  meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+  mindfulnessRating?: number;
+  // Diet/Fasting-specific fields
+  mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  mealTime?: string;
+  fastingDuration?: number;
+  // Strength training-specific fields
+  exerciseType?: string;
+  repsBreakdown?: number[];
+  restTime?: number;
 }
 
 export interface WorkoutPublishResult {
@@ -379,7 +390,7 @@ export class WorkoutPublishingService {
 
   /**
    * Get simple exercise verb for in-app competitions
-   * Supports cardio, strength, and wellness activities
+   * Supports cardio, strength, wellness, and nutrition activities
    */
   private getExerciseVerb(workoutType: string): string {
     const type = workoutType.toLowerCase();
@@ -393,9 +404,13 @@ export class WorkoutPublishingService {
     // Strength activities
     if (type.includes('strength') || type.includes('gym') || type.includes('weight')) return 'strength';
     if (type.includes('pushup') || type.includes('pullup') || type.includes('situp')) return 'strength';
+    if (type.includes('squat') || type.includes('burpee')) return 'strength';
     // Wellness activities
     if (type.includes('yoga')) return 'yoga';
     if (type.includes('meditation')) return 'meditation';
+    // Nutrition activities
+    if (type.includes('diet') || type.includes('meal')) return 'diet';
+    if (type.includes('fasting') || type.includes('fast')) return 'fasting';
     // Default to 'other' for unrecognized types
     return 'other';
   }
@@ -421,7 +436,7 @@ export class WorkoutPublishingService {
 
   /**
    * Get activity hashtag for in-app competitions
-   * Supports cardio, strength, and wellness activities
+   * Supports cardio, strength, wellness, and nutrition activities
    */
   private getActivityHashtag(workoutType: string): string {
     const type = workoutType.toLowerCase();
@@ -435,9 +450,13 @@ export class WorkoutPublishingService {
     // Strength hashtags
     if (type.includes('gym') || type.includes('strength') || type.includes('weight')) return 'Strength';
     if (type.includes('pushup') || type.includes('pullup') || type.includes('situp')) return 'Strength';
+    if (type.includes('squat') || type.includes('burpee')) return 'Strength';
     // Wellness hashtags
     if (type.includes('yoga')) return 'Yoga';
     if (type.includes('meditation')) return 'Meditation';
+    // Nutrition hashtags
+    if (type.includes('diet') || type.includes('meal')) return 'Diet';
+    if (type.includes('fasting') || type.includes('fast')) return 'Fasting';
     return 'Fitness';
   }
 
@@ -707,7 +726,7 @@ export class WorkoutPublishingService {
     }
 
     // Validate exercise type is one of the supported values for in-app competitions
-    const validExerciseTypes = ['running', 'walking', 'cycling', 'hiking', 'swimming', 'rowing', 'strength', 'yoga', 'meditation', 'other'];
+    const validExerciseTypes = ['running', 'walking', 'cycling', 'hiking', 'swimming', 'rowing', 'strength', 'yoga', 'meditation', 'diet', 'fasting', 'other'];
     if (!validExerciseTypes.includes(exerciseTag[1])) {
       console.warn(`Exercise type '${exerciseTag[1]}' is non-standard - competitions may not recognize it`);
     }

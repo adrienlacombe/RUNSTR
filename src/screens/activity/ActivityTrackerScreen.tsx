@@ -1,10 +1,10 @@
 /**
  * ActivityTrackerScreen - Main activity tracking interface
- * Provides tabs for running, walking, cycling, and manual workout entry
+ * Provides tabs for running, walking, cycling, and more activities
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -12,8 +12,12 @@ import { RunningTrackerScreen } from './RunningTrackerScreen';
 import { WalkingTrackerScreen } from './WalkingTrackerScreen';
 import { CyclingTrackerScreen } from './CyclingTrackerScreen';
 import { ManualWorkoutScreen } from './ManualWorkoutScreen';
+import { MeditationTrackerScreen } from './MeditationTrackerScreen';
+import { StrengthTrackerScreen } from './StrengthTrackerScreen';
+import { DietTrackerScreen } from './DietTrackerScreen';
 
-type ActivityTab = 'run' | 'walk' | 'cycle' | 'manual';
+type ActivityTab = 'run' | 'walk' | 'cycle' | 'strength' | 'diet' | 'meditation' | 'manual';
+type MoreOption = 'strength' | 'diet' | 'meditation' | 'manual';
 
 interface TabButtonProps {
   label: string;
@@ -38,8 +42,112 @@ const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress, icon })
   </TouchableOpacity>
 );
 
+interface MoreMenuProps {
+  visible: boolean;
+  onClose: () => void;
+  onSelectOption: (option: MoreOption) => void;
+}
+
+const MoreMenu: React.FC<MoreMenuProps> = ({ visible, onClose, onSelectOption }) => {
+  const slideAnim = React.useRef(new Animated.Value(300)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+
+  const handleSelectOption = (option: MoreOption) => {
+    onSelectOption(option);
+    onClose();
+  };
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View
+          style={[
+            styles.moreMenuContainer,
+            { transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <View style={styles.moreMenuHandle} />
+
+          <TouchableOpacity
+            style={styles.moreMenuItem}
+            onPress={() => handleSelectOption('strength')}
+          >
+            <Ionicons name="barbell" size={24} color={theme.colors.text} />
+            <Text style={styles.moreMenuLabel}>Strength Training</Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          <TouchableOpacity
+            style={styles.moreMenuItem}
+            onPress={() => handleSelectOption('diet')}
+          >
+            <Ionicons name="restaurant" size={24} color={theme.colors.text} />
+            <Text style={styles.moreMenuLabel}>Diet/Meals</Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          <TouchableOpacity
+            style={styles.moreMenuItem}
+            onPress={() => handleSelectOption('meditation')}
+          >
+            <Ionicons name="body" size={24} color={theme.colors.text} />
+            <Text style={styles.moreMenuLabel}>Meditation</Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          <TouchableOpacity
+            style={styles.moreMenuItem}
+            onPress={() => handleSelectOption('manual')}
+          >
+            <Ionicons name="create" size={24} color={theme.colors.text} />
+            <Text style={styles.moreMenuLabel}>Manual Entry</Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 export const ActivityTrackerScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActivityTab>('run');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const handleMoreOptionSelect = (option: MoreOption) => {
+    setActiveTab(option);
+    setShowMoreMenu(false);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -49,6 +157,12 @@ export const ActivityTrackerScreen: React.FC = () => {
         return <WalkingTrackerScreen />;
       case 'cycle':
         return <CyclingTrackerScreen />;
+      case 'strength':
+        return <StrengthTrackerScreen />;
+      case 'diet':
+        return <DietTrackerScreen />;
+      case 'meditation':
+        return <MeditationTrackerScreen />;
       case 'manual':
         return <ManualWorkoutScreen />;
     }
@@ -80,14 +194,20 @@ export const ActivityTrackerScreen: React.FC = () => {
           icon="bicycle"
         />
         <TabButton
-          label="Manual"
-          isActive={activeTab === 'manual'}
-          onPress={() => setActiveTab('manual')}
-          icon="create"
+          label="More"
+          isActive={['strength', 'diet', 'meditation', 'manual'].includes(activeTab)}
+          onPress={() => setShowMoreMenu(true)}
+          icon="ellipsis-horizontal"
         />
       </View>
 
       {renderContent()}
+
+      <MoreMenu
+        visible={showMoreMenu}
+        onClose={() => setShowMoreMenu(false)}
+        onSelectOption={handleMoreOptionSelect}
+      />
     </SafeAreaView>
   );
 };
@@ -145,9 +265,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   placeholderText: {
+    color: theme.colors.text,
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  placeholderSubtext: {
     color: theme.colors.textMuted,
     fontSize: 16,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  moreMenuContainer: {
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  moreMenuHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: theme.colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  moreMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  moreMenuLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
+    marginLeft: 16,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginHorizontal: 20,
   },
 });

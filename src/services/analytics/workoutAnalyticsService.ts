@@ -56,12 +56,12 @@ export interface PerformanceAnalytics {
   // Hero Stats
   personalRecords: PersonalRecord[];
   streak: WorkoutStreak;
-  
+
   // Volume Analysis
   thisYear: VolumeStats;
   thisMonth: VolumeStats;
   yearComparison: YearComparison;
-  
+
   // Activity Breakdown
   activityBreakdown: Array<{
     type: WorkoutType;
@@ -71,7 +71,7 @@ export interface PerformanceAnalytics {
     totalTime: number;
     avgPace?: number;
   }>;
-  
+
   // Recent Achievements
   recentPRs: PersonalRecord[];
   milestones: Array<{
@@ -80,7 +80,15 @@ export interface PerformanceAnalytics {
     description: string;
     achievedDate: string;
   }>;
-  
+
+  // Effort Score Analytics
+  effortStats: {
+    averageEffort: number; // Overall average effort score
+    highestEffort: number; // Highest effort score
+    thisMonthAverage: number; // Average for current month
+    hardWorkouts: number; // Count of workouts with effort >= 60
+  };
+
   // Data Quality
   totalWorkoutsAnalyzed: number;
   dataDateRange: {
@@ -137,6 +145,7 @@ export class WorkoutAnalyticsService {
       activityBreakdown,
       recentPRs,
       milestones,
+      effortStats,
       dataDateRange
     ] = await Promise.all([
       this.calculatePersonalRecords(sortedWorkouts),
@@ -147,6 +156,7 @@ export class WorkoutAnalyticsService {
       this.calculateActivityBreakdown(sortedWorkouts),
       this.findRecentPRs(sortedWorkouts, 90), // Last 90 days
       this.calculateMilestones(sortedWorkouts),
+      this.calculateEffortStats(sortedWorkouts),
       this.getDataDateRange(sortedWorkouts)
     ]);
 
@@ -159,6 +169,7 @@ export class WorkoutAnalyticsService {
       activityBreakdown,
       recentPRs,
       milestones,
+      effortStats,
       totalWorkoutsAnalyzed: sortedWorkouts.length,
       dataDateRange,
       lastUpdated: new Date().toISOString()
@@ -448,15 +459,86 @@ export class WorkoutAnalyticsService {
   private async findRecentPRs(workouts: UnifiedWorkout[], daysBack: number): Promise<PersonalRecord[]> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-    
-    const recentWorkouts = workouts.filter(w => 
+
+    const recentWorkouts = workouts.filter(w =>
       new Date(w.startTime) >= cutoffDate
     );
-    
+
     // For now, return a subset of all PRs that were achieved recently
     // In a full implementation, this would track historical bests vs recent achievements
     const allPRs = await this.calculatePersonalRecords(workouts);
     return allPRs.filter(pr => new Date(pr.date) >= cutoffDate).slice(0, 3);
+  }
+
+  /**
+   * Calculate effort score statistics
+   */
+  private async calculateEffortStats(workouts: UnifiedWorkout[]) {
+    // Import activityMetricsService to calculate effort scores
+    const { activityMetricsService } = await import('../activity/ActivityMetricsService');
+
+    if (workouts.length === 0) {
+      return {
+        averageEffort: 0,
+        highestEffort: 0,
+        thisMonthAverage: 0,
+        hardWorkouts: 0,
+      };
+    }
+
+    // Calculate effort scores for all workouts
+    const effortScores = workouts
+      .filter(w => w.distance && w.distance > 0 && w.duration > 0)
+      .map(w => {
+        const activityType = ['running', 'walking', 'cycling'].includes(w.type)
+          ? (w.type as 'running' | 'walking' | 'cycling')
+          : 'running';
+
+        return {
+          score: activityMetricsService.calculateEffortScore(
+            activityType,
+            w.distance || 0,
+            w.duration,
+            w.elevationGain || 0
+          ),
+          date: new Date(w.startTime),
+        };
+      });
+
+    if (effortScores.length === 0) {
+      return {
+        averageEffort: 0,
+        highestEffort: 0,
+        thisMonthAverage: 0,
+        hardWorkouts: 0,
+      };
+    }
+
+    // Overall average
+    const averageEffort = Math.round(
+      effortScores.reduce((sum, e) => sum + e.score, 0) / effortScores.length
+    );
+
+    // Highest effort
+    const highestEffort = Math.max(...effortScores.map(e => e.score));
+
+    // This month average
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthScores = effortScores.filter(e => e.date >= monthStart);
+    const thisMonthAverage = thisMonthScores.length > 0
+      ? Math.round(thisMonthScores.reduce((sum, e) => sum + e.score, 0) / thisMonthScores.length)
+      : 0;
+
+    // Hard workouts count (effort >= 60)
+    const hardWorkouts = effortScores.filter(e => e.score >= 60).length;
+
+    return {
+      averageEffort,
+      highestEffort,
+      thisMonthAverage,
+      hardWorkouts,
+    };
   }
 
   /**
@@ -559,6 +641,12 @@ export class WorkoutAnalyticsService {
       activityBreakdown: [],
       recentPRs: [],
       milestones: [],
+      effortStats: {
+        averageEffort: 0,
+        highestEffort: 0,
+        thisMonthAverage: 0,
+        hardWorkouts: 0,
+      },
       totalWorkoutsAnalyzed: 0,
       dataDateRange: { earliest: today, latest: today },
       lastUpdated: new Date().toISOString()

@@ -15,6 +15,7 @@ import {
   View,
   Text,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../styles/theme';
@@ -22,7 +23,7 @@ import { useNWCZap } from '../../hooks/useNWCZap';
 import { npubToHex } from '../../utils/ndkConversion';
 
 const DEFAULT_ZAP_AMOUNT = 21;
-const LONG_PRESS_DURATION = 500; // ms to trigger long press
+const LONG_PRESS_DURATION = 400; // ms to trigger long press (reduced from 500ms)
 
 interface NWCLightningButtonProps {
   recipientNpub: string;
@@ -231,6 +232,9 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
       const success = await sendZap(recipientHex, defaultAmount, memo);
 
       if (success) {
+        // Haptic feedback for success
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
         // Refresh balance
         await refreshBalance();
 
@@ -247,12 +251,21 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
           { cancelable: true }
         );
       } else {
+        // Haptic feedback for error
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
         const errorMessage = error || 'Unable to send zap. Please try again.';
-        Alert.alert('Failed', errorMessage);
+        Alert.alert('Zap Failed', errorMessage);
       }
     } catch (error) {
       console.error('Quick zap error:', error);
-      Alert.alert('Error', 'An error occurred while sending the zap');
+
+      // Haptic feedback for error
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      // Show specific error message
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while sending the zap';
+      Alert.alert('Zap Error', errorMessage);
     } finally {
       setIsZapping(false);
     }
