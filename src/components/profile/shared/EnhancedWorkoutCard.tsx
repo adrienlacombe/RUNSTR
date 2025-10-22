@@ -114,6 +114,18 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
 
   const isFromNostr = workout.source?.toLowerCase() === 'nostr';
 
+  // Get weather emoji from icon code
+  const getWeatherEmoji = (icon: string): string => {
+    const iconMap: Record<string, string> = {
+      '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️',
+      '03d': '☁️', '03n': '☁️', '04d': '☁️', '04n': '☁️',
+      '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
+      '11d': '⛈️', '11n': '⛈️', '13d': '❄️', '13n': '❄️',
+      '50d': '🌫️', '50n': '🌫️',
+    };
+    return iconMap[icon] || '🌤️';
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -128,6 +140,13 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
           </View>
         </View>
         <View style={styles.headerRight}>
+          {/* Weather Badge (if available) */}
+          {workout.weather && (
+            <View style={styles.weatherBadge}>
+              <Text style={styles.weatherEmoji}>{getWeatherEmoji(workout.weather.icon)}</Text>
+              <Text style={styles.weatherTemp}>{workout.weather.temp}°C</Text>
+            </View>
+          )}
           <View style={styles.sourceBadge}>
             <Text style={styles.sourceText}>{workout.source?.toUpperCase() || 'UNKNOWN'}</Text>
           </View>
@@ -236,6 +255,7 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     alignItems: 'flex-end',
+    gap: 8,
   },
   activityIcon: {
     fontSize: 28,
@@ -249,6 +269,25 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 14,
     marginTop: 2,
+  },
+  weatherBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 4,
+  },
+  weatherEmoji: {
+    fontSize: 14,
+  },
+  weatherTemp: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: '500',
   },
   sourceBadge: {
     flexDirection: 'row',

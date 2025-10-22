@@ -35,6 +35,15 @@ export interface Workout {
   // Strength training fields
   sets?: number;
   reps?: number;
+  // Weather context
+  weather?: {
+    temp: number; // Temperature in Celsius
+    feelsLike: number;
+    description: string;
+    icon: string;
+    humidity?: number;
+    windSpeed?: number;
+  };
   metadata?: Record<string, any>; // Additional data from source
 }
 
