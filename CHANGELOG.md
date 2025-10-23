@@ -6,6 +6,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-10-23
+
+### Added
+- **Graphic Workout Displays**: Beautiful visual cards for kind 1 workout events replacing generic text-based posts
+  - Instagram-worthy workout achievement graphics with RUNSTR branding
+  - Automatic badge generation for PRs, distance milestones, and calorie achievements
+  - Motivational quotes tailored to workout types
+  - SVG-based rendering for crisp, professional social sharing
+- **Advanced Analytics Page**: Comprehensive local exercise data analysis and insights
+  - Cardio performance tracking with trend analysis
+  - Strength training analytics and progression metrics
+  - Nutrition tracking and wellness analytics
+  - Holistic health dashboard with actionable insights
+- **Route Planning System**: Complete route management infrastructure with GPS comparison
+  - RouteMatchingService for GPS comparison and personal record tracking
+  - SavedRoutesScreen for route library management and organization
+  - Save as Route functionality during active workouts
+  - Route replay and comparison features for performance analysis
+- **Weather Integration**: Real-time weather context for workouts
+  - Weather badges displayed on workout cards showing conditions during activity
+  - Weather data captured and stored with workout metadata
+  - Historical weather context for training analysis
+- **Premium Features MVP**: Enhanced workout metrics and environmental tracking
+  - Effort Score algorithm for workout intensity measurement
+  - Weather context integration for comprehensive training data
+  - Environmental factors included in performance analytics
+- **Non-Manual Activity Tracking**: Automated tracking for additional activity types
+  - Meditation session tracking with duration and mindfulness metrics
+  - Strength training workout logging with sets, reps, and weights
+  - Diet tracking with meal logging and nutritional data
+  - Simplified data entry for non-GPS activities
+- **External Wallet Zapping**: Enhanced Lightning payment functionality
+  - Long-press user profiles to send zaps from any external Lightning wallet
+  - Universal wallet support (Cash App, Strike, Alby, self-custodial)
+  - Seamless payment flow without app-specific wallet requirements
+- **Challenge Arbitration System**: P2P challenge dispute resolution
+  - Arbitrator selection during challenge creation
+  - Third-party arbitration for contested 1v1 competitions
+  - Fair resolution system for workout verification disputes
+  - CaptainArbitrationDashboard for managing arbitration requests
+
+### Fixed
+- **NWC Wallet Connection Issues**: Resolved critical payment and connection problems
+  - Fixed relay connection drops causing wallet sync failures
+  - Improved payment verification reliability
+  - Enhanced error handling for Lightning operations
+  - Better connection state management and recovery
+- **Background Tracking Reliability**: Major improvements for Android and iOS
+  - Fixed distance tracking continuing reliably when app backgrounded
+  - Improved GPS signal processing during long-duration activities
+  - Enhanced location service stability for extended workout sessions
+  - Better battery optimization compatibility
+- **Various Bug Fixes**: Comprehensive stability and performance improvements
+  - Improved UI responsiveness across all screens
+  - Fixed race conditions in data loading
+  - Enhanced error handling throughout the app
+  - Better memory management for long sessions
+
+### Improved
+- **User Experience**: Refined workflows across workout posting and challenge creation
+  - Smoother navigation and interaction patterns
+  - Better visual feedback for user actions
+  - Enhanced onboarding for new features
+  - More intuitive UI layouts and controls
+
+### Technical
+- **Kind 1 Event Enhancement**: Migrated from text-based to graphic workout displays
+  - Rich media support for social workout posts
+  - SVG generation for scalable, high-quality graphics
+  - Improved Nostr event formatting for better compatibility
+- **Analytics Architecture**: Comprehensive analytics service layer
+  - CardioPerformanceAnalytics service for endurance metrics
+  - StrengthTrainingAnalytics for resistance training data
+  - NutritionAnalytics for diet tracking
+  - WellnessAnalytics for holistic health monitoring
+- **Route Storage**: Local-first route persistence with cloud sync
+  - RouteStorageService for route management
+  - AsyncStorage-based local caching
+  - Optional Nostr event publishing for route sharing
+
 ## [0.3.2] - 2025-10-22
 
 ### Added
