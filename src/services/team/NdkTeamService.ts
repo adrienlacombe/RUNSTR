@@ -326,11 +326,13 @@ export class NdkTeamService {
                 }
               }
 
-              // Fall back to content as-is (plain text)
-              return ndkEvent.content || '';
+              // No about information found - return empty string instead of raw content
+              // This prevents team names or other data from being shown as description
+              return '';
             } catch (error) {
-              // If JSON parse fails, use content as plain text
-              return ndkEvent.content || '';
+              // If JSON parse fails, return empty string
+              // Don't use raw content as it might contain team name or other incorrect data
+              return '';
             }
           })();
 

@@ -293,7 +293,10 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
         <View style={styles.teamInfoSection}>
           <Text style={styles.teamName}>{team.name || 'Unknown Team'}</Text>
 
-          {team.description && (
+          {/* Only show About section if description exists, is not empty, and is not the team name */}
+          {team.description &&
+           team.description.trim() !== '' &&
+           team.description !== team.name && (
             <View style={styles.descriptionCard}>
               <Text style={styles.sectionLabel}>About</Text>
               <Text style={styles.description}>{team.description}</Text>
