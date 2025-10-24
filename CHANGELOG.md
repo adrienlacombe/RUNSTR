@@ -6,6 +6,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-10-23
+
+### Fixed
+- **Activity Tracker Improvements**: Comprehensive fixes for enhanced tracking reliability
+  - Background sync now works correctly during long workouts
+  - Fixed NaN values in split times for more accurate pace tracking
+  - Improved first-run GPS accuracy with better permission handling
+  - Removed effort score for cleaner, focused workout metrics
+- **Teams Page Performance**: Major optimizations for faster loading and smoother scrolling
+  - Reduced redundant queries and improved caching strategy
+  - Enhanced UI responsiveness during team browsing
+  - Better handling of large team lists and event data
+- **Event Management**: Improved event creation and captain dashboard functionality
+  - More reliable event creation workflow
+  - Better error handling in captain dashboard
+  - Enhanced join request processing
+- **Charity Zap**: Standardized charity zap implementation to match NWC pattern
+  - Consistent payment flow across all zap interactions
+  - Better error handling for failed transactions
+- **UI Fixes**: Prevented team name from incorrectly appearing in About section
+  - Cleaner profile presentation
+  - Fixed text overlap issues
+
+### Improved
+- **Overall Stability**: Multiple minor bug fixes and performance enhancements
+  - Better memory management during extended app usage
+  - Improved network request handling
+  - Enhanced error recovery mechanisms
+
 ## [0.4.0] - 2025-10-23
 
 ### Added
