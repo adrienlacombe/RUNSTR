@@ -6,7 +6,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NDK, { NDKEvent, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
+import NDK, { NDKEvent, NDKKind, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
 import { nip19 } from 'nostr-tools';
 
 interface WalletSnapshot {
@@ -184,7 +184,7 @@ async function queryNostrWallets(hexPubkey?: string): Promise<void> {
     // Query wallet info events (kind 37375)
     log('  Querying kind 37375 (wallet info)...', 'blue');
     const walletEvents = await ndk.fetchEvents({
-      kinds: [37375],
+      kinds: [37375 as NDKKind],
       authors: [hexPubkey],
       limit: 50
     });
@@ -206,7 +206,7 @@ async function queryNostrWallets(hexPubkey?: string): Promise<void> {
     // Query token events (kind 7375)
     log('\n  Querying kind 7375 (token events)...', 'blue');
     const tokenEvents = await ndk.fetchEvents({
-      kinds: [7375],
+      kinds: [7375 as NDKKind],
       authors: [hexPubkey],
       limit: 50
     });

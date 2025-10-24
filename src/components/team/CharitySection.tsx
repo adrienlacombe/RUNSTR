@@ -295,10 +295,14 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
             setShowEnhancedModal(false);
           }}
           onShowExternalWallet={(amount, memo) => {
+            console.log('[CharitySection] Switching to external wallet:', { amount, memo });
             setSelectedAmount(amount);
             setSelectedMemo(memo || `Donation to ${charity.name}`);
             setShowEnhancedModal(false);
-            setShowExternalModal(true);
+            setTimeout(() => {
+              // Small delay to ensure modal transition is smooth
+              setShowExternalModal(true);
+            }, 100);
           }}
         />
       )}

@@ -340,6 +340,32 @@ const startTracking = async () => {
 
 ---
 
+### 4. Live Notification Throttling (October 2025)
+
+**Purpose**: Prevent excessive notification updates from draining battery.
+
+**Implementation**: Throttle notification updates to every 5 seconds using AsyncStorage timestamp checks.
+
+**Code Pattern**:
+```typescript
+// Check last update time
+const lastUpdateStr = await AsyncStorage.getItem(LAST_NOTIFICATION_UPDATE_KEY);
+const lastUpdate = lastUpdateStr ? parseInt(lastUpdateStr, 10) : 0;
+const now = Date.now();
+
+if (now - lastUpdate < 5000) {
+  // Skip update if less than 5 seconds since last one
+  return;
+}
+
+// Update notification...
+await AsyncStorage.setItem(LAST_NOTIFICATION_UPDATE_KEY, now.toString());
+```
+
+**Impact**: Reduces battery drain while maintaining user-visible updates. 5-second interval provides good balance between real-time feedback and battery life.
+
+---
+
 ## Testing Recommendations
 
 ### Unit Tests Needed
@@ -435,6 +461,44 @@ const startTracking = async () => {
 ---
 
 ## Change Log
+
+**October 2025 - Live Notification Updates** 🚀 NEW FEATURE
+- **Feature**: Real-time workout stats displayed in foreground service notification
+- **What It Does**: Updates notification every 5 seconds with distance, duration, and pace/speed
+- **User Benefit**: Check workout progress without opening app (like Strava/Nike Run Club)
+- **Platform Support**:
+  - ✅ **Android**: Full support - updates persistent foreground service notification
+  - ⚠️ **iOS**: Limited support - shows local notifications (not persistent like Android)
+- **Implementation**:
+  - Added `updateLiveNotification()` function to BackgroundLocationTask.ts
+  - Formats activity-specific stats: Running/Walking shows pace, Cycling shows speed
+  - Throttles updates to 5-second intervals to avoid excessive processing
+  - Uses consistent notification ID to update same notification
+- **Example Notification Text**:
+  - Running: "2.43 km • 15:23 • 5:34 /km"
+  - Cycling: "12.45 km • 32:15 • 23.2 km/h"
+- **Files Modified**:
+  - `BackgroundLocationTask.ts` - Added notification update logic (lines 8, 18, 37-143, 278-284)
+- **Testing Notes**:
+  - ✅ Code compiles without errors
+  - ⚠️ Requires real device testing (iOS Simulator has limited background notification support)
+  - ⚠️ Android needs physical device or emulator with Google Play Services
+- **Known Limitations**:
+  - iOS: Notifications appear in notification center but may not be "sticky" like Android
+  - iOS: Background task execution limited to ~3 minutes (iOS background restrictions)
+
+**October 2025 - Background UI Update Fix** ❌ FIXED
+- Fixed JavaScript timers pausing when app backgrounds
+- Added AppState listener to all tracker screens (Running, Walking, Cycling)
+- Service automatically stops polling timer when app backgrounds (saves battery)
+- Immediate metric sync when app returns to foreground
+- Background task continues GPS tracking uninterrupted
+- Timer/distance now update in real-time even when using other apps (music/podcasts)
+- Files modified:
+  - `RunningTrackerScreen.tsx` - Added AppState listener for foreground sync
+  - `WalkingTrackerScreen.tsx` - Added AppState listener for foreground sync
+  - `CyclingTrackerScreen.tsx` - Added AppState listener for foreground sync
+  - `SimpleLocationTrackingService.ts` - Added background/foreground detection
 
 **January 2025 - Android Background Distance Fix**
 - Fixed distance tracking stopping when app backgrounds on Android

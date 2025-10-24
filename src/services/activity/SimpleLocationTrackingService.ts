@@ -11,7 +11,7 @@
 
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { Platform } from 'react-native';
+import { Platform, AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { locationPermissionService } from './LocationPermissionService';
@@ -102,6 +102,9 @@ export class SimpleLocationTrackingService {
   // Background sync timer (for real-time background updates)
   private backgroundSyncTimer: NodeJS.Timeout | null = null;
 
+  // AppState subscription for background/foreground detection
+  private appStateSubscription: any = null;
+
   // GPS signal tracking
   private lastGPSUpdate: number = 0;
   private currentAccuracy: number | undefined;
@@ -118,6 +121,9 @@ export class SimpleLocationTrackingService {
     console.log('[SimpleLocationTrackingService] Initialized');
     // Use warm start for better first-run accuracy
     this.kalmanFilter = new KalmanFilter(true);
+
+    // Set up AppState listener for background/foreground detection
+    this.setupAppStateListener();
   }
 
   static getInstance(): SimpleLocationTrackingService {
@@ -126,6 +132,37 @@ export class SimpleLocationTrackingService {
         new SimpleLocationTrackingService();
     }
     return SimpleLocationTrackingService.instance;
+  }
+
+  /**
+   * Set up AppState listener to optimize background polling
+   * Stops JavaScript polling when app backgrounds (saves battery)
+   * Resumes when app returns to foreground
+   */
+  private setupAppStateListener(): void {
+    this.appStateSubscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        if (nextAppState === 'background') {
+          // App went to background - stop JavaScript polling
+          // Background task will continue GPS tracking natively
+          if (this.backgroundSyncTimer) {
+            console.log(
+              '[SimpleLocationTrackingService] App backgrounded, stopping JS polling timer (background task continues)'
+            );
+            this.stopBackgroundSyncPolling();
+          }
+        } else if (nextAppState === 'active') {
+          // App returned to foreground - resume JavaScript polling
+          if (this.isTracking && !this.isPaused && !this.backgroundSyncTimer) {
+            console.log(
+              '[SimpleLocationTrackingService] App foregrounded, resuming JS polling timer'
+            );
+            this.startBackgroundSyncPolling();
+          }
+        }
+      }
+    );
   }
 
   /**

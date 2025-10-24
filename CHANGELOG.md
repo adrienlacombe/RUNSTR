@@ -6,6 +6,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2025-10-24
+
+### Added
+- **Garmin Integration**: Complete Garmin Connect sync for automatic workout import
+  - GarminHealthTab component for OAuth authentication flow
+  - garminAuthService for secure token management and authorization
+  - garminActivityService for fetching and syncing activity data from Garmin
+  - Support for importing runs, rides, swims, and other activities from Garmin devices
+  - Seamless integration with existing workout history and competition tracking
+
+### Fixed
+- **Background Distance Tracking**: Enhanced reliability for backgrounded workouts
+  - Continued improvements from 0.4.2 for better GPS tracking when app is not in foreground
+  - Improved location service persistence during long-duration activities
+  - More accurate distance calculations when switching between apps
+- **Charity Wallet Payments**: Improved charity zap functionality and wallet integration
+  - Better error handling for charity donation flows
+  - Enhanced wallet connection reliability for team charity payments
+  - Improved payment confirmation and user feedback
+- **TypeScript Compilation**: Resolved TypeScript errors for cleaner builds
+  - Fixed type mismatches across activity tracking services
+  - Improved type safety in workout and Garmin integration modules
+  - Cleaner compilation with zero errors
+- **Activity Tracker Stability**: Various bug fixes across tracking screens
+  - Enhanced stability in Running, Cycling, and Walking tracker screens
+  - Better handling of edge cases during workout sessions
+  - Improved workout data persistence and synchronization
+
+### Improved
+- **Code Quality**: General bug fixes and performance improvements
+  - Better error handling throughout the application
+  - Improved service reliability and state management
+  - Enhanced test coverage for integration scenarios
+
 ## [0.4.2] - 2025-10-23
 
 ### Fixed

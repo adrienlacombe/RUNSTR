@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState, AppStateStatus } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BaseTrackerComponent } from '../../components/activity/BaseTrackerComponent';
 import { CustomAlert } from '../../components/ui/CustomAlert';
@@ -74,6 +74,50 @@ export const CyclingTrackerScreen: React.FC = () => {
       if (metricsUpdateRef.current) clearInterval(metricsUpdateRef.current);
     };
   }, []);
+
+  // AppState listener for background/foreground transitions
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && isTracking) {
+        // App returned to foreground while tracking - sync immediately
+        console.log('[CyclingTrackerScreen] App returned to foreground, syncing metrics...');
+
+        // Force immediate sync of metrics
+        const session = simpleLocationTrackingService.getCurrentSession();
+        if (session) {
+          const now = Date.now();
+          const currentElapsed = Math.floor(
+            (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
+          );
+
+          const speed = activityMetricsService.calculateSpeed(
+            session.distance,
+            currentElapsed
+          );
+
+          setMetrics({
+            distance: activityMetricsService.formatDistance(session.distance),
+            duration: activityMetricsService.formatDuration(currentElapsed),
+            speed: activityMetricsService.formatSpeed(speed),
+            elevation: activityMetricsService.formatElevation(session.elevationGain),
+          });
+          setElapsedTime(currentElapsed);
+          setCurrentSpeed(speed);
+
+          console.log(
+            `[CyclingTrackerScreen] ✅ Synced: ${(session.distance / 1000).toFixed(2)} km, ` +
+            `${currentElapsed}s, ${speed.toFixed(1)} km/h, tracking continued in background`
+          );
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isTracking]); // Re-subscribe when tracking state changes
 
   const startTracking = async () => {
     console.log('[CyclingTrackerScreen] Starting tracking...');

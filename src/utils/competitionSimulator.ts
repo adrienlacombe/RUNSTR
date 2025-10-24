@@ -299,28 +299,28 @@ export class CompetitionSimulator {
     activity: NostrActivityType
   ): WorkoutPattern {
     const patterns: { [key: string]: WorkoutPattern } = {
-      'elite-Running': {
+      'elite-running': {
         avgDistance: 15 + Math.random() * 10,
         avgDuration: 60 + Math.random() * 30,
         avgCalories: 800 + Math.random() * 400,
         variability: 0.2,
         peakDays: [1, 3, 5, 6], // Mon, Wed, Fri, Sat
       },
-      'advanced-Running': {
+      'advanced-running': {
         avgDistance: 10 + Math.random() * 5,
         avgDuration: 45 + Math.random() * 15,
         avgCalories: 500 + Math.random() * 200,
         variability: 0.3,
         peakDays: [1, 3, 5],
       },
-      'intermediate-Running': {
+      'intermediate-running': {
         avgDistance: 5 + Math.random() * 3,
         avgDuration: 30 + Math.random() * 10,
         avgCalories: 300 + Math.random() * 100,
         variability: 0.4,
         peakDays: [2, 4, 6],
       },
-      'beginner-Running': {
+      'beginner-running': {
         avgDistance: 2 + Math.random() * 2,
         avgDuration: 20 + Math.random() * 10,
         avgCalories: 150 + Math.random() * 50,
@@ -330,7 +330,7 @@ export class CompetitionSimulator {
     };
 
     const key = `${level}-${activity}`;
-    return patterns[key] || patterns['intermediate-Running'];
+    return patterns[key] || patterns['intermediate-running'];
   }
 
   /**
@@ -772,13 +772,13 @@ export class CompetitionSimulator {
    */
   private randomActivity(): NostrActivityType {
     const activities: NostrActivityType[] = [
-      'Running',
-      'Walking',
-      'Cycling',
-      'Strength Training',
-      'Yoga',
-      'Meditation',
-      'Diet',
+      'running',
+      'walking',
+      'cycling',
+      'strength',
+      'yoga',
+      'meditation',
+      'other',
     ];
     return activities[Math.floor(Math.random() * activities.length)];
   }
@@ -822,7 +822,7 @@ export async function runCompetitionSimulation(
   const defaultConfig: SimulationConfig = {
     teamSize: 20,
     competitionDuration: 7,
-    activityType: 'Running',
+    activityType: 'running',
     competitionType: 'Total Distance',
     simulationSpeed: 'accelerated',
     enableNotifications: true,

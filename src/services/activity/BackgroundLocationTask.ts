@@ -5,6 +5,7 @@
 
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { LocationPoint } from './LocationTrackingService';
@@ -14,6 +15,7 @@ export const BACKGROUND_LOCATION_TASK = 'runstr-background-location';
 const BACKGROUND_LOCATION_STORAGE = '@runstr:background_locations';
 const SESSION_STATE_KEY = '@runstr:active_session_state';
 const BACKGROUND_DISTANCE_STATE = '@runstr:background_distance_state';
+const LAST_NOTIFICATION_UPDATE_KEY = '@runstr:last_notification_update';
 
 interface BackgroundLocationData {
   locations: Location.LocationObject[];
@@ -27,6 +29,117 @@ interface BackgroundDistanceState {
   locationCount: number;
   lastUpdated: number;
   sessionId: string;
+}
+
+/**
+ * Format elapsed time as HH:MM:SS or MM:SS
+ */
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Calculate pace in min/km
+ */
+function calculatePace(distanceMeters: number, durationSeconds: number): string {
+  if (distanceMeters < 10 || durationSeconds < 1) {
+    return '--:--';
+  }
+
+  const distanceKm = distanceMeters / 1000;
+  const paceSecondsPerKm = durationSeconds / distanceKm;
+  const paceMinutes = Math.floor(paceSecondsPerKm / 60);
+  const paceSeconds = Math.floor(paceSecondsPerKm % 60);
+
+  return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Calculate speed in km/h
+ */
+function calculateSpeed(distanceMeters: number, durationSeconds: number): string {
+  if (distanceMeters < 10 || durationSeconds < 1) {
+    return '0.0';
+  }
+
+  const distanceKm = distanceMeters / 1000;
+  const durationHours = durationSeconds / 3600;
+  const speed = distanceKm / durationHours;
+
+  return speed.toFixed(1);
+}
+
+/**
+ * Update the foreground service notification with live stats
+ * Throttled to update every 5 seconds to avoid excessive updates
+ */
+async function updateLiveNotification(
+  activityType: string,
+  distanceMeters: number,
+  durationSeconds: number
+): Promise<void> {
+  try {
+    // Throttle updates to every 5 seconds
+    const lastUpdateStr = await AsyncStorage.getItem(LAST_NOTIFICATION_UPDATE_KEY);
+    const lastUpdate = lastUpdateStr ? parseInt(lastUpdateStr, 10) : 0;
+    const now = Date.now();
+
+    if (now - lastUpdate < 5000) {
+      // Skip update if less than 5 seconds since last one
+      return;
+    }
+
+    // Format distance
+    const distanceKm = (distanceMeters / 1000).toFixed(2);
+    const duration = formatDuration(durationSeconds);
+
+    // Activity-specific stats
+    let statsText = '';
+    if (activityType === 'running' || activityType === 'walking') {
+      const pace = calculatePace(distanceMeters, durationSeconds);
+      statsText = `${distanceKm} km • ${duration} • ${pace} /km`;
+    } else if (activityType === 'cycling') {
+      const speed = calculateSpeed(distanceMeters, durationSeconds);
+      statsText = `${distanceKm} km • ${duration} • ${speed} km/h`;
+    } else {
+      statsText = `${distanceKm} km • ${duration}`;
+    }
+
+    // Update notification content
+    await Notifications.setNotificationChannelAsync('workout-tracking', {
+      name: 'Workout Tracking',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: null, // Silent updates
+      vibrationPattern: null,
+    });
+
+    // Schedule/update the notification
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `RUNSTR - ${activityType.charAt(0).toUpperCase() + activityType.slice(1)} Tracking`,
+        body: statsText,
+        color: '#FF6B35',
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        sticky: true, // Keep notification visible
+      },
+      trigger: null, // Immediate
+      identifier: BACKGROUND_LOCATION_TASK, // Use consistent ID to update same notification
+    });
+
+    // Save last update timestamp
+    await AsyncStorage.setItem(LAST_NOTIFICATION_UPDATE_KEY, now.toString());
+
+    console.log(`[Background] Updated notification: ${statsText}`);
+  } catch (error) {
+    console.error('[Background] Failed to update notification:', error);
+  }
 }
 
 /**
@@ -160,6 +273,14 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         `[Background] Distance: ${(distanceState.totalDistance / 1000).toFixed(2)} km, ` +
         `Added: ${distanceAdded.toFixed(1)}m, ` +
         `Locations: ${distanceState.locationCount}`
+      );
+
+      // Update live notification with current stats
+      const elapsedSeconds = Math.floor((Date.now() - sessionState.startTime) / 1000);
+      await updateLiveNotification(
+        sessionState.activityType,
+        distanceState.totalDistance,
+        elapsedSeconds
       );
     } catch (err) {
       console.error('Error processing background locations:', err);

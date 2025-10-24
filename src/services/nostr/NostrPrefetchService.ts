@@ -105,15 +105,9 @@ export class NostrPrefetchService {
             );
             reportProgress('Competitions loaded');
           }),
-        this.prefetchWalletInfo(hexPubkey)
-          .then(() => reportProgress('Wallet initialized'))
-          .catch((err) => {
-            console.warn(
-              '[Prefetch] Wallet failed, continuing anyway:',
-              err?.message
-            );
-            reportProgress('Wallet initialized');
-          }),
+        // NIP60 wallet queries removed - using NWC instead
+        // Skipping wallet prefetch to improve performance
+        Promise.resolve().then(() => reportProgress('Wallet skipped')),
       ]);
 
       // ✅ Step 5: User Teams (depends on discovered teams, so runs after Group 1)
@@ -382,45 +376,50 @@ export class NostrPrefetchService {
   }
 
   /**
+   * DEPRECATED: NIP60 wallet prefetch removed - using NWC instead
+   * Keeping method for reference but no longer called during startup
+   *
    * Prefetch wallet info (kind 37375)
    * NON-BLOCKING: Wallet loads in background, doesn't block app startup
+   *
+   * @deprecated NIP60/Cashu wallet disabled, using NWC instead
    */
-  private async prefetchWalletInfo(hexPubkey: string): Promise<void> {
-    try {
-      // PERFORMANCE FIX: Don't block on wallet initialization
-      // Wallet will initialize lazily when user accesses wallet features
-      console.log('[Prefetch] Wallet will initialize on-demand (non-blocking)');
+  // private async prefetchWalletInfo(hexPubkey: string): Promise<void> {
+  //   try {
+  //     // PERFORMANCE FIX: Don't block on wallet initialization
+  //     // Wallet will initialize lazily when user accesses wallet features
+  //     console.log('[Prefetch] Wallet will initialize on-demand (non-blocking)');
 
-      // Start wallet initialization in background without waiting
-      setTimeout(async () => {
-        try {
-          const WalletCore = (await import('../nutzap/WalletCore')).WalletCore;
-          const core = WalletCore.getInstance();
-          const state = await core.initialize(hexPubkey);
+  //     // Start wallet initialization in background without waiting
+  //     setTimeout(async () => {
+  //       try {
+  //         const WalletCore = (await import('../nutzap/WalletCore')).WalletCore;
+  //         const core = WalletCore.getInstance();
+  //         const state = await core.initialize(hexPubkey);
 
-          await unifiedCache.set(
-            CacheKeys.WALLET_INFO(hexPubkey),
-            {
-              balance: state.balance,
-              mint: state.mint,
-              isOnline: state.isOnline,
-              pubkey: state.pubkey,
-            },
-            CacheTTL.WALLET_INFO
-          );
+  //         await unifiedCache.set(
+  //           CacheKeys.WALLET_INFO(hexPubkey),
+  //           {
+  //             balance: state.balance,
+  //             mint: state.mint,
+  //             isOnline: state.isOnline,
+  //             pubkey: state.pubkey,
+  //           },
+  //           CacheTTL.WALLET_INFO
+  //         );
 
-          console.log(
-            '[Prefetch] Wallet initialized in background, balance:',
-            state.balance
-          );
-        } catch (bgError) {
-          console.warn('[Prefetch] Background wallet init failed:', bgError);
-        }
-      }, 0);
-    } catch (error) {
-      console.error('[Prefetch] Wallet info failed:', error);
-    }
-  }
+  //         console.log(
+  //           '[Prefetch] Wallet initialized in background, balance:',
+  //           state.balance
+  //         );
+  //       } catch (bgError) {
+  //         console.warn('[Prefetch] Background wallet init failed:', bgError);
+  //       }
+  //     }, 0);
+  //   } catch (error) {
+  //     console.error('[Prefetch] Wallet info failed:', error);
+  //   }
+  // }
 
   /**
    * Prefetch team events (kind 30101)

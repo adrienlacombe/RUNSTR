@@ -49,14 +49,21 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
   onSuccess,
 }) => {
   const [invoice, setInvoice] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isExpired, setIsExpired] = useState(false);
 
-  // Convert npub to hex for API calls
+  // Convert npub to hex for API calls (skip for Lightning addresses)
   const recipientHex = React.useMemo(() => {
+    // If it's a Lightning address, don't try to convert it
+    if (recipientNpub && recipientNpub.includes('@')) {
+      console.log('[ExternalZapModal] Lightning address detected, skipping npub conversion');
+      return recipientNpub;
+    }
+
+    // Try to convert npub to hex
     const normalized = npubToHex(recipientNpub);
     if (!normalized) {
       console.warn(
@@ -69,8 +76,24 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
   }, [recipientNpub]);
 
   useEffect(() => {
-    if (visible && amount > 0) {
-      generateInvoice();
+    console.log('[ExternalZapModal] Modal state changed:', { visible, amount, recipientNpub });
+
+    if (visible) {
+      // Always generate invoice when modal opens, even if amount is 0 (show error)
+      if (amount && amount > 0) {
+        generateInvoice();
+      } else {
+        // Show error if amount is invalid
+        setError('Invalid amount. Please select an amount and try again.');
+        setIsLoading(false);
+      }
+    } else {
+      // Reset state when modal closes
+      setInvoice('');
+      setError('');
+      setIsLoading(false);
+      setIsExpired(false);
+      setTimeRemaining(null);
     }
   }, [visible, amount]);
 
@@ -111,6 +134,13 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
   }, [invoice, visible]);
 
   const generateInvoice = async () => {
+    console.log('[ExternalZapModal] Starting invoice generation...', {
+      recipientNpub,
+      recipientName,
+      amount,
+      memo
+    });
+
     setIsLoading(true);
     setError('');
     setIsExpired(false);
@@ -124,7 +154,7 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       if (recipientNpub && recipientNpub.includes('@')) {
         // It's already a Lightning address (e.g., charity@getalby.com)
         console.log(
-          '[ExternalZapModal] Direct Lightning address provided:',
+          '[ExternalZapModal] ✅ Direct Lightning address provided:',
           recipientNpub
         );
         lightningAddress = recipientNpub;
@@ -144,6 +174,7 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
           const user = ndk.getUser({ pubkey: recipientHex });
           await user.fetchProfile();
           lightningAddress = user.profile?.lud16 || user.profile?.lud06 || null;
+          console.log('[ExternalZapModal] Profile Lightning address:', lightningAddress);
         } catch (profileError) {
           console.error(
             '[ExternalZapModal] Error fetching profile:',
@@ -153,49 +184,77 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       }
 
       if (!lightningAddress) {
-        throw new Error('Recipient does not have a Lightning address');
+        const errorMsg = 'Recipient does not have a Lightning address';
+        console.error('[ExternalZapModal] ❌', errorMsg);
+        throw new Error(errorMsg);
       }
 
       console.log(
-        '[ExternalZapModal] Lightning address found:',
+        '[ExternalZapModal] ⚡ Lightning address found:',
         lightningAddress
       );
 
       // Get invoice from Lightning address (NIP-57 zap request will be handled internally)
-      console.log('[ExternalZapModal] Requesting invoice for', amount, 'sats');
+      console.log('[ExternalZapModal] 🔄 Requesting invoice for', amount, 'sats');
+      console.log('[ExternalZapModal] Memo:', memo || `Donation to ${recipientName}`);
+
       const invoiceResult = await getInvoiceFromLightningAddress(
         lightningAddress,
         amount,
         memo || `Donation to ${recipientName}`  // Default memo if not provided
       );
 
+      console.log('[ExternalZapModal] Invoice result:', {
+        hasInvoice: !!invoiceResult?.invoice,
+        invoiceLength: invoiceResult?.invoice?.length,
+        successMessage: invoiceResult?.successMessage
+      });
+
       if (invoiceResult && invoiceResult.invoice) {
         // Validate invoice amount matches requested amount
+        console.log('[ExternalZapModal] Validating invoice amount...');
         const amountValid = validateInvoiceAmount(
           invoiceResult.invoice,
           amount
         );
 
         if (!amountValid) {
-          throw new Error(
-            `Invoice amount mismatch! Expected ${amount} sats. Please try again.`
-          );
+          const errorMsg = `Invoice amount mismatch! Expected ${amount} sats. Please try again.`;
+          console.error('[ExternalZapModal] ❌', errorMsg);
+          throw new Error(errorMsg);
         }
 
         setInvoice(invoiceResult.invoice);
         console.log(
-          '[ExternalZapModal] Invoice generated and validated successfully'
+          '[ExternalZapModal] ✅ Invoice generated and validated successfully!',
+          'Invoice starts with:', invoiceResult.invoice.substring(0, 20) + '...'
         );
       } else {
-        throw new Error('Failed to generate invoice');
+        const errorMsg = 'Failed to generate invoice - no invoice returned';
+        console.error('[ExternalZapModal] ❌', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err) {
-      console.error('[ExternalZapModal] Error generating invoice:', err);
-      setError(
-        err instanceof Error ? err.message : 'Failed to generate invoice'
-      );
+      console.error('[ExternalZapModal] ❌ Error generating invoice:', err);
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to generate invoice';
+      if (err instanceof Error) {
+        if (err.message.includes('timeout') || err.message.includes('Timeout')) {
+          errorMessage = 'Request timed out. The Lightning service may be temporarily unavailable. Please try again.';
+        } else if (err.message.includes('network') || err.message.includes('Network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (err.message.includes('Lightning address')) {
+          errorMessage = err.message;
+        } else {
+          errorMessage = err.message || 'Failed to generate invoice';
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
+      console.log('[ExternalZapModal] Invoice generation complete');
     }
   };
 
@@ -269,14 +328,9 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
               {memo && <Text style={styles.memo}>{memo}</Text>}
             </View>
 
-            {/* QR Code or Loading/Error */}
+            {/* QR Code or Loading/Error - Always show something */}
             <View style={styles.qrSection}>
-              {isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={theme.colors.text} />
-                  <Text style={styles.loadingText}>Generating invoice...</Text>
-                </View>
-              ) : error ? (
+              {error ? (
                 <View style={styles.errorContainer}>
                   <Ionicons
                     name="alert-circle"
@@ -392,7 +446,15 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
                     </Text>
                   </View>
                 </>
-              ) : null}
+              ) : (
+                // Default loading state - shown while generating invoice or if state is empty
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={theme.colors.text} />
+                  <Text style={styles.loadingText}>
+                    {isLoading ? 'Generating invoice...' : 'Preparing payment...'}
+                  </Text>
+                </View>
+              )}
             </View>
           </ScrollView>
 

@@ -51,7 +51,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: 'Running Distance League',
       description: 'Test total distance tracking for running activities',
-      activityType: 'Running',
+      activityType: 'running',
       competitionType: 'Total Distance',
       memberCount: 5,
       workoutCount: 10,
@@ -60,7 +60,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: 'Cycling Speed Challenge',
       description: 'Test average speed calculations for cycling',
-      activityType: 'Cycling',
+      activityType: 'cycling',
       competitionType: 'Average Speed',
       memberCount: 3,
       workoutCount: 5,
@@ -69,7 +69,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: 'Walking Consistency',
       description: 'Test consistency tracking for walking activities',
-      activityType: 'Walking',
+      activityType: 'walking',
       competitionType: 'Most Consistent',
       memberCount: 4,
       workoutCount: 7,
@@ -78,7 +78,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: 'Strength Training Sessions',
       description: 'Test session count for strength training',
-      activityType: 'Strength Training',
+      activityType: 'strength',
       competitionType: 'Total Workouts',
       memberCount: 3,
       workoutCount: 12,
@@ -87,7 +87,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: 'Yoga Duration Challenge',
       description: 'Test total duration tracking for yoga',
-      activityType: 'Yoga',
+      activityType: 'yoga',
       competitionType: 'Total Duration',
       memberCount: 4,
       workoutCount: 8,
@@ -96,7 +96,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: 'Meditation Streak',
       description: 'Test daily streak tracking for meditation',
-      activityType: 'Meditation',
+      activityType: 'meditation',
       competitionType: 'Daily Average',
       memberCount: 2,
       workoutCount: 14,
@@ -105,7 +105,7 @@ export class CompetitionIntegrationTestSuite {
     {
       name: '5K Running Race',
       description: 'Test race competition with target distance',
-      activityType: 'Running',
+      activityType: 'running',
       competitionType: '5K Race',
       memberCount: 10,
       workoutCount: 3,
@@ -234,7 +234,7 @@ export class CompetitionIntegrationTestSuite {
           'Automated integration test team for competition system validation',
         captainNpub: authData.npub,
         captainHexPubkey: authData.hexPubkey,
-        activityType: 'Running',
+        activityType: 'running',
         isPublic: true,
       };
 
@@ -504,7 +504,7 @@ export class CompetitionIntegrationTestSuite {
 
       // Simulate workout data for testing
       const testWorkout = {
-        type: 'Running',
+        type: 'running',
         distance: 5.2, // km
         duration: 28, // minutes
         calories: 320,
@@ -553,7 +553,7 @@ export class CompetitionIntegrationTestSuite {
       const query = {
         teamId: this.testTeamId,
         captainPubkey: this.captainHex,
-        activityType: 'Running' as NostrActivityType,
+        activityType: 'running' as NostrActivityType,
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
         endDate: new Date(),
       };
@@ -579,7 +579,7 @@ export class CompetitionIntegrationTestSuite {
 
       // Test leaderboard ranking calculation
       const leagueParams = {
-        activityType: 'Running' as NostrActivityType,
+        activityType: 'running' as NostrActivityType,
         competitionType: 'Total Distance' as NostrLeagueCompetitionType,
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date().toISOString(),

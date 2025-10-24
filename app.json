@@ -2,15 +2,16 @@
   "expo": {
     "name": "RUNSTR",
     "slug": "runstr.project",
-    "version": "0.4.2",
+    "version": "0.4.3",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
-    "scheme": "runstrproject",
+    "scheme": "runstr",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "userInterfaceStyle": "dark",
+      "associatedDomains": ["applinks:www.runstr.club"],
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default",
@@ -41,7 +42,7 @@
       }
     },
     "android": {
-      "versionCode": 33,
+      "versionCode": 34,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -64,6 +65,21 @@
             "scheme": "runstrproject",
             "host": "amber-callback"
           }
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": ["DEFAULT", "BROWSABLE"],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.runstr.club",
+              "pathPrefix": "/oauth-garmin-callback"
+            },
+            {
+              "scheme": "runstr"
+            }
+          ]
         }
       ]
     },

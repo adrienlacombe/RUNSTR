@@ -6,14 +6,15 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { theme } from '../../styles/theme';
 import { PublicWorkoutsTab } from './tabs/PublicWorkoutsTab';
 import { PrivateWorkoutsTab } from './tabs/PrivateWorkoutsTab';
 import { AppleHealthTab } from './tabs/AppleHealthTab';
+import { GarminHealthTab } from './tabs/GarminHealthTab';
 import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageService';
 
-export type WorkoutTabType = 'public' | 'private' | 'apple';
+export type WorkoutTabType = 'public' | 'private' | 'apple' | 'garmin';
 
 interface WorkoutTabNavigatorProps {
   userId: string;
@@ -24,6 +25,8 @@ interface WorkoutTabNavigatorProps {
   onPostToSocial?: (workout: LocalWorkout) => Promise<void>;
   onCompeteHealthKit?: (workout: any) => Promise<void>;
   onSocialShareHealthKit?: (workout: any) => Promise<void>;
+  onCompeteGarmin?: (workout: any) => Promise<void>;
+  onSocialShareGarmin?: (workout: any) => Promise<void>;
   onNavigateToAnalytics?: () => void;
 }
 
@@ -36,6 +39,8 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
   onPostToSocial,
   onCompeteHealthKit,
   onSocialShareHealthKit,
+  onCompeteGarmin,
+  onSocialShareGarmin,
   onNavigateToAnalytics,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkoutTabType>(initialTab);
@@ -76,20 +81,38 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           {activeTab === 'private' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
 
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'apple' && styles.tabActive]}
+            onPress={() => setActiveTab('apple')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'apple' && styles.tabTextActive,
+              ]}
+            >
+              Apple
+            </Text>
+            {activeTab === 'apple' && <View style={styles.tabIndicator} />}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'apple' && styles.tabActive]}
-          onPress={() => setActiveTab('apple')}
+          style={[styles.tab, activeTab === 'garmin' && styles.tabActive]}
+          onPress={() => setActiveTab('garmin')}
           activeOpacity={0.7}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === 'apple' && styles.tabTextActive,
+              activeTab === 'garmin' && styles.tabTextActive,
             ]}
           >
-            Apple
+            Garmin
           </Text>
-          {activeTab === 'apple' && <View style={styles.tabIndicator} />}
+          {activeTab === 'garmin' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
       </View>
 
@@ -110,11 +133,17 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             onPostToSocial={onPostToSocial}
             onNavigateToAnalytics={onNavigateToAnalytics}
           />
-        ) : (
+        ) : activeTab === 'apple' ? (
           <AppleHealthTab
             userId={userId}
             onCompete={onCompeteHealthKit}
             onSocialShare={onSocialShareHealthKit}
+          />
+        ) : (
+          <GarminHealthTab
+            userId={userId}
+            onCompete={onCompeteGarmin}
+            onSocialShare={onSocialShareGarmin}
           />
         )}
       </View>

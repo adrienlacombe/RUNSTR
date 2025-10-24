@@ -11,7 +11,10 @@ import * as TaskManager from 'expo-task-manager';
 
 // Initialize background location task (must be imported early for TaskManager.defineTask to execute)
 import './services/activity/BackgroundLocationTask';
-import { BACKGROUND_LOCATION_TASK } from './services/activity/BackgroundLocationTask';
+import {
+  BACKGROUND_LOCATION_TASK,
+  stopBackgroundLocationTracking,
+} from './services/activity/BackgroundLocationTask';
 
 import React from 'react';
 import {
@@ -23,8 +26,10 @@ import {
   AppState,
   AppStateStatus,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 
 // Error Boundary Component to catch runtime errors during initialization
 class AppErrorBoundary extends React.Component<
@@ -108,6 +113,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { challengeCompletionService } from './services/challenge/ChallengeCompletionService';
 import { appPermissionService } from './services/initialization/AppPermissionService';
 import { PermissionRequestModal } from './components/permissions/PermissionRequestModal';
+import garminAuthService from './services/fitness/garminAuthService';
 
 // Types for authenticated app navigation
 type AuthenticatedStackParamList = {
@@ -260,6 +266,62 @@ const AppContent: React.FC = () => {
     };
     checkPermissions();
   }, [isAuthenticated]);
+
+  // Handle Garmin OAuth deep link callback
+  React.useEffect(() => {
+    const handleGarminDeepLink = async ({ url }: { url: string }) => {
+      console.log('🔗 Deep link received:', url);
+
+      const { hostname, path, queryParams } = Linking.parse(url);
+      console.log('📍 Parsed deep link:', { hostname, path, queryParams });
+
+      // Handle Garmin OAuth callback: runstr://oauth/garmin?code=ABC123&state=xyz
+      if (path === 'oauth/garmin' && queryParams?.code) {
+        console.log('🔐 Garmin OAuth callback detected');
+        console.log('   Code:', queryParams.code);
+        console.log('   State:', queryParams.state || 'not provided');
+
+        try {
+          const result = await garminAuthService.handleOAuthCallback(
+            queryParams.code as string,
+            queryParams.state as string | undefined
+          );
+
+          if (result.success) {
+            Alert.alert(
+              'Success',
+              'Garmin connected! You can now sync your workouts.',
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert(
+              'Connection Failed',
+              result.error || 'Failed to connect Garmin. Please try again.'
+            );
+          }
+        } catch (error) {
+          console.error('❌ Failed to handle Garmin OAuth callback:', error);
+          Alert.alert(
+            'Error',
+            'Failed to connect Garmin. Please try again.'
+          );
+        }
+      }
+    };
+
+    // Listen for deep links when app is already open
+    const subscription = Linking.addEventListener('url', handleGarminDeepLink);
+
+    // Check if app was opened via deep link (cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('🔗 App opened via deep link (cold start):', url);
+        handleGarminDeepLink({ url });
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // PERFORMANCE OPTIMIZATION: App state detection for smart resume
   const walletStore = useWalletStore();
@@ -1039,6 +1101,28 @@ export default function App() {
             console.log(
               '✅ Background location task defined and ready for distance tracking'
             );
+
+            // 🔧 ZOMBIE SESSION CLEANUP: Stop any registered background tasks from previous sessions
+            // This prevents the activity tracker from appearing to auto-start when navigating to Activity tab
+            if (isTaskRegistered) {
+              console.log(
+                '⚠️  Background task registered from previous session - cleaning up zombie session'
+              );
+              try {
+                await stopBackgroundLocationTracking();
+                await AsyncStorage.removeItem('@runstr:active_session_state');
+                await AsyncStorage.removeItem(
+                  '@runstr:background_distance_state'
+                );
+                console.log('✅ Zombie session cleaned up successfully');
+              } catch (cleanupError) {
+                console.warn(
+                  '⚠️  Failed to cleanup zombie session:',
+                  cleanupError
+                );
+                // Don't block app startup if cleanup fails
+              }
+            }
           }
         } catch (error) {
           console.error('❌ Failed to check background task status:', error);

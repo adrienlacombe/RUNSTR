@@ -18,12 +18,13 @@ export type WorkoutType =
   | 'fasting';
 export type WorkoutSource =
   | 'healthkit'
+  | 'garmin'
   | 'googlefit'
   | 'nostr'
   | 'manual'
   | 'gps_tracker'
   | 'manual_entry';
-export type FitnessProvider = 'healthkit' | 'googlefit' | 'nostr';
+export type FitnessProvider = 'healthkit' | 'garmin' | 'googlefit' | 'nostr';
 
 export interface Workout {
   id: string;
