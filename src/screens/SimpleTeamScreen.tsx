@@ -22,7 +22,6 @@ import SimpleCompetitionService from '../services/competition/SimpleCompetitionS
 import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys } from '../constants/cacheTTL';
 import { CharitySection } from '../components/team/CharitySection';
-import { CharityZapService } from '../services/charity/CharityZapService';
 
 interface SimpleTeamScreenProps {
   data: {
@@ -200,7 +199,7 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
         team.id
       );
       const teamEvents =
-        await SimpleCompetitionService.getInstance().getTeamEvents(team.id);
+        await SimpleCompetitionService.getInstance().getTeamEvents(team.id, undefined);
       console.log(
         '[SimpleTeamScreen] ✅ Pull-to-refresh: Found events:',
         teamEvents.length
@@ -212,34 +211,6 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
       setRefreshing(false);
     }
   }, [team?.id]);
-
-  // Handle charity zap
-  const handleCharityZap = useCallback(
-    async (charityId: string, charityName: string) => {
-      console.log('[SimpleTeamScreen] ⚡ Initiating charity zap:', charityName);
-      try {
-        const result = await CharityZapService.zapCharity(
-          charityId,
-          charityName
-        );
-        if (result.success) {
-          console.log(
-            '[SimpleTeamScreen] ✅ Charity zap successful:',
-            result.amount,
-            'sats'
-          );
-        } else {
-          console.error(
-            '[SimpleTeamScreen] ❌ Charity zap failed:',
-            result.error
-          );
-        }
-      } catch (error) {
-        console.error('[SimpleTeamScreen] ❌ Charity zap error:', error);
-      }
-    },
-    []
-  );
 
   // Safety check
   if (!team) {
@@ -307,7 +278,6 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
           {team.charityId && (
             <CharitySection
               charityId={team.charityId}
-              onZapCharity={handleCharityZap}
             />
           )}
 
