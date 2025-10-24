@@ -8,10 +8,12 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { LocationPoint } from './LocationTrackingService';
+import { calculateDistance } from '../../utils/gpsValidation';
 
 export const BACKGROUND_LOCATION_TASK = 'runstr-background-location';
 const BACKGROUND_LOCATION_STORAGE = '@runstr:background_locations';
 const SESSION_STATE_KEY = '@runstr:active_session_state';
+const BACKGROUND_DISTANCE_STATE = '@runstr:background_distance_state';
 
 interface BackgroundLocationData {
   locations: Location.LocationObject[];
@@ -19,9 +21,18 @@ interface BackgroundLocationData {
   activityType: string;
 }
 
+interface BackgroundDistanceState {
+  totalDistance: number; // meters
+  lastProcessedLocation: LocationPoint | null;
+  locationCount: number;
+  lastUpdated: number;
+  sessionId: string;
+}
+
 /**
  * Define the background task that will handle location updates
  * This runs even when the app is minimized or screen is locked
+ * CRITICAL: This calculates distance in real-time to work on Android when backgrounded
  */
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) {
@@ -65,7 +76,62 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         return;
       }
 
-      // Store locations in batches for later processing
+      // Get or initialize distance state
+      const distanceStateStr = await AsyncStorage.getItem(BACKGROUND_DISTANCE_STATE);
+      let distanceState: BackgroundDistanceState;
+
+      if (distanceStateStr) {
+        distanceState = JSON.parse(distanceStateStr);
+        // If session ID changed, reset distance
+        if (distanceState.sessionId !== sessionState.sessionId) {
+          distanceState = {
+            totalDistance: 0,
+            lastProcessedLocation: null,
+            locationCount: 0,
+            lastUpdated: Date.now(),
+            sessionId: sessionState.sessionId,
+          };
+        }
+      } else {
+        distanceState = {
+          totalDistance: 0,
+          lastProcessedLocation: null,
+          locationCount: 0,
+          lastUpdated: Date.now(),
+          sessionId: sessionState.sessionId,
+        };
+      }
+
+      // Calculate distance for each new location
+      let distanceAdded = 0;
+      let lastLocation = distanceState.lastProcessedLocation;
+
+      for (const location of validLocations) {
+        if (lastLocation) {
+          // Calculate distance between consecutive points
+          const segmentDistance = calculateDistance(lastLocation, location);
+
+          // Only add distance if it's reasonable (prevent GPS jumps)
+          if (segmentDistance > 0.5 && segmentDistance < 100) {
+            distanceState.totalDistance += segmentDistance;
+            distanceAdded += segmentDistance;
+          }
+        }
+        lastLocation = location;
+        distanceState.locationCount++;
+      }
+
+      // Update the last processed location
+      distanceState.lastProcessedLocation = lastLocation;
+      distanceState.lastUpdated = Date.now();
+
+      // Save updated distance state
+      await AsyncStorage.setItem(
+        BACKGROUND_DISTANCE_STATE,
+        JSON.stringify(distanceState)
+      );
+
+      // Store locations in batches for compatibility with existing code
       const existingDataStr = await AsyncStorage.getItem(
         BACKGROUND_LOCATION_STORAGE
       );
@@ -89,7 +155,12 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         JSON.stringify(existingData)
       );
 
-      console.log(`Stored ${validLocations.length} background locations`);
+      // Log the real-time distance update (visible in Metro console)
+      console.log(
+        `[Background] Distance: ${(distanceState.totalDistance / 1000).toFixed(2)} km, ` +
+        `Added: ${distanceAdded.toFixed(1)}m, ` +
+        `Locations: ${distanceState.locationCount}`
+      );
     } catch (err) {
       console.error('Error processing background locations:', err);
     }
@@ -171,8 +242,9 @@ export async function stopBackgroundLocationTracking(): Promise<void> {
       console.log('Stopped background location tracking');
     }
 
-    // Clear session state
+    // Clear session state and distance state
     await AsyncStorage.removeItem(SESSION_STATE_KEY);
+    await AsyncStorage.removeItem(BACKGROUND_DISTANCE_STATE);
   } catch (error) {
     console.error('Error stopping background location tracking:', error);
   }
@@ -245,6 +317,35 @@ export async function getAndClearBackgroundLocations(): Promise<
   } catch (error) {
     console.error('Error retrieving background locations:', error);
     return [];
+  }
+}
+
+/**
+ * Get and clear background distance state
+ * Returns the total distance calculated in the background
+ */
+export async function getAndClearBackgroundDistance(): Promise<{
+  totalDistance: number;
+  locationCount: number;
+} | null> {
+  try {
+    const distanceStateStr = await AsyncStorage.getItem(BACKGROUND_DISTANCE_STATE);
+    if (!distanceStateStr) {
+      return null;
+    }
+
+    const distanceState: BackgroundDistanceState = JSON.parse(distanceStateStr);
+
+    // Clear the distance state after retrieval
+    await AsyncStorage.removeItem(BACKGROUND_DISTANCE_STATE);
+
+    return {
+      totalDistance: distanceState.totalDistance,
+      locationCount: distanceState.locationCount,
+    };
+  } catch (error) {
+    console.error('Error retrieving background distance:', error);
+    return null;
   }
 }
 

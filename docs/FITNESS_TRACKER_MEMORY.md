@@ -6,6 +6,56 @@
 
 ---
 
+## Critical Bugs Fixed (January 2025)
+
+### Android Background Distance Tracking Fix ❌ FIXED (Jan 2025)
+
+**Problem**: Distance tracking stopped when switching to another app on Android, resuming only when returning to RUNSTR.
+
+**Root Cause**: Android's Doze Mode suspends JavaScript timers when app backgrounds. The `setInterval()` polling timer in `startBackgroundSyncPolling()` was suspended, preventing processing of collected GPS locations. Locations were being stored but never converted to distance updates.
+
+**Solution**:
+- Moved distance calculation into the TaskManager background task itself (runs in headless JS context)
+- Background task now calculates distance in real-time as GPS locations arrive
+- Foreground service reads pre-calculated distance instead of processing raw locations
+- Distance updates continuously even when app is backgrounded
+
+**Implementation**:
+```typescript
+// BackgroundLocationTask.ts - Calculates distance in background
+TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data }) => {
+  // Get or initialize distance state
+  const distanceState = await AsyncStorage.getItem(BACKGROUND_DISTANCE_STATE);
+
+  // Calculate distance for each new location
+  for (const location of validLocations) {
+    if (lastLocation) {
+      const segmentDistance = calculateDistance(lastLocation, location);
+      if (segmentDistance > 0.5 && segmentDistance < 100) {
+        distanceState.totalDistance += segmentDistance;
+      }
+    }
+    lastLocation = location;
+  }
+
+  // Store cumulative distance
+  await AsyncStorage.setItem(BACKGROUND_DISTANCE_STATE, JSON.stringify(distanceState));
+});
+
+// SimpleLocationTrackingService.ts - Reads pre-calculated distance
+const backgroundDistance = await getAndClearBackgroundDistance();
+if (backgroundDistance) {
+  this.distance = backgroundDistance.totalDistance;
+}
+```
+
+**Files Modified**:
+- `BackgroundLocationTask.ts` - Added real-time distance calculation
+- `SimpleLocationTrackingService.ts` - Reads pre-calculated distance
+- `gpsValidation.ts` - Shared distance calculation function
+
+---
+
 ## Critical Bugs Fixed (Commit 364a325 - January 2025)
 
 ### 1. Distance Freeze Bug ❌ FIXED
@@ -385,6 +435,13 @@ const startTracking = async () => {
 ---
 
 ## Change Log
+
+**January 2025 - Android Background Distance Fix**
+- Fixed distance tracking stopping when app backgrounds on Android
+- Moved distance calculation to TaskManager background task (headless JS)
+- Background task calculates distance in real-time, survives Doze Mode
+- Foreground service reads pre-calculated distance from AsyncStorage
+- Distance now updates continuously even when using music/podcast apps
 
 **January 2025 - Quick Wins Implementation**
 - Fixed timer closure bug in Walking/Cycling screens

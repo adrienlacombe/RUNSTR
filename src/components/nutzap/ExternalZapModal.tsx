@@ -31,10 +31,10 @@ import {
 
 interface ExternalZapModalProps {
   visible: boolean;
-  recipientNpub: string;
+  recipientNpub: string;  // Can be npub OR Lightning address
   recipientName: string;
   amount: number;
-  memo: string;
+  memo?: string;  // Optional - will default to "Donation to {recipientName}"
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -118,31 +118,38 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
     setTimeRemaining(null);
 
     try {
-      // First, attempt to send a Lightning zap to get the Lightning address
-      console.log(
-        '[ExternalZapModal] Attempting to get Lightning info for:',
-        recipientHex
-      );
-
-      // No need to try sendLightningZap, just fetch the Lightning address directly
-
-      // Extract the Lightning address from the error or profile lookup
       let lightningAddress: string | null = null;
 
-      // Try to get the Lightning address from the user's Nostr profile
-      try {
-        const {
-          GlobalNDKService,
-        } = require('../../services/nostr/GlobalNDKService');
-        const ndk = await GlobalNDKService.getInstance();
-        const user = ndk.getUser({ pubkey: recipientHex });
-        await user.fetchProfile();
-        lightningAddress = user.profile?.lud16 || user.profile?.lud06 || null;
-      } catch (profileError) {
-        console.error(
-          '[ExternalZapModal] Error fetching profile:',
-          profileError
+      // Check if recipientNpub is actually a Lightning address (contains '@')
+      if (recipientNpub && recipientNpub.includes('@')) {
+        // It's already a Lightning address (e.g., charity@getalby.com)
+        console.log(
+          '[ExternalZapModal] Direct Lightning address provided:',
+          recipientNpub
         );
+        lightningAddress = recipientNpub;
+      } else {
+        // It's an npub, need to fetch Lightning address from Nostr profile
+        console.log(
+          '[ExternalZapModal] Attempting to get Lightning info for npub:',
+          recipientHex
+        );
+
+        // Try to get the Lightning address from the user's Nostr profile
+        try {
+          const {
+            GlobalNDKService,
+          } = require('../../services/nostr/GlobalNDKService');
+          const ndk = await GlobalNDKService.getInstance();
+          const user = ndk.getUser({ pubkey: recipientHex });
+          await user.fetchProfile();
+          lightningAddress = user.profile?.lud16 || user.profile?.lud06 || null;
+        } catch (profileError) {
+          console.error(
+            '[ExternalZapModal] Error fetching profile:',
+            profileError
+          );
+        }
       }
 
       if (!lightningAddress) {
@@ -159,7 +166,7 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       const invoiceResult = await getInvoiceFromLightningAddress(
         lightningAddress,
         amount,
-        memo
+        memo || `Donation to ${recipientName}`  // Default memo if not provided
       );
 
       if (invoiceResult && invoiceResult.invoice) {

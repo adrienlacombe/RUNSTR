@@ -23,6 +23,8 @@ import { theme } from '../../styles/theme';
 import { useNutzap } from '../../hooks/useNutzap';
 import { hexToNpub, npubToHex } from '../../utils/ndkConversion';
 import LightningZapService from '../../services/nutzap/LightningZapService';
+import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
+import { NWCWalletService } from '../../services/wallet/NWCWalletService';
 
 interface EnhancedZapModalProps {
   visible: boolean;
@@ -69,6 +71,10 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
   }, [recipientNpub]);
 
   const displayNpub = React.useMemo(() => {
+    // If it's a Lightning address, display it as-is
+    if (recipientNpub && recipientNpub.includes('@')) {
+      return recipientNpub;
+    }
     // If it's already an npub, use it for display
     if (recipientNpub.startsWith('npub')) {
       return recipientNpub;
@@ -143,23 +149,56 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
       const zapMemo = memo || `⚡ Zap from RUNSTR - ${amount} sats!`;
       let success = false;
 
-      // Try Lightning first
-      console.log('[ZapModal] Attempting Lightning zap...');
-      const lightningResult = await LightningZapService.sendLightningZap(
-        recipientHex,
-        amount,
-        zapMemo
-      );
+      // Check if recipientNpub is actually a Lightning address (contains @)
+      if (recipientNpub && recipientNpub.includes('@')) {
+        // It's a Lightning address - send directly via NWC wallet
+        console.log('[ZapModal] Direct Lightning address payment:', recipientNpub);
 
-      if (lightningResult.success) {
-        console.log('[ZapModal] ✅ Lightning zap successful');
-        success = true;
+        try {
+          // Get invoice from Lightning address
+          const { invoice } = await getInvoiceFromLightningAddress(
+            recipientNpub,
+            amount,
+            zapMemo
+          );
+
+          if (!invoice) {
+            throw new Error('Failed to get invoice from Lightning address');
+          }
+
+          // Pay invoice via NWC wallet
+          const paymentResult = await NWCWalletService.sendPayment(invoice);
+
+          if (paymentResult.success) {
+            console.log('[ZapModal] ✅ Direct Lightning payment successful');
+            success = true;
+          } else {
+            throw new Error(paymentResult.error || 'Payment failed');
+          }
+        } catch (error) {
+          console.error('[ZapModal] Direct Lightning payment failed:', error);
+          Alert.alert('Payment Failed',
+            error instanceof Error ? error.message : 'Failed to send payment');
+        }
       } else {
-        // Fallback to nutzap
-        console.log('[ZapModal] Lightning failed, falling back to nutzap...');
-        success = await sendNutzap(recipientHex, amount, zapMemo);
-        if (success) {
-          console.log('[ZapModal] ✅ Nutzap successful');
+        // It's a Nostr pubkey - use normal flow
+        console.log('[ZapModal] Attempting Lightning zap to Nostr user...');
+        const lightningResult = await LightningZapService.sendLightningZap(
+          recipientHex,
+          amount,
+          zapMemo
+        );
+
+        if (lightningResult.success) {
+          console.log('[ZapModal] ✅ Lightning zap successful');
+          success = true;
+        } else {
+          // Fallback to nutzap
+          console.log('[ZapModal] Lightning failed, falling back to nutzap...');
+          success = await sendNutzap(recipientHex, amount, zapMemo);
+          if (success) {
+            console.log('[ZapModal] ✅ Nutzap successful');
+          }
         }
       }
 
@@ -245,7 +284,10 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
               <Text style={styles.recipientLabel}>Sending to:</Text>
               <Text style={styles.recipientName}>{recipientName}</Text>
               <Text style={styles.recipientPubkey}>
-                {displayNpub.slice(0, 16)}...
+                {displayNpub.includes('@')
+                  ? displayNpub  // Show full Lightning address
+                  : `${displayNpub.slice(0, 16)}...`  // Truncate npub/hex
+                }
               </Text>
             </View>
 

@@ -199,10 +199,14 @@ export class SimpleCompetitionService {
       }
 
       // ✅ Try to get from cache first
+      // When abort signal is provided, disable background refresh to allow immediate cancellation
       const allEvents = await unifiedCache.get(
         CacheKeys.COMPETITIONS,
         () => this.getAllEvents(),
-        { ttl: CacheTTL.COMPETITIONS, backgroundRefresh: true }
+        {
+          ttl: CacheTTL.COMPETITIONS,
+          backgroundRefresh: !signal // Disable background refresh if abort signal provided
+        }
       );
 
       // Check if aborted after cache fetch

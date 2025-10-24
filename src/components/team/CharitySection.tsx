@@ -40,7 +40,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
   const [showEnhancedModal, setShowEnhancedModal] = useState(false);
   const [showExternalModal, setShowExternalModal] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState(DEFAULT_ZAP_AMOUNT);
-  const [charityNpub, setCharityNpub] = useState('');
+  const [selectedMemo, setSelectedMemo] = useState('');
 
   // Animation for button press
   const scaleAnimation = useRef(new Animated.Value(1)).current;
@@ -176,7 +176,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
       }
 
       // Pay the invoice with NWC wallet
-      const paymentResult = await NWCWalletService.getInstance().sendPayment(invoice);
+      const paymentResult = await NWCWalletService.sendPayment(invoice);
 
       if (paymentResult.success) {
         await markAsZapped();
@@ -198,8 +198,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
     animatePress();
     console.log('[CharitySection] Long press detected - opening amount modal');
 
-    // Set charity Lightning address for the modal
-    setCharityNpub(charity.lightningAddress);
+    // Just open the modal, Lightning address will be passed directly
     setShowEnhancedModal(true);
   };
 
@@ -287,7 +286,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
         <EnhancedZapModal
           visible={showEnhancedModal}
           onClose={() => setShowEnhancedModal(false)}
-          recipientNpub={charityNpub}
+          recipientNpub={charity.lightningAddress}  // Pass Lightning address directly
           recipientName={charity.name}
           balance={walletBalance}
           defaultAmount={DEFAULT_ZAP_AMOUNT}
@@ -297,6 +296,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
           }}
           onShowExternalWallet={(amount, memo) => {
             setSelectedAmount(amount);
+            setSelectedMemo(memo || `Donation to ${charity.name}`);
             setShowEnhancedModal(false);
             setShowExternalModal(true);
           }}
@@ -308,10 +308,11 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
         <ExternalZapModal
           visible={showExternalModal}
           onClose={() => setShowExternalModal(false)}
-          recipientNpub={charityNpub}
+          recipientNpub={charity.lightningAddress}  // Pass Lightning address directly
           recipientName={charity.name}
           amount={selectedAmount}
-          onPaymentConfirmed={handleExternalPaymentConfirmed}
+          memo={selectedMemo}
+          onSuccess={handleExternalPaymentConfirmed}
         />
       )}
     </View>

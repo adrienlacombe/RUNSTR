@@ -326,12 +326,23 @@ export class NdkTeamService {
                 }
               }
 
-              // No about information found - return empty string instead of raw content
-              // This prevents team names or other data from being shown as description
+              // Fall back to content as plain text if it exists and is not just the team name
+              // Many teams store their about/description directly in the content field
+              if (ndkEvent.content && ndkEvent.content.trim() !== '' &&
+                  ndkEvent.content !== teamName &&
+                  ndkEvent.content.toLowerCase() !== teamName.toLowerCase()) {
+                return ndkEvent.content;
+              }
+
+              // No valid about information found
               return '';
             } catch (error) {
-              // If JSON parse fails, return empty string
-              // Don't use raw content as it might contain team name or other incorrect data
+              // If JSON parse fails, check if content is valid plain text
+              if (ndkEvent.content && ndkEvent.content.trim() !== '' &&
+                  ndkEvent.content !== teamName &&
+                  ndkEvent.content.toLowerCase() !== teamName.toLowerCase()) {
+                return ndkEvent.content;
+              }
               return '';
             }
           })();

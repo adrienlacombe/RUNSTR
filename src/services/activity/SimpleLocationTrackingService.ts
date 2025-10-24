@@ -24,6 +24,7 @@ import {
   pauseBackgroundTracking,
   resumeBackgroundTracking,
   getAndClearBackgroundLocations,
+  getAndClearBackgroundDistance,
 } from './BackgroundLocationTask';
 
 // Types
@@ -436,6 +437,7 @@ export class SimpleLocationTrackingService {
   /**
    * Start background sync polling to process locations in real-time
    * This ensures distance updates even when app is backgrounded
+   * CRITICAL: This syncs pre-calculated distance from background task on Android
    */
   private startBackgroundSyncPolling(): void {
     // Poll every 3 seconds to match Android GPS interval
@@ -444,12 +446,32 @@ export class SimpleLocationTrackingService {
     this.backgroundSyncTimer = setInterval(async () => {
       if (this.isTracking && !this.isPaused) {
         try {
-          // Get any background locations that have been collected
+          // CRITICAL FIX: First check for pre-calculated background distance
+          // This is calculated in the background task when app is backgrounded on Android
+          const backgroundDistance = await getAndClearBackgroundDistance();
+
+          if (backgroundDistance) {
+            // Merge the background-calculated distance
+            const distanceToAdd = backgroundDistance.totalDistance - this.distance;
+
+            if (distanceToAdd > 0) {
+              this.distance = backgroundDistance.totalDistance;
+              console.log(
+                `[BackgroundSync] Merged pre-calculated distance: +${distanceToAdd.toFixed(1)}m, ` +
+                `total=${this.distance.toFixed(1)}m, locations=${backgroundDistance.locationCount}`
+              );
+
+              // Check for split milestones after distance update
+              this.checkForSplit();
+            }
+          }
+
+          // Then get any unprocessed background locations (for backwards compatibility)
           const backgroundLocations = await getAndClearBackgroundLocations();
 
           if (backgroundLocations.length > 0) {
             console.log(
-              `[BackgroundSync] Processing ${backgroundLocations.length} background locations`
+              `[BackgroundSync] Processing ${backgroundLocations.length} unprocessed locations`
             );
 
             // Process each location through the normal update pipeline
@@ -473,11 +495,11 @@ export class SimpleLocationTrackingService {
             }
 
             console.log(
-              `[BackgroundSync] Distance updated: ${this.distance.toFixed(1)}m`
+              `[BackgroundSync] Distance after processing locations: ${this.distance.toFixed(1)}m`
             );
           }
         } catch (error) {
-          console.warn('[BackgroundSync] Error processing background locations:', error);
+          console.warn('[BackgroundSync] Error processing background data:', error);
         }
       }
     }, SYNC_INTERVAL_MS);
@@ -658,20 +680,36 @@ export class SimpleLocationTrackingService {
     // Stop background task and merge locations (iOS and Android)
     await stopBackgroundLocationTracking();
 
-    // Get and merge background locations
+    // CRITICAL: Get any final background distance calculation
+    const finalBackgroundDistance = await getAndClearBackgroundDistance();
+    if (finalBackgroundDistance) {
+      // Use the background-calculated distance if it's greater
+      if (finalBackgroundDistance.totalDistance > this.distance) {
+        console.log(
+          `[${Platform.OS.toUpperCase()}] Using background distance: ${
+            (finalBackgroundDistance.totalDistance / 1000).toFixed(2)
+          } km (was ${(this.distance / 1000).toFixed(2)} km)`
+        );
+        this.distance = finalBackgroundDistance.totalDistance;
+      }
+    }
+
+    // Get and merge background locations (for position data)
     const backgroundLocations = await getAndClearBackgroundLocations();
     if (backgroundLocations.length > 0) {
       console.log(
         `[${Platform.OS.toUpperCase()}] Merging ${
           backgroundLocations.length
-        } background locations`
+        } background locations for route data`
       );
 
-      // Add background locations to session
+      // Add background locations to session for route visualization
       this.positions.push(...backgroundLocations);
 
-      // Recalculate distance with merged locations
-      this.distance = this.calculateTotalDistance(this.positions);
+      // Only recalculate if we didn't get background distance
+      if (!finalBackgroundDistance) {
+        this.distance = this.calculateTotalDistance(this.positions);
+      }
     }
 
     // Deactivate KeepAwake
