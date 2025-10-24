@@ -30,7 +30,12 @@ export interface LocalWorkout {
   notes?: string;
 
   // Meditation-specific fields
-  meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+  meditationType?:
+    | 'guided'
+    | 'unguided'
+    | 'breathwork'
+    | 'body_scan'
+    | 'gratitude';
   mindfulnessRating?: number; // 1-5
 
   // Diet/Fasting-specific fields
@@ -39,7 +44,14 @@ export interface LocalWorkout {
   fastingDuration?: number; // seconds
 
   // Strength training-specific fields
-  exerciseType?: 'pushups' | 'pullups' | 'situps' | 'squats' | 'planks' | 'burpees' | string;
+  exerciseType?:
+    | 'pushups'
+    | 'pullups'
+    | 'situps'
+    | 'squats'
+    | 'planks'
+    | 'burpees'
+    | string;
   repsBreakdown?: number[]; // Array of reps per set (e.g., [20, 18, 15])
   restTime?: number; // Rest between sets in seconds
 
@@ -82,10 +94,15 @@ export class LocalWorkoutStorageService {
    */
   private async generateWorkoutId(): Promise<string> {
     try {
-      const counterStr = await AsyncStorage.getItem(STORAGE_KEYS.WORKOUT_ID_COUNTER);
+      const counterStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.WORKOUT_ID_COUNTER
+      );
       const counter = counterStr ? parseInt(counterStr, 10) : 0;
       const newCounter = counter + 1;
-      await AsyncStorage.setItem(STORAGE_KEYS.WORKOUT_ID_COUNTER, newCounter.toString());
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.WORKOUT_ID_COUNTER,
+        newCounter.toString()
+      );
 
       // Format: local_[timestamp]_[counter]_[random]
       const timestamp = Date.now();
@@ -94,7 +111,9 @@ export class LocalWorkoutStorageService {
     } catch (error) {
       console.error('❌ Failed to generate workout ID:', error);
       // Fallback to simple timestamp-based ID
-      return `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      return `local_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 9)}`;
     }
   }
 
@@ -117,7 +136,9 @@ export class LocalWorkoutStorageService {
     try {
       const workoutId = await this.generateWorkoutId();
       const now = new Date().toISOString();
-      const startTime = new Date(Date.now() - workout.duration * 1000).toISOString();
+      const startTime = new Date(
+        Date.now() - workout.duration * 1000
+      ).toISOString();
 
       // Fetch weather conditions if GPS coordinates available
       let weather;
@@ -138,10 +159,15 @@ export class LocalWorkoutStorageService {
               humidity: conditions.humidity,
               windSpeed: conditions.windSpeed,
             };
-            console.log(`✅ Weather recorded: ${conditions.temp}°C, ${conditions.description}`);
+            console.log(
+              `✅ Weather recorded: ${conditions.temp}°C, ${conditions.description}`
+            );
           }
         } catch (weatherError) {
-          console.warn('⚠️ Failed to fetch weather, continuing without:', weatherError);
+          console.warn(
+            '⚠️ Failed to fetch weather, continuing without:',
+            weatherError
+          );
           // Non-critical - continue saving workout without weather
         }
       }
@@ -165,7 +191,11 @@ export class LocalWorkoutStorageService {
       };
 
       await this.saveWorkout(localWorkout);
-      console.log(`✅ Saved GPS workout locally: ${workoutId} (${workout.type}, ${(workout.distance / 1000).toFixed(2)}km)`);
+      console.log(
+        `✅ Saved GPS workout locally: ${workoutId} (${workout.type}, ${(
+          workout.distance / 1000
+        ).toFixed(2)}km)`
+      );
       return workoutId;
     } catch (error) {
       console.error('❌ Failed to save GPS workout:', error);
@@ -178,13 +208,18 @@ export class LocalWorkoutStorageService {
    */
   async saveManualWorkout(workout: {
     type: WorkoutType;
-    duration?: number; // minutes
+    duration?: number; // seconds (consistent with saveGPSWorkout)
     distance?: number; // km
     reps?: number;
     sets?: number;
     notes?: string;
     // Meditation fields
-    meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+    meditationType?:
+      | 'guided'
+      | 'unguided'
+      | 'breathwork'
+      | 'body_scan'
+      | 'gratitude';
     mindfulnessRating?: number;
     // Diet/Fasting fields
     mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -199,14 +234,16 @@ export class LocalWorkoutStorageService {
       const workoutId = await this.generateWorkoutId();
       const now = new Date().toISOString();
 
-      // Convert duration from minutes to seconds
-      const durationSeconds = workout.duration ? workout.duration * 60 : 0;
+      // Duration is already in seconds (no conversion needed)
+      const durationSeconds = workout.duration || 0;
       const startTime = workout.duration
         ? new Date(Date.now() - durationSeconds * 1000).toISOString()
         : now;
 
       // Convert distance from km to meters (if provided)
-      const distanceMeters = workout.distance ? workout.distance * 1000 : undefined;
+      const distanceMeters = workout.distance
+        ? workout.distance * 1000
+        : undefined;
 
       const localWorkout: LocalWorkout = {
         id: workoutId,
@@ -236,7 +273,9 @@ export class LocalWorkoutStorageService {
       };
 
       await this.saveWorkout(localWorkout);
-      console.log(`✅ Saved manual workout locally: ${workoutId} (${workout.type})`);
+      console.log(
+        `✅ Saved manual workout locally: ${workoutId} (${workout.type})`
+      );
       return workoutId;
     } catch (error) {
       console.error('❌ Failed to save manual workout:', error);
@@ -251,7 +290,10 @@ export class LocalWorkoutStorageService {
     try {
       const workouts = await this.getAllWorkouts();
       workouts.push(workout);
-      await AsyncStorage.setItem(STORAGE_KEYS.LOCAL_WORKOUTS, JSON.stringify(workouts));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.LOCAL_WORKOUTS,
+        JSON.stringify(workouts)
+      );
     } catch (error) {
       console.error('❌ Failed to save workout to storage:', error);
       throw error;
@@ -269,8 +311,9 @@ export class LocalWorkoutStorageService {
       const workouts: LocalWorkout[] = JSON.parse(data);
 
       // Sort by start time (newest first)
-      return workouts.sort((a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      return workouts.sort(
+        (a, b) =>
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
       );
     } catch (error) {
       console.error('❌ Failed to retrieve local workouts:', error);
@@ -283,7 +326,7 @@ export class LocalWorkoutStorageService {
    */
   async getUnsyncedWorkouts(): Promise<LocalWorkout[]> {
     const allWorkouts = await this.getAllWorkouts();
-    return allWorkouts.filter(w => !w.syncedToNostr);
+    return allWorkouts.filter((w) => !w.syncedToNostr);
   }
 
   /**
@@ -292,7 +335,7 @@ export class LocalWorkoutStorageService {
   async markAsSynced(workoutId: string, nostrEventId: string): Promise<void> {
     try {
       const workouts = await this.getAllWorkouts();
-      const workout = workouts.find(w => w.id === workoutId);
+      const workout = workouts.find((w) => w.id === workoutId);
 
       if (!workout) {
         console.warn(`⚠️ Workout ${workoutId} not found in local storage`);
@@ -303,8 +346,13 @@ export class LocalWorkoutStorageService {
       workout.nostrEventId = nostrEventId;
       workout.syncedAt = new Date().toISOString();
 
-      await AsyncStorage.setItem(STORAGE_KEYS.LOCAL_WORKOUTS, JSON.stringify(workouts));
-      console.log(`✅ Marked workout ${workoutId} as synced (Nostr event: ${nostrEventId})`);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.LOCAL_WORKOUTS,
+        JSON.stringify(workouts)
+      );
+      console.log(
+        `✅ Marked workout ${workoutId} as synced (Nostr event: ${nostrEventId})`
+      );
     } catch (error) {
       console.error('❌ Failed to mark workout as synced:', error);
       throw error;
@@ -320,7 +368,7 @@ export class LocalWorkoutStorageService {
       const workouts = await this.getAllWorkouts();
       const cutoffDate = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
 
-      const remainingWorkouts = workouts.filter(workout => {
+      const remainingWorkouts = workouts.filter((workout) => {
         if (!workout.syncedToNostr) return true; // Keep unsynced workouts
         if (!workout.syncedAt) return true; // Keep if sync date unknown
 
@@ -331,8 +379,13 @@ export class LocalWorkoutStorageService {
       const removedCount = workouts.length - remainingWorkouts.length;
 
       if (removedCount > 0) {
-        await AsyncStorage.setItem(STORAGE_KEYS.LOCAL_WORKOUTS, JSON.stringify(remainingWorkouts));
-        console.log(`✅ Cleaned up ${removedCount} synced workouts older than ${olderThanDays} days`);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.LOCAL_WORKOUTS,
+          JSON.stringify(remainingWorkouts)
+        );
+        console.log(
+          `✅ Cleaned up ${removedCount} synced workouts older than ${olderThanDays} days`
+        );
       }
 
       return removedCount;
@@ -348,9 +401,12 @@ export class LocalWorkoutStorageService {
   async deleteWorkout(workoutId: string): Promise<void> {
     try {
       const workouts = await this.getAllWorkouts();
-      const filteredWorkouts = workouts.filter(w => w.id !== workoutId);
+      const filteredWorkouts = workouts.filter((w) => w.id !== workoutId);
 
-      await AsyncStorage.setItem(STORAGE_KEYS.LOCAL_WORKOUTS, JSON.stringify(filteredWorkouts));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.LOCAL_WORKOUTS,
+        JSON.stringify(filteredWorkouts)
+      );
       console.log(`✅ Deleted workout ${workoutId} from local storage`);
     } catch (error) {
       console.error('❌ Failed to delete workout:', error);
@@ -382,7 +438,7 @@ export class LocalWorkoutStorageService {
   }> {
     try {
       const workouts = await this.getAllWorkouts();
-      const synced = workouts.filter(w => w.syncedToNostr).length;
+      const synced = workouts.filter((w) => w.syncedToNostr).length;
 
       const data = await AsyncStorage.getItem(STORAGE_KEYS.LOCAL_WORKOUTS);
       const storageBytes = data ? new Blob([data]).size : 0;

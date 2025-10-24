@@ -23,7 +23,7 @@ const colors = {
   green: '\x1b[32m',
   red: '\x1b[31m',
   yellow: '\x1b[33m',
-  blue: '\x1b[34m'
+  blue: '\x1b[34m',
 };
 
 function log(message: string, color: keyof typeof colors = 'reset') {
@@ -55,7 +55,7 @@ async function runPhase1Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 2: Wallet Persistence
     log('\nTEST 2: Wallet Persistence', 'yellow');
@@ -76,7 +76,7 @@ async function runPhase1Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 3: Balance Check
     log('\nTEST 3: Balance Operations', 'yellow');
@@ -92,7 +92,7 @@ async function runPhase1Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 4: Nutzap Send (will fail with insufficient balance, but should handle gracefully)
     log('\nTEST 4: Nutzap Send Handling', 'yellow');
@@ -100,7 +100,9 @@ async function runPhase1Tests() {
     const recipientNsec = createTestNsec();
     const decoded = nip19.decode(recipientNsec);
     const recipientPrivkey = decoded.data as Uint8Array;
-    const recipientPubkey = Buffer.from(recipientPrivkey).toString('hex').slice(64); // Get pubkey from privkey
+    const recipientPubkey = Buffer.from(recipientPrivkey)
+      .toString('hex')
+      .slice(64); // Get pubkey from privkey
 
     const sendResult = await nutzapService.sendNutzap(
       recipientPubkey,
@@ -108,7 +110,10 @@ async function runPhase1Tests() {
       'Test nutzap'
     );
 
-    if (!sendResult.success && sendResult.error?.includes('Insufficient balance')) {
+    if (
+      !sendResult.success &&
+      sendResult.error?.includes('Insufficient balance')
+    ) {
       log('✓ Send validation working correctly', 'green');
       log(`  - Error handled: ${sendResult.error}`, 'green');
       testsPassed++;
@@ -121,14 +126,17 @@ async function runPhase1Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 5: Claim Nutzaps
     log('\nTEST 5: Claim Nutzaps', 'yellow');
 
     const claimResult = await nutzapService.claimNutzaps();
 
-    if (typeof claimResult.claimed === 'number' && typeof claimResult.total === 'number') {
+    if (
+      typeof claimResult.claimed === 'number' &&
+      typeof claimResult.total === 'number'
+    ) {
       log('✓ Claim function working', 'green');
       log(`  - Claimed: ${claimResult.claimed} sats`, 'green');
       log(`  - Total available: ${claimResult.total} sats`, 'green');
@@ -138,7 +146,7 @@ async function runPhase1Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 6: Multiple Users
     log('\nTEST 6: Multiple User Wallets', 'yellow');
@@ -155,7 +163,11 @@ async function runPhase1Tests() {
     const user2Wallet = await nutzapService.initialize(user2Nsec);
     const user2Pubkey = user2Wallet.pubkey;
 
-    if (user1Pubkey !== user2Pubkey && user1Wallet.created && user2Wallet.created) {
+    if (
+      user1Pubkey !== user2Pubkey &&
+      user1Wallet.created &&
+      user2Wallet.created
+    ) {
       log('✓ Multiple users can have separate wallets', 'green');
       log(`  - User 1: ${user1Pubkey.slice(0, 16)}...`, 'green');
       log(`  - User 2: ${user2Pubkey.slice(0, 16)}...`, 'green');
@@ -164,7 +176,6 @@ async function runPhase1Tests() {
       log('✗ Multiple user wallet creation failed', 'red');
       testsFailed++;
     }
-
   } catch (error) {
     log('\n✗ Test suite error:', 'red');
     console.error(error);

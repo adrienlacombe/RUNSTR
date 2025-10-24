@@ -28,7 +28,11 @@ interface ActivityConfigurationStepProps {
   onUpdateConfiguration: (config: Partial<ActivityConfiguration>) => void;
 }
 
-const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const ACTIVITY_TYPES: {
+  value: ActivityType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { value: 'running', label: 'Running', icon: 'walk-outline' },
   { value: 'walking', label: 'Walking', icon: 'walk-outline' },
   { value: 'cycling', label: 'Cycling', icon: 'bicycle-outline' },
@@ -46,21 +50,22 @@ const DURATION_OPTIONS: { value: DurationOption; label: string }[] = [
 
 const WAGER_PRESETS = [100, 500, 1000, 5000];
 
-export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps> = ({
-  configuration,
-  onUpdateConfiguration,
-}) => {
+export const ActivityConfigurationStep: React.FC<
+  ActivityConfigurationStepProps
+> = ({ configuration, onUpdateConfiguration }) => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const [selectedActivity, setSelectedActivity] = useState<ActivityType | undefined>(
-    configuration?.activityType
-  );
+  const [selectedActivity, setSelectedActivity] = useState<
+    ActivityType | undefined
+  >(configuration?.activityType);
   const [selectedMetric, setSelectedMetric] = useState<MetricType | undefined>(
     configuration?.metric
   );
-  const [selectedDuration, setSelectedDuration] = useState<DurationOption | undefined>(
-    configuration?.duration
+  const [selectedDuration, setSelectedDuration] = useState<
+    DurationOption | undefined
+  >(configuration?.duration);
+  const [wagerAmount, setWagerAmount] = useState<number>(
+    configuration?.wagerAmount || 0
   );
-  const [wagerAmount, setWagerAmount] = useState<number>(configuration?.wagerAmount || 0);
   const [customWagerInput, setCustomWagerInput] = useState<string>('');
   const [showCustomWager, setShowCustomWager] = useState(false);
 
@@ -120,10 +125,16 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
     }
   };
 
-  const metricOptions = selectedActivity ? ACTIVITY_METRICS[selectedActivity] : [];
+  const metricOptions = selectedActivity
+    ? ACTIVITY_METRICS[selectedActivity]
+    : [];
 
   return (
-    <ScrollView ref={scrollViewRef} style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scrollViewRef}
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Activity Type Selection */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Activity Type</Text>
@@ -133,16 +144,22 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
               key={activity.value}
               style={[
                 styles.activityOption,
-                selectedActivity === activity.value && styles.activityOptionSelected,
+                selectedActivity === activity.value &&
+                  styles.activityOptionSelected,
               ]}
               onPress={() => handleActivitySelect(activity.value)}
               activeOpacity={0.7}
             >
-              <Ionicons name={activity.icon} size={32} color={theme.colors.accent} />
+              <Ionicons
+                name={activity.icon}
+                size={32}
+                color={theme.colors.accent}
+              />
               <Text
                 style={[
                   styles.activityLabel,
-                  selectedActivity === activity.value && styles.activityLabelSelected,
+                  selectedActivity === activity.value &&
+                    styles.activityLabelSelected,
                 ]}
               >
                 {activity.label}
@@ -162,7 +179,8 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
                 key={metric.value}
                 style={[
                   styles.metricOption,
-                  selectedMetric === metric.value && styles.metricOptionSelected,
+                  selectedMetric === metric.value &&
+                    styles.metricOptionSelected,
                 ]}
                 onPress={() => handleMetricSelect(metric.value)}
                 activeOpacity={0.7}
@@ -170,7 +188,8 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
                 <Text
                   style={[
                     styles.metricLabel,
-                    selectedMetric === metric.value && styles.metricLabelSelected,
+                    selectedMetric === metric.value &&
+                      styles.metricLabelSelected,
                   ]}
                 >
                   {metric.label}
@@ -192,7 +211,8 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
                 key={duration.value}
                 style={[
                   styles.durationOption,
-                  selectedDuration === duration.value && styles.durationOptionSelected,
+                  selectedDuration === duration.value &&
+                    styles.durationOptionSelected,
                 ]}
                 onPress={() => handleDurationSelect(duration.value)}
                 activeOpacity={0.7}
@@ -200,7 +220,8 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
                 <Text
                   style={[
                     styles.durationLabel,
-                    selectedDuration === duration.value && styles.durationLabelSelected,
+                    selectedDuration === duration.value &&
+                      styles.durationLabelSelected,
                   ]}
                 >
                   {duration.label}
@@ -221,7 +242,9 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
                 key={preset}
                 style={[
                   styles.wagerOption,
-                  wagerAmount === preset && !showCustomWager && styles.wagerOptionSelected,
+                  wagerAmount === preset &&
+                    !showCustomWager &&
+                    styles.wagerOptionSelected,
                 ]}
                 onPress={() => handleWagerPresetSelect(preset)}
                 activeOpacity={0.7}
@@ -229,7 +252,9 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
                 <Text
                   style={[
                     styles.wagerLabel,
-                    wagerAmount === preset && !showCustomWager && styles.wagerLabelSelected,
+                    wagerAmount === preset &&
+                      !showCustomWager &&
+                      styles.wagerLabelSelected,
                   ]}
                 >
                   {preset.toLocaleString()}
@@ -291,8 +316,7 @@ export const ActivityConfigurationStep: React.FC<ActivityConfigurationStepProps>
 };
 
 const styles = StyleSheet.create({
-  container: {
-  },
+  container: {},
   section: {
     marginBottom: 16,
   },

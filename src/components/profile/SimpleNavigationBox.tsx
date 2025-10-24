@@ -5,12 +5,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../../styles/theme';
 
 interface SimpleNavigationBoxProps {
@@ -20,7 +15,7 @@ interface SimpleNavigationBoxProps {
 
 export const SimpleNavigationBox: React.FC<SimpleNavigationBoxProps> = ({
   title,
-  onPress
+  onPress,
 }) => {
   return (
     <TouchableOpacity

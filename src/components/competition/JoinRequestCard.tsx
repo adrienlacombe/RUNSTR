@@ -62,7 +62,10 @@ export const JoinRequestCard: React.FC<JoinRequestCardProps> = ({
     if (request.requesterName) {
       return request.requesterName;
     }
-    return `${request.requesterPubkey.slice(0, 8)}...${request.requesterPubkey.slice(-6)}`;
+    return `${request.requesterPubkey.slice(
+      0,
+      8
+    )}...${request.requesterPubkey.slice(-6)}`;
   };
 
   const getTimeAgo = (): string => {

@@ -8,7 +8,12 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 
-export type GPSSignalStrength = 'strong' | 'medium' | 'weak' | 'none' | 'searching';
+export type GPSSignalStrength =
+  | 'strong'
+  | 'medium'
+  | 'weak'
+  | 'none'
+  | 'searching';
 
 interface GPSStatusIndicatorProps {
   signalStrength: GPSSignalStrength;
@@ -136,11 +141,7 @@ export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
           },
         ]}
       >
-        <Ionicons
-          name={getSignalIcon()}
-          size={24}
-          color={getSignalColor()}
-        />
+        <Ionicons name={getSignalIcon()} size={24} color={getSignalColor()} />
       </Animated.View>
 
       <View style={styles.textContainer}>
@@ -155,9 +156,7 @@ export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
         )}
 
         {timeSinceUpdate && signalStrength !== 'searching' && (
-          <Text style={styles.updateTimeText}>
-            Updated {timeSinceUpdate}
-          </Text>
+          <Text style={styles.updateTimeText}>Updated {timeSinceUpdate}</Text>
         )}
 
         {isBackgroundTracking && (

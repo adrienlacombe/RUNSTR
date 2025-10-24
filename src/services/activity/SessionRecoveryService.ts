@@ -171,7 +171,8 @@ export class SessionRecoveryService {
       const session: RecoverableSession = JSON.parse(activeSessionStr);
 
       // Check if session is recent (within last 24 hours)
-      const hoursSinceLastUpdate = (Date.now() - session.lastUpdateTime) / (1000 * 60 * 60);
+      const hoursSinceLastUpdate =
+        (Date.now() - session.lastUpdateTime) / (1000 * 60 * 60);
       if (hoursSinceLastUpdate > 24) {
         // Too old, clear it
         await this.clearRecoveryData(session.id);
@@ -198,7 +199,7 @@ export class SessionRecoveryService {
     try {
       // Get session from recovery storage
       const sessions = await this.getRecoverySessions();
-      const session = sessions.find(s => s.id === sessionId);
+      const session = sessions.find((s) => s.id === sessionId);
 
       if (!session) {
         return {
@@ -210,7 +211,7 @@ export class SessionRecoveryService {
       // Try to recover location data
       const storageKey = `@runstr:location_stream_${sessionId}`;
       const keys = await AsyncStorage.getAllKeys();
-      const locationKeys = keys.filter(k => k.startsWith(storageKey));
+      const locationKeys = keys.filter((k) => k.startsWith(storageKey));
 
       const locations: LocationPoint[] = [];
       for (const key of locationKeys) {
@@ -254,7 +255,7 @@ export class SessionRecoveryService {
 
     // Remove from recovery sessions list
     const sessions = await this.getRecoverySessions();
-    const filtered = sessions.filter(s => s.id !== sessionId);
+    const filtered = sessions.filter((s) => s.id !== sessionId);
     await AsyncStorage.setItem(RECOVERY_SESSIONS_KEY, JSON.stringify(filtered));
   }
 
@@ -335,17 +336,21 @@ export class SessionRecoveryService {
       };
     }
 
-    return this.currentSession.checkpoints[this.currentSession.checkpoints.length - 1];
+    return this.currentSession.checkpoints[
+      this.currentSession.checkpoints.length - 1
+    ];
   }
 
   /**
    * Add session to recovery sessions list
    */
-  private async addToRecoverySessions(session: RecoverableSession): Promise<void> {
+  private async addToRecoverySessions(
+    session: RecoverableSession
+  ): Promise<void> {
     const sessions = await this.getRecoverySessions();
 
     // Check if session already exists
-    const existingIndex = sessions.findIndex(s => s.id === session.id);
+    const existingIndex = sessions.findIndex((s) => s.id === session.id);
     if (existingIndex >= 0) {
       sessions[existingIndex] = session;
     } else {
@@ -380,7 +385,7 @@ export class SessionRecoveryService {
     // Clear location storage
     const storagePrefix = `@runstr:location_stream_${sessionId}`;
     const keys = await AsyncStorage.getAllKeys();
-    const locationKeys = keys.filter(k => k.startsWith(storagePrefix));
+    const locationKeys = keys.filter((k) => k.startsWith(storagePrefix));
 
     for (const key of locationKeys) {
       await AsyncStorage.removeItem(key);

@@ -42,18 +42,24 @@ class WeatherService {
     try {
       // For MVP, check if API key is configured
       if (!this.API_KEY || this.API_KEY === 'YOUR_OPENWEATHER_API_KEY') {
-        console.warn('[WeatherService] API key not configured, skipping weather fetch');
+        console.warn(
+          '[WeatherService] API key not configured, skipping weather fetch'
+        );
         return null;
       }
 
       const url = `${this.BASE_URL}?lat=${latitude}&lon=${longitude}&appid=${this.API_KEY}&units=metric`;
 
-      console.log(`[WeatherService] Fetching weather for ${latitude}, ${longitude}`);
+      console.log(
+        `[WeatherService] Fetching weather for ${latitude}, ${longitude}`
+      );
 
       const response = await fetch(url);
 
       if (!response.ok) {
-        console.error(`[WeatherService] API error: ${response.status} ${response.statusText}`);
+        console.error(
+          `[WeatherService] API error: ${response.status} ${response.statusText}`
+        );
         return null;
       }
 
@@ -68,7 +74,9 @@ class WeatherService {
         windSpeed: data.wind.speed,
       };
 
-      console.log(`[WeatherService] ✅ Weather fetched: ${weather.temp}°C, ${weather.description}`);
+      console.log(
+        `[WeatherService] ✅ Weather fetched: ${weather.temp}°C, ${weather.description}`
+      );
 
       return weather;
     } catch (error) {
@@ -111,7 +119,7 @@ class WeatherService {
    */
   formatTemperature(tempCelsius: number, unit: 'C' | 'F' = 'C'): string {
     if (unit === 'F') {
-      const tempF = (tempCelsius * 9/5) + 32;
+      const tempF = (tempCelsius * 9) / 5 + 32;
       return `${Math.round(tempF)}°F`;
     }
     return `${tempCelsius}°C`;
@@ -120,7 +128,10 @@ class WeatherService {
   /**
    * Get weather description for display
    */
-  formatWeatherBadge(conditions: WeatherConditions, unit: 'C' | 'F' = 'C'): string {
+  formatWeatherBadge(
+    conditions: WeatherConditions,
+    unit: 'C' | 'F' = 'C'
+  ): string {
     const emoji = this.getWeatherEmoji(conditions.icon);
     const temp = this.formatTemperature(conditions.temp, unit);
     return `${emoji} ${temp}`;

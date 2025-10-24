@@ -4,15 +4,33 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Modal,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 
-type ExerciseType = 'pushups' | 'pullups' | 'situps' | 'squats' | 'planks' | 'burpees';
+type ExerciseType =
+  | 'pushups'
+  | 'pullups'
+  | 'situps'
+  | 'squats'
+  | 'planks'
+  | 'burpees';
 type WorkoutPhase = 'setup' | 'active' | 'rest' | 'summary';
 
-const EXERCISE_OPTIONS: { value: ExerciseType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const EXERCISE_OPTIONS: {
+  value: ExerciseType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { value: 'pushups', label: 'Pushups', icon: 'fitness' },
   { value: 'pullups', label: 'Pullups', icon: 'barbell' },
   { value: 'situps', label: 'Situps', icon: 'body' },
@@ -25,7 +43,8 @@ const REST_DURATIONS = [30, 60, 90, 120]; // seconds
 
 export const StrengthTrackerScreen: React.FC = () => {
   // Setup state
-  const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pushups');
+  const [selectedExercise, setSelectedExercise] =
+    useState<ExerciseType>('pushups');
   const [totalSets, setTotalSets] = useState(3);
   const [targetReps, setTargetReps] = useState(20);
   const [restDuration, setRestDuration] = useState(60);
@@ -107,9 +126,13 @@ export const StrengthTrackerScreen: React.FC = () => {
   const saveWorkout = async () => {
     try {
       const totalReps = repsCompleted.reduce((sum, r) => sum + r, 0);
-      const exerciseLabel = EXERCISE_OPTIONS.find(e => e.value === selectedExercise)?.label || 'Strength Training';
+      const exerciseLabel =
+        EXERCISE_OPTIONS.find((e) => e.value === selectedExercise)?.label ||
+        'Strength Training';
 
-      const repsBreakdown = repsCompleted.map((r, i) => `Set ${i + 1}: ${r}`).join(', ');
+      const repsBreakdown = repsCompleted
+        .map((r, i) => `Set ${i + 1}: ${r}`)
+        .join(', ');
 
       await LocalWorkoutStorageService.saveManualWorkout({
         type: 'strength_training',
@@ -123,7 +146,9 @@ export const StrengthTrackerScreen: React.FC = () => {
         restTime: restDuration,
       });
 
-      console.log(`✅ Strength workout saved: ${selectedExercise} - ${totalReps} reps in ${totalSets} sets`);
+      console.log(
+        `✅ Strength workout saved: ${selectedExercise} - ${totalReps} reps in ${totalSets} sets`
+      );
 
       // Reset to setup
       setPhase('setup');
@@ -143,7 +168,10 @@ export const StrengthTrackerScreen: React.FC = () => {
   // Setup screen
   if (phase === 'setup') {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.setupContainer}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.setupContainer}
+      >
         <View style={styles.iconContainer}>
           <Ionicons name="barbell" size={64} color={theme.colors.text} />
         </View>
@@ -160,19 +188,25 @@ export const StrengthTrackerScreen: React.FC = () => {
                 key={exercise.value}
                 style={[
                   styles.exerciseOption,
-                  selectedExercise === exercise.value && styles.exerciseOptionActive,
+                  selectedExercise === exercise.value &&
+                    styles.exerciseOptionActive,
                 ]}
                 onPress={() => setSelectedExercise(exercise.value)}
               >
                 <Ionicons
                   name={exercise.icon}
                   size={24}
-                  color={selectedExercise === exercise.value ? theme.colors.text : theme.colors.textMuted}
+                  color={
+                    selectedExercise === exercise.value
+                      ? theme.colors.text
+                      : theme.colors.textMuted
+                  }
                 />
                 <Text
                   style={[
                     styles.exerciseLabel,
-                    selectedExercise === exercise.value && styles.exerciseLabelActive,
+                    selectedExercise === exercise.value &&
+                      styles.exerciseLabelActive,
                   ]}
                 >
                   {exercise.label}
@@ -261,7 +295,7 @@ export const StrengthTrackerScreen: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.activeContainer}>
           <Text style={styles.exerciseName}>
-            {EXERCISE_OPTIONS.find(e => e.value === selectedExercise)?.label}
+            {EXERCISE_OPTIONS.find((e) => e.value === selectedExercise)?.label}
           </Text>
 
           <View style={styles.setIndicator}>
@@ -285,7 +319,10 @@ export const StrengthTrackerScreen: React.FC = () => {
             </View>
           )}
 
-          <TouchableOpacity style={styles.completeButton} onPress={handleSetComplete}>
+          <TouchableOpacity
+            style={styles.completeButton}
+            onPress={handleSetComplete}
+          >
             <Text style={styles.completeButtonText}>Set Complete</Text>
           </TouchableOpacity>
         </View>
@@ -303,7 +340,10 @@ export const StrengthTrackerScreen: React.FC = () => {
                 autoFocus
                 selectTextOnFocus
               />
-              <TouchableOpacity style={styles.confirmButton} onPress={confirmReps}>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={confirmReps}
+              >
                 <Text style={styles.confirmButtonText}>Confirm</Text>
               </TouchableOpacity>
             </View>
@@ -327,7 +367,9 @@ export const StrengthTrackerScreen: React.FC = () => {
             <Text style={styles.restTimerUnit}>seconds</Text>
           </View>
 
-          <Text style={styles.nextSetLabel}>Next: Set {currentSet + 1} of {totalSets}</Text>
+          <Text style={styles.nextSetLabel}>
+            Next: Set {currentSet + 1} of {totalSets}
+          </Text>
 
           <TouchableOpacity
             style={styles.skipButton}
@@ -348,16 +390,23 @@ export const StrengthTrackerScreen: React.FC = () => {
     const totalReps = repsCompleted.reduce((sum, r) => sum + r, 0);
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.summaryContainer}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.summaryContainer}
+      >
         <View style={styles.summaryIconContainer}>
-          <Ionicons name="checkmark-circle" size={64} color={theme.colors.orangeBright} />
+          <Ionicons
+            name="checkmark-circle"
+            size={64}
+            color={theme.colors.orangeBright}
+          />
         </View>
 
         <Text style={styles.summaryTitle}>Workout Complete!</Text>
 
         <View style={styles.summaryStatsCard}>
           <Text style={styles.summaryExercise}>
-            {EXERCISE_OPTIONS.find(e => e.value === selectedExercise)?.label}
+            {EXERCISE_OPTIONS.find((e) => e.value === selectedExercise)?.label}
           </Text>
 
           <View style={styles.summaryMainStats}>
@@ -370,7 +419,9 @@ export const StrengthTrackerScreen: React.FC = () => {
               <Text style={styles.summaryStatLabel}>Sets</Text>
             </View>
             <View style={styles.summaryStatItem}>
-              <Text style={styles.summaryStatValue}>{formatTime(workoutDuration)}</Text>
+              <Text style={styles.summaryStatValue}>
+                {formatTime(workoutDuration)}
+              </Text>
               <Text style={styles.summaryStatLabel}>Duration</Text>
             </View>
           </View>
@@ -386,7 +437,10 @@ export const StrengthTrackerScreen: React.FC = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.saveWorkoutButton} onPress={saveWorkout}>
+        <TouchableOpacity
+          style={styles.saveWorkoutButton}
+          onPress={saveWorkout}
+        >
           <Text style={styles.saveWorkoutButtonText}>Save Workout</Text>
         </TouchableOpacity>
 

@@ -4,12 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../../styles/theme';
 
 interface ChatHeaderProps {
@@ -19,7 +14,7 @@ interface ChatHeaderProps {
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   teamName,
-  memberCount
+  memberCount,
 }) => {
   const [showDisclaimer, setShowDisclaimer] = useState(true);
 

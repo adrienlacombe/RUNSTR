@@ -18,9 +18,7 @@ export class WellnessAnalytics {
   /**
    * Calculate all wellness metrics from workout data
    */
-  static calculateMetrics(
-    workouts: LocalWorkout[]
-  ): WellnessMetrics | null {
+  static calculateMetrics(workouts: LocalWorkout[]): WellnessMetrics | null {
     const wellnessWorkouts = this.filterWellnessWorkouts(workouts);
 
     if (wellnessWorkouts.length === 0) {
@@ -32,23 +30,36 @@ export class WellnessAnalytics {
       sessionDuration: this.calculateSessionDuration(wellnessWorkouts),
       typePreferences: this.calculateTypePreferences(wellnessWorkouts),
       timeOfDayPatterns: this.calculateTimeOfDayPatterns(wellnessWorkouts),
-      recoveryCorrelation: this.calculateRecoveryCorrelation(workouts, wellnessWorkouts),
+      recoveryCorrelation: this.calculateRecoveryCorrelation(
+        workouts,
+        wellnessWorkouts
+      ),
     };
   }
 
   /**
    * Filter workouts to only meditation/wellness activities
    */
-  private static filterWellnessWorkouts(workouts: LocalWorkout[]): LocalWorkout[] {
+  private static filterWellnessWorkouts(
+    workouts: LocalWorkout[]
+  ): LocalWorkout[] {
     return workouts
-      .filter(w => w.type === 'meditation' || w.type === 'yoga' || w.type === 'wellness')
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      .filter(
+        (w) =>
+          w.type === 'meditation' || w.type === 'yoga' || w.type === 'wellness'
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
   }
 
   /**
    * Calculate meditation consistency metrics
    */
-  private static calculateConsistency(workouts: LocalWorkout[]): ConsistencyData {
+  private static calculateConsistency(
+    workouts: LocalWorkout[]
+  ): ConsistencyData {
     if (workouts.length === 0) {
       return {
         currentMonth: 0,
@@ -63,15 +74,15 @@ export class WellnessAnalytics {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     // Current month sessions
-    const currentMonthWorkouts = workouts.filter(w =>
-      new Date(w.startTime) >= currentMonthStart
+    const currentMonthWorkouts = workouts.filter(
+      (w) => new Date(w.startTime) >= currentMonthStart
     );
 
     // Calculate frequency (percentage of days with meditation)
     const daysInMonth = now.getDate(); // Days elapsed in current month
     const uniqueDays = new Set(
-      currentMonthWorkouts.map(w =>
-        new Date(w.startTime).toISOString().split('T')[0]
+      currentMonthWorkouts.map(
+        (w) => new Date(w.startTime).toISOString().split('T')[0]
       )
     );
     const frequency = (uniqueDays.size / daysInMonth) * 100;
@@ -86,24 +97,23 @@ export class WellnessAnalytics {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const recent30Days = workouts.filter(w => {
+    const recent30Days = workouts.filter((w) => {
       const date = new Date(w.startTime);
       return date >= thirtyDaysAgo && date <= now;
     }).length;
 
-    const previous30Days = workouts.filter(w => {
+    const previous30Days = workouts.filter((w) => {
       const date = new Date(w.startTime);
       return date >= sixtyDaysAgo && date < thirtyDaysAgo;
     }).length;
 
-    const change = previous30Days > 0
-      ? ((recent30Days - previous30Days) / previous30Days) * 100
-      : 0;
+    const change =
+      previous30Days > 0
+        ? ((recent30Days - previous30Days) / previous30Days) * 100
+        : 0;
 
     const trend: ConsistencyData['trend'] =
-      change > 10 ? 'improving' :
-      change < -10 ? 'declining' :
-      'stable';
+      change > 10 ? 'improving' : change < -10 ? 'declining' : 'stable';
 
     return {
       currentMonth: currentMonthWorkouts.length,
@@ -128,7 +138,7 @@ export class WellnessAnalytics {
 
     // Get unique days with meditation
     const meditationDays = new Set(
-      workouts.map(w => {
+      workouts.map((w) => {
         const date = new Date(w.startTime);
         date.setHours(0, 0, 0, 0);
         return date.getTime();
@@ -162,7 +172,7 @@ export class WellnessAnalytics {
     // Get unique days sorted
     const meditationDays = Array.from(
       new Set(
-        workouts.map(w => {
+        workouts.map((w) => {
           const date = new Date(w.startTime);
           date.setHours(0, 0, 0, 0);
           return date.getTime();
@@ -174,7 +184,8 @@ export class WellnessAnalytics {
     let currentStreak = 1;
 
     for (let i = 1; i < meditationDays.length; i++) {
-      const daysDiff = (meditationDays[i] - meditationDays[i - 1]) / (24 * 60 * 60 * 1000);
+      const daysDiff =
+        (meditationDays[i] - meditationDays[i - 1]) / (24 * 60 * 60 * 1000);
 
       if (daysDiff === 1) {
         currentStreak++;
@@ -190,7 +201,9 @@ export class WellnessAnalytics {
   /**
    * Calculate session duration trends
    */
-  private static calculateSessionDuration(workouts: LocalWorkout[]): SessionDurationData {
+  private static calculateSessionDuration(
+    workouts: LocalWorkout[]
+  ): SessionDurationData {
     if (workouts.length === 0) {
       return {
         avgDuration: 0,
@@ -207,15 +220,16 @@ export class WellnessAnalytics {
     const weeklyAvgs = this.calculateWeeklyAverages(workouts, 8);
 
     // Calculate trend (compare recent 4 weeks vs previous 4 weeks)
-    const recentAvg = weeklyAvgs.slice(-4).reduce((sum, w) => sum + w.avgDuration, 0) / 4;
-    const previousAvg = weeklyAvgs.slice(-8, -4).reduce((sum, w) => sum + w.avgDuration, 0) / 4;
+    const recentAvg =
+      weeklyAvgs.slice(-4).reduce((sum, w) => sum + w.avgDuration, 0) / 4;
+    const previousAvg =
+      weeklyAvgs.slice(-8, -4).reduce((sum, w) => sum + w.avgDuration, 0) / 4;
 
-    const change = previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
+    const change =
+      previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
 
     const trend: SessionDurationData['trend'] =
-      change > 10 ? 'increasing' :
-      change < -10 ? 'decreasing' :
-      'stable';
+      change > 10 ? 'increasing' : change < -10 ? 'decreasing' : 'stable';
 
     return {
       avgDuration: Math.round(avgDuration),
@@ -235,17 +249,21 @@ export class WellnessAnalytics {
     const now = new Date();
 
     for (let i = weeks - 1; i >= 0; i--) {
-      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekStart = new Date(
+        now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000
+      );
       const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
 
-      const weekWorkouts = workouts.filter(w => {
+      const weekWorkouts = workouts.filter((w) => {
         const date = new Date(w.startTime);
         return date >= weekStart && date < weekEnd;
       });
 
-      const avgDuration = weekWorkouts.length > 0
-        ? weekWorkouts.reduce((sum, w) => sum + w.duration, 0) / weekWorkouts.length
-        : 0;
+      const avgDuration =
+        weekWorkouts.length > 0
+          ? weekWorkouts.reduce((sum, w) => sum + w.duration, 0) /
+            weekWorkouts.length
+          : 0;
 
       result.push({
         week: this.formatWeek(weekStart),
@@ -259,7 +277,9 @@ export class WellnessAnalytics {
   /**
    * Calculate meditation type preferences from notes
    */
-  private static calculateTypePreferences(workouts: LocalWorkout[]): MeditationTypePreferences {
+  private static calculateTypePreferences(
+    workouts: LocalWorkout[]
+  ): MeditationTypePreferences {
     const typeCounts = {
       guided: 0,
       unguided: 0,
@@ -268,7 +288,7 @@ export class WellnessAnalytics {
       lovingKindness: 0,
     };
 
-    workouts.forEach(w => {
+    workouts.forEach((w) => {
       const notes = (w.notes || '').toLowerCase();
 
       // Parse meditation type from notes
@@ -311,8 +331,8 @@ export class WellnessAnalytics {
     };
 
     // Find favorite type
-    const favorite = Object.entries(typeCounts).reduce((max, [type, count]) =>
-      count > max.count ? { type, count } : max,
+    const favorite = Object.entries(typeCounts).reduce(
+      (max, [type, count]) => (count > max.count ? { type, count } : max),
       { type: 'unguided', count: 0 }
     ).type;
 
@@ -325,7 +345,9 @@ export class WellnessAnalytics {
   /**
    * Calculate time-of-day patterns for meditation
    */
-  private static calculateTimeOfDayPatterns(workouts: LocalWorkout[]): TimeOfDayPattern[] {
+  private static calculateTimeOfDayPatterns(
+    workouts: LocalWorkout[]
+  ): TimeOfDayPattern[] {
     const patterns: Record<string, { count: number; totalDuration: number }> = {
       '5am-8am': { count: 0, totalDuration: 0 },
       '8am-12pm': { count: 0, totalDuration: 0 },
@@ -334,7 +356,7 @@ export class WellnessAnalytics {
       '9pm-12am': { count: 0, totalDuration: 0 },
     };
 
-    workouts.forEach(w => {
+    workouts.forEach((w) => {
       const hour = new Date(w.startTime).getHours();
       let timeRange: string;
 
@@ -358,9 +380,10 @@ export class WellnessAnalytics {
       .map(([timeRange, data]) => ({
         timeRange,
         count: data.count,
-        avgDuration: data.count > 0 ? Math.round(data.totalDuration / data.count) : 0,
+        avgDuration:
+          data.count > 0 ? Math.round(data.totalDuration / data.count) : 0,
       }))
-      .filter(p => p.count > 0) // Only include time ranges with sessions
+      .filter((p) => p.count > 0) // Only include time ranges with sessions
       .sort((a, b) => b.count - a.count); // Sort by most frequent first
   }
 
@@ -372,7 +395,7 @@ export class WellnessAnalytics {
     meditationWorkouts: LocalWorkout[]
   ): CorrelationData | undefined {
     // Need at least 10 meditation sessions and 10 workouts for meaningful correlation
-    const cardioWorkouts = allWorkouts.filter(w =>
+    const cardioWorkouts = allWorkouts.filter((w) =>
       ['running', 'cycling', 'walking', 'hiking'].includes(w.type)
     );
 
@@ -381,22 +404,26 @@ export class WellnessAnalytics {
     }
 
     // For each cardio workout, check if meditation happened within 24 hours before
-    const workoutsWithMeditation: Array<{ hadMeditation: boolean; performance: number }> = [];
+    const workoutsWithMeditation: Array<{
+      hadMeditation: boolean;
+      performance: number;
+    }> = [];
 
-    cardioWorkouts.forEach(workout => {
+    cardioWorkouts.forEach((workout) => {
       const workoutTime = new Date(workout.startTime).getTime();
       const twentyFourHoursBefore = workoutTime - 24 * 60 * 60 * 1000;
 
       // Check if meditation happened in 24h before workout
-      const hadMeditation = meditationWorkouts.some(med => {
+      const hadMeditation = meditationWorkouts.some((med) => {
         const medTime = new Date(med.startTime).getTime();
         return medTime >= twentyFourHoursBefore && medTime < workoutTime;
       });
 
       // Use pace as performance metric (lower is better, so invert)
-      const pace = workout.distance && workout.duration > 0
-        ? (workout.duration / 60) / workout.distance // min/km
-        : 0;
+      const pace =
+        workout.distance && workout.duration > 0
+          ? workout.duration / 60 / workout.distance // min/km
+          : 0;
 
       if (pace > 0) {
         workoutsWithMeditation.push({
@@ -411,15 +438,17 @@ export class WellnessAnalytics {
     }
 
     // Calculate average performance for workouts with and without meditation
-    const withMed = workoutsWithMeditation.filter(w => w.hadMeditation);
-    const withoutMed = workoutsWithMeditation.filter(w => !w.hadMeditation);
+    const withMed = workoutsWithMeditation.filter((w) => w.hadMeditation);
+    const withoutMed = workoutsWithMeditation.filter((w) => !w.hadMeditation);
 
     if (withMed.length < 5 || withoutMed.length < 5) {
       return undefined;
     }
 
-    const avgWithMed = withMed.reduce((sum, w) => sum + w.performance, 0) / withMed.length;
-    const avgWithoutMed = withoutMed.reduce((sum, w) => sum + w.performance, 0) / withoutMed.length;
+    const avgWithMed =
+      withMed.reduce((sum, w) => sum + w.performance, 0) / withMed.length;
+    const avgWithoutMed =
+      withoutMed.reduce((sum, w) => sum + w.performance, 0) / withoutMed.length;
 
     // Simple correlation: positive if meditation improves performance
     const percentDiff = ((avgWithMed - avgWithoutMed) / avgWithoutMed) * 100;
@@ -433,28 +462,32 @@ export class WellnessAnalytics {
       coefficient = 0;
       strength = 'none';
       direction = 'none';
-      insight = 'No significant correlation between meditation and next-day workout performance';
+      insight =
+        'No significant correlation between meditation and next-day workout performance';
     } else if (Math.abs(percentDiff) < 5) {
       coefficient = percentDiff > 0 ? 0.3 : -0.3;
       strength = 'weak';
       direction = percentDiff > 0 ? 'positive' : 'negative';
-      insight = percentDiff > 0
-        ? 'Slight improvement in workout performance after meditation'
-        : 'Slight decrease in workout performance after meditation';
+      insight =
+        percentDiff > 0
+          ? 'Slight improvement in workout performance after meditation'
+          : 'Slight decrease in workout performance after meditation';
     } else if (Math.abs(percentDiff) < 10) {
       coefficient = percentDiff > 0 ? 0.6 : -0.6;
       strength = 'moderate';
       direction = percentDiff > 0 ? 'positive' : 'negative';
-      insight = percentDiff > 0
-        ? 'Meditation appears to moderately improve next-day workout performance'
-        : 'Meditation appears to moderately decrease next-day workout performance';
+      insight =
+        percentDiff > 0
+          ? 'Meditation appears to moderately improve next-day workout performance'
+          : 'Meditation appears to moderately decrease next-day workout performance';
     } else {
       coefficient = percentDiff > 0 ? 0.8 : -0.8;
       strength = 'strong';
       direction = percentDiff > 0 ? 'positive' : 'negative';
-      insight = percentDiff > 0
-        ? 'Strong correlation: Meditation significantly improves next-day workout performance'
-        : 'Strong correlation: Meditation significantly decreases next-day workout performance';
+      insight =
+        percentDiff > 0
+          ? 'Strong correlation: Meditation significantly improves next-day workout performance'
+          : 'Strong correlation: Meditation significantly decreases next-day workout performance';
     }
 
     return {

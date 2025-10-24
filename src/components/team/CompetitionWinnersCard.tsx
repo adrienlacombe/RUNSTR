@@ -36,7 +36,6 @@ export const CompetitionWinnersCard: React.FC<CompetitionWinnersCardProps> = ({
   winners = [],
   loading = false,
 }) => {
-
   const formatSats = (sats: number): string => {
     if (sats >= 1000000) {
       return `${(sats / 1000000).toFixed(1)}M`;
@@ -83,7 +82,11 @@ export const CompetitionWinnersCard: React.FC<CompetitionWinnersCardProps> = ({
         </View>
       ) : winners.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="trophy-outline" size={32} color={theme.colors.textMuted} />
+          <Ionicons
+            name="trophy-outline"
+            size={32}
+            color={theme.colors.textMuted}
+          />
           <Text style={styles.emptyText}>No winners yet</Text>
           <Text style={styles.emptySubtext}>
             Complete competitions to see winners here
@@ -96,10 +99,7 @@ export const CompetitionWinnersCard: React.FC<CompetitionWinnersCardProps> = ({
           indicatorStyle="#FF9D42"
         >
           {winners.map((winner) => (
-            <View
-              key={winner.id}
-              style={styles.winnerItem}
-            >
+            <View key={winner.id} style={styles.winnerItem}>
               <View style={styles.winnerLeft}>
                 <Avatar
                   name={winner.winnerName}

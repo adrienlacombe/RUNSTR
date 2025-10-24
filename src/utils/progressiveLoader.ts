@@ -83,10 +83,12 @@ export class ProgressiveLoader {
    * @param events - Raw NDK events
    * @returns Lightweight posts ready for immediate display
    */
-  static lightweightProcess(events: NDKEvent[] | Set<NDKEvent>): LightweightPost[] {
+  static lightweightProcess(
+    events: NDKEvent[] | Set<NDKEvent>
+  ): LightweightPost[] {
     const eventsArray = Array.isArray(events) ? events : Array.from(events);
 
-    return eventsArray.map(event => ({
+    return eventsArray.map((event) => ({
       id: event.id,
       pubkey: event.pubkey,
       created_at: event.created_at || Math.floor(Date.now() / 1000),
@@ -116,17 +118,21 @@ export class ProgressiveLoader {
    * @param posts - Lightweight posts to enrich
    * @returns Promise of enriched posts
    */
-  static async enrichInBackground(posts: LightweightPost[]): Promise<EnrichedPost[]> {
-    console.log(`[ProgressiveLoader] Enriching ${posts.length} posts in background...`);
+  static async enrichInBackground(
+    posts: LightweightPost[]
+  ): Promise<EnrichedPost[]> {
+    console.log(
+      `[ProgressiveLoader] Enriching ${posts.length} posts in background...`
+    );
 
     // Extract all unique pubkeys
-    const pubkeys = [...new Set(posts.map(p => p.pubkey))];
+    const pubkeys = [...new Set(posts.map((p) => p.pubkey))];
 
     // Fetch profiles in parallel
     const profilesMap = await ProfileCache.fetchProfiles(pubkeys);
 
     // Enrich posts with profile data
-    const enrichedPosts: EnrichedPost[] = posts.map(post => {
+    const enrichedPosts: EnrichedPost[] = posts.map((post) => {
       const profile = profilesMap.get(post.pubkey);
 
       return {
@@ -151,7 +157,9 @@ export class ProgressiveLoader {
       };
     });
 
-    console.log(`[ProgressiveLoader] Enriched ${enrichedPosts.length} posts with profiles`);
+    console.log(
+      `[ProgressiveLoader] Enriched ${enrichedPosts.length} posts with profiles`
+    );
     return enrichedPosts;
   }
 
@@ -167,9 +175,9 @@ export class ProgressiveLoader {
     lightweight: LightweightPost[],
     enriched: EnrichedPost[]
   ): EnrichedPost[] {
-    const enrichedMap = new Map(enriched.map(p => [p.id, p]));
+    const enrichedMap = new Map(enriched.map((p) => [p.id, p]));
 
-    return lightweight.map(post => {
+    return lightweight.map((post) => {
       const enrichedPost = enrichedMap.get(post.id);
       return enrichedPost || (post as EnrichedPost);
     });
@@ -181,7 +189,7 @@ export class ProgressiveLoader {
    */
   private static extractNameFromEvent(event: NDKEvent): string | null {
     // Check for name in tags (some clients include this)
-    const nameTag = event.tags.find(tag => tag[0] === 'name');
+    const nameTag = event.tags.find((tag) => tag[0] === 'name');
     if (nameTag && nameTag[1]) {
       return nameTag[1];
     }
@@ -190,7 +198,9 @@ export class ProgressiveLoader {
     if (event.kind === 0) {
       try {
         const profile = JSON.parse(event.content);
-        return profile.name || profile.display_name || profile.displayName || null;
+        return (
+          profile.name || profile.display_name || profile.displayName || null
+        );
       } catch {
         return null;
       }
@@ -209,10 +219,12 @@ export class ProgressiveLoader {
   /**
    * Filter posts that need profile enrichment
    */
-  static filterNeedingProfiles(posts: (LightweightPost | EnrichedPost)[]): string[] {
+  static filterNeedingProfiles(
+    posts: (LightweightPost | EnrichedPost)[]
+  ): string[] {
     return posts
-      .filter(p => 'needsProfile' in p.author && p.author.needsProfile)
-      .map(p => p.pubkey)
+      .filter((p) => 'needsProfile' in p.author && p.author.needsProfile)
+      .map((p) => p.pubkey)
       .filter((pubkey, index, self) => self.indexOf(pubkey) === index); // Unique
   }
 }

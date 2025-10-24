@@ -33,23 +33,31 @@ export class StrengthTrainingAnalytics {
       exerciseBalance: this.calculateExerciseBalance(strengthWorkouts),
       workoutDensity: this.calculateWorkoutDensity(strengthWorkouts),
       strengthCardioBalance: this.calculateStrengthCardioBalance(allWorkouts),
-      restTimeOptimization: this.calculateRestTimeOptimization(strengthWorkouts),
+      restTimeOptimization:
+        this.calculateRestTimeOptimization(strengthWorkouts),
     };
   }
 
   /**
    * Filter workouts to only strength training activities
    */
-  private static filterStrengthWorkouts(workouts: LocalWorkout[]): LocalWorkout[] {
+  private static filterStrengthWorkouts(
+    workouts: LocalWorkout[]
+  ): LocalWorkout[] {
     return workouts
-      .filter(w => w.type === 'strength_training' || w.type === 'gym')
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      .filter((w) => w.type === 'strength_training' || w.type === 'gym')
+      .sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
   }
 
   /**
    * Calculate volume progression (total reps over time)
    */
-  private static calculateVolumeProgression(workouts: LocalWorkout[]): VolumeProgression {
+  private static calculateVolumeProgression(
+    workouts: LocalWorkout[]
+  ): VolumeProgression {
     if (workouts.length === 0) {
       return {
         currentMonthlyVolume: 0,
@@ -62,31 +70,42 @@ export class StrengthTrainingAnalytics {
 
     const now = new Date();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previousMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1
+    );
     const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Current month workouts
-    const currentMonthWorkouts = workouts.filter(w =>
-      new Date(w.startTime) >= currentMonthStart
+    const currentMonthWorkouts = workouts.filter(
+      (w) => new Date(w.startTime) >= currentMonthStart
     );
 
     // Previous month workouts
-    const previousMonthWorkouts = workouts.filter(w => {
+    const previousMonthWorkouts = workouts.filter((w) => {
       const date = new Date(w.startTime);
       return date >= previousMonthStart && date <= previousMonthEnd;
     });
 
     const currentMonthlyVolume = this.calculateTotalReps(currentMonthWorkouts);
-    const previousMonthlyVolume = this.calculateTotalReps(previousMonthWorkouts);
+    const previousMonthlyVolume = this.calculateTotalReps(
+      previousMonthWorkouts
+    );
 
-    const percentChange = previousMonthlyVolume > 0
-      ? ((currentMonthlyVolume - previousMonthlyVolume) / previousMonthlyVolume) * 100
-      : 0;
+    const percentChange =
+      previousMonthlyVolume > 0
+        ? ((currentMonthlyVolume - previousMonthlyVolume) /
+            previousMonthlyVolume) *
+          100
+        : 0;
 
     const trend: VolumeProgression['trend'] =
-      percentChange > 5 ? 'increasing' :
-      percentChange < -5 ? 'decreasing' :
-      'stable';
+      percentChange > 5
+        ? 'increasing'
+        : percentChange < -5
+        ? 'decreasing'
+        : 'stable';
 
     const weeklyVolumes = this.calculateWeeklyVolumes(workouts, 8);
 
@@ -117,10 +136,12 @@ export class StrengthTrainingAnalytics {
     const now = new Date();
 
     for (let i = weeks - 1; i >= 0; i--) {
-      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekStart = new Date(
+        now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000
+      );
       const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
 
-      const weekWorkouts = workouts.filter(w => {
+      const weekWorkouts = workouts.filter((w) => {
         const date = new Date(w.startTime);
         return date >= weekStart && date < weekEnd;
       });
@@ -139,7 +160,9 @@ export class StrengthTrainingAnalytics {
   /**
    * Calculate exercise balance (distribution across exercise types)
    */
-  private static calculateExerciseBalance(workouts: LocalWorkout[]): ExerciseBalance {
+  private static calculateExerciseBalance(
+    workouts: LocalWorkout[]
+  ): ExerciseBalance {
     // Count reps by exercise type from notes/metadata
     const exerciseCounts: Record<string, number> = {
       pushups: 0,
@@ -150,7 +173,7 @@ export class StrengthTrainingAnalytics {
       burpees: 0,
     };
 
-    workouts.forEach(w => {
+    workouts.forEach((w) => {
       const notes = (w.notes || '').toLowerCase();
       const reps = w.reps || 0;
 
@@ -159,7 +182,11 @@ export class StrengthTrainingAnalytics {
         exerciseCounts.pushups += reps;
       } else if (notes.includes('pullup') || notes.includes('pull-up')) {
         exerciseCounts.pullups += reps;
-      } else if (notes.includes('situp') || notes.includes('sit-up') || notes.includes('crunch')) {
+      } else if (
+        notes.includes('situp') ||
+        notes.includes('sit-up') ||
+        notes.includes('crunch')
+      ) {
         exerciseCounts.situps += reps;
       } else if (notes.includes('squat')) {
         exerciseCounts.squats += reps;
@@ -170,7 +197,10 @@ export class StrengthTrainingAnalytics {
       }
     });
 
-    const totalReps = Object.values(exerciseCounts).reduce((sum, val) => sum + val, 0);
+    const totalReps = Object.values(exerciseCounts).reduce(
+      (sum, val) => sum + val,
+      0
+    );
 
     if (totalReps === 0) {
       return {
@@ -180,7 +210,9 @@ export class StrengthTrainingAnalytics {
         squats: 0,
         planks: 0,
         burpees: 0,
-        recommendations: ['Start tracking specific exercises for better insights'],
+        recommendations: [
+          'Start tracking specific exercises for better insights',
+        ],
       };
     }
 
@@ -196,11 +228,16 @@ export class StrengthTrainingAnalytics {
     };
 
     // Generate recommendations based on imbalances
-    const pushPullRatio = exerciseCounts.pushups / Math.max(1, exerciseCounts.pullups);
+    const pushPullRatio =
+      exerciseCounts.pushups / Math.max(1, exerciseCounts.pullups);
     if (pushPullRatio > 2) {
-      balance.recommendations.push('Increase pullups for better push/pull balance');
+      balance.recommendations.push(
+        'Increase pullups for better push/pull balance'
+      );
     } else if (pushPullRatio < 0.5) {
-      balance.recommendations.push('Increase pushups for better push/pull balance');
+      balance.recommendations.push(
+        'Increase pushups for better push/pull balance'
+      );
     }
 
     if (exerciseCounts.situps < totalReps * 0.1) {
@@ -208,7 +245,9 @@ export class StrengthTrainingAnalytics {
     }
 
     if (exerciseCounts.squats < totalReps * 0.15) {
-      balance.recommendations.push('Include more lower body exercises (squats)');
+      balance.recommendations.push(
+        'Include more lower body exercises (squats)'
+      );
     }
 
     if (balance.recommendations.length === 0) {
@@ -221,7 +260,9 @@ export class StrengthTrainingAnalytics {
   /**
    * Calculate workout density (reps per minute)
    */
-  private static calculateWorkoutDensity(workouts: LocalWorkout[]): WorkoutDensity {
+  private static calculateWorkoutDensity(
+    workouts: LocalWorkout[]
+  ): WorkoutDensity {
     if (workouts.length === 0) {
       return {
         avgRepsPerMinute: 0,
@@ -232,8 +273,8 @@ export class StrengthTrainingAnalytics {
     // Calculate density for recent workouts
     const recentWorkouts = workouts.slice(-10); // Last 10 workouts
     const densities = recentWorkouts
-      .filter(w => w.duration > 0 && w.reps)
-      .map(w => (w.reps! / (w.duration / 60))); // reps per minute
+      .filter((w) => w.duration > 0 && w.reps)
+      .map((w) => w.reps! / (w.duration / 60)); // reps per minute
 
     if (densities.length === 0) {
       return {
@@ -242,13 +283,14 @@ export class StrengthTrainingAnalytics {
       };
     }
 
-    const avgRepsPerMinute = densities.reduce((sum, val) => sum + val, 0) / densities.length;
+    const avgRepsPerMinute =
+      densities.reduce((sum, val) => sum + val, 0) / densities.length;
 
     // Compare with older workouts for trend
     const olderWorkouts = workouts.slice(-20, -10);
     const olderDensities = olderWorkouts
-      .filter(w => w.duration > 0 && w.reps)
-      .map(w => (w.reps! / (w.duration / 60)));
+      .filter((w) => w.duration > 0 && w.reps)
+      .map((w) => w.reps! / (w.duration / 60));
 
     if (olderDensities.length === 0) {
       return {
@@ -257,13 +299,12 @@ export class StrengthTrainingAnalytics {
       };
     }
 
-    const olderAvg = olderDensities.reduce((sum, val) => sum + val, 0) / olderDensities.length;
+    const olderAvg =
+      olderDensities.reduce((sum, val) => sum + val, 0) / olderDensities.length;
     const change = ((avgRepsPerMinute - olderAvg) / olderAvg) * 100;
 
     const trend: WorkoutDensity['trend'] =
-      change > 5 ? 'improving' :
-      change < -5 ? 'declining' :
-      'stable';
+      change > 5 ? 'improving' : change < -5 ? 'declining' : 'stable';
 
     return {
       avgRepsPerMinute: Math.round(avgRepsPerMinute * 10) / 10,
@@ -274,11 +315,13 @@ export class StrengthTrainingAnalytics {
   /**
    * Calculate strength vs cardio balance
    */
-  private static calculateStrengthCardioBalance(workouts: LocalWorkout[]): number {
-    const strengthWorkouts = workouts.filter(w =>
-      w.type === 'strength_training' || w.type === 'gym'
+  private static calculateStrengthCardioBalance(
+    workouts: LocalWorkout[]
+  ): number {
+    const strengthWorkouts = workouts.filter(
+      (w) => w.type === 'strength_training' || w.type === 'gym'
     );
-    const cardioWorkouts = workouts.filter(w =>
+    const cardioWorkouts = workouts.filter((w) =>
       ['running', 'cycling', 'walking', 'hiking'].includes(w.type)
     );
 
@@ -292,14 +335,18 @@ export class StrengthTrainingAnalytics {
   /**
    * Calculate optimal rest time between sets
    */
-  private static calculateRestTimeOptimization(workouts: LocalWorkout[]): RestTimeData {
+  private static calculateRestTimeOptimization(
+    workouts: LocalWorkout[]
+  ): RestTimeData {
     // This is simplified - in reality, we'd need rest time data from workouts
     // For now, provide general recommendations
 
-    const workoutsWithRestData = workouts.filter(w => {
+    const workoutsWithRestData = workouts.filter((w) => {
       // Check if notes contain rest time information
       const notes = (w.notes || '').toLowerCase();
-      return notes.includes('rest') || notes.includes('sec') || notes.includes('min');
+      return (
+        notes.includes('rest') || notes.includes('sec') || notes.includes('min')
+      );
     });
 
     if (workoutsWithRestData.length === 0) {
@@ -312,8 +359,8 @@ export class StrengthTrainingAnalytics {
 
     // Parse rest times from notes (simplified)
     const restTimes = workoutsWithRestData
-      .map(w => this.parseRestTime(w.notes || ''))
-      .filter(time => time > 0);
+      .map((w) => this.parseRestTime(w.notes || ''))
+      .filter((time) => time > 0);
 
     if (restTimes.length === 0) {
       return {
@@ -323,7 +370,8 @@ export class StrengthTrainingAnalytics {
       };
     }
 
-    const avgRestTime = restTimes.reduce((sum, val) => sum + val, 0) / restTimes.length;
+    const avgRestTime =
+      restTimes.reduce((sum, val) => sum + val, 0) / restTimes.length;
 
     // Optimal rest time based on average (simplified recommendation)
     let optimalRestTime = 60;

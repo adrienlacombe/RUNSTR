@@ -4,13 +4,23 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, FlatList, RefreshControl, Text, StyleSheet, ScrollView } from 'react-native';
+import {
+  View,
+  FlatList,
+  RefreshControl,
+  Text,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
 import { LoadingOverlay } from '../../ui/LoadingStates';
 import { WorkoutCard } from '../shared/WorkoutCard';
 import { Nuclear1301Service } from '../../../services/fitness/Nuclear1301Service';
-import { WorkoutGroupingService, type WorkoutGroup } from '../../../utils/workoutGrouping';
+import {
+  WorkoutGroupingService,
+  type WorkoutGroup,
+} from '../../../utils/workoutGrouping';
 import { WorkoutTimeGroup } from '../../fitness/WorkoutTimeGroup';
 import type { NostrWorkout } from '../../../types/nostrWorkout';
 import type { UnifiedWorkout } from '../../../services/fitness/workoutMergeService';
@@ -29,15 +39,17 @@ export const NostrWorkoutsTab: React.FC<NostrWorkoutsTabProps> = ({
   const [workouts, setWorkouts] = useState<NostrWorkout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['thisWeek']));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(['thisWeek'])
+  );
 
   const nuclear1301Service = Nuclear1301Service.getInstance();
 
   // Convert NostrWorkout to UnifiedWorkout for compatibility
   const unifiedWorkouts = useMemo((): UnifiedWorkout[] => {
     return workouts
-      .filter(w => w.type && w.type !== 'unknown' && w.type !== 'other')
-      .map(w => ({
+      .filter((w) => w.type && w.type !== 'unknown' && w.type !== 'other')
+      .map((w) => ({
         ...w,
         syncedToNostr: true,
         postedToSocial: false,
@@ -50,9 +62,9 @@ export const NostrWorkoutsTab: React.FC<NostrWorkoutsTabProps> = ({
   const workoutGroups = useMemo((): WorkoutGroup[] => {
     const groups = WorkoutGroupingService.groupWorkoutsByTime(unifiedWorkouts);
     // Apply expanded state
-    return groups.map(group => ({
+    return groups.map((group) => ({
       ...group,
-      isExpanded: expandedGroups.has(group.key)
+      isExpanded: expandedGroups.has(group.key),
     }));
   }, [unifiedWorkouts, expandedGroups]);
 
@@ -69,12 +81,16 @@ export const NostrWorkoutsTab: React.FC<NostrWorkoutsTabProps> = ({
 
     try {
       setIsLoading(true);
-      console.log('📱 Nuclear1301Service: Loading Nostr workouts (kind 1301 events)...');
-      
+      console.log(
+        '📱 Nuclear1301Service: Loading Nostr workouts (kind 1301 events)...'
+      );
+
       const nostrWorkouts = await nuclear1301Service.getUserWorkouts(pubkey);
       setWorkouts(nostrWorkouts);
-      
-      console.log(`✅ Nuclear1301Service: Loaded ${nostrWorkouts.length} Nostr workouts`);
+
+      console.log(
+        `✅ Nuclear1301Service: Loaded ${nostrWorkouts.length} Nostr workouts`
+      );
     } catch (error) {
       console.error('❌ Failed to load Nostr workouts:', error);
       setWorkouts([]);
@@ -96,7 +112,7 @@ export const NostrWorkoutsTab: React.FC<NostrWorkoutsTabProps> = ({
   };
 
   const toggleGroup = (groupKey: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(groupKey)) {
         newSet.delete(groupKey);
@@ -134,12 +150,14 @@ export const NostrWorkoutsTab: React.FC<NostrWorkoutsTabProps> = ({
       {/* Grouped Workout List */}
       <View style={styles.list}>
         {workoutGroups.length > 0 ? (
-          workoutGroups.map(group => (
+          workoutGroups.map((group) => (
             <WorkoutTimeGroup
               key={group.key}
               group={group}
               onToggle={toggleGroup}
-              renderWorkout={(workout) => renderWorkout({ item: workout as NostrWorkout })}
+              renderWorkout={(workout) =>
+                renderWorkout({ item: workout as NostrWorkout })
+              }
             />
           ))
         ) : (

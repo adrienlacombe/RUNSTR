@@ -4,7 +4,14 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { theme } from '../../styles/theme';
 import { ZappableUserRow } from '../ui/ZappableUserRow';
 
@@ -86,10 +93,12 @@ export const SimpleLeagueDisplay: React.FC<SimpleLeagueDisplayProps> = ({
             {/* Row 1: Rank + User + Action Buttons */}
             <View style={styles.topRow}>
               <View style={styles.rankContainer}>
-                <Text style={[
-                  styles.rankText,
-                  entry.rank <= 3 && styles.topThreeRank
-                ]}>
+                <Text
+                  style={[
+                    styles.rankText,
+                    entry.rank <= 3 && styles.topThreeRank,
+                  ]}
+                >
                   {entry.rank}
                 </Text>
               </View>
@@ -104,13 +113,13 @@ export const SimpleLeagueDisplay: React.FC<SimpleLeagueDisplayProps> = ({
 
             {/* Row 2: Stats below */}
             <View style={styles.statsRow}>
-              <Text style={styles.workoutCount}>
-                {entry.workoutCount} runs
-              </Text>
-              <Text style={[
-                styles.scoreText,
-                entry.rank <= 3 && styles.topThreeScore
-              ]}>
+              <Text style={styles.workoutCount}>{entry.workoutCount} runs</Text>
+              <Text
+                style={[
+                  styles.scoreText,
+                  entry.rank <= 3 && styles.topThreeScore,
+                ]}
+              >
                 {entry.formattedScore}
               </Text>
             </View>

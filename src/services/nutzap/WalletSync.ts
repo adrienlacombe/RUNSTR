@@ -5,7 +5,12 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NDK, { NDKEvent, NDKPrivateKeySigner, NDKKind, type NDKSigner } from '@nostr-dev-kit/ndk';
+import NDK, {
+  NDKEvent,
+  NDKPrivateKeySigner,
+  NDKKind,
+  type NDKSigner,
+} from '@nostr-dev-kit/ndk';
 import { Proof } from '@cashu/cashu-ts';
 import WalletCore from './WalletCore';
 import { unifiedNotificationStore } from '../notifications/UnifiedNotificationStore';
@@ -15,7 +20,7 @@ import UnifiedSigningService from '../auth/UnifiedSigningService';
 // Event kinds
 const EVENT_KINDS = {
   WALLET_INFO: 37375,
-  NUTZAP: 9321
+  NUTZAP: 9321,
 } as const;
 
 /**
@@ -55,7 +60,9 @@ export class WalletSync {
       const signerPromise = UnifiedSigningService.getInstance().getSigner();
       const timeoutPromise = new Promise<null>((resolve) => {
         setTimeout(() => {
-          console.warn('[WalletSync] Signer fetch timeout (3s) - continuing without signer');
+          console.warn(
+            '[WalletSync] Signer fetch timeout (3s) - continuing without signer'
+          );
           resolve(null);
         }, 3000);
       });
@@ -66,13 +73,14 @@ export class WalletSync {
         this.signer = unifiedSigner;
         console.log('[WalletSync] Signer obtained from UnifiedSigningService');
       } else {
-        console.warn('[WalletSync] No signer available - operating in receive-only mode');
+        console.warn(
+          '[WalletSync] No signer available - operating in receive-only mode'
+        );
         this.signer = null;
       }
 
       // Use GlobalNDKService for relay connections (non-blocking)
       this.connectAsync();
-
     } catch (error) {
       console.warn('[WalletSync] Initialization failed (will retry):', error);
     }
@@ -98,14 +106,17 @@ export class WalletSync {
       this.isConnected = GlobalNDKService.isConnected();
 
       const status = GlobalNDKService.getStatus();
-      console.log(`[WalletSync] Connected to GlobalNDK (${status.connectedRelays}/${status.relayCount} relays)`);
+      console.log(
+        `[WalletSync] Connected to GlobalNDK (${status.connectedRelays}/${status.relayCount} relays)`
+      );
 
       // Start background tasks immediately
       // GlobalNDK's connection monitoring will handle reconnections automatically
       this.startBackgroundTasks();
 
-      console.log('[WalletSync] ✅ Initialized successfully - GlobalNDK will maintain connections');
-
+      console.log(
+        '[WalletSync] ✅ Initialized successfully - GlobalNDK will maintain connections'
+      );
     } catch (error) {
       console.warn('[WalletSync] Initialization error:', error);
       // Don't retry - GlobalNDK will handle reconnection
@@ -119,14 +130,14 @@ export class WalletSync {
     // Auto-claim nutzaps every 30 seconds
     if (!this.autoClaimInterval) {
       this.autoClaimInterval = setInterval(() => {
-        this.claimNutzaps().catch(err =>
+        this.claimNutzaps().catch((err) =>
           console.warn('[WalletSync] Auto-claim error:', err)
         );
       }, 30000);
     }
 
     // Initial sync
-    this.syncWalletToNostr().catch(err =>
+    this.syncWalletToNostr().catch((err) =>
       console.warn('[WalletSync] Initial sync failed:', err)
     );
   }
@@ -180,7 +191,12 @@ export class WalletSync {
    * ✅ NEW: Uses RUNSTR-specific d-tag for deterministic wallet identity
    * ✅ UPDATED: Checks GlobalNDK connection status dynamically
    */
-  async publishWalletInfo(dTag: string, name: string, balance: number, mintUrl: string): Promise<boolean> {
+  async publishWalletInfo(
+    dTag: string,
+    name: string,
+    balance: number,
+    mintUrl: string
+  ): Promise<boolean> {
     if (!this.ndk || !GlobalNDKService.isConnected()) {
       console.log('[WalletSync] Not connected, cannot publish wallet info');
       return false;
@@ -202,22 +218,24 @@ export class WalletSync {
         balance,
         app: 'runstr',
         version: '0.1.16',
-        last_updated: Date.now()
+        last_updated: Date.now(),
       });
       walletEvent.tags = [
-        ['d', dTag],           // Deterministic d-tag
+        ['d', dTag], // Deterministic d-tag
         ['mint', mintUrl],
         ['name', name],
         ['unit', 'sat'],
-        ['balance', balance.toString()]  // Public balance - no decryption needed
+        ['balance', balance.toString()], // Public balance - no decryption needed
       ];
 
       await walletEvent.publish();
       console.log('[WalletSync] ✅ Wallet info published to Nostr');
-      console.log('[WalletSync] Event ID:', walletEvent.id?.slice(0, 16) + '...');
+      console.log(
+        '[WalletSync] Event ID:',
+        walletEvent.id?.slice(0, 16) + '...'
+      );
 
       return true;
-
     } catch (error) {
       console.error('[WalletSync] Publish wallet info failed:', error);
       return false;
@@ -237,15 +255,25 @@ export class WalletSync {
     try {
       console.log('[WalletSync] Syncing wallet to Nostr...');
 
-      const { RUNSTR_WALLET_DTAG, RUNSTR_WALLET_NAME } = require('./WalletDetectionService');
+      const {
+        RUNSTR_WALLET_DTAG,
+        RUNSTR_WALLET_NAME,
+      } = require('./WalletDetectionService');
       const balance = await WalletCore.getBalance();
-      const mintUrl = await AsyncStorage.getItem(`@runstr:wallet_mint:${this.userPubkey}`) || 'https://mint.coinos.io';
+      const mintUrl =
+        (await AsyncStorage.getItem(
+          `@runstr:wallet_mint:${this.userPubkey}`
+        )) || 'https://mint.coinos.io';
 
       // Publish/update wallet info with RUNSTR d-tag
-      await this.publishWalletInfo(RUNSTR_WALLET_DTAG, RUNSTR_WALLET_NAME, balance, mintUrl);
+      await this.publishWalletInfo(
+        RUNSTR_WALLET_DTAG,
+        RUNSTR_WALLET_NAME,
+        balance,
+        mintUrl
+      );
 
       console.log('[WalletSync] Wallet synced to Nostr');
-
     } catch (error) {
       console.warn('[WalletSync] Sync failed:', error);
     }
@@ -255,7 +283,12 @@ export class WalletSync {
    * Publish nutzap event to Nostr
    * ✅ UPDATED: Dynamic connection checking
    */
-  async publishNutzap(recipientPubkey: string, amount: number, token: string, memo: string = ''): Promise<boolean> {
+  async publishNutzap(
+    recipientPubkey: string,
+    amount: number,
+    token: string,
+    memo: string = ''
+  ): Promise<boolean> {
     if (!this.ndk || !GlobalNDKService.isConnected()) {
       console.log('[WalletSync] Not connected, cannot publish nutzap');
       return false;
@@ -269,13 +302,14 @@ export class WalletSync {
         ['p', recipientPubkey],
         ['amount', amount.toString()],
         ['unit', 'sat'],
-        ['proof', token]
+        ['proof', token],
       ];
 
       await nutzapEvent.publish();
-      console.log(`[WalletSync] Published nutzap to ${recipientPubkey.slice(0, 8)}...`);
+      console.log(
+        `[WalletSync] Published nutzap to ${recipientPubkey.slice(0, 8)}...`
+      );
       return true;
-
     } catch (error) {
       console.error('[WalletSync] Publish nutzap failed:', error);
       return false;
@@ -286,7 +320,9 @@ export class WalletSync {
    * Claim incoming nutzaps from Nostr
    * ✅ UPDATED: Dynamic connection checking, removed retry logic (GlobalNDK handles it)
    */
-  async claimNutzaps(retryCount: number = 3): Promise<{ claimed: number; total: number }> {
+  async claimNutzaps(
+    retryCount: number = 3
+  ): Promise<{ claimed: number; total: number }> {
     if (!this.ndk || !GlobalNDKService.isConnected()) {
       console.log('[WalletSync] Not connected, skipping claim');
       return { claimed: 0, total: 0 };
@@ -299,10 +335,12 @@ export class WalletSync {
         this.ndk.fetchEvents({
           kinds: [EVENT_KINDS.NUTZAP as NDKKind],
           '#p': [this.userPubkey],
-          since: Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60), // Last 7 days
-          limit: 200  // Reasonable for 7-day claim window
+          since: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60, // Last 7 days
+          limit: 200, // Reasonable for 7-day claim window
         }),
-        new Promise<Set<NDKEvent>>((resolve) => setTimeout(() => resolve(new Set()), 5000))
+        new Promise<Set<NDKEvent>>((resolve) =>
+          setTimeout(() => resolve(new Set()), 5000)
+        ),
       ]);
 
       let claimedAmount = 0;
@@ -310,8 +348,8 @@ export class WalletSync {
 
       for (const event of nutzapEvents) {
         try {
-          const proofTag = event.tags.find(t => t[0] === 'proof');
-          const amountTag = event.tags.find(t => t[0] === 'amount');
+          const proofTag = event.tags.find((t) => t[0] === 'proof');
+          const amountTag = event.tags.find((t) => t[0] === 'amount');
 
           if (proofTag && amountTag) {
             const token = proofTag[1];
@@ -324,7 +362,11 @@ export class WalletSync {
 
             if (result.amount > 0) {
               claimedAmount += result.amount;
-              console.log(`[WalletSync] Claimed ${result.amount} sats from ${event.pubkey.slice(0, 8)}...`);
+              console.log(
+                `[WalletSync] Claimed ${
+                  result.amount
+                } sats from ${event.pubkey.slice(0, 8)}...`
+              );
 
               // Create notification for incoming zap
               try {
@@ -335,17 +377,26 @@ export class WalletSync {
                   {
                     amount: result.amount,
                     senderPubkey: event.pubkey,
-                    timestamp: event.created_at || Math.floor(Date.now() / 1000),
+                    timestamp:
+                      event.created_at || Math.floor(Date.now() / 1000),
                   },
                   {
                     icon: 'flash',
                     actions: [
-                      { id: 'view_wallet', type: 'view_wallet', label: 'View Wallet', isPrimary: true }
-                    ]
+                      {
+                        id: 'view_wallet',
+                        type: 'view_wallet',
+                        label: 'View Wallet',
+                        isPrimary: true,
+                      },
+                    ],
                   }
                 );
               } catch (notifError) {
-                console.warn('[WalletSync] Failed to create zap notification:', notifError);
+                console.warn(
+                  '[WalletSync] Failed to create zap notification:',
+                  notifError
+                );
               }
             }
           }
@@ -359,7 +410,6 @@ export class WalletSync {
       }
 
       return { claimed: claimedAmount, total: totalAmount };
-
     } catch (error: any) {
       console.warn('[WalletSync] Claim process failed:', error.message);
       return { claimed: 0, total: 0 };
@@ -396,13 +446,14 @@ export class WalletSync {
         ['d', `wallet-tokens-${mintHash}`], // Replaceable per mint
         ['mint', mintUrl],
         ['balance', proofs.reduce((sum, p) => sum + p.amount, 0).toString()],
-        ['proof_count', proofs.length.toString()]
+        ['proof_count', proofs.length.toString()],
       ];
 
       await tokenEvent.publish();
-      console.log(`[WalletSync] Published token event: ${proofs.length} proofs, ${tokenEvent.tags[2][1]} sats`);
+      console.log(
+        `[WalletSync] Published token event: ${proofs.length} proofs, ${tokenEvent.tags[2][1]} sats`
+      );
       return true;
-
     } catch (error) {
       console.error('[WalletSync] Token event publish failed:', error);
       return false;
@@ -414,7 +465,10 @@ export class WalletSync {
    * Returns all proofs found across all mints
    * ✅ UPDATED: Dynamic connection checking
    */
-  async restoreProofsFromNostr(): Promise<{ proofs: Proof[]; mintUrl: string } | null> {
+  async restoreProofsFromNostr(): Promise<{
+    proofs: Proof[];
+    mintUrl: string;
+  } | null> {
     if (!this.ndk || !GlobalNDKService.isConnected()) {
       console.log('[WalletSync] Not connected, cannot restore from Nostr');
       return null;
@@ -428,11 +482,11 @@ export class WalletSync {
         this.ndk.fetchEvents({
           kinds: [7375 as NDKKind],
           authors: [this.userPubkey],
-          limit: 200 // Fetch recent token history for restoration
+          limit: 200, // Fetch recent token history for restoration
         }),
-        new Promise<Set<NDKEvent>>((resolve) =>
-          setTimeout(() => resolve(new Set()), 5000) // 5s timeout
-        )
+        new Promise<Set<NDKEvent>>(
+          (resolve) => setTimeout(() => resolve(new Set()), 5000) // 5s timeout
+        ),
       ]);
 
       if (tokenEvents.size === 0) {
@@ -454,7 +508,7 @@ export class WalletSync {
             allProofs.push(...proofs);
 
             // Track which mint has the most balance
-            const mintTag = event.tags.find(t => t[0] === 'mint');
+            const mintTag = event.tags.find((t) => t[0] === 'mint');
             const balance = proofs.reduce((sum, p) => sum + p.amount, 0);
 
             if (balance > highestBalance) {
@@ -462,7 +516,11 @@ export class WalletSync {
               primaryMint = mintTag?.[1] || 'https://mint.coinos.io';
             }
 
-            console.log(`[WalletSync] Restored ${proofs.length} proofs (${balance} sats) from ${event.id.slice(0, 8)}...`);
+            console.log(
+              `[WalletSync] Restored ${
+                proofs.length
+              } proofs (${balance} sats) from ${event.id.slice(0, 8)}...`
+            );
           }
         } catch (err) {
           console.warn('[WalletSync] Failed to decrypt token event:', err);
@@ -470,13 +528,14 @@ export class WalletSync {
       }
 
       const totalBalance = allProofs.reduce((sum, p) => sum + p.amount, 0);
-      console.log(`[WalletSync] Total restored: ${allProofs.length} proofs, ${totalBalance} sats`);
+      console.log(
+        `[WalletSync] Total restored: ${allProofs.length} proofs, ${totalBalance} sats`
+      );
 
       return {
         proofs: allProofs,
-        mintUrl: primaryMint || 'https://mint.coinos.io'
+        mintUrl: primaryMint || 'https://mint.coinos.io',
       };
-
     } catch (error) {
       console.error('[WalletSync] Restore failed:', error);
       return null;
@@ -501,7 +560,7 @@ export class WalletSync {
       const walletEvents = await this.ndk.fetchEvents({
         kinds: [EVENT_KINDS.WALLET_INFO as NDKKind],
         authors: [this.userPubkey],
-        '#d': [dTag]
+        '#d': [dTag],
       });
 
       if (walletEvents.size === 0) {
@@ -510,8 +569,9 @@ export class WalletSync {
       }
 
       // Get most recent wallet event
-      const latestEvent = Array.from(walletEvents)
-        .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+      const latestEvent = Array.from(walletEvents).sort(
+        (a, b) => (b.created_at || 0) - (a.created_at || 0)
+      )[0];
 
       const content = JSON.parse(latestEvent.content);
 
@@ -521,9 +581,8 @@ export class WalletSync {
       // For now, just note that wallet exists
       return {
         balance: content.balance || 0,
-        restored: true
+        restored: true,
       };
-
     } catch (error) {
       console.error('[WalletSync] Restore failed:', error);
       return { balance: 0, restored: false };

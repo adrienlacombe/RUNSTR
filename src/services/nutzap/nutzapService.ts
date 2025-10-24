@@ -46,17 +46,23 @@ class NutzapService {
    * ✅ FIXED: Now restores from Nostr instead of creating duplicates
    * Supports both nsec and Amber authentication
    */
-  async initialize(nsec?: string, quickResume: boolean = false): Promise<WalletState> {
+  async initialize(
+    nsec?: string,
+    quickResume: boolean = false
+  ): Promise<WalletState> {
     try {
       console.log('[NutZap] ========================================');
       console.log('[NutZap] Initializing wallet with Nostr fallback');
       console.log('[NutZap] ========================================');
 
       // Check authentication method
-      const authMethod = await UnifiedSigningService.getInstance().getAuthMethod();
+      const authMethod =
+        await UnifiedSigningService.getInstance().getAuthMethod();
 
       if (authMethod === 'amber') {
-        console.log('[NutZap] Detected Amber authentication - using receive-only mode');
+        console.log(
+          '[NutZap] Detected Amber authentication - using receive-only mode'
+        );
         return await this.initializeAmberMode();
       }
 
@@ -72,7 +78,7 @@ class NutzapService {
             mint: 'https://mint.coinos.io',
             proofs: [],
             pubkey: 'unknown',
-            created: false
+            created: false,
           };
         }
       }
@@ -85,15 +91,18 @@ class NutzapService {
           mint: 'https://mint.coinos.io',
           proofs: [],
           pubkey: 'unknown',
-          created: false
+          created: false,
         };
       }
 
       // Get pubkey from nsec
       const signer = new NDKPrivateKeySigner(userNsec);
-      this.userPubkey = await signer.user().then(u => u.pubkey);
+      this.userPubkey = await signer.user().then((u) => u.pubkey);
 
-      console.log('[NutZap] User pubkey:', this.userPubkey.slice(0, 16) + '...');
+      console.log(
+        '[NutZap] User pubkey:',
+        this.userPubkey.slice(0, 16) + '...'
+      );
 
       // ✅ CRITICAL: Initialize WalletCore - will restore from Nostr if no local wallet
       console.log('[NutZap] Calling WalletCore.initialize()...');
@@ -102,16 +111,21 @@ class NutzapService {
       console.log('[NutZap] WalletCore initialized:', {
         balance: walletState.balance,
         proofs: walletState.proofs.length,
-        mint: walletState.mint
+        mint: walletState.mint,
       });
 
       // Check wallet state
-      const hasWallet = walletState.balance > 0 || walletState.proofs.length > 0;
+      const hasWallet =
+        walletState.balance > 0 || walletState.proofs.length > 0;
 
       if (hasWallet) {
         console.log('[NutZap] ✅ RUNSTR WALLET LOADED');
         console.log('[NutZap] Balance:', walletState.balance, 'sats');
-        console.log('[NutZap] Proofs:', walletState.proofs.length, walletState.proofs.length === 0 ? '(will decrypt on send)' : '');
+        console.log(
+          '[NutZap] Proofs:',
+          walletState.proofs.length,
+          walletState.proofs.length === 0 ? '(will decrypt on send)' : ''
+        );
         console.log('[NutZap] Mint:', walletState.mint);
       } else {
         console.log('[NutZap] ℹ️  No RUNSTR wallet found');
@@ -121,7 +135,7 @@ class NutzapService {
 
       // Initialize WalletSync in background (non-blocking)
       // WalletSync now uses UnifiedSigningService internally
-      WalletSync.initialize(this.userPubkey).catch(err =>
+      WalletSync.initialize(this.userPubkey).catch((err) =>
         console.warn('[NutZap] Background sync init failed:', err)
       );
 
@@ -133,15 +147,14 @@ class NutzapService {
         mint: walletState.mint,
         proofs: walletState.proofs,
         pubkey: walletState.pubkey,
-        created: false
+        created: false,
       };
-
     } catch (error) {
       console.error('[NutZap] ❌ Initialization error:', error);
       console.error('[NutZap] Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
-        userPubkey: this.userPubkey || 'not set'
+        userPubkey: this.userPubkey || 'not set',
       });
 
       // DO NOT set isInitialized = true on error
@@ -152,7 +165,7 @@ class NutzapService {
         mint: 'https://mint.coinos.io',
         proofs: [],
         pubkey: this.userPubkey || 'unknown',
-        created: false
+        created: false,
       };
     }
   }
@@ -166,7 +179,8 @@ class NutzapService {
       console.log('[NutZap] Initializing in Amber mode (receive-only)...');
 
       // Get pubkey from UnifiedSigningService
-      const hexPubkey = await UnifiedSigningService.getInstance().getUserPubkey();
+      const hexPubkey =
+        await UnifiedSigningService.getInstance().getUserPubkey();
       if (!hexPubkey) {
         throw new Error('Failed to get pubkey from Amber');
       }
@@ -177,7 +191,7 @@ class NutzapService {
       const walletState = await WalletCore.initialize(hexPubkey);
 
       // Initialize WalletSync WITHOUT nsec (uses UnifiedSigningService)
-      WalletSync.initialize(hexPubkey).catch(err =>
+      WalletSync.initialize(hexPubkey).catch((err) =>
         console.warn('[NutZap] Background sync init failed:', err)
       );
 
@@ -189,7 +203,7 @@ class NutzapService {
         mint: walletState.mint,
         proofs: walletState.proofs,
         pubkey: walletState.pubkey,
-        created: false
+        created: false,
       };
     } catch (error) {
       console.error('[NutZap] Amber initialization error:', error);
@@ -200,7 +214,9 @@ class NutzapService {
   /**
    * Initialize for receive-only mode (Amber users)
    */
-  async initializeForReceiveOnly(hexPubkey: string): Promise<{ created: boolean; address?: string }> {
+  async initializeForReceiveOnly(
+    hexPubkey: string
+  ): Promise<{ created: boolean; address?: string }> {
     try {
       console.log('[NutZap] Initializing for receive-only mode...');
 
@@ -211,7 +227,7 @@ class NutzapService {
 
       return {
         created: false,
-        address: `${hexPubkey.slice(0, 8)}...@nutzap`
+        address: `${hexPubkey.slice(0, 8)}...@nutzap`,
       };
     } catch (error) {
       console.error('[NutZap] Receive-only init error:', error);
@@ -235,16 +251,20 @@ class NutzapService {
         amount,
         memo: memo.slice(0, 30),
         isInitialized: this.isInitialized,
-        userPubkey: this.userPubkey.slice(0, 16) + '...'
+        userPubkey: this.userPubkey.slice(0, 16) + '...',
       });
 
       if (!this.isInitialized) {
         console.error('[NutZap] ❌ Cannot send: Wallet not initialized');
         console.error('[NutZap] Wallet state:', {
           isInitialized: this.isInitialized,
-          userPubkey: this.userPubkey || 'not set'
+          userPubkey: this.userPubkey || 'not set',
         });
-        return { success: false, error: 'Wallet not initialized. Please go to Settings and pull down to refresh.' };
+        return {
+          success: false,
+          error:
+            'Wallet not initialized. Please go to Settings and pull down to refresh.',
+        };
       }
 
       // Verify signing capability (works for both nsec and Amber)
@@ -256,7 +276,8 @@ class NutzapService {
         console.error('[NutZap] ❌ No signing capability');
         return {
           success: false,
-          error: 'No signing capability available. Please ensure you are properly authenticated.'
+          error:
+            'No signing capability available. Please ensure you are properly authenticated.',
         };
       }
 
@@ -269,21 +290,28 @@ class NutzapService {
         // Publish nutzap to Nostr (NIP-61)
         try {
           const WalletSync = require('./WalletSync').default;
-          await WalletSync.publishNutzap(recipientPubkey, amount, result.token, memo);
+          await WalletSync.publishNutzap(
+            recipientPubkey,
+            amount,
+            result.token,
+            memo
+          );
           console.log(`[NutZap] Sent ${amount} sats and published to Nostr`);
         } catch (publishError) {
           // Token already created and balance deducted, just log the publish error
-          console.warn('[NutZap] Failed to publish to Nostr, but token created:', publishError);
+          console.warn(
+            '[NutZap] Failed to publish to Nostr, but token created:',
+            publishError
+          );
         }
       }
 
       return result;
-
     } catch (error: any) {
       console.error('[NutZap] Send error:', error);
       return {
         success: false,
-        error: error.message || 'Send failed'
+        error: error.message || 'Send failed',
       };
     }
   }
@@ -299,7 +327,6 @@ class NutzapService {
 
       // Claim via WalletSync
       return await WalletSync.claimNutzaps();
-
     } catch (error: any) {
       console.error('[NutZap] Claim error:', error);
       return { claimed: 0, total: 0 };
@@ -316,7 +343,10 @@ class NutzapService {
   /**
    * Create Lightning invoice
    */
-  async createLightningInvoice(amount: number, memo: string = ''): Promise<{ pr: string; hash: string }> {
+  async createLightningInvoice(
+    amount: number,
+    memo: string = ''
+  ): Promise<{ pr: string; hash: string }> {
     try {
       if (!this.isInitialized) {
         throw new Error('Wallet not initialized');
@@ -329,7 +359,6 @@ class NutzapService {
       }
 
       return { pr: result.pr, hash: result.hash };
-
     } catch (error: any) {
       console.error('[NutZap] Create invoice error:', error);
       throw error;
@@ -352,7 +381,9 @@ class NutzapService {
    * Pay Lightning invoice
    * Routes to NWC or Cashu based on feature flags
    */
-  async payLightningInvoice(invoice: string): Promise<{ success: boolean; fee?: number; error?: string }> {
+  async payLightningInvoice(
+    invoice: string
+  ): Promise<{ success: boolean; fee?: number; error?: string }> {
     try {
       if (!this.isInitialized) {
         return { success: false, error: 'Wallet not initialized' };
@@ -360,7 +391,6 @@ class NutzapService {
 
       // Use PaymentRouter to automatically route to correct wallet
       return await PaymentRouter.payInvoice(invoice);
-
     } catch (error: any) {
       console.error('[NutZap] Payment error:', error);
       return { success: false, error: error.message || 'Payment failed' };

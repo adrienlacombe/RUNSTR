@@ -61,7 +61,9 @@ export const Avatar: React.FC<AvatarProps> = ({
           color={theme.colors.text}
         />
       ) : (
-        <Text style={[styles.initial, textStyle]}>{getInitial(name || '')}</Text>
+        <Text style={[styles.initial, textStyle]}>
+          {getInitial(name || '')}
+        </Text>
       )}
     </View>
   );

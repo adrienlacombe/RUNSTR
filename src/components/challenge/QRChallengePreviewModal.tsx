@@ -50,12 +50,9 @@ export interface QRChallengePreviewModalProps {
   onClose: () => void;
 }
 
-export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = ({
-  visible,
-  challengeData,
-  onAccept,
-  onClose,
-}) => {
+export const QRChallengePreviewModal: React.FC<
+  QRChallengePreviewModalProps
+> = ({ visible, challengeData, onAccept, onClose }) => {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
 
@@ -90,12 +87,13 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
       );
 
       // Generate Lightning invoice for scanner (accepter role)
-      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
-        challengeData.challenge_id,
-        challengeData.wager,
-        userIdentifiers.hexPubkey,
-        'accepter'
-      );
+      const invoiceResult =
+        await challengeEscrowService.generateChallengeInvoice(
+          challengeData.challenge_id,
+          challengeData.wager,
+          userIdentifiers.hexPubkey,
+          'accepter'
+        );
 
       if (!invoiceResult.success || !invoiceResult.invoice) {
         throw new Error(invoiceResult.error || 'Failed to generate invoice');
@@ -128,7 +126,9 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
       const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
-        throw new Error('Cannot access signing capability. Please ensure you are logged in.');
+        throw new Error(
+          'Cannot access signing capability. Please ensure you are logged in.'
+        );
       }
 
       // Accept QR challenge (signs and publishes kind 1106 + kind 30000)
@@ -215,7 +215,9 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Challenge from {challengerName}</Text>
+            <Text style={styles.headerTitle}>
+              Challenge from {challengerName}
+            </Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
@@ -254,7 +256,9 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
 
             <View style={styles.detailRow}>
               <Text style={styles.detailIcon}>📅</Text>
-              <Text style={styles.detailText}>{challengeData.duration} days</Text>
+              <Text style={styles.detailText}>
+                {challengeData.duration} days
+              </Text>
             </View>
 
             {challengeData.wager > 0 && (
@@ -273,31 +277,44 @@ export const QRChallengePreviewModal: React.FC<QRChallengePreviewModalProps> = (
           {/* Additional Info */}
           <View style={styles.infoSection}>
             <Text style={styles.infoText}>
-              First to complete the most {challengeData.metric} in {challengeData.duration} days wins!
+              First to complete the most {challengeData.metric} in{' '}
+              {challengeData.duration} days wins!
             </Text>
           </View>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={[styles.declineButton, isDeclining && styles.buttonDisabled]}
+              style={[
+                styles.declineButton,
+                isDeclining && styles.buttonDisabled,
+              ]}
               onPress={handleDecline}
               disabled={isAccepting || isDeclining}
             >
               {isDeclining ? (
-                <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.textMuted}
+                />
               ) : (
                 <Text style={styles.declineButtonText}>Decline</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.acceptButton, isAccepting && styles.buttonDisabled]}
+              style={[
+                styles.acceptButton,
+                isAccepting && styles.buttonDisabled,
+              ]}
               onPress={handleAccept}
               disabled={isAccepting || isDeclining}
             >
               {isAccepting ? (
-                <ActivityIndicator size="small" color={theme.colors.accentText} />
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.accentText}
+                />
               ) : (
                 <Text style={styles.acceptButtonText}>Accept ✓</Text>
               )}

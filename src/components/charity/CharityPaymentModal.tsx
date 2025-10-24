@@ -117,7 +117,11 @@ export const CharityPaymentModal: React.FC<CharityPaymentModalProps> = ({
               style={styles.invoiceContainer}
               activeOpacity={0.7}
             >
-              <Text style={styles.invoice} numberOfLines={3} ellipsizeMode="middle">
+              <Text
+                style={styles.invoice}
+                numberOfLines={3}
+                ellipsizeMode="middle"
+              >
                 {invoice}
               </Text>
               <View style={styles.copyIndicator}>
@@ -168,7 +172,11 @@ export const CharityPaymentModal: React.FC<CharityPaymentModalProps> = ({
             onPress={handlePaid}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.accentText} />
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color={theme.colors.accentText}
+            />
             <Text style={styles.paidButtonText}>I Paid This Invoice</Text>
           </TouchableOpacity>
 
@@ -182,7 +190,8 @@ export const CharityPaymentModal: React.FC<CharityPaymentModalProps> = ({
 
           {/* Note */}
           <Text style={styles.note}>
-            Thank you for supporting {charityName}! Your donation helps make a difference.
+            Thank you for supporting {charityName}! Your donation helps make a
+            difference.
           </Text>
         </View>
       </View>

@@ -43,7 +43,7 @@ class SimpleCache {
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
-      ttl: ttlMs || this.DEFAULT_TTL
+      ttl: ttlMs || this.DEFAULT_TTL,
     };
 
     // Update memory cache
@@ -59,7 +59,7 @@ class SimpleCache {
     if (!pattern) {
       this.memoryCache.clear();
       const keys = await AsyncStorage.getAllKeys();
-      const cacheKeys = keys.filter(k => k.startsWith('cache_'));
+      const cacheKeys = keys.filter((k) => k.startsWith('cache_'));
       await AsyncStorage.multiRemove(cacheKeys);
     } else {
       // Clear specific pattern

@@ -76,7 +76,9 @@ export class TeamJoinRequestService {
       pubkey: requesterPubkey,
     };
 
-    console.log(`✅ Prepared join request template for: ${requestData.teamName}`);
+    console.log(
+      `✅ Prepared join request template for: ${requestData.teamName}`
+    );
     return eventTemplate;
   }
 
@@ -91,11 +93,18 @@ export class TeamJoinRequestService {
 
     // Check cache first
     if (this.isCacheValid() && this.cachedRequests.has(cacheKey)) {
-      console.log(`💾 Retrieved cached join requests for captain: ${captainPubkey.slice(0, 8)}`);
+      console.log(
+        `💾 Retrieved cached join requests for captain: ${captainPubkey.slice(
+          0,
+          8
+        )}`
+      );
       return this.cachedRequests.get(cacheKey)!;
     }
 
-    console.log(`🔍 Fetching join requests for captain: ${captainPubkey.slice(0, 8)}`);
+    console.log(
+      `🔍 Fetching join requests for captain: ${captainPubkey.slice(0, 8)}`
+    );
 
     try {
       // Get GlobalNDK instance
@@ -141,7 +150,9 @@ export class TeamJoinRequestService {
       this.cachedRequests.set(cacheKey, requests);
       this.lastCacheUpdate = Date.now();
 
-      console.log(`✅ Found ${requests.length} join requests (${processedEvents} events processed)`);
+      console.log(
+        `✅ Found ${requests.length} join requests (${processedEvents} events processed)`
+      );
       return requests;
     } catch (error) {
       console.error(`❌ Failed to fetch join requests:`, error);
@@ -186,7 +197,9 @@ export class TeamJoinRequestService {
 
       requests.sort((a, b) => b.timestamp - a.timestamp);
 
-      console.log(`✅ Found ${requests.length} join requests for team ${teamId}`);
+      console.log(
+        `✅ Found ${requests.length} join requests for team ${teamId}`
+      );
       return requests;
     } catch (error) {
       console.error(`❌ Failed to fetch team join requests:`, error);
@@ -201,7 +214,12 @@ export class TeamJoinRequestService {
     requesterPubkey: string,
     teamId: string
   ): Promise<boolean> {
-    console.log(`🔍 Checking pending request: ${requesterPubkey.slice(0, 8)} → team ${teamId}`);
+    console.log(
+      `🔍 Checking pending request: ${requesterPubkey.slice(
+        0,
+        8
+      )} → team ${teamId}`
+    );
 
     try {
       // Get GlobalNDK instance
@@ -229,7 +247,9 @@ export class TeamJoinRequestService {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       subscription.stop();
 
-      console.log(`${hasPending ? '✅' : '❌'} Pending request status: ${hasPending}`);
+      console.log(
+        `${hasPending ? '✅' : '❌'} Pending request status: ${hasPending}`
+      );
       return hasPending;
     } catch (error) {
       console.error(`❌ Failed to check pending request:`, error);
@@ -290,7 +310,12 @@ export class TeamJoinRequestService {
     captainPubkey: string,
     callback: (request: TeamJoinRequest) => void
   ): Promise<NDKSubscription> {
-    console.log(`🔔 Subscribing to join requests for captain: ${captainPubkey.slice(0, 8)}`);
+    console.log(
+      `🔔 Subscribing to join requests for captain: ${captainPubkey.slice(
+        0,
+        8
+      )}`
+    );
 
     // Get GlobalNDK instance
     const ndk = await GlobalNDKService.getInstance();

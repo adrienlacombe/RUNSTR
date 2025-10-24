@@ -48,7 +48,9 @@ export function initializeWebSocketPolyfill(): void {
 /**
  * Test WebSocket connectivity (development only)
  */
-export async function testWebSocketConnectivity(relayUrl: string): Promise<boolean> {
+export async function testWebSocketConnectivity(
+  relayUrl: string
+): Promise<boolean> {
   if (!DEBUG) return true; // Skip in production
 
   return new Promise((resolve) => {
@@ -80,7 +82,6 @@ export async function testWebSocketConnectivity(relayUrl: string): Promise<boole
           resolve(false);
         }
       };
-
     } catch (error) {
       resolve(false);
     }
@@ -90,7 +91,9 @@ export async function testWebSocketConnectivity(relayUrl: string): Promise<boole
 /**
  * Test basic event subscription (development only)
  */
-export async function testBasicNostrSubscription(relayUrl: string): Promise<number> {
+export async function testBasicNostrSubscription(
+  relayUrl: string
+): Promise<number> {
   if (!DEBUG) return 0; // Skip in production
 
   return new Promise((resolve) => {
@@ -108,11 +111,7 @@ export async function testBasicNostrSubscription(relayUrl: string): Promise<numb
       }, 10000);
 
       ws.onopen = () => {
-        const reqMessage = JSON.stringify([
-          'REQ',
-          'test-sub',
-          { limit: 10 }
-        ]);
+        const reqMessage = JSON.stringify(['REQ', 'test-sub', { limit: 10 }]);
         ws.send(reqMessage);
       };
 
@@ -134,7 +133,6 @@ export async function testBasicNostrSubscription(relayUrl: string): Promise<numb
           resolve(eventCount);
         }
       };
-
     } catch (error) {
       resolve(0);
     }

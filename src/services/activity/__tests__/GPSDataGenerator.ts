@@ -115,14 +115,18 @@ export class GPSDataGenerator {
   ): GPSPoint[] {
     const points: GPSPoint[] = [];
     const bearing = 0; // Due north
-    const numPoints = Math.floor(distanceMeters / (this.AVERAGE_RUNNING_SPEED_MPS * (this.GPS_UPDATE_INTERVAL_MS / 1000)));
+    const numPoints = Math.floor(
+      distanceMeters /
+        (this.AVERAGE_RUNNING_SPEED_MPS * (this.GPS_UPDATE_INTERVAL_MS / 1000))
+    );
 
     let currentLat = startLat;
     let currentLon = startLon;
     let timestamp = Date.now();
 
     for (let i = 0; i < numPoints; i++) {
-      const segmentDistance = this.AVERAGE_RUNNING_SPEED_MPS * (this.GPS_UPDATE_INTERVAL_MS / 1000);
+      const segmentDistance =
+        this.AVERAGE_RUNNING_SPEED_MPS * (this.GPS_UPDATE_INTERVAL_MS / 1000);
 
       const point = this.generatePoint(
         currentLat,
@@ -328,7 +332,8 @@ export class GPSDataGenerator {
     for (const segment of segments) {
       const segmentPoints = Math.floor(
         segment.distance /
-          (this.AVERAGE_RUNNING_SPEED_MPS * (this.GPS_UPDATE_INTERVAL_MS / 1000))
+          (this.AVERAGE_RUNNING_SPEED_MPS *
+            (this.GPS_UPDATE_INTERVAL_MS / 1000))
       );
 
       for (let i = 0; i < segmentPoints; i++) {

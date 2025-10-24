@@ -137,7 +137,9 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
-  const [alertButtons, setAlertButtons] = useState<Array<{text: string; onPress?: () => void}>>([]);
+  const [alertButtons, setAlertButtons] = useState<
+    Array<{ text: string; onPress?: () => void }>
+  >([]);
 
   // Reset wizard when opened
   useEffect(() => {
@@ -212,11 +214,14 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
       console.log('🏁 Creating league with Nostr Competition Service');
 
       // Check for existing active leagues before proceeding
-      const activeCompetitions = await NostrCompetitionService.checkActiveCompetitions(teamId);
+      const activeCompetitions =
+        await NostrCompetitionService.checkActiveCompetitions(teamId);
 
       if (activeCompetitions.activeLeagues > 0) {
         setAlertTitle('Active League Exists');
-        setAlertMessage(`Your team already has an active league: "${activeCompetitions.activeLeagueDetails?.name}"\n\nIt ends on ${activeCompetitions.activeLeagueDetails?.endDate}.\n\nOnly one league can be active at a time.`);
+        setAlertMessage(
+          `Your team already has an active league: "${activeCompetitions.activeLeagueDetails?.name}"\n\nIt ends on ${activeCompetitions.activeLeagueDetails?.endDate}.\n\nOnly one league can be active at a time.`
+        );
         setAlertButtons([{ text: 'OK', onPress: () => setIsCreating(false) }]);
         setAlertVisible(true);
         return;
@@ -233,7 +238,10 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
         return;
       }
 
-      console.log('✅ Retrieved auth data for:', authData.npub.slice(0, 20) + '...');
+      console.log(
+        '✅ Retrieved auth data for:',
+        authData.npub.slice(0, 20) + '...'
+      );
 
       // Get signer (works for both nsec and Amber)
       const signer = await unifiedSigningService.getSigner();
@@ -279,11 +287,18 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
         // No need to manually create it here
 
         setAlertTitle('Success!');
-        setAlertMessage(`League "${leagueData.leagueName}" has been created and published to Nostr relays.`);
-        setAlertButtons([{ text: 'OK', onPress: () => {
-          onLeagueCreated(leagueData);
-          onClose();
-        }}]);
+        setAlertMessage(
+          `League "${leagueData.leagueName}" has been created and published to Nostr relays.`
+        );
+        setAlertButtons([
+          {
+            text: 'OK',
+            onPress: () => {
+              onLeagueCreated(leagueData);
+              onClose();
+            },
+          },
+        ]);
         setAlertVisible(true);
       } else {
         throw new Error(result.message || 'Failed to create league');
@@ -291,7 +306,11 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
     } catch (error) {
       console.error('❌ Failed to create league:', error);
       setAlertTitle('Error');
-      setAlertMessage(`Failed to create league: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setAlertMessage(
+        `Failed to create league: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
       setAlertButtons([{ text: 'OK' }]);
       setAlertVisible(true);
     } finally {
@@ -354,7 +373,10 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
     return [
       { label: 'Today', date: today },
       { label: 'Tomorrow', date: tomorrow },
-      { label: currentDay === 1 ? 'Next Monday' : 'This Monday', date: nextMonday },
+      {
+        label: currentDay === 1 ? 'Next Monday' : 'This Monday',
+        date: nextMonday,
+      },
       { label: 'First of Next Month', date: firstOfNextMonth },
     ];
   };
@@ -620,7 +642,9 @@ export const LeagueCreationWizard: React.FC<LeagueCreationWizardProps> = ({
                         leagueData.prizePoolSats === option.value &&
                           styles.prizeOptionSelected,
                       ]}
-                      onPress={() => updateSettings('prizePoolSats', option.value)}
+                      onPress={() =>
+                        updateSettings('prizePoolSats', option.value)
+                      }
                       activeOpacity={0.7}
                     >
                       <Text

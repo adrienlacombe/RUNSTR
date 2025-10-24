@@ -29,8 +29,12 @@ interface SplashInitScreenProps {
 }
 
 // This screen is shown when cache needs prefetching (fresh + returning users)
-export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }) => {
-  const [statusMessage, setStatusMessage] = useState(INITIALIZATION_STEPS[0].message);
+export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({
+  onComplete,
+}) => {
+  const [statusMessage, setStatusMessage] = useState(
+    INITIALIZATION_STEPS[0].message
+  );
   const [currentStep, setCurrentStep] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -80,7 +84,9 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
         setStatusMessage(INITIALIZATION_STEPS[0].message);
         animateProgress(calculateProgress(0));
 
-        const { GlobalNDKService } = await import('../services/nostr/GlobalNDKService');
+        const { GlobalNDKService } = await import(
+          '../services/nostr/GlobalNDKService'
+        );
         const initService = NostrInitializationService.getInstance();
 
         try {
@@ -91,7 +97,9 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
           await GlobalNDKService.waitForMinimumConnection(2, 2000);
           console.log('✅ SplashInit: Nostr connected (minimum relays)');
         } catch (ndkError) {
-          console.error('⚠️ SplashInit: NDK connection failed, continuing with offline mode');
+          console.error(
+            '⚠️ SplashInit: NDK connection failed, continuing with offline mode'
+          );
           GlobalNDKService.startBackgroundRetry();
         }
 
@@ -105,7 +113,9 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
 
         if (identifiers) {
           await import('../services/user/directNostrProfileService')
-            .then(({ DirectNostrProfileService }) => DirectNostrProfileService.getCurrentUserProfile())
+            .then(({ DirectNostrProfileService }) =>
+              DirectNostrProfileService.getCurrentUserProfile()
+            )
             .catch(() => console.warn('Profile fetch failed, using cache'));
 
           console.log('✅ SplashInit: Profile loaded');
@@ -116,7 +126,10 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
             (step, total, message) => {
               console.log(`📊 Prefetch: ${message} (${step}/${total})`);
               // Update UI with current step (offset by 1 since we already did profile)
-              const uiStep = Math.min(step + 1, INITIALIZATION_STEPS.length - 1);
+              const uiStep = Math.min(
+                step + 1,
+                INITIALIZATION_STEPS.length - 1
+              );
               setCurrentStep(uiStep);
               setStatusMessage(message);
               animateProgress(calculateProgress(uiStep));
@@ -125,7 +138,6 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
 
           console.log('✅ SplashInit: ALL data loaded - app ready!');
         }
-
       } catch (error) {
         console.error('❌ SplashInit: Initialization error:', error);
         // Continue anyway - app can work with cached data
@@ -135,7 +147,9 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
     // Emergency timeout - force app forward after 20s maximum
     const timeoutPromise = new Promise<void>((resolve) => {
       setTimeout(() => {
-        console.warn('⚠️ SplashInit: 20-second timeout reached - showing app with partial data');
+        console.warn(
+          '⚠️ SplashInit: 20-second timeout reached - showing app with partial data'
+        );
         resolve();
       }, MAX_INIT_TIME);
     });
@@ -145,16 +159,22 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
 
     // ✅ PERFORMANCE: Set flag to prevent AppInitializationService from re-fetching
     try {
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const AsyncStorage = (
+        await import('@react-native-async-storage/async-storage')
+      ).default;
       await AsyncStorage.setItem('@runstr:splash_init_completed', 'true');
-      console.log('✅ SplashInit: Set completion flag to prevent duplicate initialization');
+      console.log(
+        '✅ SplashInit: Set completion flag to prevent duplicate initialization'
+      );
     } catch (error) {
       console.warn('⚠️ Failed to set SplashInit completion flag:', error);
     }
 
     // ✅ SHOW APP NOW - Everything is loaded and cached!
     if (onComplete) {
-      console.log('✅ SplashInit: All data ready - calling onComplete to show app');
+      console.log(
+        '✅ SplashInit: All data ready - calling onComplete to show app'
+      );
       onComplete();
     }
   };
@@ -181,10 +201,7 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
 
           <View style={styles.progressBarBackground}>
             <Animated.View
-              style={[
-                styles.progressBarFill,
-                { width: progressWidth }
-              ]}
+              style={[styles.progressBarFill, { width: progressWidth }]}
             />
           </View>
 
@@ -194,7 +211,7 @@ export const SplashInitScreen: React.FC<SplashInitScreenProps> = ({ onComplete }
                 key={index}
                 style={[
                   styles.stepDot,
-                  currentStep >= index && styles.stepDotActive
+                  currentStep >= index && styles.stepDotActive,
                 ]}
               />
             ))}

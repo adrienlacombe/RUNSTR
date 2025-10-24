@@ -76,7 +76,10 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
           ]
         );
       } else {
-        Alert.alert('❌ Connection Failed', result.error || 'Please check your NWC string and try again.');
+        Alert.alert(
+          '❌ Connection Failed',
+          result.error || 'Please check your NWC string and try again.'
+        );
       }
     } catch (error) {
       console.error('[WalletConfig] Save error:', error);
@@ -139,7 +142,12 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleCancel}
+    >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.overlay}>
           <KeyboardAvoidingView
@@ -153,110 +161,150 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
                   <Text style={styles.title}>Connect Wallet</Text>
                 </View>
                 <View style={styles.headerRight}>
-                  <TouchableOpacity onPress={handleHelp} style={styles.helpButton}>
-                    <Ionicons name="help-circle-outline" size={24} color={theme.colors.text} />
+                  <TouchableOpacity
+                    onPress={handleHelp}
+                    style={styles.helpButton}
+                  >
+                    <Ionicons
+                      name="help-circle-outline"
+                      size={24}
+                      color={theme.colors.text}
+                    />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-                    <Ionicons name="close" size={24} color={theme.colors.text} />
+                  <TouchableOpacity
+                    onPress={handleCancel}
+                    style={styles.closeButton}
+                  >
+                    <Ionicons
+                      name="close"
+                      size={24}
+                      color={theme.colors.text}
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Subtitle */}
-            <Text style={styles.subtitle}>
-              Connect your Lightning wallet to send Bitcoin payments
-            </Text>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Subtitle */}
+                <Text style={styles.subtitle}>
+                  Connect your Lightning wallet to send Bitcoin payments
+                </Text>
 
-            {/* NWC Explanation */}
-            <View style={styles.explanationBox}>
-              <Text style={styles.explanationTitle}>What is NWC?</Text>
-              <Text style={styles.explanationText}>
-                Nostr Wallet Connect (NWC) lets you send Bitcoin payments directly from your Lightning wallet.
-                It's like connecting your bank to an app - but with Bitcoin!
-              </Text>
-              <Text style={[styles.explanationText, styles.explanationNote]}>
-                Note: You don't need NWC to receive Bitcoin. Set your Lightning address in your profile to receive
-                payments from challenges, rewards, and zaps.
-              </Text>
-            </View>
+                {/* NWC Explanation */}
+                <View style={styles.explanationBox}>
+                  <Text style={styles.explanationTitle}>What is NWC?</Text>
+                  <Text style={styles.explanationText}>
+                    Nostr Wallet Connect (NWC) lets you send Bitcoin payments
+                    directly from your Lightning wallet. It's like connecting
+                    your bank to an app - but with Bitcoin!
+                  </Text>
+                  <Text
+                    style={[styles.explanationText, styles.explanationNote]}
+                  >
+                    Note: You don't need NWC to receive Bitcoin. Set your
+                    Lightning address in your profile to receive payments from
+                    challenges, rewards, and zaps.
+                  </Text>
+                </View>
 
-            {/* Benefits List */}
-            <View style={styles.benefitsList}>
-              <Text style={styles.benefitsTitle}>With NWC you can:</Text>
-              <View style={styles.benefitItem}>
-                <Ionicons name="send" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Send zaps to teammates</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Ionicons name="ticket" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Pay for event entry fees</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Ionicons name="trophy" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Place wagers on 1v1 challenges</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Ionicons name="heart" size={20} color="#FF9D42" />
-                <Text style={styles.benefitText}>Donate to team charities</Text>
-              </View>
-            </View>
+                {/* Benefits List */}
+                <View style={styles.benefitsList}>
+                  <Text style={styles.benefitsTitle}>With NWC you can:</Text>
+                  <View style={styles.benefitItem}>
+                    <Ionicons name="send" size={20} color="#FF9D42" />
+                    <Text style={styles.benefitText}>
+                      Send zaps to teammates
+                    </Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <Ionicons name="ticket" size={20} color="#FF9D42" />
+                    <Text style={styles.benefitText}>
+                      Pay for event entry fees
+                    </Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <Ionicons name="trophy" size={20} color="#FF9D42" />
+                    <Text style={styles.benefitText}>
+                      Place wagers on 1v1 challenges
+                    </Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <Ionicons name="heart" size={20} color="#FF9D42" />
+                    <Text style={styles.benefitText}>
+                      Donate to team charities
+                    </Text>
+                  </View>
+                </View>
 
-            {/* Input Field */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>NWC Connection String</Text>
-              <TextInput
-                value={nwcString}
-                onChangeText={setNwcString}
-                placeholder="nostr+walletconnect://..."
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.input}
-                multiline
-                numberOfLines={3}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isValidating}
-                returnKeyType="done"
-                blurOnSubmit={true}
-                onSubmitEditing={Keyboard.dismiss}
-              />
-              <Text style={styles.inputHint}>
-                Paste your NWC connection string from Alby or another wallet
-              </Text>
-            </View>
+                {/* Input Field */}
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputLabel}>NWC Connection String</Text>
+                  <TextInput
+                    value={nwcString}
+                    onChangeText={setNwcString}
+                    placeholder="nostr+walletconnect://..."
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={styles.input}
+                    multiline
+                    numberOfLines={3}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isValidating}
+                    returnKeyType="done"
+                    blurOnSubmit={true}
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                  <Text style={styles.inputHint}>
+                    Paste your NWC connection string from Alby or another wallet
+                  </Text>
+                </View>
 
-            {/* Action Buttons */}
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={isValidating || !nwcString.trim()}
-              style={[
-                styles.connectButton,
-                (!nwcString.trim() || isValidating) && styles.connectButtonDisabled,
-              ]}
-            >
-              {isValidating ? (
-                <ActivityIndicator color="#000000" />
-              ) : (
-                <>
-                  <Ionicons name="wallet" size={20} color="#000000" />
-                  <Text style={styles.connectButtonText}>Connect Wallet</Text>
-                </>
-              )}
-            </TouchableOpacity>
+                {/* Action Buttons */}
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={isValidating || !nwcString.trim()}
+                  style={[
+                    styles.connectButton,
+                    (!nwcString.trim() || isValidating) &&
+                      styles.connectButtonDisabled,
+                  ]}
+                >
+                  {isValidating ? (
+                    <ActivityIndicator color="#000000" />
+                  ) : (
+                    <>
+                      <Ionicons name="wallet" size={20} color="#000000" />
+                      <Text style={styles.connectButtonText}>
+                        Connect Wallet
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-            {allowSkip && (
-              <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-                <Text style={styles.skipButtonText}>Skip for Now</Text>
-              </TouchableOpacity>
-            )}
+                {allowSkip && (
+                  <TouchableOpacity
+                    onPress={handleSkip}
+                    style={styles.skipButton}
+                  >
+                    <Text style={styles.skipButtonText}>Skip for Now</Text>
+                  </TouchableOpacity>
+                )}
 
-            {/* Info Note */}
-            <View style={styles.infoNote}>
-              <Ionicons name="information-circle-outline" size={18} color={theme.colors.textMuted} />
-              <Text style={styles.infoText}>
-                Your wallet stays in your control. RUNSTR never has access to your funds.
-              </Text>
-            </View>
+                {/* Info Note */}
+                <View style={styles.infoNote}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={18}
+                    color={theme.colors.textMuted}
+                  />
+                  <Text style={styles.infoText}>
+                    Your wallet stays in your control. RUNSTR never has access
+                    to your funds.
+                  </Text>
+                </View>
               </ScrollView>
             </View>
           </KeyboardAvoidingView>

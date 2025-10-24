@@ -24,13 +24,19 @@ export class TeamListDetector {
   /**
    * Check if a team has an associated kind 30000 member list
    */
-  async hasKind30000List(teamId: string, captainPubkey: string): Promise<boolean> {
+  async hasKind30000List(
+    teamId: string,
+    captainPubkey: string
+  ): Promise<boolean> {
     try {
       const dTag = `${teamId}-members`;
       const list = await this.listService.getList(captainPubkey, dTag);
       return !!list;
     } catch (error) {
-      console.error(`Error checking kind 30000 list for team ${teamId}:`, error);
+      console.error(
+        `Error checking kind 30000 list for team ${teamId}:`,
+        error
+      );
       return false;
     }
   }
@@ -38,7 +44,10 @@ export class TeamListDetector {
   /**
    * Get the member list for a team if it exists
    */
-  async getTeamMemberList(teamId: string, captainPubkey: string): Promise<NostrEvent | null> {
+  async getTeamMemberList(
+    teamId: string,
+    captainPubkey: string
+  ): Promise<NostrEvent | null> {
     try {
       const dTag = `${teamId}-members`;
       return await this.listService.getList(captainPubkey, dTag);
@@ -72,7 +81,11 @@ export class TeamListDetector {
   /**
    * Prepare tags for a new kind 30000 member list
    */
-  prepareListTags(teamId: string, teamName: string, memberPubkeys: string[]): string[][] {
+  prepareListTags(
+    teamId: string,
+    teamName: string,
+    memberPubkeys: string[]
+  ): string[][] {
     const tags: string[][] = [
       ['d', this.getListDTag(teamId)],
       ['name', `${teamName} Members`],
@@ -80,11 +93,11 @@ export class TeamListDetector {
       ['t', 'team-members'],
       ['t', 'fitness'],
       ['L', 'team-context'],
-      ['l', teamId, 'team-context']
+      ['l', teamId, 'team-context'],
     ];
 
     // Add member pubkeys
-    memberPubkeys.forEach(pubkey => {
+    memberPubkeys.forEach((pubkey) => {
       if (pubkey) {
         tags.push(['p', pubkey]);
       }

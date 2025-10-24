@@ -4,11 +4,7 @@
  */
 
 import { clearNostrStorage } from '../../utils/nostr';
-import type {
-  ApiResponse,
-  AuthResult,
-  User,
-} from '../../types';
+import type { ApiResponse, AuthResult, User } from '../../types';
 import { NostrAuthProvider } from './providers/nostrAuthProvider';
 import { AppleAuthProvider } from './providers/appleAuthProvider';
 import { AmberAuthProvider } from './providers/amberAuthProvider';
@@ -26,7 +22,9 @@ export class AuthService {
       await clearNostrStorage();
 
       // Import AsyncStorage for wallet cleanup
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const AsyncStorage = (
+        await import('@react-native-async-storage/async-storage')
+      ).default;
 
       // Clear wallet-related data and onboarding flags to prevent cross-user contamination
       await AsyncStorage.multiRemove([
@@ -36,7 +34,7 @@ export class AuthService {
         '@runstr:hex_pubkey',
         '@runstr:tx_history',
         '@runstr:last_sync',
-        '@runstr:onboarding_completed' // Clear onboarding flag to ensure clean state
+        '@runstr:onboarding_completed', // Clear onboarding flag to ensure clean state
       ]);
       console.log('✅ AuthService: Wallet data cleared');
 
@@ -70,7 +68,9 @@ export class AuthService {
 
       // Clear competition cache service
       try {
-        const { CompetitionCacheService } = await import('../cache/CompetitionCacheService');
+        const { CompetitionCacheService } = await import(
+          '../cache/CompetitionCacheService'
+        );
         const compCache = CompetitionCacheService.getInstance();
         await compCache.clearCache();
         console.log('✅ AuthService: Competition cache cleared');
@@ -100,14 +100,21 @@ export class AuthService {
 
       // SECURITY: Clear UnifiedSigningService cache (critical for Amber logout)
       try {
-        const { UnifiedSigningService } = await import('./UnifiedSigningService');
+        const { UnifiedSigningService } = await import(
+          './UnifiedSigningService'
+        );
         UnifiedSigningService.getInstance().clearCache();
         console.log('✅ AuthService: UnifiedSigningService cache cleared');
       } catch (err) {
-        console.warn('⚠️ AuthService: UnifiedSigningService cache clear skipped:', err);
+        console.warn(
+          '⚠️ AuthService: UnifiedSigningService cache clear skipped:',
+          err
+        );
       }
 
-      console.log('✅ AuthService: Sign out complete - all caches and data cleared');
+      console.log(
+        '✅ AuthService: Sign out complete - all caches and data cleared'
+      );
 
       return {
         success: true,
@@ -178,7 +185,8 @@ export class AuthService {
       if (!isAvailable) {
         return {
           success: false,
-          error: 'Amber is not installed. Please install Amber from the Play Store.',
+          error:
+            'Amber is not installed. Please install Amber from the Play Store.',
         };
       }
 
@@ -206,7 +214,9 @@ export class AuthService {
    */
   static async signUpWithNostr(): Promise<AuthResult> {
     try {
-      console.log('AuthService: Starting Nostr signup (generating new identity)...');
+      console.log(
+        'AuthService: Starting Nostr signup (generating new identity)...'
+      );
 
       const nostrProvider = new NostrAuthProvider();
       const result = await nostrProvider.signUpPureNostr();
@@ -215,14 +225,19 @@ export class AuthService {
         return result;
       }
 
-      console.log('AuthService: Nostr signup successful - new identity created');
+      console.log(
+        'AuthService: Nostr signup successful - new identity created'
+      );
 
       return result;
     } catch (error) {
       console.error('AuthService: Nostr signup error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create Nostr identity',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to create Nostr identity',
       };
     }
   }
@@ -261,17 +276,24 @@ export class AuthService {
       }
 
       // Store the generated Nostr keys using unified auth system with verification
-      const stored = await storeAuthenticationData(userData.nsec, userData.npub);
+      const stored = await storeAuthenticationData(
+        userData.nsec,
+        userData.npub
+      );
       if (!stored) {
         return {
           success: false,
           error: 'Failed to save authentication credentials',
         };
       }
-      console.log('AuthService: ✅ Stored and verified Apple-generated Nostr keys');
+      console.log(
+        'AuthService: ✅ Stored and verified Apple-generated Nostr keys'
+      );
 
       // Load the user profile using the generated Nostr identity
-      const { DirectNostrProfileService } = await import('../user/directNostrProfileService');
+      const { DirectNostrProfileService } = await import(
+        '../user/directNostrProfileService'
+      );
       let directUser = null;
 
       try {
@@ -336,16 +358,18 @@ export class AuthService {
    */
   static async getCurrentUser(): Promise<User | null> {
     try {
-      const { DirectNostrProfileService } = await import('../user/directNostrProfileService');
+      const { DirectNostrProfileService } = await import(
+        '../user/directNostrProfileService'
+      );
       let directUser = null;
-      
+
       try {
         directUser = await DirectNostrProfileService.getCurrentUserProfile();
       } catch (profileError) {
         console.warn('⚠️  Profile load failed, using fallback:', profileError);
         directUser = await DirectNostrProfileService.getFallbackProfile();
       }
-      
+
       if (directUser) {
         // Convert DirectNostrUser to User for app compatibility
         const user: User = {
@@ -368,7 +392,7 @@ export class AuthService {
 
         return user;
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error getting current user:', error);
@@ -397,7 +421,7 @@ export class AuthService {
   }> {
     try {
       const isAuthenticated = await this.isAuthenticated();
-      
+
       if (!isAuthenticated) {
         return { isAuthenticated: false };
       }
@@ -416,7 +440,10 @@ export class AuthService {
         needsWalletCreation: false,
       };
     } catch (error) {
-      console.error('AuthService: Error checking authentication status:', error);
+      console.error(
+        'AuthService: Error checking authentication status:',
+        error
+      );
       return { isAuthenticated: false };
     }
   }
@@ -428,7 +455,9 @@ export class AuthService {
     userId: string,
     roleData: any
   ): Promise<ApiResponse> {
-    console.log('AuthService: updateUserRole called but not implemented in Nostr-only mode');
+    console.log(
+      'AuthService: updateUserRole called but not implemented in Nostr-only mode'
+    );
     return {
       success: true,
       message: 'User role update not needed in Nostr-only mode',
@@ -441,7 +470,9 @@ export class AuthService {
   static async createPersonalWallet(
     userId: string
   ): Promise<{ success: boolean; lightningAddress?: string; error?: string }> {
-    console.log('AuthService: createPersonalWallet called but not implemented in Nostr-only mode');
+    console.log(
+      'AuthService: createPersonalWallet called but not implemented in Nostr-only mode'
+    );
     return {
       success: true,
       lightningAddress: 'user@getalby.com',

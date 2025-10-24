@@ -25,7 +25,11 @@ import { NostrListService } from '../../services/nostr/NostrListService';
 import { getAuthenticationData } from '../../utils/nostrAuth';
 import { nsecToPrivateKey } from '../../utils/nostr';
 import { npubToHex } from '../../utils/ndkConversion';
-import { NDKPrivateKeySigner, NDKEvent, NDKSubscription } from '@nostr-dev-kit/ndk';
+import {
+  NDKPrivateKeySigner,
+  NDKEvent,
+  NDKSubscription,
+} from '@nostr-dev-kit/ndk';
 
 interface EventJoinRequestsSectionProps {
   captainPubkey: string;
@@ -41,15 +45,14 @@ interface GroupedRequests {
   expandedState: boolean;
 }
 
-export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> = ({
-  captainPubkey,
-  teamId,
-  onMemberApproved,
-  style,
-}) => {
+export const EventJoinRequestsSection: React.FC<
+  EventJoinRequestsSectionProps
+> = ({ captainPubkey, teamId, onMemberApproved, style }) => {
   const [groupedRequests, setGroupedRequests] = useState<GroupedRequests[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [subscription, setSubscription] = useState<NDKSubscription | null>(null);
+  const [subscription, setSubscription] = useState<NDKSubscription | null>(
+    null
+  );
 
   const requestService = EventJoinRequestService.getInstance();
   const listService = NostrListService.getInstance();
@@ -58,11 +61,13 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
   const loadEventJoinRequests = async () => {
     try {
       setIsLoading(true);
-      const joinRequests = await requestService.getEventJoinRequests(captainPubkey);
+      const joinRequests = await requestService.getEventJoinRequests(
+        captainPubkey
+      );
 
       // Group requests by event
       const grouped = joinRequests.reduce((acc, request) => {
-        const existing = acc.find(g => g.eventId === request.eventId);
+        const existing = acc.find((g) => g.eventId === request.eventId);
         if (existing) {
           existing.requests.push(request);
         } else {
@@ -97,11 +102,15 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
           (newRequest: EventJoinRequest) => {
             setGroupedRequests((prev) => {
               const updated = [...prev];
-              const eventGroup = updated.find(g => g.eventId === newRequest.eventId);
+              const eventGroup = updated.find(
+                (g) => g.eventId === newRequest.eventId
+              );
 
               if (eventGroup) {
                 // Check for duplicates
-                const exists = eventGroup.requests.some(r => r.id === newRequest.id);
+                const exists = eventGroup.requests.some(
+                  (r) => r.id === newRequest.id
+                );
                 if (!exists) {
                   eventGroup.requests.unshift(newRequest);
                 }
@@ -121,7 +130,10 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
         );
         setSubscription(sub);
       } catch (error) {
-        console.error('Failed to setup event join requests subscription:', error);
+        console.error(
+          'Failed to setup event join requests subscription:',
+          error
+        );
       }
     };
 
@@ -138,10 +150,8 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
 
   const toggleEventExpanded = (eventId: string) => {
     setGroupedRequests((prev) =>
-      prev.map(g =>
-        g.eventId === eventId
-          ? { ...g, expandedState: !g.expandedState }
-          : g
+      prev.map((g) =>
+        g.eventId === eventId ? { ...g, expandedState: !g.expandedState } : g
       )
     );
   };
@@ -184,13 +194,16 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
               style: 'cancel',
               onPress: () => {
                 console.log('❌ Captain cancelled participant list creation');
-              }
+              },
             },
             {
               text: 'Create & Approve',
               onPress: async () => {
                 try {
-                  console.log('🔧 Creating missing participant list for event:', eventId);
+                  console.log(
+                    '🔧 Creating missing participant list for event:',
+                    eventId
+                  );
 
                   // Create initial list with the requester
                   const listData = {
@@ -201,7 +214,10 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                     listType: 'people' as const,
                   };
 
-                  const eventTemplate = listService.prepareListCreation(listData, captainHexPubkey);
+                  const eventTemplate = listService.prepareListCreation(
+                    listData,
+                    captainHexPubkey
+                  );
 
                   // Sign and publish
                   const g = globalThis as any;
@@ -216,24 +232,37 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                   // Remove request from UI
                   setGroupedRequests((prev) => {
                     const updated = [...prev];
-                    const eventGroup = updated.find(g => g.eventId === eventId);
+                    const eventGroup = updated.find(
+                      (g) => g.eventId === eventId
+                    );
                     if (eventGroup) {
-                      eventGroup.requests = eventGroup.requests.filter(r => r.id !== requestId);
+                      eventGroup.requests = eventGroup.requests.filter(
+                        (r) => r.id !== requestId
+                      );
                       if (eventGroup.requests.length === 0) {
-                        return updated.filter(g => g.eventId !== eventId);
+                        return updated.filter((g) => g.eventId !== eventId);
                       }
                     }
                     return updated;
                   });
 
                   onMemberApproved?.(eventId, requesterPubkey);
-                  Alert.alert('Success', 'Participant list created and user approved');
+                  Alert.alert(
+                    'Success',
+                    'Participant list created and user approved'
+                  );
                 } catch (createError) {
-                  console.error('❌ Failed to create participant list:', createError);
-                  Alert.alert('Error', 'Failed to create participant list. Please try again.');
+                  console.error(
+                    '❌ Failed to create participant list:',
+                    createError
+                  );
+                  Alert.alert(
+                    'Error',
+                    'Failed to create participant list. Please try again.'
+                  );
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return; // Exit early - wait for captain's decision
@@ -256,19 +285,24 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
           await ndkEvent.publish();
 
           // Update cache
-          listService.updateCachedList(`${captainHexPubkey}:${dTag}`, [...currentList.members, requesterPubkey]);
+          listService.updateCachedList(`${captainHexPubkey}:${dTag}`, [
+            ...currentList.members,
+            requesterPubkey,
+          ]);
         }
       }
 
       // Remove request from UI
       setGroupedRequests((prev) => {
         const updated = [...prev];
-        const eventGroup = updated.find(g => g.eventId === eventId);
+        const eventGroup = updated.find((g) => g.eventId === eventId);
         if (eventGroup) {
-          eventGroup.requests = eventGroup.requests.filter(r => r.id !== requestId);
+          eventGroup.requests = eventGroup.requests.filter(
+            (r) => r.id !== requestId
+          );
           // Remove group if no more requests
           if (eventGroup.requests.length === 0) {
-            return updated.filter(g => g.eventId !== eventId);
+            return updated.filter((g) => g.eventId !== eventId);
           }
         }
         return updated;
@@ -288,12 +322,14 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
     // Simply remove from UI - no need to update list
     setGroupedRequests((prev) => {
       const updated = [...prev];
-      const eventGroup = updated.find(g => g.eventId === eventId);
+      const eventGroup = updated.find((g) => g.eventId === eventId);
       if (eventGroup) {
-        eventGroup.requests = eventGroup.requests.filter(r => r.id !== requestId);
+        eventGroup.requests = eventGroup.requests.filter(
+          (r) => r.id !== requestId
+        );
         // Remove group if no more requests
         if (eventGroup.requests.length === 0) {
-          return updated.filter(g => g.eventId !== eventId);
+          return updated.filter((g) => g.eventId !== eventId);
         }
       }
       return updated;
@@ -315,9 +351,11 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
             // Update the request's payment status in state
             setGroupedRequests((prev) => {
               const updated = [...prev];
-              const eventGroup = updated.find(g => g.eventId === eventId);
+              const eventGroup = updated.find((g) => g.eventId === eventId);
               if (eventGroup) {
-                const request = eventGroup.requests.find(r => r.id === requestId);
+                const request = eventGroup.requests.find(
+                  (r) => r.id === requestId
+                );
                 if (request) {
                   // Mark as manually verified
                   request.paymentProof = 'MANUAL_VERIFICATION';
@@ -326,14 +364,20 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
               return updated;
             });
 
-            Alert.alert('Marked as Paid', 'This request has been marked as paid');
+            Alert.alert(
+              'Marked as Paid',
+              'This request has been marked as paid'
+            );
           },
         },
       ]
     );
   };
 
-  const totalRequests = groupedRequests.reduce((sum, g) => sum + g.requests.length, 0);
+  const totalRequests = groupedRequests.reduce(
+    (sum, g) => sum + g.requests.length,
+    0
+  );
 
   if (isLoading) {
     return (
@@ -374,7 +418,8 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No pending event join requests</Text>
             <Text style={styles.emptySubtext}>
-              Event requests will appear here when users request to join your events
+              Event requests will appear here when users request to join your
+              events
             </Text>
           </View>
         ) : (
@@ -387,7 +432,8 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                 <View style={styles.eventInfo}>
                   <Text style={styles.eventName}>{group.eventName}</Text>
                   <Text style={styles.requestCount}>
-                    {group.requests.length} request{group.requests.length !== 1 ? 's' : ''}
+                    {group.requests.length} request
+                    {group.requests.length !== 1 ? 's' : ''}
                   </Text>
                 </View>
                 <Text style={styles.expandIcon}>
@@ -420,7 +466,9 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                             request.eventName
                           )
                         }
-                        onReject={() => handleRejectRequest(request.id, request.eventId)}
+                        onReject={() =>
+                          handleRejectRequest(request.id, request.eventId)
+                        }
                       />
                       {/* Payment verification badge */}
                       {request.paymentProof ? (
@@ -430,7 +478,9 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                             amountPaid={request.amountPaid}
                             onVerificationComplete={(verified) => {
                               console.log(
-                                `Payment ${verified ? 'verified' : 'not found'} for request ${request.id}`
+                                `Payment ${
+                                  verified ? 'verified' : 'not found'
+                                } for request ${request.id}`
                               );
                             }}
                           />
@@ -443,10 +493,18 @@ export const EventJoinRequestsSection: React.FC<EventJoinRequestsSectionProps> =
                           />
                           <TouchableOpacity
                             style={styles.markPaidButton}
-                            onPress={() => handleMarkAsPaid(request.id, request.eventId)}
+                            onPress={() =>
+                              handleMarkAsPaid(request.id, request.eventId)
+                            }
                           >
-                            <Ionicons name="checkmark-done" size={16} color="#4CAF50" />
-                            <Text style={styles.markPaidButtonText}>Mark as Paid</Text>
+                            <Ionicons
+                              name="checkmark-done"
+                              size={16}
+                              color="#4CAF50"
+                            />
+                            <Text style={styles.markPaidButtonText}>
+                              Mark as Paid
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       ) : null}

@@ -9,7 +9,9 @@ export const REWARD_CONFIG = {
    * This is the wallet that sends automated rewards to users
    * Replace with your actual NWC string
    */
-  SENDER_NWC: process.env.REWARD_SENDER_NWC || 'nostr+walletconnect://YOUR_NWC_STRING_HERE',
+  SENDER_NWC:
+    process.env.REWARD_SENDER_NWC ||
+    'nostr+walletconnect://YOUR_NWC_STRING_HERE',
 
   /**
    * Daily Workout Reward Amount

@@ -47,11 +47,13 @@ export class WorkoutLevelService {
 
     // Duration bonus: +1 XP per 10 minutes (duration is in seconds)
     const durationMinutes = (workout.duration || 0) / 60;
-    const durationBonus = Math.floor(durationMinutes / 10) * XP_CONSTANTS.PER_10_MINUTES;
+    const durationBonus =
+      Math.floor(durationMinutes / 10) * XP_CONSTANTS.PER_10_MINUTES;
 
     // Calorie bonus: +5 XP per 100 calories
     const calories = workout.calories || 0;
-    const calorieBonus = Math.floor(calories / 100) * XP_CONSTANTS.PER_100_CALORIES;
+    const calorieBonus =
+      Math.floor(calories / 100) * XP_CONSTANTS.PER_100_CALORIES;
 
     const totalXP = baseXP + distanceBonus + durationBonus + calorieBonus;
 
@@ -130,7 +132,11 @@ export class WorkoutLevelService {
           const age = Date.now() - cachedData.timestamp;
 
           if (age < CACHE_TTL) {
-            console.log(`[WorkoutLevel] Cache hit: ${cachedData.stats.level.level} (age: ${Math.floor(age / 1000)}s)`);
+            console.log(
+              `[WorkoutLevel] Cache hit: ${
+                cachedData.stats.level.level
+              } (age: ${Math.floor(age / 1000)}s)`
+            );
             return cachedData.stats;
           }
         }
@@ -140,7 +146,9 @@ export class WorkoutLevelService {
     }
 
     // Calculate fresh stats
-    console.log(`[WorkoutLevel] Calculating stats from ${workouts.length} workouts...`);
+    console.log(
+      `[WorkoutLevel] Calculating stats from ${workouts.length} workouts...`
+    );
     const stats = this.calculateLevelStats(workouts);
 
     // Cache the results
@@ -161,14 +169,18 @@ export class WorkoutLevelService {
    * Get unlocked milestones for current level
    */
   getUnlockedMilestones(currentLevel: number): LevelMilestone[] {
-    return LEVEL_MILESTONES.filter((milestone) => currentLevel >= milestone.level);
+    return LEVEL_MILESTONES.filter(
+      (milestone) => currentLevel >= milestone.level
+    );
   }
 
   /**
    * Get next milestone to unlock
    */
   getNextMilestone(currentLevel: number): LevelMilestone | null {
-    const nextMilestone = LEVEL_MILESTONES.find((milestone) => currentLevel < milestone.level);
+    const nextMilestone = LEVEL_MILESTONES.find(
+      (milestone) => currentLevel < milestone.level
+    );
     return nextMilestone || null;
   }
 

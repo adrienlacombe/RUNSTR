@@ -39,7 +39,9 @@ export const ZapModal: React.FC<ZapModalProps> = ({
   onSuccess,
 }) => {
   const { balance, sendNutzap, isLoading } = useNutzap();
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(suggestedAmount);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(
+    suggestedAmount
+  );
   const [customAmount, setCustomAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -55,7 +57,10 @@ export const ZapModal: React.FC<ZapModalProps> = ({
     }
 
     if (amount > balance) {
-      Alert.alert('Insufficient Balance', `You only have ${balance} sats available`);
+      Alert.alert(
+        'Insufficient Balance',
+        `You only have ${balance} sats available`
+      );
       return;
     }
 
@@ -132,7 +137,9 @@ export const ZapModal: React.FC<ZapModalProps> = ({
           {/* Balance Display */}
           <View style={styles.balanceSection}>
             <Text style={styles.balanceLabel}>Your Balance:</Text>
-            <Text style={styles.balanceAmount}>{balance.toLocaleString()} sats</Text>
+            <Text style={styles.balanceAmount}>
+              {balance.toLocaleString()} sats
+            </Text>
           </View>
 
           {/* Amount Selection */}
@@ -153,7 +160,8 @@ export const ZapModal: React.FC<ZapModalProps> = ({
                   <Text
                     style={[
                       styles.presetButtonText,
-                      selectedAmount === amount && styles.presetButtonTextActive,
+                      selectedAmount === amount &&
+                        styles.presetButtonTextActive,
                     ]}
                   >
                     {amount}
@@ -186,7 +194,11 @@ export const ZapModal: React.FC<ZapModalProps> = ({
               <ActivityIndicator color={theme.colors.background} />
             ) : (
               <>
-                <Ionicons name="flash" size={20} color={theme.colors.background} />
+                <Ionicons
+                  name="flash"
+                  size={20}
+                  color={theme.colors.background}
+                />
                 <Text style={styles.sendButtonText}>Send Zap</Text>
               </>
             )}

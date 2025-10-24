@@ -59,7 +59,10 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
   const recipientHex = React.useMemo(() => {
     const normalized = npubToHex(recipientNpub);
     if (!normalized) {
-      console.warn('[EnhancedZapModal] Invalid recipient pubkey:', recipientNpub.slice(0, 20));
+      console.warn(
+        '[EnhancedZapModal] Invalid recipient pubkey:',
+        recipientNpub.slice(0, 20)
+      );
       return recipientNpub; // Use as-is if conversion fails
     }
     return normalized;
@@ -92,7 +95,7 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
   // Refresh balance when modal opens to ensure display matches spendable balance
   useEffect(() => {
     if (visible) {
-      refreshBalance().catch(err =>
+      refreshBalance().catch((err) =>
         console.warn('[EnhancedZapModal] Balance refresh failed:', err)
       );
     }
@@ -260,7 +263,11 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
                   <Ionicons
                     name="wallet"
                     size={20}
-                    color={!useExternalWallet ? theme.colors.background : theme.colors.text}
+                    color={
+                      !useExternalWallet
+                        ? theme.colors.background
+                        : theme.colors.text
+                    }
                   />
                   <Text
                     style={[
@@ -282,7 +289,11 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
                   <Ionicons
                     name="qr-code"
                     size={20}
-                    color={useExternalWallet ? theme.colors.background : theme.colors.text}
+                    color={
+                      useExternalWallet
+                        ? theme.colors.background
+                        : theme.colors.text
+                    }
                   />
                   <Text
                     style={[
@@ -370,24 +381,32 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
               {/* Set as Default Toggle - Always show when amount selected */}
               {displayAmount > 0 && (
                 <View style={styles.defaultToggle}>
-                  <Text style={[
-                    styles.defaultToggleLabel,
-                    displayAmount === defaultAmount && styles.defaultToggleLabelDisabled
-                  ]}>
+                  <Text
+                    style={[
+                      styles.defaultToggleLabel,
+                      displayAmount === defaultAmount &&
+                        styles.defaultToggleLabelDisabled,
+                    ]}
+                  >
                     {displayAmount === defaultAmount
                       ? `${displayAmount} sats is already your default`
-                      : `Set ${displayAmount} sats as my default`
-                    }
+                      : `Set ${displayAmount} sats as my default`}
                   </Text>
                   <Switch
-                    value={displayAmount === defaultAmount ? true : setAsDefault}
+                    value={
+                      displayAmount === defaultAmount ? true : setAsDefault
+                    }
                     onValueChange={setSetAsDefault}
                     disabled={displayAmount === defaultAmount}
                     trackColor={{
                       false: theme.colors.border,
                       true: theme.colors.text,
                     }}
-                    thumbColor={(displayAmount === defaultAmount || setAsDefault) ? theme.colors.background : theme.colors.text}
+                    thumbColor={
+                      displayAmount === defaultAmount || setAsDefault
+                        ? theme.colors.background
+                        : theme.colors.text
+                    }
                   />
                 </View>
               )}
@@ -429,9 +448,12 @@ export const EnhancedZapModal: React.FC<EnhancedZapModalProps> = ({
                   />
                   <Text style={styles.sendButtonText}>
                     {useExternalWallet
-                      ? `Generate ${displayAmount > 0 ? `${displayAmount} sats` : ''} Invoice`
-                      : `Send ${displayAmount > 0 ? `${displayAmount} sats` : 'Zap'}`
-                    }
+                      ? `Generate ${
+                          displayAmount > 0 ? `${displayAmount} sats` : ''
+                        } Invoice`
+                      : `Send ${
+                          displayAmount > 0 ? `${displayAmount} sats` : 'Zap'
+                        }`}
                   </Text>
                 </>
               )}

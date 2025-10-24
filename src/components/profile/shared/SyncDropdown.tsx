@@ -44,10 +44,7 @@ export const SyncDropdown: React.FC<SyncDropdownProps> = ({
 
   const handleSync = async (source: SyncSource) => {
     if (!source.available) {
-      Alert.alert(
-        'Coming Soon',
-        `${source.name} integration is coming soon!`
-      );
+      Alert.alert('Coming Soon', `${source.name} integration is coming soon!`);
       return;
     }
 
@@ -102,7 +99,9 @@ export const SyncDropdown: React.FC<SyncDropdownProps> = ({
 
     // Fetch recent workouts
     const workouts = await healthKitService.getRecentWorkouts(userId, 30);
-    console.log(`✅ Synced ${workouts?.length || 0} workouts from Apple Health`);
+    console.log(
+      `✅ Synced ${workouts?.length || 0} workouts from Apple Health`
+    );
 
     return workouts;
   };
@@ -152,10 +151,12 @@ export const SyncDropdown: React.FC<SyncDropdownProps> = ({
                 disabled={!source.available}
               >
                 {/* Icon removed */}
-                <Text style={[
-                  styles.sourceName,
-                  !source.available && styles.sourceNameDisabled,
-                ]}>
+                <Text
+                  style={[
+                    styles.sourceName,
+                    !source.available && styles.sourceNameDisabled,
+                  ]}
+                >
                   {source.name}
                 </Text>
                 {!source.available && (

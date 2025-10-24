@@ -56,7 +56,8 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>On-Device Processing</Text>
                   <Text style={styles.featureDescription}>
-                    All analytics calculations happen locally on your phone. Your workout data never leaves your device.
+                    All analytics calculations happen locally on your phone.
+                    Your workout data never leaves your device.
                   </Text>
                 </View>
               </View>
@@ -66,7 +67,8 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>No Cloud Storage</Text>
                   <Text style={styles.featureDescription}>
-                    Your health data is stored exclusively in your phone's local storage. We don't have access to it.
+                    Your health data is stored exclusively in your phone's local
+                    storage. We don't have access to it.
                   </Text>
                 </View>
               </View>
@@ -76,7 +78,8 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>Private Insights</Text>
                   <Text style={styles.featureDescription}>
-                    View trends, correlations, and health scores calculated from your local workout history.
+                    View trends, correlations, and health scores calculated from
+                    your local workout history.
                   </Text>
                 </View>
               </View>
@@ -86,7 +89,8 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>You're In Control</Text>
                   <Text style={styles.featureDescription}>
-                    Only you can see your analytics. Delete anytime by clearing app data.
+                    Only you can see your analytics. Delete anytime by clearing
+                    app data.
                   </Text>
                 </View>
               </View>
@@ -95,14 +99,28 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
             <View style={styles.divider} />
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>What We Analyze (Locally):</Text>
+              <Text style={styles.sectionTitle}>
+                What We Analyze (Locally):
+              </Text>
               <View style={styles.bulletList}>
-                <Text style={styles.bulletItem}>• Cardio performance (pace, distance, heart rate)</Text>
-                <Text style={styles.bulletItem}>• Strength training (volume, exercise balance, density)</Text>
-                <Text style={styles.bulletItem}>• Wellness patterns (meditation consistency, duration)</Text>
-                <Text style={styles.bulletItem}>• Nutrition trends (meal timing, fasting windows)</Text>
-                <Text style={styles.bulletItem}>• Cross-activity correlations (e.g., diet vs performance)</Text>
-                <Text style={styles.bulletItem}>• Body composition (BMI, weight trends)</Text>
+                <Text style={styles.bulletItem}>
+                  • Cardio performance (pace, distance, heart rate)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Strength training (volume, exercise balance, density)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Wellness patterns (meditation consistency, duration)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Nutrition trends (meal timing, fasting windows)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Cross-activity correlations (e.g., diet vs performance)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Body composition (BMI, weight trends)
+                </Text>
               </View>
             </View>
 
@@ -111,13 +129,22 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Optional Health Profile:</Text>
               <Text style={styles.infoText}>
-                For more accurate metrics like VO₂ Max and BMI, you can optionally provide:
+                For more accurate metrics like VO₂ Max and BMI, you can
+                optionally provide:
               </Text>
               <View style={styles.bulletList}>
-                <Text style={styles.bulletItem}>• Age (for fitness percentiles)</Text>
-                <Text style={styles.bulletItem}>• Weight (for BMI calculation)</Text>
-                <Text style={styles.bulletItem}>• Height (for BMI calculation)</Text>
-                <Text style={styles.bulletItem}>• Biological sex (for VO₂ Max estimation)</Text>
+                <Text style={styles.bulletItem}>
+                  • Age (for fitness percentiles)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Weight (for BMI calculation)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Height (for BMI calculation)
+                </Text>
+                <Text style={styles.bulletItem}>
+                  • Biological sex (for VO₂ Max estimation)
+                </Text>
               </View>
               <Text style={styles.infoText}>
                 This information is stored locally and never transmitted.

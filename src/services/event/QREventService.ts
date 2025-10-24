@@ -96,7 +96,9 @@ export class QREventService {
       const existingEvents = await this.getStoredQREvents();
 
       // Add new event (or update if exists)
-      const filtered = existingEvents.filter((e) => e.event_id !== data.event_id);
+      const filtered = existingEvents.filter(
+        (e) => e.event_id !== data.event_id
+      );
       filtered.push(data);
 
       // Save back to storage
@@ -132,7 +134,9 @@ export class QREventService {
    * Get QR events created by a specific captain
    * Also filters out expired events (>90 days old)
    */
-  public async getCreatedQREvents(captainPubkey: string): Promise<QREventData[]> {
+  public async getCreatedQREvents(
+    captainPubkey: string
+  ): Promise<QREventData[]> {
     try {
       const allEvents = await this.getStoredQREvents();
       const nowTimestamp = Math.floor(Date.now() / 1000);
@@ -141,7 +145,7 @@ export class QREventService {
       // Filter by captain and expiry
       const validEvents = allEvents.filter((event) => {
         const isCaptain = event.captain_pubkey === captainPubkey;
-        const isNotExpired = (nowTimestamp - event.created_at) < expirySeconds;
+        const isNotExpired = nowTimestamp - event.created_at < expirySeconds;
         return isCaptain && isNotExpired;
       });
 
@@ -190,7 +194,7 @@ export class QREventService {
 
       // Keep only non-expired events
       const validEvents = allEvents.filter((event) => {
-        return (nowTimestamp - event.created_at) < expirySeconds;
+        return nowTimestamp - event.created_at < expirySeconds;
       });
 
       // Save filtered list

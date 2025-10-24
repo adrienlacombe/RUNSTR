@@ -156,7 +156,10 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                 Scan QR code to join challenge or event
               </Text>
 
-              <TouchableOpacity style={styles.closeButtonCamera} onPress={onClose}>
+              <TouchableOpacity
+                style={styles.closeButtonCamera}
+                onPress={onClose}
+              >
                 <Text style={styles.closeButtonTextCamera}>Cancel</Text>
               </TouchableOpacity>
             </View>

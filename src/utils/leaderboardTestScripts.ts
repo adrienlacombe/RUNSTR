@@ -7,9 +7,15 @@
 import Competition1301QueryService from '../services/competition/Competition1301QueryService';
 import LeagueRankingService from '../services/competition/leagueRankingService';
 import type { WorkoutMetrics } from '../services/competition/Competition1301QueryService';
-import type { LeagueParameters, LeagueParticipant } from '../services/competition/leagueRankingService';
+import type {
+  LeagueParameters,
+  LeagueParticipant,
+} from '../services/competition/leagueRankingService';
 import type { NostrWorkout } from '../types/nostrWorkout';
-import type { NostrActivityType, NostrLeagueCompetitionType } from '../types/nostrCompetition';
+import type {
+  NostrActivityType,
+  NostrLeagueCompetitionType,
+} from '../types/nostrCompetition';
 
 export interface LeaderboardTestCase {
   name: string;
@@ -61,29 +67,59 @@ export class LeaderboardTestScripts {
           npub: 'npub1test1',
           name: 'Distance Champion',
           workouts: [
-            { distance: 10, duration: 50, calories: 500, date: new Date('2024-01-01') },
-            { distance: 15, duration: 75, calories: 750, date: new Date('2024-01-02') },
-            { distance: 8, duration: 40, calories: 400, date: new Date('2024-01-03') }
-          ]
+            {
+              distance: 10,
+              duration: 50,
+              calories: 500,
+              date: new Date('2024-01-01'),
+            },
+            {
+              distance: 15,
+              duration: 75,
+              calories: 750,
+              date: new Date('2024-01-02'),
+            },
+            {
+              distance: 8,
+              duration: 40,
+              calories: 400,
+              date: new Date('2024-01-03'),
+            },
+          ],
         },
         {
           npub: 'npub1test2',
           name: 'Regular Runner',
           workouts: [
-            { distance: 5, duration: 30, calories: 250, date: new Date('2024-01-01') },
-            { distance: 5, duration: 30, calories: 250, date: new Date('2024-01-02') }
-          ]
+            {
+              distance: 5,
+              duration: 30,
+              calories: 250,
+              date: new Date('2024-01-01'),
+            },
+            {
+              distance: 5,
+              duration: 30,
+              calories: 250,
+              date: new Date('2024-01-02'),
+            },
+          ],
         },
         {
           npub: 'npub1test3',
           name: 'Casual Jogger',
           workouts: [
-            { distance: 3, duration: 20, calories: 150, date: new Date('2024-01-01') }
-          ]
-        }
+            {
+              distance: 3,
+              duration: 20,
+              calories: 150,
+              date: new Date('2024-01-01'),
+            },
+          ],
+        },
       ],
       expectedWinner: 'npub1test1',
-      expectedOrder: ['npub1test1', 'npub1test2', 'npub1test3']
+      expectedOrder: ['npub1test1', 'npub1test2', 'npub1test3'],
     },
     {
       name: 'Average Pace - Speed Matters',
@@ -95,28 +131,58 @@ export class LeaderboardTestScripts {
           npub: 'npub1fast',
           name: 'Speed Demon',
           workouts: [
-            { distance: 10, duration: 40, calories: 500, date: new Date('2024-01-01'), pace: 4 }, // 4 min/km
-            { distance: 5, duration: 20, calories: 250, date: new Date('2024-01-02'), pace: 4 }
-          ]
+            {
+              distance: 10,
+              duration: 40,
+              calories: 500,
+              date: new Date('2024-01-01'),
+              pace: 4,
+            }, // 4 min/km
+            {
+              distance: 5,
+              duration: 20,
+              calories: 250,
+              date: new Date('2024-01-02'),
+              pace: 4,
+            },
+          ],
         },
         {
           npub: 'npub1medium',
           name: 'Steady Runner',
           workouts: [
-            { distance: 10, duration: 50, calories: 500, date: new Date('2024-01-01'), pace: 5 }, // 5 min/km
-            { distance: 10, duration: 50, calories: 500, date: new Date('2024-01-02'), pace: 5 }
-          ]
+            {
+              distance: 10,
+              duration: 50,
+              calories: 500,
+              date: new Date('2024-01-01'),
+              pace: 5,
+            }, // 5 min/km
+            {
+              distance: 10,
+              duration: 50,
+              calories: 500,
+              date: new Date('2024-01-02'),
+              pace: 5,
+            },
+          ],
         },
         {
           npub: 'npub1slow',
           name: 'Easy Pacer',
           workouts: [
-            { distance: 5, duration: 30, calories: 250, date: new Date('2024-01-01'), pace: 6 } // 6 min/km
-          ]
-        }
+            {
+              distance: 5,
+              duration: 30,
+              calories: 250,
+              date: new Date('2024-01-01'),
+              pace: 6,
+            }, // 6 min/km
+          ],
+        },
       ],
       expectedWinner: 'npub1fast',
-      expectedOrder: ['npub1fast', 'npub1medium', 'npub1slow']
+      expectedOrder: ['npub1fast', 'npub1medium', 'npub1slow'],
     },
     {
       name: 'Most Consistent - Daily Activity',
@@ -131,8 +197,8 @@ export class LeaderboardTestScripts {
             distance: 3,
             duration: 20,
             calories: 150,
-            date: new Date(2024, 0, i + 1)
-          }))
+            date: new Date(2024, 0, i + 1),
+          })),
         },
         {
           npub: 'npub1weekly',
@@ -141,20 +207,30 @@ export class LeaderboardTestScripts {
             distance: 10,
             duration: 60,
             calories: 500,
-            date: new Date(2024, 0, (i + 1) * 7)
-          }))
+            date: new Date(2024, 0, (i + 1) * 7),
+          })),
         },
         {
           npub: 'npub1sporadic',
           name: 'Random Runner',
           workouts: [
-            { distance: 20, duration: 120, calories: 1000, date: new Date('2024-01-05') },
-            { distance: 25, duration: 150, calories: 1250, date: new Date('2024-01-15') }
-          ]
-        }
+            {
+              distance: 20,
+              duration: 120,
+              calories: 1000,
+              date: new Date('2024-01-05'),
+            },
+            {
+              distance: 25,
+              duration: 150,
+              calories: 1250,
+              date: new Date('2024-01-15'),
+            },
+          ],
+        },
       ],
       expectedWinner: 'npub1daily',
-      expectedOrder: ['npub1daily', 'npub1weekly', 'npub1sporadic']
+      expectedOrder: ['npub1daily', 'npub1weekly', 'npub1sporadic'],
     },
     {
       name: 'Total Workouts - Session Count',
@@ -169,8 +245,8 @@ export class LeaderboardTestScripts {
             distance: 0,
             duration: 45,
             calories: 300,
-            date: new Date(2024, 0, i + 1)
-          }))
+            date: new Date(2024, 0, i + 1),
+          })),
         },
         {
           npub: 'npub1moderate',
@@ -179,8 +255,8 @@ export class LeaderboardTestScripts {
             distance: 0,
             duration: 60,
             calories: 400,
-            date: new Date(2024, 0, i * 2 + 1)
-          }))
+            date: new Date(2024, 0, i * 2 + 1),
+          })),
         },
         {
           npub: 'npub1occasional',
@@ -189,12 +265,12 @@ export class LeaderboardTestScripts {
             distance: 0,
             duration: 90,
             calories: 500,
-            date: new Date(2024, 0, i * 7 + 1)
-          }))
-        }
+            date: new Date(2024, 0, i * 7 + 1),
+          })),
+        },
       ],
       expectedWinner: 'npub1frequent',
-      expectedOrder: ['npub1frequent', 'npub1moderate', 'npub1occasional']
+      expectedOrder: ['npub1frequent', 'npub1moderate', 'npub1occasional'],
     },
     {
       name: 'Longest Run - Single Best Effort',
@@ -206,18 +282,43 @@ export class LeaderboardTestScripts {
           npub: 'npub1marathon',
           name: 'Marathon Runner',
           workouts: [
-            { distance: 42.195, duration: 210, calories: 2500, date: new Date('2024-01-15') },
-            { distance: 5, duration: 25, calories: 250, date: new Date('2024-01-16') }
-          ]
+            {
+              distance: 42.195,
+              duration: 210,
+              calories: 2500,
+              date: new Date('2024-01-15'),
+            },
+            {
+              distance: 5,
+              duration: 25,
+              calories: 250,
+              date: new Date('2024-01-16'),
+            },
+          ],
         },
         {
           npub: 'npub1halfmarathon',
           name: 'Half Marathon Runner',
           workouts: [
-            { distance: 21.097, duration: 105, calories: 1250, date: new Date('2024-01-15') },
-            { distance: 10, duration: 50, calories: 500, date: new Date('2024-01-16') },
-            { distance: 10, duration: 50, calories: 500, date: new Date('2024-01-17') }
-          ]
+            {
+              distance: 21.097,
+              duration: 105,
+              calories: 1250,
+              date: new Date('2024-01-15'),
+            },
+            {
+              distance: 10,
+              duration: 50,
+              calories: 500,
+              date: new Date('2024-01-16'),
+            },
+            {
+              distance: 10,
+              duration: 50,
+              calories: 500,
+              date: new Date('2024-01-17'),
+            },
+          ],
         },
         {
           npub: 'npub110k',
@@ -226,12 +327,12 @@ export class LeaderboardTestScripts {
             distance: 10,
             duration: 50,
             calories: 500,
-            date: new Date('2024-01-10')
-          }))
-        }
+            date: new Date('2024-01-10'),
+          })),
+        },
       ],
       expectedWinner: 'npub1marathon',
-      expectedOrder: ['npub1marathon', 'npub1halfmarathon', 'npub110k']
+      expectedOrder: ['npub1marathon', 'npub1halfmarathon', 'npub110k'],
     },
     {
       name: 'Total Duration - Time Investment',
@@ -246,8 +347,8 @@ export class LeaderboardTestScripts {
             distance: 0,
             duration: 90,
             calories: 200,
-            date: new Date('2024-01-01')
-          }))
+            date: new Date('2024-01-01'),
+          })),
         },
         {
           npub: 'npub1regular',
@@ -256,8 +357,8 @@ export class LeaderboardTestScripts {
             distance: 0,
             duration: 60,
             calories: 150,
-            date: new Date('2024-01-01')
-          }))
+            date: new Date('2024-01-01'),
+          })),
         },
         {
           npub: 'npub1quick',
@@ -266,12 +367,12 @@ export class LeaderboardTestScripts {
             distance: 0,
             duration: 30,
             calories: 75,
-            date: new Date('2024-01-01')
-          }))
-        }
+            date: new Date('2024-01-01'),
+          })),
+        },
       ],
       expectedWinner: 'npub1dedicated',
-      expectedOrder: ['npub1dedicated', 'npub1regular', 'npub1quick']
+      expectedOrder: ['npub1dedicated', 'npub1regular', 'npub1quick'],
     },
     {
       name: 'Calorie Consistency - Energy Burn',
@@ -286,8 +387,8 @@ export class LeaderboardTestScripts {
             distance: 5,
             duration: 30,
             calories: 500,
-            date: new Date('2024-01-01')
-          }))
+            date: new Date('2024-01-01'),
+          })),
         },
         {
           npub: 'npub1endurance',
@@ -296,8 +397,8 @@ export class LeaderboardTestScripts {
             distance: 20,
             duration: 120,
             calories: 800,
-            date: new Date('2024-01-01')
-          }))
+            date: new Date('2024-01-01'),
+          })),
         },
         {
           npub: 'npub1moderate',
@@ -306,12 +407,12 @@ export class LeaderboardTestScripts {
             distance: 5,
             duration: 40,
             calories: 250,
-            date: new Date('2024-01-01')
-          }))
-        }
+            date: new Date('2024-01-01'),
+          })),
+        },
       ],
       expectedWinner: 'npub1hiit',
-      expectedOrder: ['npub1hiit', 'npub1endurance', 'npub1moderate']
+      expectedOrder: ['npub1hiit', 'npub1endurance', 'npub1moderate'],
     },
     {
       name: 'Weekly Streaks - Consecutive Weeks',
@@ -326,8 +427,8 @@ export class LeaderboardTestScripts {
             distance: 5,
             duration: 30,
             calories: 250,
-            date: new Date(2024, 0, i + 1)
-          }))
+            date: new Date(2024, 0, i + 1),
+          })),
         },
         {
           npub: 'npub1twoweek',
@@ -336,8 +437,8 @@ export class LeaderboardTestScripts {
             distance: 5,
             duration: 30,
             calories: 250,
-            date: new Date(2024, 0, i + 1)
-          }))
+            date: new Date(2024, 0, i + 1),
+          })),
         },
         {
           npub: 'npub1broken',
@@ -347,20 +448,20 @@ export class LeaderboardTestScripts {
               distance: 5,
               duration: 30,
               calories: 250,
-              date: new Date(2024, 0, i + 1)
+              date: new Date(2024, 0, i + 1),
             })),
             ...Array.from({ length: 7 }, (_, i) => ({
               distance: 5,
               duration: 30,
               calories: 250,
-              date: new Date(2024, 0, i + 15)
-            }))
-          ]
-        }
+              date: new Date(2024, 0, i + 15),
+            })),
+          ],
+        },
       ],
       expectedWinner: 'npub1streaker',
-      expectedOrder: ['npub1streaker', 'npub1twoweek', 'npub1broken']
-    }
+      expectedOrder: ['npub1streaker', 'npub1twoweek', 'npub1broken'],
+    },
   ];
 
   /**
@@ -390,8 +491,14 @@ export class LeaderboardTestScripts {
       const metricsMap = new Map<string, WorkoutMetrics>();
 
       for (const participant of testCase.participants) {
-        const workouts = this.convertToNostrWorkouts(participant.workouts, participant.npub);
-        const metrics = this.calculateMetricsFromWorkouts(workouts, participant.npub);
+        const workouts = this.convertToNostrWorkouts(
+          participant.workouts,
+          participant.npub
+        );
+        const metrics = this.calculateMetricsFromWorkouts(
+          workouts,
+          participant.npub
+        );
         metricsMap.set(participant.npub, metrics);
       }
 
@@ -403,9 +510,9 @@ export class LeaderboardTestScripts {
       );
 
       // Extract actual order
-      const actualOrder = rankings.map(r => r.npub);
+      const actualOrder = rankings.map((r) => r.npub);
       const scoreDetails: { [npub: string]: number } = {};
-      rankings.forEach(r => {
+      rankings.forEach((r) => {
         scoreDetails[r.npub] = r.score;
       });
 
@@ -421,7 +528,7 @@ export class LeaderboardTestScripts {
           : `❌ Ranking mismatch for ${testCase.competitionType}`,
         expectedOrder: testCase.expectedOrder,
         actualOrder,
-        scoreDetails
+        scoreDetails,
       });
 
       // Display results
@@ -434,16 +541,17 @@ export class LeaderboardTestScripts {
       }
 
       console.log(`   📊 Scores:`, scoreDetails);
-
     } catch (error) {
       this.results.push({
         testName: testCase.name,
         competitionType: testCase.competitionType,
         success: false,
-        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Error: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
         expectedOrder: testCase.expectedOrder,
         actualOrder: [],
-        scoreDetails: {}
+        scoreDetails: {},
       });
     }
   }
@@ -451,7 +559,10 @@ export class LeaderboardTestScripts {
   /**
    * Convert test workouts to NostrWorkout format
    */
-  private convertToNostrWorkouts(workouts: TestWorkout[], npub: string): NostrWorkout[] {
+  private convertToNostrWorkouts(
+    workouts: TestWorkout[],
+    npub: string
+  ): NostrWorkout[] {
     return workouts.map((w, index) => ({
       id: `test-${npub}-${index}`,
       source: 'test' as const,
@@ -467,14 +578,17 @@ export class LeaderboardTestScripts {
       nostrEventId: `test-event-${index}`,
       nostrPubkey: npub,
       nostrCreatedAt: Math.floor(w.date.getTime() / 1000),
-      unitSystem: 'metric' as const
+      unitSystem: 'metric' as const,
     }));
   }
 
   /**
    * Calculate metrics from workouts
    */
-  private calculateMetricsFromWorkouts(workouts: NostrWorkout[], npub: string): WorkoutMetrics {
+  private calculateMetricsFromWorkouts(
+    workouts: NostrWorkout[],
+    npub: string
+  ): WorkoutMetrics {
     const activeDays = new Set<string>();
     let totalDistance = 0;
     let totalDuration = 0;
@@ -482,7 +596,7 @@ export class LeaderboardTestScripts {
     let longestDistance = 0;
     let longestDuration = 0;
 
-    workouts.forEach(w => {
+    workouts.forEach((w) => {
       totalDistance += w.distance || 0;
       totalDuration += w.duration || 0;
       totalCalories += w.calories || 0;
@@ -494,18 +608,22 @@ export class LeaderboardTestScripts {
     });
 
     const averagePace = totalDistance > 0 ? totalDuration / totalDistance : 0;
-    const averageSpeed = totalDuration > 0 ? (totalDistance / totalDuration) * 60 : 0;
+    const averageSpeed =
+      totalDuration > 0 ? (totalDistance / totalDuration) * 60 : 0;
 
     // Calculate streak
     const sortedDays = Array.from(activeDays)
-      .map(d => new Date(d))
+      .map((d) => new Date(d))
       .sort((a, b) => b.getTime() - a.getTime());
 
     let streakDays = 0;
     if (sortedDays.length > 0) {
       streakDays = 1;
       for (let i = 1; i < sortedDays.length; i++) {
-        const diff = Math.floor((sortedDays[i - 1].getTime() - sortedDays[i].getTime()) / (24 * 60 * 60 * 1000));
+        const diff = Math.floor(
+          (sortedDays[i - 1].getTime() - sortedDays[i].getTime()) /
+            (24 * 60 * 60 * 1000)
+        );
         if (diff === 1) {
           streakDays++;
         } else {
@@ -525,9 +643,12 @@ export class LeaderboardTestScripts {
       longestDuration,
       averagePace,
       averageSpeed,
-      lastActivityDate: workouts.length > 0 ? workouts[workouts.length - 1].startTime : undefined,
+      lastActivityDate:
+        workouts.length > 0
+          ? workouts[workouts.length - 1].startTime
+          : undefined,
       streakDays,
-      workouts
+      workouts,
     };
   }
 
@@ -567,7 +688,10 @@ export class LeaderboardTestScripts {
           break;
         case 'Total Duration':
         case 'Longest Session':
-          score = competitionType === 'Total Duration' ? metric.totalDuration : metric.longestDuration;
+          score =
+            competitionType === 'Total Duration'
+              ? metric.totalDuration
+              : metric.longestDuration;
           break;
         case 'Calorie Consistency':
           score = metric.totalCalories;
@@ -600,8 +724,8 @@ export class LeaderboardTestScripts {
    * Generate test summary
    */
   private generateSummary(): void {
-    const passed = this.results.filter(r => r.success).length;
-    const failed = this.results.filter(r => !r.success).length;
+    const passed = this.results.filter((r) => r.success).length;
+    const failed = this.results.filter((r) => !r.success).length;
 
     console.log('\n' + '='.repeat(60));
     console.log('📊 LEADERBOARD TEST SUMMARY');
@@ -612,7 +736,7 @@ export class LeaderboardTestScripts {
 
     // Group by competition type
     const byType = new Map<string, { passed: number; failed: number }>();
-    this.results.forEach(r => {
+    this.results.forEach((r) => {
       const current = byType.get(r.competitionType) || { passed: 0, failed: 0 };
       if (r.success) {
         current.passed++;
@@ -625,14 +749,18 @@ export class LeaderboardTestScripts {
     console.log('\n📈 Results by Competition Type:');
     byType.forEach((stats, type) => {
       const icon = stats.failed === 0 ? '✅' : '⚠️';
-      console.log(`  ${icon} ${type}: ${stats.passed}/${stats.passed + stats.failed} passed`);
+      console.log(
+        `  ${icon} ${type}: ${stats.passed}/${
+          stats.passed + stats.failed
+        } passed`
+      );
     });
 
     if (failed > 0) {
       console.log('\n❌ Failed Tests:');
       this.results
-        .filter(r => !r.success)
-        .forEach(r => {
+        .filter((r) => !r.success)
+        .forEach((r) => {
           console.log(`  - ${r.testName}`);
           console.log(`    Expected: ${r.expectedOrder.join(' > ')}`);
           console.log(`    Actual:   ${r.actualOrder.join(' > ')}`);

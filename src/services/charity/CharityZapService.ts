@@ -54,7 +54,7 @@ class CharityZapServiceClass {
       if (!invoice) {
         return {
           success: false,
-          error: 'Failed to generate invoice from charity. Please try again.'
+          error: 'Failed to generate invoice from charity. Please try again.',
         };
       }
 
@@ -126,7 +126,10 @@ class CharityZapServiceClass {
 
       const invoiceResponse = await fetch(callbackUrl);
       if (!invoiceResponse.ok) {
-        console.error('[CharityZap] Invoice request failed:', invoiceResponse.status);
+        console.error(
+          '[CharityZap] Invoice request failed:',
+          invoiceResponse.status
+        );
         return null;
       }
 
@@ -151,7 +154,6 @@ class CharityZapServiceClass {
       return null;
     }
   }
-
 }
 
 export const CharityZapService = new CharityZapServiceClass();

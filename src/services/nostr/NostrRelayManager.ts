@@ -74,7 +74,7 @@ export class NostrRelayManager {
     console.log('🔄 Initializing real Nostr relay connections in parallel...');
 
     // ✅ Connect to all relays in parallel (instead of sequential)
-    const connectionPromises = this.config.relayUrls.map(url =>
+    const connectionPromises = this.config.relayUrls.map((url) =>
       this.connectToRelay(url)
     );
 

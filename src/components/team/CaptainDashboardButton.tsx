@@ -34,7 +34,7 @@ export const CaptainDashboardButton: React.FC<CaptainDashboardButtonProps> = ({
 }) => {
   const getButtonStyles = () => {
     const baseStyle = [styles.button, styles[`${size}Button`]];
-    
+
     switch (variant) {
       case 'primary':
         baseStyle.push(styles.primaryButton);
@@ -56,7 +56,7 @@ export const CaptainDashboardButton: React.FC<CaptainDashboardButtonProps> = ({
 
   const getTextStyles = () => {
     const baseStyle = [styles.buttonText, styles[`${size}Text`]];
-    
+
     switch (variant) {
       case 'primary':
         baseStyle.push(styles.primaryText);
@@ -94,13 +94,14 @@ export const CaptainDashboardButton: React.FC<CaptainDashboardButtonProps> = ({
           <ActivityIndicator
             size="small"
             color={
-              variant === 'primary' ? theme.colors.accentText : theme.colors.accent
+              variant === 'primary'
+                ? theme.colors.accentText
+                : theme.colors.accent
             }
             style={styles.loadingIndicator}
           />
         )}
-        
-        
+
         <Text style={getTextStyles()}>
           {isLoading ? 'Loading...' : 'Captain Dashboard'}
         </Text>

@@ -13,7 +13,10 @@ export class CaptainCache {
   /**
    * Store captain status for a specific team
    */
-  static async setCaptainStatus(teamId: string, isCaptain: boolean): Promise<void> {
+  static async setCaptainStatus(
+    teamId: string,
+    isCaptain: boolean
+  ): Promise<void> {
     try {
       const key = `${CAPTAIN_CACHE_PREFIX}${teamId}`;
       await AsyncStorage.setItem(key, isCaptain ? 'true' : 'false');
@@ -28,11 +31,13 @@ export class CaptainCache {
       } else {
         // Remove from captain teams list
         const teams = await this.getCaptainTeams();
-        const filtered = teams.filter(id => id !== teamId);
+        const filtered = teams.filter((id) => id !== teamId);
         await AsyncStorage.setItem(CAPTAIN_TEAMS_KEY, JSON.stringify(filtered));
       }
 
-      console.log(`✅ CaptainCache: Stored captain status for team ${teamId}: ${isCaptain}`);
+      console.log(
+        `✅ CaptainCache: Stored captain status for team ${teamId}: ${isCaptain}`
+      );
     } catch (error) {
       console.error('❌ CaptainCache: Error storing captain status:', error);
     }
@@ -52,7 +57,9 @@ export class CaptainCache {
       }
 
       const isCaptain = value === 'true';
-      console.log(`✅ CaptainCache: Retrieved captain status for team ${teamId}: ${isCaptain}`);
+      console.log(
+        `✅ CaptainCache: Retrieved captain status for team ${teamId}: ${isCaptain}`
+      );
       return isCaptain;
     } catch (error) {
       console.error('❌ CaptainCache: Error retrieving captain status:', error);
@@ -98,14 +105,17 @@ export class CaptainCache {
       const keys = await AsyncStorage.getAllKeys();
 
       // Filter captain-related keys
-      const captainKeys = keys.filter(key =>
-        key.startsWith(CAPTAIN_CACHE_PREFIX) || key === CAPTAIN_TEAMS_KEY
+      const captainKeys = keys.filter(
+        (key) =>
+          key.startsWith(CAPTAIN_CACHE_PREFIX) || key === CAPTAIN_TEAMS_KEY
       );
 
       // Remove all captain keys
       if (captainKeys.length > 0) {
         await AsyncStorage.multiRemove(captainKeys);
-        console.log(`✅ CaptainCache: Cleared ${captainKeys.length} cached entries`);
+        console.log(
+          `✅ CaptainCache: Cleared ${captainKeys.length} cached entries`
+        );
       }
     } catch (error) {
       console.error('❌ CaptainCache: Error clearing cache:', error);
@@ -127,10 +137,11 @@ export class CaptainCache {
 
     // Check if user is captain based on team data
     const teamCaptain = team.captain || team.captainId || team.captainNpub;
-    const isCaptain = !!(teamCaptain && (
-      teamCaptain === userNpub ||
-      teamCaptain.toLowerCase() === userNpub.toLowerCase()
-    ));
+    const isCaptain = !!(
+      teamCaptain &&
+      (teamCaptain === userNpub ||
+        teamCaptain.toLowerCase() === userNpub.toLowerCase())
+    );
 
     // Cache the result
     await this.setCaptainStatus(teamId, isCaptain);

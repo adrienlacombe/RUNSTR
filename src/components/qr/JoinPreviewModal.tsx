@@ -48,7 +48,9 @@ export const JoinPreviewModal: React.FC<JoinPreviewModalProps> = ({
     }
   };
 
-  const renderChallengeDetails = (challengeData: Extract<QRData, { type: 'challenge' }>) => (
+  const renderChallengeDetails = (
+    challengeData: Extract<QRData, { type: 'challenge' }>
+  ) => (
     <>
       <Text style={styles.title}>{challengeData.name}</Text>
       <Text style={styles.subtitle}>Challenge Invitation</Text>
@@ -103,7 +105,9 @@ export const JoinPreviewModal: React.FC<JoinPreviewModalProps> = ({
     </>
   );
 
-  const renderEventDetails = (eventData: Extract<QRData, { type: 'event' }>) => (
+  const renderEventDetails = (
+    eventData: Extract<QRData, { type: 'event' }>
+  ) => (
     <>
       <Text style={styles.title}>{eventData.name}</Text>
       <Text style={styles.subtitle}>Event Invitation</Text>
@@ -162,7 +166,9 @@ export const JoinPreviewModal: React.FC<JoinPreviewModalProps> = ({
                 <ActivityIndicator size="small" color="#000" />
               ) : (
                 <Text style={styles.joinButtonText}>
-                  {data.type === 'challenge' ? 'Accept Challenge' : 'Request to Join'}
+                  {data.type === 'challenge'
+                    ? 'Accept Challenge'
+                    : 'Request to Join'}
                 </Text>
               )}
             </TouchableOpacity>

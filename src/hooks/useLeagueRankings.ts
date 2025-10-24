@@ -10,7 +10,9 @@ import LeagueRankingService, {
   LeagueParameters,
   LeagueParticipant,
 } from '../services/competition/leagueRankingService';
-import LeagueDataBridge, { ActiveLeague } from '../services/competition/leagueDataBridge';
+import LeagueDataBridge, {
+  ActiveLeague,
+} from '../services/competition/leagueDataBridge';
 
 export interface UseLeagueRankingsOptions {
   teamId?: string;
@@ -29,7 +31,9 @@ export interface UseLeagueRankingsResult {
   hasActiveLeague: boolean;
 }
 
-export function useLeagueRankings(options: UseLeagueRankingsOptions): UseLeagueRankingsResult {
+export function useLeagueRankings(
+  options: UseLeagueRankingsOptions
+): UseLeagueRankingsResult {
   const {
     teamId,
     competitionId,
@@ -49,56 +53,65 @@ export function useLeagueRankings(options: UseLeagueRankingsOptions): UseLeagueR
   /**
    * Load active league for team
    */
-  const loadActiveLeague = useCallback(async (): Promise<ActiveLeague | null> => {
-    if (!teamId) return null;
+  const loadActiveLeague =
+    useCallback(async (): Promise<ActiveLeague | null> => {
+      if (!teamId) return null;
 
-    try {
-      const league = await dataBridge.getActiveLeagueForTeam(teamId);
-      setActiveLeague(league);
-      return league;
-    } catch (err) {
-      console.error('❌ Failed to load active league:', err);
-      return null;
-    }
-  }, [teamId, dataBridge]);
+      try {
+        const league = await dataBridge.getActiveLeagueForTeam(teamId);
+        setActiveLeague(league);
+        return league;
+      } catch (err) {
+        console.error('❌ Failed to load active league:', err);
+        return null;
+      }
+    }, [teamId, dataBridge]);
 
   /**
    * Load rankings for competition
    * Now supports force refresh to bypass 24-hour cache
    */
-  const loadRankings = useCallback(async (
-    targetCompetitionId: string,
-    participants: LeagueParticipant[],
-    parameters: LeagueParameters,
-    isRefresh = false,
-    forceRefresh = false // New parameter for pull-to-refresh
-  ): Promise<void> => {
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
+  const loadRankings = useCallback(
+    async (
+      targetCompetitionId: string,
+      participants: LeagueParticipant[],
+      parameters: LeagueParameters,
+      isRefresh = false,
+      forceRefresh = false // New parameter for pull-to-refresh
+    ): Promise<void> => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        }
+
+        console.log(
+          `🏆 Loading rankings for: ${targetCompetitionId}${
+            forceRefresh ? ' (FORCE)' : ''
+          }`
+        );
+
+        const result = await rankingService.calculateLeagueRankings(
+          targetCompetitionId,
+          participants,
+          parameters,
+          forceRefresh // Pass force flag to bypass cache
+        );
+
+        setRankings(result);
+        setError(null);
+      } catch (err) {
+        console.error('❌ Failed to load rankings:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to load rankings'
+        );
+      } finally {
+        if (isRefresh) {
+          setRefreshing(false);
+        }
       }
-
-      console.log(`🏆 Loading rankings for: ${targetCompetitionId}${forceRefresh ? ' (FORCE)' : ''}`);
-
-      const result = await rankingService.calculateLeagueRankings(
-        targetCompetitionId,
-        participants,
-        parameters,
-        forceRefresh // Pass force flag to bypass cache
-      );
-
-      setRankings(result);
-      setError(null);
-
-    } catch (err) {
-      console.error('❌ Failed to load rankings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load rankings');
-    } finally {
-      if (isRefresh) {
-        setRefreshing(false);
-      }
-    }
-  }, [rankingService]);
+    },
+    [rankingService]
+  );
 
   /**
    * Refresh rankings manually
@@ -120,7 +133,7 @@ export function useLeagueRankings(options: UseLeagueRankingsOptions): UseLeagueR
         targetLeague.participants,
         targetLeague.parameters,
         true, // isRefresh (show loading state)
-        true  // forceRefresh (bypass cache)
+        true // forceRefresh (bypass cache)
       );
     }
   }, [activeLeague, teamId, competitionId, loadActiveLeague, loadRankings]);
@@ -140,11 +153,15 @@ export function useLeagueRankings(options: UseLeagueRankingsOptions): UseLeagueR
         if (competitionId) {
           // Direct competition ID provided
           targetCompetitionId = competitionId;
-          
+
           // Try to get league data from competition ID
-          const parameters = await dataBridge.getLeagueParameters(competitionId);
-          const participants = await dataBridge.getLeagueParticipants(competitionId);
-          
+          const parameters = await dataBridge.getLeagueParameters(
+            competitionId
+          );
+          const participants = await dataBridge.getLeagueParticipants(
+            competitionId
+          );
+
           if (parameters) {
             targetLeague = {
               competitionId,
@@ -175,7 +192,6 @@ export function useLeagueRankings(options: UseLeagueRankingsOptions): UseLeagueR
           console.log('📭 No active league found');
           setRankings(null);
         }
-
       } catch (err) {
         console.error('❌ Failed to initialize league rankings:', err);
         setError(err instanceof Error ? err.message : 'Failed to initialize');

@@ -47,7 +47,11 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
   const [alertConfig, setAlertConfig] = useState<{
     title: string;
     message: string;
-    buttons: Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
   }>({
     title: '',
     message: '',
@@ -117,17 +121,24 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
             <Text style={styles.eventName}>{eventName}</Text>
             <View style={styles.amountContainer}>
               <Ionicons name="flash" size={20} color={theme.colors.accent} />
-              <Text style={styles.amount}>{amountSats.toLocaleString()} sats</Text>
+              <Text style={styles.amount}>
+                {amountSats.toLocaleString()} sats
+              </Text>
             </View>
             {paymentDestination && paymentRecipientName && (
               <View style={styles.paymentDestinationContainer}>
                 <Ionicons
-                  name={paymentDestination === 'charity' ? 'heart' : 'person-circle'}
+                  name={
+                    paymentDestination === 'charity' ? 'heart' : 'person-circle'
+                  }
                   size={16}
                   color={theme.colors.textMuted}
                 />
                 <Text style={styles.paymentDestinationText}>
-                  Payment to: {paymentDestination === 'charity' ? 'Charity - ' : 'Captain - '}
+                  Payment to:{' '}
+                  {paymentDestination === 'charity'
+                    ? 'Charity - '
+                    : 'Captain - '}
                   {paymentRecipientName}
                 </Text>
               </View>
@@ -155,7 +166,11 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
               style={styles.invoiceContainer}
               activeOpacity={0.7}
             >
-              <Text style={styles.invoice} numberOfLines={3} ellipsizeMode="middle">
+              <Text
+                style={styles.invoice}
+                numberOfLines={3}
+                ellipsizeMode="middle"
+              >
                 {invoice}
               </Text>
               <View style={styles.copyIndicator}>
@@ -206,7 +221,11 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
             onPress={handlePaid}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.accentText} />
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color={theme.colors.accentText}
+            />
             <Text style={styles.paidButtonText}>I Paid This Invoice</Text>
           </TouchableOpacity>
 
@@ -220,7 +239,8 @@ export const EventPaymentModal: React.FC<EventPaymentModalProps> = ({
 
           {/* Note */}
           <Text style={styles.note}>
-            Your join request will be sent to the captain for approval after payment.
+            Your join request will be sent to the captain for approval after
+            payment.
           </Text>
         </ScrollView>
 

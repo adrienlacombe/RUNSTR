@@ -4,13 +4,31 @@
  */
 
 import type { QRChallengeData } from './QRChallengeService';
-import type { ActivityType, MetricType, DurationOption } from '../../types/challenge';
+import type {
+  ActivityType,
+  MetricType,
+  DurationOption,
+} from '../../types/challenge';
 
 const QR_CHALLENGE_EXPIRY_DAYS = 30; // Challenges expire after 30 days
 
 // Valid values for validation
-const VALID_ACTIVITIES: ActivityType[] = ['running', 'walking', 'cycling', 'hiking', 'swimming', 'rowing', 'workout'];
-const VALID_METRICS: MetricType[] = ['distance', 'duration', 'count', 'calories', 'pace'];
+const VALID_ACTIVITIES: ActivityType[] = [
+  'running',
+  'walking',
+  'cycling',
+  'hiking',
+  'swimming',
+  'rowing',
+  'workout',
+];
+const VALID_METRICS: MetricType[] = [
+  'distance',
+  'duration',
+  'count',
+  'calories',
+  'pace',
+];
 const VALID_DURATIONS: DurationOption[] = [3, 7, 14, 30];
 
 export interface ParseResult {
@@ -155,7 +173,9 @@ export class QRChallengeParser {
 
     // Validate created_at (must be positive number)
     if (typeof data.created_at !== 'number' || data.created_at <= 0) {
-      console.log(`❌ Validation failed: Invalid created_at ${data.created_at}`);
+      console.log(
+        `❌ Validation failed: Invalid created_at ${data.created_at}`
+      );
       return false;
     }
 
@@ -195,7 +215,10 @@ export class QRChallengeParser {
     const expirySeconds = QR_CHALLENGE_EXPIRY_DAYS * 24 * 60 * 60;
     const age = nowTimestamp - data.created_at;
     const remainingSeconds = expirySeconds - age;
-    const daysRemaining = Math.max(0, Math.ceil(remainingSeconds / (24 * 60 * 60)));
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil(remainingSeconds / (24 * 60 * 60))
+    );
 
     return {
       expired: age > expirySeconds,

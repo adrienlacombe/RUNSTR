@@ -21,7 +21,8 @@ export class NostrCompetitionDiscoveryService {
 
   static getInstance(): NostrCompetitionDiscoveryService {
     if (!NostrCompetitionDiscoveryService.instance) {
-      NostrCompetitionDiscoveryService.instance = new NostrCompetitionDiscoveryService();
+      NostrCompetitionDiscoveryService.instance =
+        new NostrCompetitionDiscoveryService();
     }
     return NostrCompetitionDiscoveryService.instance;
   }
@@ -30,7 +31,9 @@ export class NostrCompetitionDiscoveryService {
    * Get all competitions (teams, leagues, events, challenges) for a user
    */
   async getUserCompetitions(userPubkey: string): Promise<UserCompetition[]> {
-    console.log(`🔍 Discovering competitions for user: ${userPubkey.slice(0, 20)}...`);
+    console.log(
+      `🔍 Discovering competitions for user: ${userPubkey.slice(0, 20)}...`
+    );
 
     // Convert npub to hex if needed
     let hexPubkey = userPubkey;
@@ -62,7 +65,7 @@ export class NostrCompetitionDiscoveryService {
       const memberFilter: NDKFilter = {
         kinds: [30000],
         '#p': [hexPubkey],
-        limit: 500
+        limit: 500,
       };
 
       const memberSub = ndk.subscribe(memberFilter, { closeOnEose: false });
@@ -83,7 +86,9 @@ export class NostrCompetitionDiscoveryService {
           if (competition && !processedIds.has(competition.id)) {
             processedIds.add(competition.id);
             competitions.push(competition);
-            console.log(`✅ Found competition: ${competition.name} (${competition.type})`);
+            console.log(
+              `✅ Found competition: ${competition.name} (${competition.type})`
+            );
           }
         } catch (error) {
           console.warn(`Failed to parse competition from event:`, error);
@@ -94,7 +99,7 @@ export class NostrCompetitionDiscoveryService {
       const authorFilter: NDKFilter = {
         kinds: [30100 as any, 30101 as any], // Custom kinds - Leagues and Events
         authors: [hexPubkey],
-        limit: 500
+        limit: 500,
       };
 
       const authorSub = ndk.subscribe(authorFilter, { closeOnEose: false });
@@ -115,7 +120,9 @@ export class NostrCompetitionDiscoveryService {
           if (competition && !processedIds.has(competition.id)) {
             processedIds.add(competition.id);
             competitions.push(competition);
-            console.log(`✅ Found competition: ${competition.name} (${competition.type})`);
+            console.log(
+              `✅ Found competition: ${competition.name} (${competition.type})`
+            );
           }
         } catch (error) {
           console.warn(`Failed to parse competition from event:`, error);
@@ -123,7 +130,7 @@ export class NostrCompetitionDiscoveryService {
       });
 
       // Wait for results
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Unsubscribe both
       memberSub.stop();
@@ -154,16 +161,20 @@ export class NostrCompetitionDiscoveryService {
   /**
    * Parse kind 30100/30101 competition definition into UserCompetition
    */
-  private parseCompetitionDefinition(event: Event, userHexPubkey: string): UserCompetition | null {
+  private parseCompetitionDefinition(
+    event: Event,
+    userHexPubkey: string
+  ): UserCompetition | null {
     if (!event.tags) return null;
 
-    const tags = new Map(event.tags.map(t => [t[0], t[1]]));
+    const tags = new Map(event.tags.map((t) => [t[0], t[1]]));
     const dTag = tags.get('d') || '';
     const name = tags.get('name') || 'Unnamed Competition';
     const activityType = tags.get('activity_type') || '';
 
     // Determine type from kind
-    const type: UserCompetition['type'] = event.kind === 30100 ? 'league' : 'event';
+    const type: UserCompetition['type'] =
+      event.kind === 30100 ? 'league' : 'event';
 
     // Parse dates
     let startsAt = 0;
@@ -212,21 +223,24 @@ export class NostrCompetitionDiscoveryService {
       yourRole,
       startsAt,
       endsAt,
-      prizePool: prizePool || undefined
+      prizePool: prizePool || undefined,
     };
   }
 
   /**
    * Parse a kind 30000 list event into a UserCompetition if it's fitness-related
    */
-  private parseListToCompetition(event: Event, userHexPubkey: string): UserCompetition | null {
+  private parseListToCompetition(
+    event: Event,
+    userHexPubkey: string
+  ): UserCompetition | null {
     if (!event.tags) return null;
 
     // Extract tags
-    const tags = new Map(event.tags.map(t => [t[0], t[1]]));
+    const tags = new Map(event.tags.map((t) => [t[0], t[1]]));
     const dTag = tags.get('d') || '';
     const name = tags.get('name') || 'Unnamed Competition';
-    const tTags = event.tags.filter(t => t[0] === 't').map(t => t[1]);
+    const tTags = event.tags.filter((t) => t[0] === 't').map((t) => t[1]);
 
     // Determine competition type from d-tag prefix or t-tags
     let type: UserCompetition['type'] | null = null;
@@ -253,13 +267,25 @@ export class NostrCompetitionDiscoveryService {
     if (!type) return null;
 
     // Skip if not fitness-related (check for fitness tags)
-    const isFitness = tTags.some(tag =>
-      ['fitness', 'running', 'cycling', 'walking', 'hiking', 'swimming', 'rowing', 'workout', 'competition'].includes(tag)
+    const isFitness = tTags.some((tag) =>
+      [
+        'fitness',
+        'running',
+        'cycling',
+        'walking',
+        'hiking',
+        'swimming',
+        'rowing',
+        'workout',
+        'competition',
+      ].includes(tag)
     );
     if (!isFitness && !dTag.includes('team')) return null; // Teams might not have fitness tags
 
     // Get participant count
-    const participants = event.tags.filter(t => t[0] === 'p').map(t => t[1]);
+    const participants = event.tags
+      .filter((t) => t[0] === 'p')
+      .map((t) => t[1]);
     const participantCount = participants.length;
 
     // Determine user's role
@@ -291,8 +317,11 @@ export class NostrCompetitionDiscoveryService {
     }
 
     // Get financial info
-    const wager = type === 'challenge' ? parseInt(tags.get('wager') || '0') : undefined;
-    const prizePool = ['league', 'event'].includes(type) ? parseInt(tags.get('prize_pool') || '0') : undefined;
+    const wager =
+      type === 'challenge' ? parseInt(tags.get('wager') || '0') : undefined;
+    const prizePool = ['league', 'event'].includes(type)
+      ? parseInt(tags.get('prize_pool') || '0')
+      : undefined;
 
     return {
       id: event.id || dTag,
@@ -304,7 +333,7 @@ export class NostrCompetitionDiscoveryService {
       startsAt: startsAt || event.created_at,
       endsAt: expiresAt,
       wager,
-      prizePool
+      prizePool,
     };
   }
 
@@ -316,7 +345,7 @@ export class NostrCompetitionDiscoveryService {
     type: UserCompetition['type']
   ): Promise<UserCompetition[]> {
     const allCompetitions = await this.getUserCompetitions(userPubkey);
-    return allCompetitions.filter(c => c.type === type);
+    return allCompetitions.filter((c) => c.type === type);
   }
 
   /**
@@ -324,7 +353,7 @@ export class NostrCompetitionDiscoveryService {
    */
   async getActiveCompetitions(userPubkey: string): Promise<UserCompetition[]> {
     const allCompetitions = await this.getUserCompetitions(userPubkey);
-    return allCompetitions.filter(c => c.status === 'active');
+    return allCompetitions.filter((c) => c.status === 'active');
   }
 
   /**
@@ -332,7 +361,7 @@ export class NostrCompetitionDiscoveryService {
    */
   async getCompetitionCount(userPubkey: string): Promise<number> {
     const competitions = await this.getUserCompetitions(userPubkey);
-    return competitions.filter(c => c.status !== 'completed').length;
+    return competitions.filter((c) => c.status !== 'completed').length;
   }
 
   /**

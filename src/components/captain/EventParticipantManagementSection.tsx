@@ -53,7 +53,9 @@ export const EventParticipantManagementSection: React.FC<
       setIsLoading(true);
       const members = await listService.getListMembers(captainPubkey, dTag);
       setParticipants(members);
-      console.log(`✅ Loaded ${members.length} participants for event ${eventId}`);
+      console.log(
+        `✅ Loaded ${members.length} participants for event ${eventId}`
+      );
     } catch (error) {
       console.error('Failed to load participants:', error);
       setParticipants([]);
@@ -91,7 +93,10 @@ export const EventParticipantManagementSection: React.FC<
           listType: 'people' as const,
         };
 
-        const eventTemplate = listService.prepareListCreation(listData, captainPubkey);
+        const eventTemplate = listService.prepareListCreation(
+          listData,
+          captainPubkey
+        );
 
         // Sign and publish
         const g = globalThis as any;
@@ -130,8 +135,14 @@ export const EventParticipantManagementSection: React.FC<
           await ndkEvent.publish();
 
           // Update local state
-          const updatedMembers = [...currentList.members, newParticipantPubkey.trim()];
-          listService.updateCachedList(`${captainPubkey}:${dTag}`, updatedMembers);
+          const updatedMembers = [
+            ...currentList.members,
+            newParticipantPubkey.trim(),
+          ];
+          listService.updateCachedList(
+            `${captainPubkey}:${dTag}`,
+            updatedMembers
+          );
           setParticipants(updatedMembers);
         }
       }
@@ -167,7 +178,10 @@ export const EventParticipantManagementSection: React.FC<
               }
 
               // Get current list
-              const currentList = await listService.getList(captainPubkey, dTag);
+              const currentList = await listService.getList(
+                captainPubkey,
+                dTag
+              );
               if (!currentList) {
                 throw new Error('Participant list not found');
               }
@@ -198,7 +212,10 @@ export const EventParticipantManagementSection: React.FC<
               const updatedMembers = currentList.members.filter(
                 (m) => m !== participantPubkey
               );
-              listService.updateCachedList(`${captainPubkey}:${dTag}`, updatedMembers);
+              listService.updateCachedList(
+                `${captainPubkey}:${dTag}`,
+                updatedMembers
+              );
               setParticipants(updatedMembers);
 
               Alert.alert('Success', 'Participant removed from event');
@@ -230,7 +247,10 @@ export const EventParticipantManagementSection: React.FC<
         </View>
       </View>
 
-      <ScrollView style={styles.participantsList} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.participantsList}
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Loading participants...</Text>
@@ -257,7 +277,11 @@ export const EventParticipantManagementSection: React.FC<
                 style={styles.removeButton}
                 onPress={() => handleRemoveParticipant(pubkey)}
               >
-                <Ionicons name="close-circle" size={20} color={theme.colors.error} />
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color={theme.colors.error}
+                />
               </TouchableOpacity>
             </View>
           ))

@@ -46,8 +46,12 @@ const HelpSection: React.FC<HelpSectionProps> = ({
   </Card>
 );
 
-export const HelpSupportScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+export const HelpSupportScreen: React.FC<{ navigation: any }> = ({
+  navigation,
+}) => {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set()
+  );
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
@@ -149,7 +153,10 @@ export const HelpSupportScreen: React.FC<{ navigation: any }> = ({ navigation })
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerSpacer} />

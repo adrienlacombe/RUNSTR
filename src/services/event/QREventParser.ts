@@ -126,24 +126,32 @@ export class QREventParser {
 
     // Validate entry_fee (must be non-negative number)
     if (typeof data.entry_fee !== 'number' || data.entry_fee < 0) {
-      console.log(`❌ Event validation failed: Invalid entry_fee ${data.entry_fee}`);
+      console.log(
+        `❌ Event validation failed: Invalid entry_fee ${data.entry_fee}`
+      );
       return false;
     }
 
     // Validate type matches entry_fee
     if (data.type === 'paid_event' && data.entry_fee === 0) {
-      console.log('❌ Event validation failed: Paid event must have entry fee > 0');
+      console.log(
+        '❌ Event validation failed: Paid event must have entry fee > 0'
+      );
       return false;
     }
 
     if (data.type === 'free_event' && data.entry_fee !== 0) {
-      console.log('❌ Event validation failed: Free event must have entry fee = 0');
+      console.log(
+        '❌ Event validation failed: Free event must have entry fee = 0'
+      );
       return false;
     }
 
     // Validate created_at (must be positive number)
     if (typeof data.created_at !== 'number' || data.created_at <= 0) {
-      console.log(`❌ Event validation failed: Invalid created_at ${data.created_at}`);
+      console.log(
+        `❌ Event validation failed: Invalid created_at ${data.created_at}`
+      );
       return false;
     }
 
@@ -157,8 +165,13 @@ export class QREventParser {
     }
 
     // Validate event_date is a valid date string
-    if (typeof data.event_date !== 'string' || isNaN(Date.parse(data.event_date))) {
-      console.log(`❌ Event validation failed: Invalid event_date ${data.event_date}`);
+    if (
+      typeof data.event_date !== 'string' ||
+      isNaN(Date.parse(data.event_date))
+    ) {
+      console.log(
+        `❌ Event validation failed: Invalid event_date ${data.event_date}`
+      );
       return false;
     }
 
@@ -198,7 +211,10 @@ export class QREventParser {
     const expirySeconds = QR_EVENT_EXPIRY_DAYS * 24 * 60 * 60;
     const age = nowTimestamp - data.created_at;
     const remainingSeconds = expirySeconds - age;
-    const daysRemaining = Math.max(0, Math.ceil(remainingSeconds / (24 * 60 * 60)));
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil(remainingSeconds / (24 * 60 * 60))
+    );
 
     return {
       expired: age > expirySeconds,

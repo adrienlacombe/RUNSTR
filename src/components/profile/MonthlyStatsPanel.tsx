@@ -14,7 +14,9 @@ interface MonthlyStatsPanelProps {
   stats: MonthlyStats;
 }
 
-export const MonthlyStatsPanel: React.FC<MonthlyStatsPanelProps> = ({ stats }) => {
+export const MonthlyStatsPanel: React.FC<MonthlyStatsPanelProps> = ({
+  stats,
+}) => {
   /**
    * Format distance (meters to km)
    */
@@ -45,11 +47,7 @@ export const MonthlyStatsPanel: React.FC<MonthlyStatsPanelProps> = ({ stats }) =
    */
   const renderComparison = (change: number) => {
     if (change === 0) {
-      return (
-        <Text style={styles.comparisonNeutral}>
-          — 0%
-        </Text>
-      );
+      return <Text style={styles.comparisonNeutral}>— 0%</Text>;
     }
 
     const isPositive = change > 0;
@@ -67,7 +65,10 @@ export const MonthlyStatsPanel: React.FC<MonthlyStatsPanelProps> = ({ stats }) =
    * Render horizontal bar chart for weekly stats
    */
   const renderWeeklyBars = () => {
-    const maxWorkouts = Math.max(...stats.weeklyStats.map((w) => w.workouts), 1);
+    const maxWorkouts = Math.max(
+      ...stats.weeklyStats.map((w) => w.workouts),
+      1
+    );
 
     return (
       <View style={styles.weeklyBarsContainer}>
@@ -103,7 +104,9 @@ export const MonthlyStatsPanel: React.FC<MonthlyStatsPanelProps> = ({ stats }) =
         {/* Average Distance */}
         <View style={styles.statCard}>
           <Ionicons name="analytics-outline" size={20} color="#FF9D42" />
-          <Text style={styles.statValue}>{formatDistance(stats.avgDistance)}</Text>
+          <Text style={styles.statValue}>
+            {formatDistance(stats.avgDistance)}
+          </Text>
           <Text style={styles.statLabel}>Avg Distance</Text>
         </View>
 

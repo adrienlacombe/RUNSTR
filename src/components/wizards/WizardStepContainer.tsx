@@ -153,10 +153,15 @@ export const WizardStepContainer: React.FC<WizardStepContainerProps> = ({
               style={[
                 styles.navigationButtonText,
                 styles.nextButtonText,
-                (!canGoNext || isProcessing) && styles.navigationButtonTextDisabled,
+                (!canGoNext || isProcessing) &&
+                  styles.navigationButtonTextDisabled,
               ]}
             >
-              {isProcessing && isLastStep ? processingText : (isLastStep ? 'Create' : 'Next')}
+              {isProcessing && isLastStep
+                ? processingText
+                : isLastStep
+                ? 'Create'
+                : 'Next'}
             </Text>
           </TouchableOpacity>
         </View>

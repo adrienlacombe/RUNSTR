@@ -54,7 +54,8 @@ export const validateFlashUrl = (url: string): boolean => {
   }
 
   // Check Flash subscription format (https://app.paywithflash.com/subscription-page?flashId=XXXX)
-  const flashPattern = /^https:\/\/app\.paywithflash\.com\/subscription-page\?flashId=\d+$/i;
+  const flashPattern =
+    /^https:\/\/app\.paywithflash\.com\/subscription-page\?flashId=\d+$/i;
 
   return flashPattern.test(url);
 };

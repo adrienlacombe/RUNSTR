@@ -213,7 +213,10 @@ function encryptForStorage(data: string, userId: string): string {
  * Simple decryption from local storage
  * React Native compatible version using btoa/atob polyfill
  */
-export function decryptFromStorage(encryptedData: string, userId: string): string {
+export function decryptFromStorage(
+  encryptedData: string,
+  userId: string
+): string {
   try {
     const key = userId.slice(0, 16).padEnd(16, '0');
     const data = atob(encryptedData);
@@ -288,7 +291,9 @@ export async function getNsecFromStorage(
     const authData = await getAuthenticationData();
 
     if (authData && authData.nsec) {
-      console.log('[Legacy] getNsecFromStorage: Using new auth system, found nsec');
+      console.log(
+        '[Legacy] getNsecFromStorage: Using new auth system, found nsec'
+      );
       return authData.nsec;
     }
 
@@ -363,7 +368,9 @@ export async function clearNostrStorage(): Promise<void> {
       '@runstr:amber_pubkey', // SECURITY: Clear Amber cached pubkey to force re-authentication
       '@runstr:auth_method', // SECURITY: Clear auth method to prevent cached login
     ]);
-    console.log('✅ Nostr storage cleared (including Amber authentication data)');
+    console.log(
+      '✅ Nostr storage cleared (including Amber authentication data)'
+    );
   } catch (error) {
     console.error('Error clearing Nostr storage:', error);
   }
@@ -468,7 +475,10 @@ export function normalizeUserKeyForStorage(userPubkey: string): string | null {
       return nip19.npubEncode(userPubkey);
     }
 
-    console.error('normalizeUserKeyForStorage: Invalid pubkey format:', userPubkey.slice(0, 20));
+    console.error(
+      'normalizeUserKeyForStorage: Invalid pubkey format:',
+      userPubkey.slice(0, 20)
+    );
     return null;
   } catch (error) {
     console.error('normalizeUserKeyForStorage: Error normalizing key:', error);

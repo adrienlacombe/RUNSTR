@@ -20,7 +20,10 @@ import type { WorkoutGroup } from '../../utils/workoutGrouping';
 import type { UnifiedWorkout } from '../../services/fitness/workoutMergeService';
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -66,7 +69,8 @@ export const MonthlyWorkoutFolder: React.FC<MonthlyWorkoutFolderProps> = ({
 
         {/* Workout count - e.g., "23 workouts" */}
         <Text style={styles.workoutCount}>
-          {group.workouts.length} {group.workouts.length === 1 ? 'workout' : 'workouts'}
+          {group.workouts.length}{' '}
+          {group.workouts.length === 1 ? 'workout' : 'workouts'}
         </Text>
       </TouchableOpacity>
 
@@ -74,9 +78,7 @@ export const MonthlyWorkoutFolder: React.FC<MonthlyWorkoutFolderProps> = ({
       {isExpanded && (
         <View style={styles.folderContent}>
           {group.workouts.map((workout) => (
-            <View key={workout.id}>
-              {renderWorkout(workout)}
-            </View>
+            <View key={workout.id}>{renderWorkout(workout)}</View>
           ))}
         </View>
       )}

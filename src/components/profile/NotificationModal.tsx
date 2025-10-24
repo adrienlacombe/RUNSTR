@@ -20,7 +20,10 @@ import { theme } from '../../styles/theme';
 import { unifiedNotificationStore } from '../../services/notifications/UnifiedNotificationStore';
 import { challengeNotificationHandler } from '../../services/notifications/ChallengeNotificationHandler';
 import { NotificationItem } from './NotificationItem';
-import type { UnifiedNotification, GroupedNotifications } from '../../types/unifiedNotifications';
+import type {
+  UnifiedNotification,
+  GroupedNotifications,
+} from '../../types/unifiedNotifications';
 import { useNavigation } from '@react-navigation/native';
 
 interface NotificationModalProps {
@@ -28,14 +31,18 @@ interface NotificationModalProps {
   onClose: () => void;
 }
 
-export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, onClose }) => {
+export const NotificationModal: React.FC<NotificationModalProps> = ({
+  visible,
+  onClose,
+}) => {
   const navigation = useNavigation<any>();
-  const [groupedNotifications, setGroupedNotifications] = useState<GroupedNotifications>({
-    today: [],
-    yesterday: [],
-    thisWeek: [],
-    older: [],
-  });
+  const [groupedNotifications, setGroupedNotifications] =
+    useState<GroupedNotifications>({
+      today: [],
+      yesterday: [],
+      thisWeek: [],
+      older: [],
+    });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -44,11 +51,13 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
       loadNotifications();
 
       // Subscribe to notification changes while modal is open
-      const unsubscribe = unifiedNotificationStore.subscribe((notifications, count) => {
-        setUnreadCount(count);
-        const grouped = unifiedNotificationStore.getGroupedNotifications();
-        setGroupedNotifications(grouped);
-      });
+      const unsubscribe = unifiedNotificationStore.subscribe(
+        (notifications, count) => {
+          setUnreadCount(count);
+          const grouped = unifiedNotificationStore.getGroupedNotifications();
+          setGroupedNotifications(grouped);
+        }
+      );
 
       return () => {
         unsubscribe();
@@ -77,7 +86,10 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
     handleDefaultAction(notification);
   };
 
-  const handleActionPress = async (notification: UnifiedNotification, actionId: string) => {
+  const handleActionPress = async (
+    notification: UnifiedNotification,
+    actionId: string
+  ) => {
     const action = notification.actions?.find((a) => a.id === actionId);
     if (!action) return;
 
@@ -139,7 +151,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
 
   const handleAcceptChallenge = async (notification: UnifiedNotification) => {
     try {
-      const result = await challengeNotificationHandler.acceptChallenge(notification.id);
+      const result = await challengeNotificationHandler.acceptChallenge(
+        notification.id
+      );
       if (result.success) {
         Alert.alert('Success', 'Challenge accepted! Good luck!');
         onClose(); // Close modal after accepting
@@ -163,11 +177,20 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
           style: 'destructive',
           onPress: async () => {
             try {
-              const result = await challengeNotificationHandler.declineChallenge(notification.id);
+              const result =
+                await challengeNotificationHandler.declineChallenge(
+                  notification.id
+                );
               if (result.success) {
-                Alert.alert('Challenge Declined', 'The challenge has been declined');
+                Alert.alert(
+                  'Challenge Declined',
+                  'The challenge has been declined'
+                );
               } else {
-                Alert.alert('Error', result.error || 'Failed to decline challenge');
+                Alert.alert(
+                  'Error',
+                  result.error || 'Failed to decline challenge'
+                );
               }
             } catch (error) {
               console.error('Error declining challenge:', error);
@@ -214,7 +237,10 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
     Alert.alert('Done', 'All notifications marked as read');
   };
 
-  const renderSection = (title: string, notifications: UnifiedNotification[]) => {
+  const renderSection = (
+    title: string,
+    notifications: UnifiedNotification[]
+  ) => {
     if (notifications.length === 0) return null;
 
     return (
@@ -225,7 +251,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
             key={notification.id}
             notification={notification}
             onPress={() => handleNotificationPress(notification)}
-            onActionPress={(actionId) => handleActionPress(notification, actionId)}
+            onActionPress={(actionId) =>
+              handleActionPress(notification, actionId)
+            }
           />
         ))}
       </View>
@@ -234,9 +262,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
 
   const hasNotifications =
     groupedNotifications.today.length +
-    groupedNotifications.yesterday.length +
-    groupedNotifications.thisWeek.length +
-    groupedNotifications.older.length >
+      groupedNotifications.yesterday.length +
+      groupedNotifications.thisWeek.length +
+      groupedNotifications.older.length >
     0;
 
   return (
@@ -287,10 +315,15 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ visible, o
             </>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="notifications-off-outline" size={64} color={theme.colors.textMuted} />
+              <Ionicons
+                name="notifications-off-outline"
+                size={64}
+                color={theme.colors.textMuted}
+              />
               <Text style={styles.emptyStateTitle}>No Notifications</Text>
               <Text style={styles.emptyStateSubtitle}>
-                You're all caught up! Notifications for challenges, competitions, and zaps will appear here.
+                You're all caught up! Notifications for challenges,
+                competitions, and zaps will appear here.
               </Text>
             </View>
           )}

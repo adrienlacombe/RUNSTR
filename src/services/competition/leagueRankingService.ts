@@ -97,20 +97,29 @@ export class LeagueRankingService {
     forceRefresh = false // Add option to force fresh data (for pull-to-refresh)
   ): Promise<LeagueRankingResult> {
     console.log(`🏆 Calculating league rankings for: ${competitionId}`);
-    console.log(`📊 Competition: ${parameters.activityType} - ${parameters.competitionType}`);
+    console.log(
+      `📊 Competition: ${parameters.activityType} - ${parameters.competitionType}`
+    );
 
     const cacheKey = this.getCacheKey(competitionId);
 
     // Check persistent cache first - return fresh cache immediately (unless force refresh)
     if (!forceRefresh) {
-      const cachedData = await UnifiedCacheService.get<{ result: LeagueRankingResult; timestamp: number }>(cacheKey);
+      const cachedData = await UnifiedCacheService.get<{
+        result: LeagueRankingResult;
+        timestamp: number;
+      }>(cacheKey);
 
       if (cachedData) {
         const cacheAge = Date.now() - cachedData.timestamp;
 
         // Fresh cache (< 5 minutes) - return immediately
         if (cacheAge < this.CACHE_TTL_MS) {
-          console.log(`✅ Returning fresh cached rankings (age: ${Math.round(cacheAge / 1000)}s)`);
+          console.log(
+            `✅ Returning fresh cached rankings (age: ${Math.round(
+              cacheAge / 1000
+            )}s)`
+          );
           return cachedData.result;
         }
 
@@ -119,13 +128,25 @@ export class LeagueRankingService {
         if (cacheAge < this.STALE_TTL_MS) {
           const ageHours = Math.round(cacheAge / (1000 * 60 * 60));
           const ageMinutes = Math.round(cacheAge / (1000 * 60));
-          console.log(`⚡ Returning stale cache (age: ${ageHours > 0 ? ageHours + 'h' : ageMinutes + 'm'}), refreshing in background`);
+          console.log(
+            `⚡ Returning stale cache (age: ${
+              ageHours > 0 ? ageHours + 'h' : ageMinutes + 'm'
+            }), refreshing in background`
+          );
           // Trigger background refresh without blocking
-          this.refreshRankingsInBackground(competitionId, participants, parameters);
+          this.refreshRankingsInBackground(
+            competitionId,
+            participants,
+            parameters
+          );
           return cachedData.result;
         }
 
-        console.log(`🗑️ Cache expired (age: ${Math.round(cacheAge / (1000 * 60 * 60))}h), fetching fresh`);
+        console.log(
+          `🗑️ Cache expired (age: ${Math.round(
+            cacheAge / (1000 * 60 * 60)
+          )}h), fetching fresh`
+        );
       }
     } else {
       console.log('🔄 Force refresh requested, bypassing cache');
@@ -133,22 +154,26 @@ export class LeagueRankingService {
 
     try {
       // Get participant list from competition if it exists
-      const competitionParticipantList = await this.participantService.getParticipantList(competitionId);
+      const competitionParticipantList =
+        await this.participantService.getParticipantList(competitionId);
 
       let participantNpubs: string[];
 
-      if (competitionParticipantList && competitionParticipantList.participants.length > 0) {
+      if (
+        competitionParticipantList &&
+        competitionParticipantList.participants.length > 0
+      ) {
         // Use approved participants from competition list
         console.log('📋 Using competition participant list');
         participantNpubs = competitionParticipantList.participants
-          .filter(p => p.status === 'approved')
-          .map(p => p.npub || p.hexPubkey); // Use npub if available, fallback to hex
+          .filter((p) => p.status === 'approved')
+          .map((p) => p.npub || p.hexPubkey); // Use npub if available, fallback to hex
       } else {
         // Fall back to team members (for backward compatibility)
         console.log('📋 Falling back to team member list');
         participantNpubs = participants
-          .filter(p => p.isActive)
-          .map(p => p.npub);
+          .filter((p) => p.isActive)
+          .map((p) => p.npub);
       }
 
       // Query workout data from Nostr
@@ -160,7 +185,9 @@ export class LeagueRankingService {
       };
 
       const queryResult = await this.queryService.queryMemberWorkouts(query);
-      console.log(`📈 Retrieved metrics for ${queryResult.metrics.size} participants`);
+      console.log(
+        `📈 Retrieved metrics for ${queryResult.metrics.size} participants`
+      );
 
       // Calculate scores based on competition type
       const rankings = await this.calculateScores(
@@ -189,7 +216,6 @@ export class LeagueRankingService {
 
       console.log(`✅ Rankings calculated: ${rankings.length} entries`);
       return result;
-
     } catch (error) {
       console.error('❌ Failed to calculate league rankings:', error);
       throw error;
@@ -209,18 +235,22 @@ export class LeagueRankingService {
       console.log('🔄 Background refresh started for:', competitionId);
 
       // Get participant list from competition if it exists
-      const competitionParticipantList = await this.participantService.getParticipantList(competitionId);
+      const competitionParticipantList =
+        await this.participantService.getParticipantList(competitionId);
 
       let participantNpubs: string[];
 
-      if (competitionParticipantList && competitionParticipantList.participants.length > 0) {
+      if (
+        competitionParticipantList &&
+        competitionParticipantList.participants.length > 0
+      ) {
         participantNpubs = competitionParticipantList.participants
-          .filter(p => p.status === 'approved')
-          .map(p => p.npub || p.hexPubkey);
+          .filter((p) => p.status === 'approved')
+          .map((p) => p.npub || p.hexPubkey);
       } else {
         participantNpubs = participants
-          .filter(p => p.isActive)
-          .map(p => p.npub);
+          .filter((p) => p.isActive)
+          .map((p) => p.npub);
       }
 
       // Query workout data from Nostr
@@ -287,94 +317,99 @@ export class LeagueRankingService {
 
       // Calculate score based on competition type (only if metrics exist)
       if (metric) {
-      switch (competitionType) {
-        case 'Total Distance':
-          score = metric.totalDistance || 0;
-          formattedScore = this.formatDistance(score);
-          break;
+        switch (competitionType) {
+          case 'Total Distance':
+            score = metric.totalDistance || 0;
+            formattedScore = this.formatDistance(score);
+            break;
 
-        case '5K Race':
-        case '10K Race':
-        case 'Half Marathon':
-        case 'Marathon':
-          // For races: fastest time (lowest duration) for the target distance wins
-          // We need to find the fastest workout that meets the distance requirement
-          const targetDistance = competitionType === '5K Race' ? 5000 :
-                                competitionType === '10K Race' ? 10000 :
-                                competitionType === 'Half Marathon' ? 21097 :
-                                42195; // Marathon
+          case '5K Race':
+          case '10K Race':
+          case 'Half Marathon':
+          case 'Marathon':
+            // For races: fastest time (lowest duration) for the target distance wins
+            // We need to find the fastest workout that meets the distance requirement
+            const targetDistance =
+              competitionType === '5K Race'
+                ? 5000
+                : competitionType === '10K Race'
+                ? 10000
+                : competitionType === 'Half Marathon'
+                ? 21097
+                : 42195; // Marathon
 
-          // Get fastest time for this distance (will need to be implemented in metrics)
-          if (metric.averagePace && metric.totalDistance >= targetDistance) {
-            // Use inverse of time as score (faster = higher score)
-            const estimatedTime = (targetDistance / 1000) * metric.averagePace; // time in minutes
-            score = estimatedTime > 0 ? 100000 / estimatedTime : 0; // Higher score for faster time
-            formattedScore = this.formatDuration(estimatedTime * 60); // Convert to seconds for formatting
-          } else {
+            // Get fastest time for this distance (will need to be implemented in metrics)
+            if (metric.averagePace && metric.totalDistance >= targetDistance) {
+              // Use inverse of time as score (faster = higher score)
+              const estimatedTime =
+                (targetDistance / 1000) * metric.averagePace; // time in minutes
+              score = estimatedTime > 0 ? 100000 / estimatedTime : 0; // Higher score for faster time
+              formattedScore = this.formatDuration(estimatedTime * 60); // Convert to seconds for formatting
+            } else {
+              score = 0;
+              formattedScore = 'Not completed';
+            }
+            break;
+
+          case 'Average Pace':
+            score = metric.averagePace ? (1 / metric.averagePace) * 1000 : 0; // Invert pace for ranking
+            formattedScore = this.formatPace(metric.averagePace || 0);
+            break;
+
+          case 'Average Speed':
+            score = metric.averageSpeed || 0;
+            formattedScore = `${score.toFixed(1)} km/h`;
+            break;
+
+          case 'Longest Run':
+          case 'Longest Ride':
+            score = metric.longestDistance || 0;
+            formattedScore = this.formatDistance(score);
+            break;
+
+          case 'Total Workouts':
+          case 'Session Count':
+            score = metric.workoutCount || 0;
+            formattedScore = `${score} workouts`;
+            break;
+
+          case 'Total Duration':
+            score = metric.totalDuration || 0;
+            formattedScore = this.formatDuration(score);
+            break;
+
+          case 'Most Consistent':
+            // Use active days as consistency metric
+            score = metric.activeDays || 0;
+            formattedScore = `${score} active days`;
+            break;
+
+          case 'Weekly Streaks':
+          case 'Daily Average':
+            score = metric.streakDays || 0;
+            formattedScore = `${score} day streak`;
+            break;
+
+          case 'Total Elevation':
+            // Would need elevation data from workouts
             score = 0;
-            formattedScore = 'Not completed';
-          }
-          break;
+            formattedScore = `${score}m elevation`;
+            break;
 
-        case 'Average Pace':
-          score = metric.averagePace ? (1 / metric.averagePace) * 1000 : 0; // Invert pace for ranking
-          formattedScore = this.formatPace(metric.averagePace || 0);
-          break;
+          case 'Calorie Consistency':
+            score = metric.totalCalories || 0;
+            formattedScore = `${score.toLocaleString()} cal`;
+            break;
 
-        case 'Average Speed':
-          score = metric.averageSpeed || 0;
-          formattedScore = `${score.toFixed(1)} km/h`;
-          break;
+          case 'Longest Session':
+            score = metric.longestDuration || 0;
+            formattedScore = this.formatDuration(score);
+            break;
 
-        case 'Longest Run':
-        case 'Longest Ride':
-          score = metric.longestDistance || 0;
-          formattedScore = this.formatDistance(score);
-          break;
-
-        case 'Total Workouts':
-        case 'Session Count':
-          score = metric.workoutCount || 0;
-          formattedScore = `${score} workouts`;
-          break;
-
-        case 'Total Duration':
-          score = metric.totalDuration || 0;
-          formattedScore = this.formatDuration(score);
-          break;
-
-        case 'Most Consistent':
-          // Use active days as consistency metric
-          score = metric.activeDays || 0;
-          formattedScore = `${score} active days`;
-          break;
-
-        case 'Weekly Streaks':
-        case 'Daily Average':
-          score = metric.streakDays || 0;
-          formattedScore = `${score} day streak`;
-          break;
-
-        case 'Total Elevation':
-          // Would need elevation data from workouts
-          score = 0;
-          formattedScore = `${score}m elevation`;
-          break;
-
-        case 'Calorie Consistency':
-          score = metric.totalCalories || 0;
-          formattedScore = `${score.toLocaleString()} cal`;
-          break;
-
-        case 'Longest Session':
-          score = metric.longestDuration || 0;
-          formattedScore = this.formatDuration(score);
-          break;
-
-        default:
-          score = metric.totalDistance || 0;
-          formattedScore = this.formatDistance(score);
-      }
+          default:
+            score = metric.totalDistance || 0;
+            formattedScore = this.formatDistance(score);
+        }
       } // End if (metric)
       // If no metric, score remains 0 and formattedScore remains '0'
 
@@ -393,16 +428,23 @@ export class LeagueRankingService {
       entries.push(entry);
     }
 
-    console.log(`📊 Created ${entries.length} ranking entries from ${participants.length} participants`);
+    console.log(
+      `📊 Created ${entries.length} ranking entries from ${participants.length} participants`
+    );
     return entries;
   }
 
   /**
    * Get current rankings for a competition (from persistent cache only)
    */
-  async getCurrentRankings(competitionId: string): Promise<LeagueRankingResult | null> {
+  async getCurrentRankings(
+    competitionId: string
+  ): Promise<LeagueRankingResult | null> {
     const cacheKey = this.getCacheKey(competitionId);
-    const cachedData = await UnifiedCacheService.get<{ result: LeagueRankingResult; timestamp: number }>(cacheKey);
+    const cachedData = await UnifiedCacheService.get<{
+      result: LeagueRankingResult;
+      timestamp: number;
+    }>(cacheKey);
 
     if (cachedData) {
       return cachedData.result;
@@ -419,7 +461,9 @@ export class LeagueRankingService {
     competitionId: string,
     userNpub: string
   ): Promise<void> {
-    console.log(`🔄 Updating rankings for new workout: ${userNpub.slice(0, 8)}...`);
+    console.log(
+      `🔄 Updating rankings for new workout: ${userNpub.slice(0, 8)}...`
+    );
 
     // Invalidate persistent cache for this competition
     const cacheKey = this.getCacheKey(competitionId);
@@ -444,7 +488,7 @@ export class LeagueRankingService {
     totalDuration: number;
     activeParticipants: number;
   }> {
-    const participantNpubs = participants.map(p => p.npub);
+    const participantNpubs = participants.map((p) => p.npub);
 
     const query: CompetitionQuery = {
       memberNpubs: participantNpubs,
@@ -498,7 +542,7 @@ export class LeagueRankingService {
     const now = new Date();
     const start = new Date(parameters.startDate);
     const end = new Date(parameters.endDate);
-    
+
     return now >= start && now <= end;
   }
 
@@ -506,17 +550,22 @@ export class LeagueRankingService {
    * Cache rankings result with timestamp in persistent storage
    * Survives app backgrounding for instant resume
    */
-  private async cacheRankings(competitionId: string, result: LeagueRankingResult): Promise<void> {
+  private async cacheRankings(
+    competitionId: string,
+    result: LeagueRankingResult
+  ): Promise<void> {
     const cacheKey = this.getCacheKey(competitionId);
     const cacheData = {
       result,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // Store with 24-hour TTL (covers fresh + stale periods)
     // This ensures league data persists for a full day without expiring
     await UnifiedCacheService.set(cacheKey, cacheData, 'leaderboards');
-    console.log(`💾 Cached rankings to persistent storage (24h TTL): ${competitionId}`);
+    console.log(
+      `💾 Cached rankings to persistent storage (24h TTL): ${competitionId}`
+    );
   }
 
   /**
@@ -574,7 +623,6 @@ export class LeagueRankingService {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
-
 }
 
 export default LeagueRankingService.getInstance();

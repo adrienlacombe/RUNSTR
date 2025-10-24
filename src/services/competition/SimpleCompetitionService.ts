@@ -58,9 +58,14 @@ export class SimpleCompetitionService {
     console.log('📋 Fetching ALL leagues from Nostr...');
 
     try {
-      const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000); // Progressive: 2/4 relays, 4s timeout
+      const connected = await GlobalNDKService.waitForMinimumConnection(
+        2,
+        4000
+      ); // Progressive: 2/4 relays, 4s timeout
       if (!connected) {
-        console.warn('⚠️ Proceeding with minimal relay connectivity for all leagues query');
+        console.warn(
+          '⚠️ Proceeding with minimal relay connectivity for all leagues query'
+        );
       }
 
       const ndk = await GlobalNDKService.getInstance();
@@ -73,9 +78,9 @@ export class SimpleCompetitionService {
       // ✅ PERFORMANCE: Reduced timeout from 5s → 3s for faster failures
       const events = await Promise.race([
         ndk.fetchEvents(filter),
-        new Promise<Set<NDKEvent>>((resolve) =>
-          setTimeout(() => resolve(new Set()), 3000)  // 3s timeout
-        )
+        new Promise<Set<NDKEvent>>(
+          (resolve) => setTimeout(() => resolve(new Set()), 3000) // 3s timeout
+        ),
       ]);
       const leagues: League[] = [];
 
@@ -92,7 +97,6 @@ export class SimpleCompetitionService {
 
       console.log(`✅ Fetched ${leagues.length} total leagues`);
       return leagues;
-
     } catch (error) {
       console.error('Failed to fetch all leagues:', error);
       return [];
@@ -107,9 +111,14 @@ export class SimpleCompetitionService {
     console.log('📋 Fetching ALL events from Nostr...');
 
     try {
-      const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000); // Progressive: 2/4 relays, 4s timeout
+      const connected = await GlobalNDKService.waitForMinimumConnection(
+        2,
+        4000
+      ); // Progressive: 2/4 relays, 4s timeout
       if (!connected) {
-        console.warn('⚠️ Proceeding with minimal relay connectivity for all events query');
+        console.warn(
+          '⚠️ Proceeding with minimal relay connectivity for all events query'
+        );
       }
 
       const ndk = await GlobalNDKService.getInstance();
@@ -122,9 +131,9 @@ export class SimpleCompetitionService {
       // ✅ PERFORMANCE: Reduced timeout from 5s → 3s for faster failures
       const events = await Promise.race([
         ndk.fetchEvents(filter),
-        new Promise<Set<NDKEvent>>((resolve) =>
-          setTimeout(() => resolve(new Set()), 3000)  // 3s timeout
-        )
+        new Promise<Set<NDKEvent>>(
+          (resolve) => setTimeout(() => resolve(new Set()), 3000) // 3s timeout
+        ),
       ]);
       const competitionEvents: CompetitionEvent[] = [];
 
@@ -141,7 +150,6 @@ export class SimpleCompetitionService {
 
       console.log(`✅ Fetched ${competitionEvents.length} total events`);
       return competitionEvents;
-
     } catch (error) {
       console.error('Failed to fetch all events:', error);
       return [];
@@ -163,11 +171,14 @@ export class SimpleCompetitionService {
       );
 
       // Filter for this team
-      const teamLeagues = allLeagues.filter(league => league.teamId === teamId);
-      console.log(`✅ Found ${teamLeagues.length} leagues for team ${teamId} (${allLeagues.length} total cached)`);
+      const teamLeagues = allLeagues.filter(
+        (league) => league.teamId === teamId
+      );
+      console.log(
+        `✅ Found ${teamLeagues.length} leagues for team ${teamId} (${allLeagues.length} total cached)`
+      );
 
       return teamLeagues;
-
     } catch (error) {
       console.error('Failed to fetch leagues:', error);
       return [];
@@ -189,11 +200,12 @@ export class SimpleCompetitionService {
       );
 
       // Filter for this team
-      const teamEvents = allEvents.filter(event => event.teamId === teamId);
-      console.log(`✅ Found ${teamEvents.length} events for team ${teamId} (${allEvents.length} total cached)`);
+      const teamEvents = allEvents.filter((event) => event.teamId === teamId);
+      console.log(
+        `✅ Found ${teamEvents.length} events for team ${teamId} (${allEvents.length} total cached)`
+      );
 
       return teamEvents;
-
     } catch (error) {
       console.error('Failed to fetch events:', error);
       return [];
@@ -208,9 +220,14 @@ export class SimpleCompetitionService {
 
     try {
       // Progressive: Accept 2/4 relays for faster queries with good coverage
-      const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000);
+      const connected = await GlobalNDKService.waitForMinimumConnection(
+        2,
+        4000
+      );
       if (!connected) {
-        console.warn('⚠️ Proceeding with minimal relay connectivity for league by ID query');
+        console.warn(
+          '⚠️ Proceeding with minimal relay connectivity for league by ID query'
+        );
       }
 
       const ndk = await GlobalNDKService.getInstance();
@@ -231,7 +248,6 @@ export class SimpleCompetitionService {
       }
 
       return null;
-
     } catch (error) {
       console.error('Failed to fetch league:', error);
       return null;
@@ -246,9 +262,14 @@ export class SimpleCompetitionService {
 
     try {
       // Progressive: Accept 2/4 relays for faster queries with good coverage
-      const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000);
+      const connected = await GlobalNDKService.waitForMinimumConnection(
+        2,
+        4000
+      );
       if (!connected) {
-        console.warn('⚠️ Proceeding with minimal relay connectivity for event by ID query');
+        console.warn(
+          '⚠️ Proceeding with minimal relay connectivity for event by ID query'
+        );
       }
 
       const ndk = await GlobalNDKService.getInstance();
@@ -269,7 +290,6 @@ export class SimpleCompetitionService {
       }
 
       return null;
-
     } catch (error) {
       console.error('Failed to fetch event:', error);
       return null;
@@ -281,7 +301,8 @@ export class SimpleCompetitionService {
    */
   private parseLeagueEvent(event: NDKEvent): League | null {
     try {
-      const getTag = (name: string) => event.tags.find(t => t[0] === name)?.[1];
+      const getTag = (name: string) =>
+        event.tags.find((t) => t[0] === name)?.[1];
 
       const id = getTag('d');
       const teamId = getTag('team');
@@ -313,7 +334,8 @@ export class SimpleCompetitionService {
    */
   private parseEventEvent(event: NDKEvent): CompetitionEvent | null {
     try {
-      const getTag = (name: string) => event.tags.find(t => t[0] === name)?.[1];
+      const getTag = (name: string) =>
+        event.tags.find((t) => t[0] === name)?.[1];
 
       const id = getTag('d');
       const teamId = getTag('team');
@@ -339,7 +361,10 @@ export class SimpleCompetitionService {
         targetUnit: getTag('target_unit'),
         entryFeesSats: entryFee ? parseInt(entryFee) : undefined,
         lightningAddress: getTag('lightning_address'),
-        paymentDestination: getTag('payment_destination') as 'captain' | 'charity' | undefined,
+        paymentDestination: getTag('payment_destination') as
+          | 'captain'
+          | 'charity'
+          | undefined,
         paymentRecipientName: getTag('payment_recipient_name'),
       };
     } catch (error) {

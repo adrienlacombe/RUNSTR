@@ -12,14 +12,16 @@ import { runCompetitionSimulation } from './competitionSimulator';
 export async function runAllCompetitionTests() {
   console.log('🚀 RUNSTR REWARDS - Competition System Test Suite');
   console.log('=' + '='.repeat(59));
-  console.log('Running comprehensive tests for competition system validation\n');
+  console.log(
+    'Running comprehensive tests for competition system validation\n'
+  );
 
   const results: any = {
     integration: null,
     leaderboard: null,
     memberManagement: null,
     performance: null,
-    simulation: null
+    simulation: null,
   };
 
   try {
@@ -29,17 +31,22 @@ export async function runAllCompetitionTests() {
     console.log('='.repeat(60));
     try {
       await runCompetitionIntegrationTests();
-      results.integration = { success: true, message: 'Integration tests completed' };
+      results.integration = {
+        success: true,
+        message: 'Integration tests completed',
+      };
     } catch (error) {
       results.integration = {
         success: false,
-        message: `Integration tests failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Integration tests failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       };
       console.error('❌ Integration test error:', error);
     }
 
     // Add delay between tests
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Test 2: Leaderboard Verification
     console.log('\n' + '='.repeat(60));
@@ -47,17 +54,22 @@ export async function runAllCompetitionTests() {
     console.log('='.repeat(60));
     try {
       await runLeaderboardTests();
-      results.leaderboard = { success: true, message: 'Leaderboard tests completed' };
+      results.leaderboard = {
+        success: true,
+        message: 'Leaderboard tests completed',
+      };
     } catch (error) {
       results.leaderboard = {
         success: false,
-        message: `Leaderboard tests failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Leaderboard tests failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       };
       console.error('❌ Leaderboard test error:', error);
     }
 
     // Add delay between tests
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Test 3: Member Management
     console.log('\n' + '='.repeat(60));
@@ -65,17 +77,22 @@ export async function runAllCompetitionTests() {
     console.log('='.repeat(60));
     try {
       await runMemberManagementTests();
-      results.memberManagement = { success: true, message: 'Member management tests completed' };
+      results.memberManagement = {
+        success: true,
+        message: 'Member management tests completed',
+      };
     } catch (error) {
       results.memberManagement = {
         success: false,
-        message: `Member management tests failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Member management tests failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       };
       console.error('❌ Member management test error:', error);
     }
 
     // Add delay between tests
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Test 4: Workout Query Performance
     console.log('\n' + '='.repeat(60));
@@ -83,17 +100,22 @@ export async function runAllCompetitionTests() {
     console.log('='.repeat(60));
     try {
       await runWorkoutQueryPerformanceTests();
-      results.performance = { success: true, message: 'Performance tests completed' };
+      results.performance = {
+        success: true,
+        message: 'Performance tests completed',
+      };
     } catch (error) {
       results.performance = {
         success: false,
-        message: `Performance tests failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Performance tests failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       };
       console.error('❌ Performance test error:', error);
     }
 
     // Add delay between tests
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Test 5: Competition Simulator
     console.log('\n' + '='.repeat(60));
@@ -106,17 +128,21 @@ export async function runAllCompetitionTests() {
         competitionDuration: 3,
         activityType: 'Running',
         competitionType: 'Total Distance',
-        simulationSpeed: 'instant'
+        simulationSpeed: 'instant',
       });
-      results.simulation = { success: true, message: 'Competition simulation completed' };
+      results.simulation = {
+        success: true,
+        message: 'Competition simulation completed',
+      };
     } catch (error) {
       results.simulation = {
         success: false,
-        message: `Simulation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Simulation failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       };
       console.error('❌ Simulation error:', error);
     }
-
   } catch (error) {
     console.error('❌ Unexpected error during test execution:', error);
   }
@@ -144,7 +170,9 @@ export async function runAllCompetitionTests() {
   });
 
   console.log('\n' + '-'.repeat(60));
-  console.log(`Total: ${totalSuccess}/${Object.keys(results).length} test suites passed`);
+  console.log(
+    `Total: ${totalSuccess}/${Object.keys(results).length} test suites passed`
+  );
 
   if (totalFailed === 0) {
     console.log('\n🎉 All test suites completed successfully!');
@@ -164,7 +192,7 @@ if (require.main === module) {
       console.log('Test runner completed');
       process.exit(0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Test runner failed:', error);
       process.exit(1);
     });

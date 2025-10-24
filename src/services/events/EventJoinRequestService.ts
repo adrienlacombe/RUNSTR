@@ -22,10 +22,10 @@ export interface EventJoinRequest {
   status: 'pending' | 'approved' | 'declined';
   nostrEvent: Event;
   // Payment tracking fields
-  paymentProof?: string;      // Lightning invoice from payment_proof tag
-  paymentHash?: string;       // Extracted payment hash for NWC verification
-  amountPaid?: number;        // Amount in sats from amount_paid tag
-  paymentTimestamp?: number;  // When payment was made (from payment_timestamp tag)
+  paymentProof?: string; // Lightning invoice from payment_proof tag
+  paymentHash?: string; // Extracted payment hash for NWC verification
+  amountPaid?: number; // Amount in sats from amount_paid tag
+  paymentTimestamp?: number; // When payment was made (from payment_timestamp tag)
 }
 
 export interface EventJoinRequestData {
@@ -66,7 +66,9 @@ export class EventJoinRequestService {
     requestData: EventJoinRequestData,
     requesterPubkey: string
   ): Partial<Event> {
-    console.log(`📝 Preparing join request for event: ${requestData.eventName}`);
+    console.log(
+      `📝 Preparing join request for event: ${requestData.eventName}`
+    );
 
     const tags: string[][] = [
       ['e', requestData.eventId], // Reference to event
@@ -85,7 +87,9 @@ export class EventJoinRequestService {
       pubkey: requesterPubkey,
     };
 
-    console.log(`✅ Prepared event join request template for: ${requestData.eventName}`);
+    console.log(
+      `✅ Prepared event join request template for: ${requestData.eventName}`
+    );
     return eventTemplate;
   }
 
@@ -227,7 +231,9 @@ export class EventJoinRequestService {
         const joinRequest = this.parseJoinRequest(nostrEvent);
         if (joinRequest) {
           callback(joinRequest);
-          console.log(`📥 New event join request received: ${joinRequest.eventName}`);
+          console.log(
+            `📥 New event join request received: ${joinRequest.eventName}`
+          );
         }
       } catch (error) {
         console.warn(`⚠️ Failed to parse real-time event join request:`, error);
@@ -269,7 +275,9 @@ export class EventJoinRequestService {
       // Extract payment tags
       const paymentProofTag = event.tags.find((t) => t[0] === 'payment_proof');
       const amountPaidTag = event.tags.find((t) => t[0] === 'amount_paid');
-      const paymentTimestampTag = event.tags.find((t) => t[0] === 'payment_timestamp');
+      const paymentTimestampTag = event.tags.find(
+        (t) => t[0] === 'payment_timestamp'
+      );
 
       // Extract payment hash from invoice if present
       let paymentHash: string | undefined;
@@ -291,8 +299,12 @@ export class EventJoinRequestService {
         // Payment fields
         paymentProof: paymentProofTag?.[1],
         paymentHash,
-        amountPaid: amountPaidTag?.[1] ? parseInt(amountPaidTag[1], 10) : undefined,
-        paymentTimestamp: paymentTimestampTag?.[1] ? parseInt(paymentTimestampTag[1], 10) : undefined,
+        amountPaid: amountPaidTag?.[1]
+          ? parseInt(amountPaidTag[1], 10)
+          : undefined,
+        paymentTimestamp: paymentTimestampTag?.[1]
+          ? parseInt(paymentTimestampTag[1], 10)
+          : undefined,
       };
     } catch (error) {
       console.error('❌ Failed to parse event join request:', error);

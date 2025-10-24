@@ -25,7 +25,10 @@ import { eventJoinService } from '../services/event/EventJoinService';
 import type { RootStackParamList } from '../types';
 
 type EventDetailRouteProp = RouteProp<RootStackParamList, 'EventDetail'>;
-type EventDetailNavigationProp = StackNavigationProp<RootStackParamList, 'EventDetail'>;
+type EventDetailNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'EventDetail'
+>;
 
 interface EventDetailScreenProps {
   route: EventDetailRouteProp;
@@ -67,8 +70,12 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       if (!event) {
         setIsLoading(true);
         console.log('⏳ Fetching event from Nostr (event data not passed)...');
-        const SimpleCompetitionService = (await import('../services/competition/SimpleCompetitionService')).default;
-        event = await SimpleCompetitionService.getInstance().getEventById(eventId);
+        const SimpleCompetitionService = (
+          await import('../services/competition/SimpleCompetitionService')
+        ).default;
+        event = await SimpleCompetitionService.getInstance().getEventById(
+          eventId
+        );
         setIsLoading(false);
       } else {
         console.log('✅ Using passed event data (instant load)');
@@ -85,13 +92,17 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       setLoadingMembers(true);
       console.log('⏳ Fetching event participants...');
 
-      const NostrListService = (await import('../services/nostr/NostrListService')).NostrListService.getInstance();
+      const NostrListService = (
+        await import('../services/nostr/NostrListService')
+      ).NostrListService.getInstance();
       const eventParticipants = await NostrListService.getListMembers(
-        event.captainPubkey,  // Author of the participant list
-        `event-${eventId}-participants`  // Event-specific d-tag
+        event.captainPubkey, // Author of the participant list
+        `event-${eventId}-participants` // Event-specific d-tag
       );
 
-      console.log(`✅ Found ${eventParticipants.length} event participants (not team members)`);
+      console.log(
+        `✅ Found ${eventParticipants.length} event participants (not team members)`
+      );
       setParticipants(eventParticipants);
       setLoadingMembers(false);
 
@@ -102,7 +113,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       if (userHexPubkey) {
         const isUserParticipant = eventParticipants.includes(userHexPubkey);
         setIsParticipant(isUserParticipant);
-        console.log(`User is${isUserParticipant ? '' : ' not'} an event participant`);
+        console.log(
+          `User is${isUserParticipant ? '' : ' not'} an event participant`
+        );
 
         // Check if user is the captain
         const isUserCaptain = event.captainPubkey === userHexPubkey;
@@ -110,11 +123,17 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         console.log(`User is${isUserCaptain ? '' : ' not'} the captain`);
 
         // Check if user paid locally but not in official list yet
-        const { EventParticipationStore } = await import('../services/event/EventParticipationStore');
-        userPaidLocally = await EventParticipationStore.hasUserPaidForEvent(eventId);
+        const { EventParticipationStore } = await import(
+          '../services/event/EventParticipationStore'
+        );
+        userPaidLocally = await EventParticipationStore.hasUserPaidForEvent(
+          eventId
+        );
 
         if (userPaidLocally && !isUserParticipant) {
-          console.log('💰 User paid locally but not in official list - will include in leaderboard');
+          console.log(
+            '💰 User paid locally but not in official list - will include in leaderboard'
+          );
           setIsParticipant(true); // Show as participant in UI
         }
       }
@@ -125,15 +144,23 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
       // Merge official participants with local paid user (if applicable)
       const participantsForLeaderboard =
-        userHexPubkey && userPaidLocally && !eventParticipants.includes(userHexPubkey)
+        userHexPubkey &&
+        userPaidLocally &&
+        !eventParticipants.includes(userHexPubkey)
           ? [...eventParticipants, userHexPubkey]
           : eventParticipants;
 
       if (participantsForLeaderboard.length > eventParticipants.length) {
-        console.log(`📊 Including ${participantsForLeaderboard.length - eventParticipants.length} local paid participant(s) in leaderboard`);
+        console.log(
+          `📊 Including ${
+            participantsForLeaderboard.length - eventParticipants.length
+          } local paid participant(s) in leaderboard`
+        );
       }
 
-      const SimpleLeaderboardService = (await import('../services/competition/SimpleLeaderboardService')).default;
+      const SimpleLeaderboardService = (
+        await import('../services/competition/SimpleLeaderboardService')
+      ).default;
       const rankings = await SimpleLeaderboardService.calculateEventLeaderboard(
         event,
         participantsForLeaderboard
@@ -142,7 +169,6 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       setLeaderboard(rankings);
       setLoadingLeaderboard(false);
       console.log(`✅ Leaderboard calculated: ${rankings.length} entries`);
-
     } catch (err) {
       console.error('❌ Failed to load event:', err);
       setError(err instanceof Error ? err.message : 'Failed to load event');
@@ -184,7 +210,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
       // Check if this is a paid event with Lightning address
       if (eventData.entryFeesSats > 0 && eventData.lightningAddress) {
-        console.log('💳 Paid event with Lightning address - generating invoice...');
+        console.log(
+          '💳 Paid event with Lightning address - generating invoice...'
+        );
 
         // Generate Lightning invoice via LNURL
         const invoiceResult = await eventJoinService.getEventEntryInvoice(
@@ -209,7 +237,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
       if (result.success) {
         // Store participation locally for instant UX
-        const { EventParticipationStore } = await import('../services/event/EventParticipationStore');
+        const { EventParticipationStore } = await import(
+          '../services/event/EventParticipationStore'
+        );
         await EventParticipationStore.addParticipation({
           eventId: eventData.id,
           eventName: eventData.name,
@@ -228,7 +258,6 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
         console.log('✅ Joined event:', eventData.name);
       }
-
     } catch (error) {
       console.error('❌ Failed to join event:', error);
       Alert.alert('Error', 'Failed to join event. Please try again.');
@@ -266,7 +295,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
       if (result.success) {
         // Store participation locally for instant UX
-        const { EventParticipationStore } = await import('../services/event/EventParticipationStore');
+        const { EventParticipationStore } = await import(
+          '../services/event/EventParticipationStore'
+        );
         await EventParticipationStore.addParticipation({
           eventId: eventData.id,
           eventName: eventData.name,
@@ -286,7 +317,6 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
         console.log('✅ Paid join request submitted successfully');
       }
-
     } catch (error) {
       console.error('❌ Failed to submit join request:', error);
       Alert.alert('Error', 'Failed to submit join request. Please try again.');
@@ -318,7 +348,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       weekday: 'long',
       month: 'long',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -370,25 +400,35 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           {isCaptain && (
             <TouchableOpacity
               style={styles.captainDashboardButton}
-              onPress={() => navigation.navigate('EventCaptainDashboard', {
-                eventId,
-                eventData,
-              })}
+              onPress={() =>
+                navigation.navigate('EventCaptainDashboard', {
+                  eventId,
+                  eventData,
+                })
+              }
               activeOpacity={0.8}
             >
-              <Ionicons name="shield" size={18} color={theme.colors.background} />
-              <Text style={styles.captainDashboardButtonText}>Captain Dashboard</Text>
+              <Ionicons
+                name="shield"
+                size={18}
+                color={theme.colors.background}
+              />
+              <Text style={styles.captainDashboardButtonText}>
+                Captain Dashboard
+              </Text>
             </TouchableOpacity>
           )}
 
           {/* Status Badge */}
           <View style={styles.statusBadgeContainer}>
-            <View style={[
-              styles.statusBadge,
-              status === 'active' && styles.statusBadgeActive,
-              status === 'past' && styles.statusBadgePast,
-              status === 'upcoming' && styles.statusBadgeUpcoming,
-            ]}>
+            <View
+              style={[
+                styles.statusBadge,
+                status === 'active' && styles.statusBadgeActive,
+                status === 'past' && styles.statusBadgePast,
+                status === 'upcoming' && styles.statusBadgeUpcoming,
+              ]}
+            >
               <Text style={styles.statusBadgeText}>
                 {status === 'active' && '🔴 Active'}
                 {status === 'past' && '✓ Completed'}
@@ -427,7 +467,11 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
             <View style={styles.eventInfoRow}>
               <Text style={styles.eventLabel}>Entry Fee</Text>
               <View style={styles.entryFeeValue}>
-                <Ionicons name="flash" size={16} color={theme.colors.orangeBright} />
+                <Ionicons
+                  name="flash"
+                  size={16}
+                  color={theme.colors.orangeBright}
+                />
                 <Text style={[styles.eventValue, { marginLeft: 4 }]}>
                   {eventData.entryFeesSats} sats
                 </Text>
@@ -454,11 +498,14 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           {loadingMembers ? (
             <View style={styles.loadingParticipants}>
               <ActivityIndicator size="small" color={theme.colors.accent} />
-              <Text style={styles.loadingParticipantsText}>Loading participants...</Text>
+              <Text style={styles.loadingParticipantsText}>
+                Loading participants...
+              </Text>
             </View>
           ) : (
             <Text style={styles.participantsCount}>
-              {participants.length} {participants.length === 1 ? 'person' : 'people'} joined
+              {participants.length}{' '}
+              {participants.length === 1 ? 'person' : 'people'} joined
             </Text>
           )}
         </View>
@@ -476,15 +523,14 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
             ) : (
               <>
                 <Ionicons
-                  name={eventData.entryFeesSats > 0 ? "flash" : "add-circle"}
+                  name={eventData.entryFeesSats > 0 ? 'flash' : 'add-circle'}
                   size={20}
                   color={theme.colors.background}
                 />
                 <Text style={styles.joinButtonText}>
                   {eventData.entryFeesSats > 0
                     ? `Pay ${eventData.entryFeesSats} sats to Join`
-                    : 'Join Event'
-                  }
+                    : 'Join Event'}
                 </Text>
               </>
             )}
@@ -494,8 +540,14 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         {/* Participant Badge */}
         {isParticipant && (
           <View style={styles.participantBadge}>
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
-            <Text style={styles.participantBadgeText}>You're participating!</Text>
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color={theme.colors.success}
+            />
+            <Text style={styles.participantBadgeText}>
+              You're participating!
+            </Text>
           </View>
         )}
 
@@ -504,7 +556,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           {loadingLeaderboard ? (
             <View style={styles.leaderboardLoading}>
               <ActivityIndicator size="large" color={theme.colors.accent} />
-              <Text style={styles.leaderboardLoadingText}>Calculating leaderboard...</Text>
+              <Text style={styles.leaderboardLoadingText}>
+                Calculating leaderboard...
+              </Text>
             </View>
           ) : (
             <SimpleLeagueDisplay

@@ -49,7 +49,8 @@ export const QREventDisplayModal: React.FC<QREventDisplayModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const qrCodeRef = React.useRef<View>(null);
 
-  const activityIcon = ACTIVITY_ICONS[eventData.activity_type.toLowerCase()] || '🏃';
+  const activityIcon =
+    ACTIVITY_ICONS[eventData.activity_type.toLowerCase()] || '🏃';
   const isPaidEvent = eventData.entry_fee > 0;
 
   /**
@@ -62,7 +63,10 @@ export const QREventDisplayModal: React.FC<QREventDisplayModalProps> = ({
       // Request permissions
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to save QR code to photos');
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to save QR code to photos'
+        );
         return;
       }
 
@@ -94,13 +98,20 @@ export const QREventDisplayModal: React.FC<QREventDisplayModalProps> = ({
    */
   const handleShareCode = async () => {
     try {
-      const eventDate = new Date(eventData.event_date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
+      const eventDate = new Date(eventData.event_date).toLocaleDateString(
+        'en-US',
+        {
+          month: 'short',
+          day: 'numeric',
+        }
+      );
 
-      const message = `Join my event on RUNSTR!\n\n${activityIcon} ${eventData.event_name}\n📅 ${eventDate}${
-        isPaidEvent ? `\n⚡ ${eventData.entry_fee.toLocaleString()} sats entry` : ''
+      const message = `Join my event on RUNSTR!\n\n${activityIcon} ${
+        eventData.event_name
+      }\n📅 ${eventDate}${
+        isPaidEvent
+          ? `\n⚡ ${eventData.entry_fee.toLocaleString()} sats entry`
+          : ''
       }\n\nScan the QR code or use this link:\n${deepLink}`;
 
       await Share.share({
@@ -155,7 +166,7 @@ export const QREventDisplayModal: React.FC<QREventDisplayModalProps> = ({
             <Text style={styles.summaryIcon}>{activityIcon}</Text>
             <Text style={styles.summaryText}>
               {eventData.activity_type.charAt(0).toUpperCase() +
-               eventData.activity_type.slice(1)}
+                eventData.activity_type.slice(1)}
             </Text>
           </View>
 

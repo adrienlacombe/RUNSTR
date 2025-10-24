@@ -11,7 +11,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { useNutzap } from '../../hooks/useNutzap';
 import { generateSecretKey, nip19 } from 'nostr-tools';
@@ -30,12 +30,12 @@ export const NutzapTestComponent: React.FC = () => {
     sendNutzap,
     claimNutzaps,
     refreshBalance,
-    clearWallet
+    clearWallet,
   } = useNutzap(false); // Don't auto-initialize
 
   const addResult = (message: string, success: boolean = true) => {
     const prefix = success ? '✅' : '❌';
-    setTestResults(prev => [...prev, `${prefix} ${message}`]);
+    setTestResults((prev) => [...prev, `${prefix} ${message}`]);
   };
 
   const runPhase1Tests = async () => {
@@ -72,7 +72,9 @@ export const NutzapTestComponent: React.FC = () => {
       // Test 4: Test claim function (won't find any, but should not error)
       try {
         const claimResult = await claimNutzaps();
-        addResult(`Claim attempted: ${claimResult.claimed}/${claimResult.total} sats`);
+        addResult(
+          `Claim attempted: ${claimResult.claimed}/${claimResult.total} sats`
+        );
       } catch (err) {
         addResult(`Claim failed: ${err}`, false);
       }
@@ -97,7 +99,6 @@ export const NutzapTestComponent: React.FC = () => {
       }
 
       addResult('Phase 1 tests complete!');
-
     } catch (err) {
       addResult(`Test error: ${err}`, false);
     } finally {
@@ -117,8 +118,8 @@ export const NutzapTestComponent: React.FC = () => {
           onPress: async () => {
             await clearWallet();
             addResult('Wallet cleared');
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -194,7 +195,7 @@ export const NutzapTestComponent: React.FC = () => {
               key={index}
               style={[
                 styles.resultItem,
-                result.startsWith('❌') && styles.errorResult
+                result.startsWith('❌') && styles.errorResult,
               ]}
             >
               {result}
@@ -210,20 +211,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    padding: 20
+    padding: 20,
   },
   header: {
-    marginBottom: 20
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.textBright,
-    marginBottom: 5
+    marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#888'
+    color: '#888',
   },
   statusCard: {
     backgroundColor: '#0a0a0a',
@@ -231,83 +232,83 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a'
+    borderColor: '#1a1a1a',
   },
   statusTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.textBright,
-    marginBottom: 12
+    marginBottom: 12,
   },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8
+    marginBottom: 8,
   },
   label: {
     color: '#888',
-    fontSize: 14
+    fontSize: 14,
   },
   value: {
     color: theme.colors.textBright,
     fontSize: 14,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   errorRow: {
     marginTop: 8,
     padding: 8,
     backgroundColor: 'rgba(255, 0, 0, 0.1)',
-    borderRadius: 6
+    borderRadius: 6,
   },
   errorText: {
     color: '#ff4444',
-    fontSize: 12
+    fontSize: 12,
   },
   buttonContainer: {
     gap: 10,
-    marginBottom: 20
+    marginBottom: 20,
   },
   button: {
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48
+    minHeight: 48,
   },
   primaryButton: {
-    backgroundColor: '#007AFF'
+    backgroundColor: '#007AFF',
   },
   secondaryButton: {
-    backgroundColor: '#333'
+    backgroundColor: '#333',
   },
   dangerButton: {
-    backgroundColor: '#ff3b30'
+    backgroundColor: '#ff3b30',
   },
   buttonText: {
     color: theme.colors.textBright,
     fontSize: 16,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   resultsContainer: {
     backgroundColor: '#0a0a0a',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1a1a1a'
+    borderColor: '#1a1a1a',
   },
   resultsTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.textBright,
-    marginBottom: 12
+    marginBottom: 12,
   },
   resultItem: {
     color: theme.colors.textBright,
     fontSize: 13,
     marginBottom: 6,
-    lineHeight: 18
+    lineHeight: 18,
   },
   errorResult: {
-    color: '#ff4444'
-  }
+    color: '#ff4444',
+  },
 });

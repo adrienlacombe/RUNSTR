@@ -37,8 +37,14 @@ export const MyTeamsScreen: React.FC = () => {
         const npub = await AsyncStorage.getItem('@runstr:npub');
         const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
 
-        console.log('[MyTeamsScreen] 📱 Loaded npub:', npub ? npub.slice(0, 20) + '...' : 'NONE');
-        console.log('[MyTeamsScreen] 📱 Loaded hex:', hexPubkey ? hexPubkey.slice(0, 20) + '...' : 'NONE');
+        console.log(
+          '[MyTeamsScreen] 📱 Loaded npub:',
+          npub ? npub.slice(0, 20) + '...' : 'NONE'
+        );
+        console.log(
+          '[MyTeamsScreen] 📱 Loaded hex:',
+          hexPubkey ? hexPubkey.slice(0, 20) + '...' : 'NONE'
+        );
 
         if (npub) {
           setUserNpub(npub);
@@ -47,7 +53,10 @@ export const MyTeamsScreen: React.FC = () => {
           setUserHexPubkey(hexPubkey);
         }
       } catch (error) {
-        console.error('[MyTeamsScreen] ❌ Error loading user identifiers:', error);
+        console.error(
+          '[MyTeamsScreen] ❌ Error loading user identifiers:',
+          error
+        );
       }
     };
 
@@ -58,7 +67,10 @@ export const MyTeamsScreen: React.FC = () => {
   useEffect(() => {
     const initializeTeamsData = async () => {
       console.log('[MyTeamsScreen] 📱 Android: Initializing teams data...');
-      console.log('[MyTeamsScreen] 📊 Current teams count:', profileData?.teams?.length || 0);
+      console.log(
+        '[MyTeamsScreen] 📊 Current teams count:',
+        profileData?.teams?.length || 0
+      );
 
       // Force refresh to ensure latest data
       if (!profileData?.teams || profileData.teams.length === 0) {
@@ -126,7 +138,9 @@ export const MyTeamsScreen: React.FC = () => {
       userIsCaptain: isCaptain, // Pass captain status for captain dashboard access
     });
 
-    console.log('[MyTeamsScreen] 📍 AFTER navigation.navigate call - this should not print if frozen');
+    console.log(
+      '[MyTeamsScreen] 📍 AFTER navigation.navigate call - this should not print if frozen'
+    );
   };
 
   const handleClose = () => {
@@ -212,8 +226,13 @@ export const MyTeamsScreen: React.FC = () => {
             {/* Show loading indicator while refreshing teams */}
             {isLoadingTeam && (
               <View style={styles.refreshingIndicator}>
-                <ActivityIndicator size="small" color={theme.colors.textMuted} />
-                <Text style={styles.refreshingText}>Checking for new teams...</Text>
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.textMuted}
+                />
+                <Text style={styles.refreshingText}>
+                  Checking for new teams...
+                </Text>
               </View>
             )}
           </View>

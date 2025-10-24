@@ -71,7 +71,9 @@ class DailyRewardServiceClass {
    * @param userPubkey - User's public key (npub or hex)
    * @returns Lightning address if found, null otherwise
    */
-  private async getUserLightningAddress(userPubkey: string): Promise<string | null> {
+  private async getUserLightningAddress(
+    userPubkey: string
+  ): Promise<string | null> {
     try {
       // Fetch user profile from Nostr
       const profile = await ProfileService.getUserProfile(userPubkey);
@@ -109,7 +111,10 @@ class DailyRewardServiceClass {
     amount: number
   ): Promise<string | null> {
     try {
-      console.log('[Reward] Requesting invoice from Lightning address:', lightningAddress);
+      console.log(
+        '[Reward] Requesting invoice from Lightning address:',
+        lightningAddress
+      );
 
       // Request invoice via LNURL protocol
       const { invoice } = await getInvoiceFromLightningAddress(
@@ -126,7 +131,10 @@ class DailyRewardServiceClass {
       console.log('[Reward] Failed to get invoice from Lightning address');
       return null;
     } catch (error) {
-      console.error('[Reward] Error getting invoice from Lightning address:', error);
+      console.error(
+        '[Reward] Error getting invoice from Lightning address:',
+        error
+      );
       return null;
     }
   }
@@ -135,7 +143,10 @@ class DailyRewardServiceClass {
    * Record that user claimed reward
    * Saves timestamp for eligibility checking
    */
-  private async recordReward(userPubkey: string, amount: number): Promise<void> {
+  private async recordReward(
+    userPubkey: string,
+    amount: number
+  ): Promise<void> {
     try {
       const now = new Date().toISOString();
       const lastRewardKey = `${REWARD_STORAGE_KEYS.LAST_REWARD_DATE}:${userPubkey}`;
@@ -197,7 +208,10 @@ class DailyRewardServiceClass {
    */
   async sendReward(userPubkey: string): Promise<RewardResult> {
     try {
-      console.log('[Reward] Checking reward eligibility for', userPubkey.slice(0, 8) + '...');
+      console.log(
+        '[Reward] Checking reward eligibility for',
+        userPubkey.slice(0, 8) + '...'
+      );
 
       // Check if user can claim today
       const canClaim = await this.canClaimToday(userPubkey);
@@ -212,7 +226,9 @@ class DailyRewardServiceClass {
       // Get user's Lightning address from their Nostr profile
       const lightningAddress = await this.getUserLightningAddress(userPubkey);
       if (!lightningAddress) {
-        console.log('[Reward] User has no Lightning address in profile, skipping reward');
+        console.log(
+          '[Reward] User has no Lightning address in profile, skipping reward'
+        );
         return {
           success: false,
           reason: 'no_lightning_address',
@@ -225,7 +241,9 @@ class DailyRewardServiceClass {
         REWARD_CONFIG.DAILY_WORKOUT_REWARD
       );
       if (!userInvoice) {
-        console.log('[Reward] Could not get invoice from Lightning address, skipping reward');
+        console.log(
+          '[Reward] Could not get invoice from Lightning address, skipping reward'
+        );
         return {
           success: false,
           reason: 'invoice_failed',
@@ -239,15 +257,24 @@ class DailyRewardServiceClass {
       // - App requests: Invoice from Lightning address via LNURL protocol
       // - RewardSenderWallet: Pays invoice using REWARD_SENDER_NWC from .env
       // - User receives: 50 sats directly to their Lightning wallet
-      console.log('[Reward] Sending payment to Lightning address:', lightningAddress);
+      console.log(
+        '[Reward] Sending payment to Lightning address:',
+        lightningAddress
+      );
 
-      const paymentResult = await RewardSenderWallet.sendRewardPayment(userInvoice);
+      const paymentResult = await RewardSenderWallet.sendRewardPayment(
+        userInvoice
+      );
 
       if (paymentResult.success) {
         // Record reward
         await this.recordReward(userPubkey, REWARD_CONFIG.DAILY_WORKOUT_REWARD);
 
-        console.log('[Reward] ✅ Reward sent successfully:', REWARD_CONFIG.DAILY_WORKOUT_REWARD, 'sats');
+        console.log(
+          '[Reward] ✅ Reward sent successfully:',
+          REWARD_CONFIG.DAILY_WORKOUT_REWARD,
+          'sats'
+        );
 
         return {
           success: true,
@@ -255,7 +282,10 @@ class DailyRewardServiceClass {
         };
       } else {
         // SILENT FAILURE - just log
-        console.log('[Reward] ❌ Payment failed (silent):', paymentResult.error);
+        console.log(
+          '[Reward] ❌ Payment failed (silent):',
+          paymentResult.error
+        );
 
         return {
           success: false,

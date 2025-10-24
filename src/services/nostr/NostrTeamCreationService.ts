@@ -4,7 +4,11 @@
  * Uses NDK for consistency with the rest of the codebase
  */
 
-import NDK, { NDKEvent, NDKPrivateKeySigner, type NDKSigner } from '@nostr-dev-kit/ndk';
+import NDK, {
+  NDKEvent,
+  NDKPrivateKeySigner,
+  type NDKSigner,
+} from '@nostr-dev-kit/ndk';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NostrListService } from './NostrListService';
 import { TeamMemberCache } from '../team/TeamMemberCache';
@@ -64,7 +68,9 @@ export class NostrTeamCreationService {
     // Progressive: Accept 2/4 relays for faster team creation UX
     const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000);
     if (!connected) {
-      console.warn('[NostrTeamCreation] Proceeding with minimal relay connectivity');
+      console.warn(
+        '[NostrTeamCreation] Proceeding with minimal relay connectivity'
+      );
     }
 
     return this.ndk;
@@ -85,9 +91,10 @@ export class NostrTeamCreationService {
       const ndk = await this.ensureNDK();
 
       // Get signer - either create from private key or use provided signer
-      const signer = typeof privateKeyOrSigner === 'string'
-        ? new NDKPrivateKeySigner(privateKeyOrSigner)
-        : privateKeyOrSigner;
+      const signer =
+        typeof privateKeyOrSigner === 'string'
+          ? new NDKPrivateKeySigner(privateKeyOrSigner)
+          : privateKeyOrSigner;
 
       // Generate unique team ID
       const teamId = this.generateTeamId(data.name);
@@ -126,7 +133,9 @@ export class NostrTeamCreationService {
       await memberListEvent.sign(signer);
 
       // Step 3: Publish both events to relays using NDK
-      console.log('Publishing team event and member list to Nostr relays via NDK');
+      console.log(
+        'Publishing team event and member list to Nostr relays via NDK'
+      );
 
       const teamPublishResult = await teamEvent.publish();
       const listPublishResult = await memberListEvent.publish();
@@ -143,12 +152,12 @@ export class NostrTeamCreationService {
         chatEvent.content = JSON.stringify({
           name: `${data.name} Chat`,
           about: `Team chat for ${data.name}. ⚠️ Messages are public on Nostr.`,
-          relays: []
+          relays: [],
         });
         chatEvent.tags = [
           ['d', teamId],
           ['team', teamId],
-          ['t', 'runstr-team-chat']
+          ['t', 'runstr-team-chat'],
         ];
         chatEvent.created_at = Math.floor(Date.now() / 1000);
 
@@ -171,13 +180,13 @@ export class NostrTeamCreationService {
       await TeamMemberCache.getInstance().setTeamMembers(
         teamId,
         data.captainHexPubkey,
-        members.map(pubkey => ({ pubkey, npub: pubkey })) // Simplified for now
+        members.map((pubkey) => ({ pubkey, npub: pubkey })) // Simplified for now
       );
 
       // Step 5: Store the list in NostrListService cache
       this.listService.updateCachedList(
         `${teamId}-members`,
-        members.map(pubkey => ({
+        members.map((pubkey) => ({
           pubkey,
           addedAt: Math.floor(Date.now() / 1000),
         }))
@@ -229,9 +238,10 @@ export class NostrTeamCreationService {
       const ndk = await this.ensureNDK();
 
       // Get signer - either create from private key or use provided signer
-      const signer = typeof privateKeyOrSigner === 'string'
-        ? new NDKPrivateKeySigner(privateKeyOrSigner)
-        : privateKeyOrSigner;
+      const signer =
+        typeof privateKeyOrSigner === 'string'
+          ? new NDKPrivateKeySigner(privateKeyOrSigner)
+          : privateKeyOrSigner;
 
       // Create kind 30000 member list
       const members = [captainHexPubkey, ...(initialMembers || [])];
@@ -261,7 +271,7 @@ export class NostrTeamCreationService {
       await TeamMemberCache.getInstance().setTeamMembers(
         teamId,
         captainHexPubkey,
-        members.map(pubkey => ({ pubkey, npub: pubkey }))
+        members.map((pubkey) => ({ pubkey, npub: pubkey }))
       );
 
       console.log('Member list created for existing team:', teamId);

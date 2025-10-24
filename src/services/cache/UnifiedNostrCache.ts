@@ -113,7 +113,7 @@ export class UnifiedNostrCache {
     (async () => {
       try {
         const keys = await AsyncStorage.getAllKeys();
-        const cacheKeys = keys.filter(key => key.startsWith(STORAGE_PREFIX));
+        const cacheKeys = keys.filter((key) => key.startsWith(STORAGE_PREFIX));
 
         if (cacheKeys.length === 0) {
           console.log('[UnifiedCache] No persisted cache to hydrate');
@@ -143,11 +143,16 @@ export class UnifiedNostrCache {
               AsyncStorage.removeItem(storageKey).catch(() => {});
             }
           } catch (parseError) {
-            console.warn('[UnifiedCache] Failed to parse cache entry:', parseError);
+            console.warn(
+              '[UnifiedCache] Failed to parse cache entry:',
+              parseError
+            );
           }
         }
 
-        console.log(`[UnifiedCache] ✅ Background hydration complete: ${loadedCount} entries`);
+        console.log(
+          `[UnifiedCache] ✅ Background hydration complete: ${loadedCount} entries`
+        );
       } catch (error) {
         console.error('[UnifiedCache] Background hydration failed:', error);
       }
@@ -180,7 +185,10 @@ export class UnifiedNostrCache {
 
       return entry;
     } catch (error) {
-      console.warn(`[UnifiedCache] Failed to load entry on-demand: ${key}`, error);
+      console.warn(
+        `[UnifiedCache] Failed to load entry on-demand: ${key}`,
+        error
+      );
       return null;
     }
   }
@@ -198,7 +206,7 @@ export class UnifiedNostrCache {
       ttl = 5 * 60 * 1000, // Default 5 minutes
       forceRefresh = false,
       backgroundRefresh = false,
-      persist = true
+      persist = true,
     } = options;
 
     // ✅ ANDROID FIX: No blocking initialize() call - cache is always ready
@@ -220,7 +228,11 @@ export class UnifiedNostrCache {
       }
 
       if (cached && !this.isExpired(cached)) {
-        console.log(`[UnifiedCache] Cache hit: ${key} (age: ${Date.now() - cached.timestamp}ms)`);
+        console.log(
+          `[UnifiedCache] Cache hit: ${key} (age: ${
+            Date.now() - cached.timestamp
+          }ms)`
+        );
 
         // Background refresh if requested
         if (backgroundRefresh) {
@@ -229,7 +241,11 @@ export class UnifiedNostrCache {
 
         return cached.data;
       } else if (cached) {
-        console.log(`[UnifiedCache] Cache expired: ${key} (age: ${Date.now() - cached.timestamp}ms, ttl: ${cached.ttl}ms)`);
+        console.log(
+          `[UnifiedCache] Cache expired: ${key} (age: ${
+            Date.now() - cached.timestamp
+          }ms, ttl: ${cached.ttl}ms)`
+        );
       } else {
         console.log(`[UnifiedCache] Cache miss: ${key}`);
       }
@@ -279,11 +295,16 @@ export class UnifiedNostrCache {
   /**
    * Set data in cache
    */
-  async set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000, persist: boolean = true): Promise<void> {
+  async set<T>(
+    key: string,
+    data: T,
+    ttl: number = 5 * 60 * 1000,
+    persist: boolean = true
+  ): Promise<void> {
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
-      ttl
+      ttl,
     };
 
     // Update in-memory cache
@@ -319,7 +340,10 @@ export class UnifiedNostrCache {
     try {
       await AsyncStorage.removeItem(`${STORAGE_PREFIX}${key}`);
     } catch (error) {
-      console.warn(`[UnifiedCache] Failed to remove from storage: ${key}`, error);
+      console.warn(
+        `[UnifiedCache] Failed to remove from storage: ${key}`,
+        error
+      );
     }
   }
 
@@ -336,11 +360,13 @@ export class UnifiedNostrCache {
     // Clear AsyncStorage
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const cacheKeys = keys.filter(key => key.startsWith(STORAGE_PREFIX));
+      const cacheKeys = keys.filter((key) => key.startsWith(STORAGE_PREFIX));
 
       if (cacheKeys.length > 0) {
         await AsyncStorage.multiRemove(cacheKeys);
-        console.log(`[UnifiedCache] Cleared ${cacheKeys.length} persisted entries`);
+        console.log(
+          `[UnifiedCache] Cleared ${cacheKeys.length} persisted entries`
+        );
       }
     } catch (error) {
       console.error('[UnifiedCache] Failed to clear AsyncStorage:', error);
@@ -356,14 +382,20 @@ export class UnifiedNostrCache {
     }
 
     this.subscribers.get(key)!.add(callback);
-    console.log(`[UnifiedCache] Subscriber added for: ${key} (total: ${this.subscribers.get(key)!.size})`);
+    console.log(
+      `[UnifiedCache] Subscriber added for: ${key} (total: ${
+        this.subscribers.get(key)!.size
+      })`
+    );
 
     // Return unsubscribe function
     return () => {
       const subscribers = this.subscribers.get(key);
       if (subscribers) {
         subscribers.delete(callback);
-        console.log(`[UnifiedCache] Subscriber removed for: ${key} (remaining: ${subscribers.size})`);
+        console.log(
+          `[UnifiedCache] Subscriber removed for: ${key} (remaining: ${subscribers.size})`
+        );
 
         // Clean up empty subscriber sets
         if (subscribers.size === 0) {
@@ -386,7 +418,7 @@ export class UnifiedNostrCache {
       size: this.cache.size,
       keys: Array.from(this.cache.keys()),
       pendingFetches: this.pendingFetches.size,
-      subscribers: this.subscribers.size
+      subscribers: this.subscribers.size,
     };
   }
 
@@ -460,13 +492,18 @@ export class UnifiedNostrCache {
       return;
     }
 
-    console.log(`[UnifiedCache] Notifying ${subscribers.size} subscribers for: ${key}`);
+    console.log(
+      `[UnifiedCache] Notifying ${subscribers.size} subscribers for: ${key}`
+    );
 
-    subscribers.forEach(callback => {
+    subscribers.forEach((callback) => {
       try {
         callback(data);
       } catch (error) {
-        console.error(`[UnifiedCache] Subscriber callback error for: ${key}`, error);
+        console.error(
+          `[UnifiedCache] Subscriber callback error for: ${key}`,
+          error
+        );
       }
     });
   }

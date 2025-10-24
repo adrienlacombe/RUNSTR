@@ -4,7 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+} from 'react-native';
 import { theme } from '../../styles/theme';
 import { unifiedNotificationStore } from '../../services/notifications/UnifiedNotificationStore';
 
@@ -12,30 +18,34 @@ interface NotificationBadgeProps {
   onPress: () => void;
 }
 
-export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ onPress }) => {
+export const NotificationBadge: React.FC<NotificationBadgeProps> = ({
+  onPress,
+}) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const scaleAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     // Subscribe to notification changes
-    const unsubscribe = unifiedNotificationStore.subscribe((notifications, count) => {
-      setUnreadCount(count);
+    const unsubscribe = unifiedNotificationStore.subscribe(
+      (notifications, count) => {
+        setUnreadCount(count);
 
-      // Show/hide badge based on count
-      const shouldBeVisible = count > 0;
-      if (shouldBeVisible !== isVisible) {
-        setIsVisible(shouldBeVisible);
+        // Show/hide badge based on count
+        const shouldBeVisible = count > 0;
+        if (shouldBeVisible !== isVisible) {
+          setIsVisible(shouldBeVisible);
 
-        // Animate in/out
-        Animated.spring(scaleAnim, {
-          toValue: shouldBeVisible ? 1 : 0,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }).start();
+          // Animate in/out
+          Animated.spring(scaleAnim, {
+            toValue: shouldBeVisible ? 1 : 0,
+            friction: 8,
+            tension: 40,
+            useNativeDriver: true,
+          }).start();
+        }
       }
-    });
+    );
 
     return () => {
       unsubscribe();

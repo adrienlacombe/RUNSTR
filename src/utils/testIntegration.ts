@@ -44,35 +44,42 @@ export async function runQuickTest(): Promise<TestSuiteResult[]> {
 
     // Just test one scenario
     const mockMetrics = new Map([
-      ['user1', {
-        npub: 'user1',
-        totalDistance: 100,
-        totalDuration: 300,
-        totalCalories: 1500,
-        workoutCount: 10,
-        activeDays: 7,
-        longestDistance: 20,
-        longestDuration: 60,
-        streakDays: 5,
-        workouts: []
-      }],
-      ['user2', {
-        npub: 'user2',
-        totalDistance: 50,
-        totalDuration: 200,
-        totalCalories: 800,
-        workoutCount: 5,
-        activeDays: 4,
-        longestDistance: 15,
-        longestDuration: 45,
-        streakDays: 2,
-        workouts: []
-      }]
+      [
+        'user1',
+        {
+          npub: 'user1',
+          totalDistance: 100,
+          totalDuration: 300,
+          totalCalories: 1500,
+          workoutCount: 10,
+          activeDays: 7,
+          longestDistance: 20,
+          longestDuration: 60,
+          streakDays: 5,
+          workouts: [],
+        },
+      ],
+      [
+        'user2',
+        {
+          npub: 'user2',
+          totalDistance: 50,
+          totalDuration: 200,
+          totalCalories: 800,
+          workoutCount: 5,
+          activeDays: 4,
+          longestDistance: 15,
+          longestDuration: 45,
+          streakDays: 2,
+          workouts: [],
+        },
+      ],
     ]);
 
     // Test basic ranking
-    const rankings = Array.from(mockMetrics.values())
-      .sort((a, b) => b.totalDistance - a.totalDistance);
+    const rankings = Array.from(mockMetrics.values()).sort(
+      (a, b) => b.totalDistance - a.totalDistance
+    );
 
     const success = rankings[0].npub === 'user1';
 
@@ -82,11 +89,12 @@ export async function runQuickTest(): Promise<TestSuiteResult[]> {
       failed: success ? 0 : 1,
       total: 1,
       duration: Date.now() - startTime,
-      success
+      success,
     });
 
-    console.log(success ? '✅ Leaderboard test passed' : '❌ Leaderboard test failed');
-
+    console.log(
+      success ? '✅ Leaderboard test passed' : '❌ Leaderboard test failed'
+    );
   } catch (error) {
     results.push({
       suiteName: 'Quick Test',
@@ -95,7 +103,7 @@ export async function runQuickTest(): Promise<TestSuiteResult[]> {
       total: 1,
       duration: 0,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 
@@ -117,8 +125,8 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
     const startTime = Date.now();
     const testResults = await integrationSuite.runFullSuite();
 
-    const passed = testResults.filter(r => r.success).length;
-    const failed = testResults.filter(r => !r.success).length;
+    const passed = testResults.filter((r) => r.success).length;
+    const failed = testResults.filter((r) => !r.success).length;
 
     results.push({
       suiteName: 'Integration Tests',
@@ -126,7 +134,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       failed,
       total: testResults.length,
       duration: Date.now() - startTime,
-      success: failed === 0
+      success: failed === 0,
     });
   } catch (error) {
     results.push({
@@ -136,7 +144,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       total: 1,
       duration: 0,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 
@@ -147,8 +155,8 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
     const startTime = Date.now();
     const testResults = await leaderboardSuite.runAllTests();
 
-    const passed = testResults.filter(r => r.success).length;
-    const failed = testResults.filter(r => !r.success).length;
+    const passed = testResults.filter((r) => r.success).length;
+    const failed = testResults.filter((r) => !r.success).length;
 
     results.push({
       suiteName: 'Leaderboard Tests',
@@ -156,7 +164,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       failed,
       total: testResults.length,
       duration: Date.now() - startTime,
-      success: failed === 0
+      success: failed === 0,
     });
   } catch (error) {
     results.push({
@@ -166,7 +174,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       total: 1,
       duration: 0,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 
@@ -177,8 +185,8 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
     const startTime = Date.now();
     const testResults = await memberSuite.runAllTests();
 
-    const passed = testResults.filter(r => r.success).length;
-    const failed = testResults.filter(r => !r.success).length;
+    const passed = testResults.filter((r) => r.success).length;
+    const failed = testResults.filter((r) => !r.success).length;
 
     results.push({
       suiteName: 'Member Management Tests',
@@ -186,7 +194,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       failed,
       total: testResults.length,
       duration: Date.now() - startTime,
-      success: failed === 0
+      success: failed === 0,
     });
   } catch (error) {
     results.push({
@@ -196,7 +204,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       total: 1,
       duration: 0,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 
@@ -207,8 +215,8 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
     const startTime = Date.now();
     const testResults = await performanceSuite.runAllTests();
 
-    const passed = testResults.filter(r => r.success).length;
-    const failed = testResults.filter(r => !r.success).length;
+    const passed = testResults.filter((r) => r.success).length;
+    const failed = testResults.filter((r) => !r.success).length;
 
     results.push({
       suiteName: 'Performance Tests',
@@ -216,7 +224,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       failed,
       total: testResults.length,
       duration: Date.now() - startTime,
-      success: failed === 0
+      success: failed === 0,
     });
   } catch (error) {
     results.push({
@@ -226,7 +234,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       total: 1,
       duration: 0,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 
@@ -243,7 +251,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       competitionType: 'Total Distance',
       simulationSpeed: 'instant',
       enableNotifications: false,
-      enableZaps: false
+      enableZaps: false,
     });
 
     results.push({
@@ -252,7 +260,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       failed: 0,
       total: 1,
       duration: Date.now() - startTime,
-      success: true
+      success: true,
     });
   } catch (error) {
     results.push({
@@ -262,7 +270,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
       total: 1,
       duration: 0,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 
@@ -275,7 +283,7 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
   let totalFailed = 0;
   let totalTests = 0;
 
-  results.forEach(suite => {
+  results.forEach((suite) => {
     const icon = suite.success ? '✅' : '❌';
     console.log(`\n${icon} ${suite.suiteName}:`);
     console.log(`   Passed: ${suite.passed}/${suite.total}`);
@@ -291,7 +299,9 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
 
   console.log('\n' + '-'.repeat(60));
   console.log(`Overall: ${totalPassed}/${totalTests} tests passed`);
-  console.log(`Success Rate: ${((totalPassed / totalTests) * 100).toFixed(1)}%`);
+  console.log(
+    `Success Rate: ${((totalPassed / totalTests) * 100).toFixed(1)}%`
+  );
 
   if (totalFailed === 0) {
     console.log('\n🎉 All tests passed successfully!');
@@ -305,7 +315,14 @@ export async function runFullTestSuite(): Promise<TestSuiteResult[]> {
 /**
  * Run a specific test suite
  */
-export async function runTestSuite(suiteName: 'integration' | 'leaderboard' | 'member' | 'performance' | 'simulation'): Promise<TestSuiteResult> {
+export async function runTestSuite(
+  suiteName:
+    | 'integration'
+    | 'leaderboard'
+    | 'member'
+    | 'performance'
+    | 'simulation'
+): Promise<TestSuiteResult> {
   console.log(`🧪 Running ${suiteName} test suite...`);
 
   const startTime = Date.now();
@@ -319,32 +336,32 @@ export async function runTestSuite(suiteName: 'integration' | 'leaderboard' | 'm
       case 'integration': {
         const suite = new CompetitionIntegrationTestSuite();
         const results = await suite.runFullSuite();
-        passed = results.filter(r => r.success).length;
-        failed = results.filter(r => !r.success).length;
+        passed = results.filter((r) => r.success).length;
+        failed = results.filter((r) => !r.success).length;
         total = results.length;
         break;
       }
       case 'leaderboard': {
         const suite = new LeaderboardTestScripts();
         const results = await suite.runAllTests();
-        passed = results.filter(r => r.success).length;
-        failed = results.filter(r => !r.success).length;
+        passed = results.filter((r) => r.success).length;
+        failed = results.filter((r) => !r.success).length;
         total = results.length;
         break;
       }
       case 'member': {
         const suite = new MemberManagementTestScripts();
         const results = await suite.runAllTests();
-        passed = results.filter(r => r.success).length;
-        failed = results.filter(r => !r.success).length;
+        passed = results.filter((r) => r.success).length;
+        failed = results.filter((r) => !r.success).length;
         total = results.length;
         break;
       }
       case 'performance': {
         const suite = new WorkoutQueryPerformanceTests();
         const results = await suite.runAllTests();
-        passed = results.filter(r => r.success).length;
-        failed = results.filter(r => !r.success).length;
+        passed = results.filter((r) => r.success).length;
+        failed = results.filter((r) => !r.success).length;
         total = results.length;
         break;
       }
@@ -357,7 +374,7 @@ export async function runTestSuite(suiteName: 'integration' | 'leaderboard' | 'm
           competitionType: 'Total Distance',
           simulationSpeed: 'instant',
           enableNotifications: true,
-          enableZaps: true
+          enableZaps: true,
         });
         passed = 1;
         failed = 0;
@@ -372,9 +389,8 @@ export async function runTestSuite(suiteName: 'integration' | 'leaderboard' | 'm
       failed,
       total,
       duration: Date.now() - startTime,
-      success: failed === 0
+      success: failed === 0,
     };
-
   } catch (error) {
     return {
       suiteName,
@@ -383,7 +399,7 @@ export async function runTestSuite(suiteName: 'integration' | 'leaderboard' | 'm
       total: 1,
       duration: Date.now() - startTime,
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -394,5 +410,5 @@ export {
   LeaderboardTestScripts,
   MemberManagementTestScripts,
   WorkoutQueryPerformanceTests,
-  CompetitionSimulator
+  CompetitionSimulator,
 };

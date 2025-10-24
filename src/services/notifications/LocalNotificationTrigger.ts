@@ -52,9 +52,13 @@ export class LocalNotificationTrigger {
     const notification: RichNotificationData = {
       id: `new_comp_${Date.now()}`,
       type: 'competition_announcement',
-      title: `New ${competitionType === 'event' ? 'Event' : 'League'} Available! 🏃‍♀️`,
+      title: `New ${
+        competitionType === 'event' ? 'Event' : 'League'
+      } Available! 🏃‍♀️`,
       body: `"${competitionName}" - ${activityType} competition${
-        startTime ? ` starts ${this.formatTimeUntil(startTime)}` : ' is now open'
+        startTime
+          ? ` starts ${this.formatTimeUntil(startTime)}`
+          : ' is now open'
       }. Join now to compete for Bitcoin rewards!`,
       timestamp: new Date().toISOString(),
       actions: [
@@ -62,7 +66,7 @@ export class LocalNotificationTrigger {
           id: 'view_competition',
           text: 'View Details',
           type: 'primary' as const,
-          action: 'view_competition' as any
+          action: 'view_competition' as any,
         },
       ],
     };
@@ -78,7 +82,9 @@ export class LocalNotificationTrigger {
       undefined
     );
 
-    console.log(`📱 Triggered new competition notification: ${competitionName}`);
+    console.log(
+      `📱 Triggered new competition notification: ${competitionName}`
+    );
   }
 
   /**
@@ -99,7 +105,7 @@ export class LocalNotificationTrigger {
       type: 'position_change',
       title: `Position Change ${emoji}`,
       body: `You ${action} #${newPosition} of ${totalParticipants} in "${competitionName}"${
-        improved && newPosition <= 3 ? ' - You\'re in the money! 💰' : ''
+        improved && newPosition <= 3 ? " - You're in the money! 💰" : ''
       }`,
       timestamp: new Date().toISOString(),
       actions: [
@@ -107,7 +113,7 @@ export class LocalNotificationTrigger {
           id: 'view_leaderboard',
           text: 'View Leaderboard',
           type: 'primary' as const,
-          action: 'view_leaderboard' as any
+          action: 'view_leaderboard' as any,
         },
       ],
     };
@@ -120,7 +126,12 @@ export class LocalNotificationTrigger {
       'position_change',
       notification.title || '',
       notification.body || '',
-      { oldPosition: previousPosition, newPosition, leagueId: '', leagueName: competitionName }
+      {
+        oldPosition: previousPosition,
+        newPosition,
+        leagueId: '',
+        leagueName: competitionName,
+      }
     );
 
     console.log(
@@ -138,9 +149,14 @@ export class LocalNotificationTrigger {
     currentPosition?: number,
     pointsFromNext?: number
   ): Promise<void> {
-    const hoursLeft = Math.max(1, Math.ceil((endTime.getTime() - Date.now()) / (1000 * 60 * 60)));
+    const hoursLeft = Math.max(
+      1,
+      Math.ceil((endTime.getTime() - Date.now()) / (1000 * 60 * 60))
+    );
 
-    let bodyText = `"${competitionName}" ends in ${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}!`;
+    let bodyText = `"${competitionName}" ends in ${hoursLeft} hour${
+      hoursLeft > 1 ? 's' : ''
+    }!`;
 
     if (currentPosition && pointsFromNext && currentPosition > 1) {
       bodyText += ` You're #${currentPosition} and only ${pointsFromNext} points from climbing up! 🎯`;
@@ -159,7 +175,7 @@ export class LocalNotificationTrigger {
           id: 'view_competition',
           text: 'View Competition',
           type: 'primary' as const,
-          action: 'view_competition' as any
+          action: 'view_competition' as any,
         },
       ],
     };

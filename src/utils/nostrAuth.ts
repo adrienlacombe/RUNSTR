@@ -37,7 +37,7 @@ export async function storeAuthenticationData(
     console.log('[Auth] nsec format check:', {
       startsWithNsec: nsec?.startsWith('nsec1'),
       length: nsec?.length,
-      sample: nsec ? nsec.slice(0, 10) + '...' : 'null'
+      sample: nsec ? nsec.slice(0, 10) + '...' : 'null',
     });
 
     // Validate nsec format first
@@ -45,7 +45,7 @@ export async function storeAuthenticationData(
       console.error('[Auth] Invalid nsec format:', {
         startsWithNsec: nsec?.startsWith('nsec1'),
         length: nsec?.length,
-        sample: nsec ? nsec.slice(0, 10) + '...' : 'null'
+        sample: nsec ? nsec.slice(0, 10) + '...' : 'null',
       });
       return false;
     }
@@ -65,7 +65,7 @@ export async function storeAuthenticationData(
 
     console.log('[Auth] Derived keys:', {
       npub: npub.slice(0, 20) + '...',
-      hexPubkey: hexPubkey.slice(0, 16) + '...'
+      hexPubkey: hexPubkey.slice(0, 16) + '...',
     });
 
     // Store all authentication data in a transaction-like manner
@@ -99,7 +99,9 @@ export async function storeAuthenticationData(
     const verification = await verifyAuthenticationStorage();
 
     if (!verification) {
-      console.error('[Auth] Storage verification failed - clearing invalid data');
+      console.error(
+        '[Auth] Storage verification failed - clearing invalid data'
+      );
       await clearAuthenticationStorage();
       return false;
     }
@@ -124,7 +126,10 @@ export async function getAuthenticationData(): Promise<AuthStorage | null> {
 
     // Try plain storage first (fastest)
     const plainNsec = await AsyncStorage.getItem(STORAGE_KEYS.NSEC_PLAIN);
-    console.log('[Auth] Plain nsec retrieved:', plainNsec ? `${plainNsec.slice(0, 10)}...` : 'null');
+    console.log(
+      '[Auth] Plain nsec retrieved:',
+      plainNsec ? `${plainNsec.slice(0, 10)}...` : 'null'
+    );
 
     if (plainNsec && plainNsec.startsWith('nsec1')) {
       console.log('[Auth] Retrieved valid nsec from plain storage');
@@ -160,10 +165,19 @@ export async function getAuthenticationData(): Promise<AuthStorage | null> {
     // Fallback to encrypted storage
     console.log('[Auth] Plain storage invalid, trying encrypted fallback...');
 
-    const encryptedNsec = await AsyncStorage.getItem(STORAGE_KEYS.NSEC_ENCRYPTED);
-    const encryptionKey = await AsyncStorage.getItem(STORAGE_KEYS.ENCRYPTION_KEY);
+    const encryptedNsec = await AsyncStorage.getItem(
+      STORAGE_KEYS.NSEC_ENCRYPTED
+    );
+    const encryptionKey = await AsyncStorage.getItem(
+      STORAGE_KEYS.ENCRYPTION_KEY
+    );
 
-    console.log('[Auth] Encrypted data found:', !!encryptedNsec, 'Key found:', !!encryptionKey);
+    console.log(
+      '[Auth] Encrypted data found:',
+      !!encryptedNsec,
+      'Key found:',
+      !!encryptionKey
+    );
 
     if (!encryptedNsec || !encryptionKey) {
       console.log('[Auth] No encrypted data or key found');
@@ -171,7 +185,10 @@ export async function getAuthenticationData(): Promise<AuthStorage | null> {
     }
 
     const nsec = decryptNsec(encryptedNsec, encryptionKey);
-    console.log('[Auth] Decrypted nsec:', nsec ? `${nsec.slice(0, 10)}...` : 'null');
+    console.log(
+      '[Auth] Decrypted nsec:',
+      nsec ? `${nsec.slice(0, 10)}...` : 'null'
+    );
 
     if (!nsec.startsWith('nsec1')) {
       console.error('[Auth] Decryption produced invalid nsec');
@@ -243,7 +260,9 @@ async function verifyAuthenticationStorage(): Promise<boolean> {
 
     // Verify we can decrypt the encrypted version
     const encrypted = await AsyncStorage.getItem(STORAGE_KEYS.NSEC_ENCRYPTED);
-    const encryptionKey = await AsyncStorage.getItem(STORAGE_KEYS.ENCRYPTION_KEY);
+    const encryptionKey = await AsyncStorage.getItem(
+      STORAGE_KEYS.ENCRYPTION_KEY
+    );
 
     if (encrypted && encryptionKey) {
       const decrypted = decryptNsec(encrypted, encryptionKey);
@@ -277,7 +296,8 @@ function encryptNsec(nsec: string, key: string): string {
 
   // Base64 encode for safe storage - React Native doesn't have btoa
   // Use a simple base64 implementation
-  const base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const base64chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let result = '';
   let i = 0;
 
@@ -290,7 +310,8 @@ function encryptNsec(nsec: string, key: string): string {
 
     result += base64chars.charAt((bitmap >> 18) & 63);
     result += base64chars.charAt((bitmap >> 12) & 63);
-    result += i - 2 < encrypted.length ? base64chars.charAt((bitmap >> 6) & 63) : '=';
+    result +=
+      i - 2 < encrypted.length ? base64chars.charAt((bitmap >> 6) & 63) : '=';
     result += i - 1 < encrypted.length ? base64chars.charAt(bitmap & 63) : '=';
   }
 
@@ -308,7 +329,8 @@ export function decryptNsec(encrypted: string, key: string): string {
 
     // Base64 decode - React Native doesn't have atob
     // Use a simple base64 decode implementation
-    const base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const base64chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     const base64inv: { [key: string]: number } = {};
     for (let i = 0; i < base64chars.length; i++) {
       base64inv[base64chars[i]] = i;
@@ -387,12 +409,18 @@ export async function migrateAuthenticationStorage(
       if (encrypted) {
         // Try npub as key (old broken method)
         nsec = decryptNsec(encrypted, userNpub);
-        console.log('[Auth] Decrypted with npub:', nsec?.slice(0, 10) || 'failed');
+        console.log(
+          '[Auth] Decrypted with npub:',
+          nsec?.slice(0, 10) || 'failed'
+        );
 
         if (!nsec?.startsWith('nsec1')) {
           // Try userId as key (correct method)
           nsec = decryptNsec(encrypted, userId);
-          console.log('[Auth] Decrypted with userId:', nsec?.slice(0, 10) || 'failed');
+          console.log(
+            '[Auth] Decrypted with userId:',
+            nsec?.slice(0, 10) || 'failed'
+          );
         }
 
         if (!nsec?.startsWith('nsec1')) {
@@ -400,7 +428,10 @@ export async function migrateAuthenticationStorage(
           const hexPubkey = await AsyncStorage.getItem(STORAGE_KEYS.HEX_PUBKEY);
           if (hexPubkey) {
             nsec = decryptNsec(encrypted, hexPubkey);
-            console.log('[Auth] Decrypted with hexPubkey:', nsec?.slice(0, 10) || 'failed');
+            console.log(
+              '[Auth] Decrypted with hexPubkey:',
+              nsec?.slice(0, 10) || 'failed'
+            );
           }
         }
       }

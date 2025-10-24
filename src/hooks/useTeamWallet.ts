@@ -28,10 +28,7 @@ interface StubResult {
   verifyAccess: () => Promise<boolean>;
 }
 
-export function useTeamWallet(
-  teamId: string,
-  userId: string
-): StubResult {
+export function useTeamWallet(teamId: string, userId: string): StubResult {
   // Return stub values - team wallets are deprecated
   const [isLoading] = useState(false);
   const [error] = useState<string | null>(null);

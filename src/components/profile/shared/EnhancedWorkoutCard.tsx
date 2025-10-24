@@ -4,9 +4,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { theme } from '../../../styles/theme';
 import { WorkoutStatusTracker } from '../../../services/fitness/WorkoutStatusTracker';
+import { WorkoutDetailModal } from './WorkoutDetailModal';
 import type { Workout } from '../../../types/workout';
 
 interface EnhancedWorkoutCardProps {
@@ -32,6 +39,7 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
     post: false,
     compete: false,
   });
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const statusTracker = WorkoutStatusTracker.getInstance();
 
@@ -55,12 +63,12 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
     if (!onSocialShare || status.posted || loading.post) return;
 
     try {
-      setLoading(prev => ({ ...prev, post: true }));
+      setLoading((prev) => ({ ...prev, post: true }));
       onSocialShare(workout);
     } catch (error) {
       console.error('Failed to open social share:', error);
     } finally {
-      setLoading(prev => ({ ...prev, post: false }));
+      setLoading((prev) => ({ ...prev, post: false }));
     }
   };
 
@@ -68,14 +76,14 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
     if (!onCompete || status.competed || loading.compete) return;
 
     try {
-      setLoading(prev => ({ ...prev, compete: true }));
+      setLoading((prev) => ({ ...prev, compete: true }));
       await onCompete(workout);
       await statusTracker.markAsCompeted(workout.id);
-      setStatus(prev => ({ ...prev, competed: true }));
+      setStatus((prev) => ({ ...prev, competed: true }));
     } catch (error) {
       console.error('Failed to compete workout:', error);
     } finally {
-      setLoading(prev => ({ ...prev, compete: false }));
+      setLoading((prev) => ({ ...prev, compete: false }));
     }
   };
 
@@ -108,6 +116,42 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
       : new Date(dateString).toLocaleDateString();
   };
 
+  // Get enhanced activity type display name
+  const getActivityTypeName = (): string => {
+    const baseType = workout.type ? (workout.type as string) : 'Workout';
+
+    // Meditation: Show meditation subtype if available
+    if (baseType === 'meditation' && (workout as any).meditationType) {
+      const meditationType = (workout as any).meditationType;
+      const typeMap: Record<string, string> = {
+        guided: 'Guided Meditation',
+        unguided: 'Unguided Meditation',
+        breathwork: 'Breathwork',
+        body_scan: 'Body Scan',
+        gratitude: 'Gratitude Meditation',
+      };
+      return typeMap[meditationType] || 'Meditation';
+    }
+
+    // Diet: Show meal type if available
+    if (baseType === 'other' && (workout as any).mealType) {
+      const mealType = (workout as any).mealType;
+      return mealType.charAt(0).toUpperCase() + mealType.slice(1);
+    }
+
+    // Strength: Show exercise type if available
+    if (
+      (baseType === 'strength_training' || baseType === 'gym') &&
+      (workout as any).exerciseType
+    ) {
+      const exerciseType = (workout as any).exerciseType;
+      return exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1);
+    }
+
+    // Default: Capitalize first letter
+    return baseType.charAt(0).toUpperCase() + baseType.slice(1);
+  };
+
   // Activity icons removed - no longer using emojis
 
   // Source icons removed - no longer using emojis
@@ -117,117 +161,169 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
   // Get weather emoji from icon code
   const getWeatherEmoji = (icon: string): string => {
     const iconMap: Record<string, string> = {
-      '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️',
-      '03d': '☁️', '03n': '☁️', '04d': '☁️', '04n': '☁️',
-      '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
-      '11d': '⛈️', '11n': '⛈️', '13d': '❄️', '13n': '❄️',
-      '50d': '🌫️', '50n': '🌫️',
+      '01d': '☀️',
+      '01n': '🌙',
+      '02d': '⛅',
+      '02n': '☁️',
+      '03d': '☁️',
+      '03n': '☁️',
+      '04d': '☁️',
+      '04n': '☁️',
+      '09d': '🌧️',
+      '09n': '🌧️',
+      '10d': '🌦️',
+      '10n': '🌧️',
+      '11d': '⛈️',
+      '11n': '⛈️',
+      '13d': '❄️',
+      '13n': '❄️',
+      '50d': '🌫️',
+      '50n': '🌫️',
     };
     return iconMap[icon] || '🌤️';
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {/* Activity icon removed */}
-          <View style={styles.headerInfo}>
-            <Text style={styles.activityType}>
-              {workout.type ? (workout.type as string).charAt(0).toUpperCase() + (workout.type as string).slice(1) : 'Workout'}
+    <>
+      <TouchableOpacity
+        style={styles.container}
+        activeOpacity={0.7}
+        onPress={() => setShowDetailModal(true)}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            {/* Activity icon removed */}
+            <View style={styles.headerInfo}>
+              <Text style={styles.activityType}>{getActivityTypeName()}</Text>
+              <Text style={styles.date}>{formatDate(workout.startTime)}</Text>
+            </View>
+          </View>
+          <View style={styles.headerRight}>
+            {/* Weather Badge (if available) */}
+            {workout.weather && (
+              <View style={styles.weatherBadge}>
+                <Text style={styles.weatherEmoji}>
+                  {getWeatherEmoji(workout.weather.icon)}
+                </Text>
+                <Text style={styles.weatherTemp}>{workout.weather.temp}°C</Text>
+              </View>
+            )}
+            {workout.source && workout.source !== 'manual_entry' && (
+              <View style={styles.sourceBadge}>
+                <Text style={styles.sourceText}>
+                  {workout.source.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Stats */}
+        <View style={styles.stats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              {formatDuration(workout.duration)}
             </Text>
-            <Text style={styles.date}>{formatDate(workout.startTime)}</Text>
+            <Text style={styles.statLabel}>Duration</Text>
           </View>
-        </View>
-        <View style={styles.headerRight}>
-          {/* Weather Badge (if available) */}
-          {workout.weather && (
-            <View style={styles.weatherBadge}>
-              <Text style={styles.weatherEmoji}>{getWeatherEmoji(workout.weather.icon)}</Text>
-              <Text style={styles.weatherTemp}>{workout.weather.temp}°C</Text>
-            </View>
-          )}
-          <View style={styles.sourceBadge}>
-            <Text style={styles.sourceText}>{workout.source?.toUpperCase() || 'UNKNOWN'}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Stats */}
-      <View style={styles.stats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{formatDuration(workout.duration)}</Text>
-          <Text style={styles.statLabel}>Duration</Text>
-        </View>
-        {workout.distance !== undefined && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{formatDistance(workout.distance)}</Text>
-            <Text style={styles.statLabel}>Distance</Text>
-          </View>
-        )}
-        {workout.calories !== undefined && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{workout.calories.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>Calories</Text>
-          </View>
-        )}
-        {workout.heartRate?.avg && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{workout.heartRate.avg.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>Avg HR</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Status Indicators */}
-      {(status.posted || status.competed) && (
-        <View style={styles.statusContainer}>
-          {status.posted && (
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>✓ Posted</Text>
-            </View>
-          )}
-          {status.competed && (
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>🏆 In Competition</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      {!hideActions && !isFromNostr && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.postButton, status.posted && styles.disabledButton]}
-            onPress={handlePost}
-            disabled={status.posted || loading.post}
-          >
-            {loading.post ? (
-              <ActivityIndicator size="small" color={theme.colors.accentText} />
-            ) : (
-              <Text style={styles.actionButtonText}>
-                {status.posted ? '✓ Posted' : 'Post'}
+          {workout.distance !== undefined && (
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatDistance(workout.distance)}
               </Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.competeButton, status.competed && styles.disabledButton]}
-            onPress={handleCompete}
-            disabled={status.competed || loading.compete}
-          >
-            {loading.compete ? (
-              <ActivityIndicator size="small" color={theme.colors.accentText} />
-            ) : (
-              <Text style={styles.actionButtonText}>
-                {status.competed ? 'Competed' : 'Compete'}
+              <Text style={styles.statLabel}>Distance</Text>
+            </View>
+          )}
+          {workout.calories !== undefined && (
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {workout.calories.toFixed(0)}
               </Text>
-            )}
-          </TouchableOpacity>
+              <Text style={styles.statLabel}>Calories</Text>
+            </View>
+          )}
+          {workout.heartRate?.avg && (
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {workout.heartRate.avg.toFixed(0)}
+              </Text>
+              <Text style={styles.statLabel}>Avg HR</Text>
+            </View>
+          )}
         </View>
-      )}
-    </View>
+
+        {/* Status Indicators */}
+        {(status.posted || status.competed) && (
+          <View style={styles.statusContainer}>
+            {status.posted && (
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>✓ Posted</Text>
+              </View>
+            )}
+            {status.competed && (
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>🏆 In Competition</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        {!hideActions && !isFromNostr && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                styles.postButton,
+                status.posted && styles.disabledButton,
+              ]}
+              onPress={handlePost}
+              disabled={status.posted || loading.post}
+            >
+              {loading.post ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.accentText}
+                />
+              ) : (
+                <Text style={styles.actionButtonText}>
+                  {status.posted ? '✓ Posted' : 'Post'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                styles.competeButton,
+                status.competed && styles.disabledButton,
+              ]}
+              onPress={handleCompete}
+              disabled={status.competed || loading.compete}
+            >
+              {loading.compete ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.accentText}
+                />
+              ) : (
+                <Text style={styles.actionButtonText}>
+                  {status.competed ? 'Competed' : 'Compete'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Workout Detail Modal */}
+      <WorkoutDetailModal
+        visible={showDetailModal}
+        workout={workout}
+        onClose={() => setShowDetailModal(false)}
+      />
+    </>
   );
 };
 

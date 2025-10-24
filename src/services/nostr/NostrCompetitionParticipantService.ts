@@ -4,7 +4,12 @@
  * Handles join requests, approvals, and participant status tracking
  */
 
-import NDK, { NDKEvent, NDKPrivateKeySigner, NDKUser, type NDKSigner } from '@nostr-dev-kit/ndk';
+import NDK, {
+  NDKEvent,
+  NDKPrivateKeySigner,
+  NDKUser,
+  type NDKSigner,
+} from '@nostr-dev-kit/ndk';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GlobalNDKService } from './GlobalNDKService';
 
@@ -58,7 +63,8 @@ class NostrCompetitionParticipantService {
 
   static getInstance(): NostrCompetitionParticipantService {
     if (!NostrCompetitionParticipantService.instance) {
-      NostrCompetitionParticipantService.instance = new NostrCompetitionParticipantService();
+      NostrCompetitionParticipantService.instance =
+        new NostrCompetitionParticipantService();
     }
     return NostrCompetitionParticipantService.instance;
   }
@@ -69,7 +75,9 @@ class NostrCompetitionParticipantService {
         // Validate connection before initialization
         const connected = GlobalNDKService.isConnected();
         if (!connected) {
-          console.warn('[CompetitionParticipant] No relay connections - attempting reconnect...');
+          console.warn(
+            '[CompetitionParticipant] No relay connections - attempting reconnect...'
+          );
           await GlobalNDKService.reconnect();
         }
 
@@ -77,7 +85,10 @@ class NostrCompetitionParticipantService {
         this.ndk = await GlobalNDKService.getInstance();
       }
     } catch (error) {
-      console.error('Failed to initialize NostrCompetitionParticipantService:', error);
+      console.error(
+        'Failed to initialize NostrCompetitionParticipantService:',
+        error
+      );
     }
   }
 
@@ -97,9 +108,10 @@ class NostrCompetitionParticipantService {
       }
 
       // Get signer - either create from private key or use provided signer
-      const signer = typeof captainPrivateKeyOrSigner === 'string'
-        ? new NDKPrivateKeySigner(captainPrivateKeyOrSigner)
-        : captainPrivateKeyOrSigner;
+      const signer =
+        typeof captainPrivateKeyOrSigner === 'string'
+          ? new NDKPrivateKeySigner(captainPrivateKeyOrSigner)
+          : captainPrivateKeyOrSigner;
       const user = await signer.user();
 
       // Create participant list event
@@ -156,9 +168,10 @@ class NostrCompetitionParticipantService {
       }
 
       // Get signer - either create from private key or use provided signer
-      const signer = typeof userPrivateKeyOrSigner === 'string'
-        ? new NDKPrivateKeySigner(userPrivateKeyOrSigner)
-        : userPrivateKeyOrSigner;
+      const signer =
+        typeof userPrivateKeyOrSigner === 'string'
+          ? new NDKPrivateKeySigner(userPrivateKeyOrSigner)
+          : userPrivateKeyOrSigner;
       const user = await signer.user();
 
       // Create join request event
@@ -219,7 +232,9 @@ class NostrCompetitionParticipantService {
 
       // Add participant to approved list
       const updatedParticipants = [
-        ...currentList.participants.filter(p => p.hexPubkey !== participantPubkey),
+        ...currentList.participants.filter(
+          (p) => p.hexPubkey !== participantPubkey
+        ),
         {
           npub: '', // Will be converted from hex
           hexPubkey: participantPubkey,
@@ -265,7 +280,7 @@ class NostrCompetitionParticipantService {
         };
       }
 
-      const updatedParticipants = currentList.participants.map(p =>
+      const updatedParticipants = currentList.participants.map((p) =>
         p.hexPubkey === participantPubkey
           ? { ...p, status: 'rejected' as const }
           : p
@@ -305,7 +320,7 @@ class NostrCompetitionParticipantService {
       }
 
       const updatedParticipants = currentList.participants.filter(
-        p => p.hexPubkey !== participantPubkey
+        (p) => p.hexPubkey !== participantPubkey
       );
 
       return await this.updateParticipantList(
@@ -337,9 +352,10 @@ class NostrCompetitionParticipantService {
       }
 
       // Get signer - either create from private key or use provided signer
-      const signer = typeof captainPrivateKeyOrSigner === 'string'
-        ? new NDKPrivateKeySigner(captainPrivateKeyOrSigner)
-        : captainPrivateKeyOrSigner;
+      const signer =
+        typeof captainPrivateKeyOrSigner === 'string'
+          ? new NDKPrivateKeySigner(captainPrivateKeyOrSigner)
+          : captainPrivateKeyOrSigner;
 
       // Create updated participant list event
       const event = new NDKEvent(this.ndk!);
@@ -358,8 +374,8 @@ class NostrCompetitionParticipantService {
 
       // Add approved participants as 'p' tags
       participants
-        .filter(p => p.status === 'approved')
-        .forEach(p => {
+        .filter((p) => p.status === 'approved')
+        .forEach((p) => {
           tags.push(['p', p.hexPubkey, '', p.name || '']);
         });
 
@@ -406,7 +422,7 @@ class NostrCompetitionParticipantService {
       const filter = {
         kinds: [COMPETITION_PARTICIPANT_LIST_KIND],
         '#d': [`${competitionId}-participants`],
-        limit: 1  // Only need latest list
+        limit: 1, // Only need latest list
       };
 
       const events = await this.ndk!.fetchEvents(filter);
@@ -423,7 +439,7 @@ class NostrCompetitionParticipantService {
       // Parse participant list
       const content = JSON.parse(latestEvent.content);
       const tagsMap = new Map<string, string[]>();
-      latestEvent.tags.forEach(tag => {
+      latestEvent.tags.forEach((tag) => {
         if (tag.length >= 2) {
           tagsMap.set(tag[0], tag.slice(1));
         }
@@ -459,7 +475,8 @@ class NostrCompetitionParticipantService {
     try {
       // Check cache first
       if (!forceRefresh && this.joinRequestCache.has(competitionId)) {
-        const lastUpdate = this.lastCacheUpdate.get(`requests-${competitionId}`) || 0;
+        const lastUpdate =
+          this.lastCacheUpdate.get(`requests-${competitionId}`) || 0;
         if (Date.now() - lastUpdate < this.cacheExpiry) {
           return this.joinRequestCache.get(competitionId)!;
         }
@@ -473,13 +490,13 @@ class NostrCompetitionParticipantService {
       const filter = {
         kinds: [COMPETITION_JOIN_REQUEST_KIND],
         '#competition': [competitionId],
-        limit: 100  // Reasonable request queue size
+        limit: 100, // Reasonable request queue size
       };
 
       const events = await this.ndk!.fetchEvents(filter);
 
       // Parse join requests
-      const requests: JoinRequest[] = Array.from(events).map(event => {
+      const requests: JoinRequest[] = Array.from(events).map((event) => {
         const content = JSON.parse(event.content);
         return {
           id: event.id || '',
@@ -497,11 +514,11 @@ class NostrCompetitionParticipantService {
       // Filter out already processed requests
       const participantList = await this.getParticipantList(competitionId);
       const processedPubkeys = new Set(
-        participantList?.participants.map(p => p.hexPubkey) || []
+        participantList?.participants.map((p) => p.hexPubkey) || []
       );
 
       const pendingRequests = requests.filter(
-        r => !processedPubkeys.has(r.userHexPubkey)
+        (r) => !processedPubkeys.has(r.userHexPubkey)
       );
 
       // Update cache
@@ -529,7 +546,7 @@ class NostrCompetitionParticipantService {
     }
 
     const participant = participantList.participants.find(
-      p => p.hexPubkey === userPubkey
+      (p) => p.hexPubkey === userPubkey
     );
 
     return participant?.status === 'approved';

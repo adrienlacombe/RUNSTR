@@ -64,7 +64,9 @@ export class JoinRequestService {
 
     this.subscriptions.set(competitionId, sub);
 
-    console.log(`[JoinRequestService] Subscribed to ${type} requests for ${competitionId}`);
+    console.log(
+      `[JoinRequestService] Subscribed to ${type} requests for ${competitionId}`
+    );
   }
 
   /**
@@ -88,7 +90,10 @@ export class JoinRequestService {
         eventId: event.id || '',
       };
     } catch (error) {
-      console.error('[JoinRequestService] Failed to parse request event:', error);
+      console.error(
+        '[JoinRequestService] Failed to parse request event:',
+        error
+      );
       return null;
     }
   }
@@ -125,7 +130,9 @@ export class JoinRequestService {
       }
     });
 
-    console.log(`[JoinRequestService] Fetched ${requests.length} ${type} requests`);
+    console.log(
+      `[JoinRequestService] Fetched ${requests.length} ${type} requests`
+    );
     return requests;
   }
 
@@ -156,7 +163,9 @@ export class JoinRequestService {
 
     await acceptEvent.publish();
 
-    console.log(`[JoinRequestService] Approved request from ${request.requesterPubkey}`);
+    console.log(
+      `[JoinRequestService] Approved request from ${request.requesterPubkey}`
+    );
   }
 
   /**
@@ -180,7 +189,9 @@ export class JoinRequestService {
 
     await rejectEvent.publish();
 
-    console.log(`[JoinRequestService] Rejected request from ${request.requesterPubkey}`);
+    console.log(
+      `[JoinRequestService] Rejected request from ${request.requesterPubkey}`
+    );
   }
 
   /**
@@ -206,7 +217,9 @@ export class JoinRequestService {
 
     await event.publish();
 
-    console.log(`[JoinRequestService] Published challenge acceptance for ${challengeId}`);
+    console.log(
+      `[JoinRequestService] Published challenge acceptance for ${challengeId}`
+    );
   }
 
   /**
@@ -234,7 +247,9 @@ export class JoinRequestService {
 
     await event.publish();
 
-    console.log(`[JoinRequestService] Published event join request for ${eventId}`);
+    console.log(
+      `[JoinRequestService] Published event join request for ${eventId}`
+    );
   }
 
   /**

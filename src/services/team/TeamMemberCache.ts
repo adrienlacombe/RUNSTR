@@ -56,11 +56,13 @@ export class TeamMemberCache {
       const stored = await AsyncStorage.getItem(this.STORAGE_KEY);
       if (stored) {
         const cache = JSON.parse(stored) as CachedTeamMembers[];
-        cache.forEach(team => {
+        cache.forEach((team) => {
           const cacheKey = this.getCacheKey(team.teamId, team.captainPubkey);
           this.memoryCache.set(cacheKey, team);
         });
-        console.log(`📦 Loaded ${cache.length} team member caches from storage`);
+        console.log(
+          `📦 Loaded ${cache.length} team member caches from storage`
+        );
       }
     } catch (error) {
       console.error('Failed to load persisted cache:', error);
@@ -82,16 +84,23 @@ export class TeamMemberCache {
   /**
    * Get team members with caching
    */
-  async getTeamMembers(teamId: string, captainPubkey: string): Promise<string[]> {
+  async getTeamMembers(
+    teamId: string,
+    captainPubkey: string
+  ): Promise<string[]> {
     // Normalize captain pubkey to hex for consistent caching
     let hexCaptainPubkey = captainPubkey;
     if (captainPubkey.startsWith('npub')) {
       const converted = npubToHex(captainPubkey);
       if (converted) {
         hexCaptainPubkey = converted;
-        console.log(`🔄 TeamMemberCache: Converted captain npub to hex for caching`);
+        console.log(
+          `🔄 TeamMemberCache: Converted captain npub to hex for caching`
+        );
       } else {
-        console.error(`❌ TeamMemberCache: Failed to convert npub to hex, using original`);
+        console.error(
+          `❌ TeamMemberCache: Failed to convert npub to hex, using original`
+        );
         // Continue with original key if conversion fails
       }
     }
@@ -120,10 +129,16 @@ export class TeamMemberCache {
   /**
    * Fetch members from Nostr and update cache
    */
-  private async fetchAndCacheMembers(teamId: string, captainPubkey: string): Promise<string[]> {
+  private async fetchAndCacheMembers(
+    teamId: string,
+    captainPubkey: string
+  ): Promise<string[]> {
     try {
       const memberListDTag = `${teamId}-members`;
-      const list = await this.listService.getList(captainPubkey, memberListDTag);
+      const list = await this.listService.getList(
+        captainPubkey,
+        memberListDTag
+      );
 
       if (!list) {
         console.log(`⚠️ No member list found for team ${teamId}`);
@@ -148,9 +163,10 @@ export class TeamMemberCache {
       // Persist to storage
       await this.persistCache();
 
-      console.log(`✅ Cached ${list.members.length} members for team ${teamId}`);
+      console.log(
+        `✅ Cached ${list.members.length} members for team ${teamId}`
+      );
       return list.members;
-
     } catch (error) {
       console.error(`Failed to fetch members for team ${teamId}:`, error);
       return [];
@@ -183,13 +199,14 @@ export class TeamMemberCache {
           this.memoryCache.set(cacheKey, cacheEntry);
           this.persistCache();
 
-          console.log(`✅ Updated cache with ${updatedList.members.length} members`);
+          console.log(
+            `✅ Updated cache with ${updatedList.members.length} members`
+          );
         }
       );
 
       this.subscriptions.set(teamId, subscriptionId);
       console.log(`🔔 Subscribed to member updates for team ${teamId}`);
-
     } catch (error) {
       console.error(`Failed to subscribe to team ${teamId} updates:`, error);
     }
@@ -207,7 +224,11 @@ export class TeamMemberCache {
   /**
    * Check if a user is a member of a team
    */
-  async isMember(teamId: string, captainPubkey: string, userPubkey: string): Promise<boolean> {
+  async isMember(
+    teamId: string,
+    captainPubkey: string,
+    userPubkey: string
+  ): Promise<boolean> {
     const members = await this.getTeamMembers(teamId, captainPubkey);
     return members.includes(userPubkey);
   }
@@ -218,11 +239,11 @@ export class TeamMemberCache {
   async setTeamMembers(
     teamId: string,
     captainPubkey: string,
-    members: Array<{pubkey: string, npub: string}>
+    members: Array<{ pubkey: string; npub: string }>
   ): Promise<void> {
     try {
       // Extract just the pubkeys from the member objects
-      const memberPubkeys = members.map(m => m.pubkey);
+      const memberPubkeys = members.map((m) => m.pubkey);
 
       // Create cache entry
       const cacheEntry: CachedTeamMembers = {
@@ -242,7 +263,9 @@ export class TeamMemberCache {
       // Persist to storage
       await this.persistCache();
 
-      console.log(`✅ Manually cached ${memberPubkeys.length} members for team ${teamId}`);
+      console.log(
+        `✅ Manually cached ${memberPubkeys.length} members for team ${teamId}`
+      );
     } catch (error) {
       console.error(`Failed to set team members for ${teamId}:`, error);
     }
@@ -253,8 +276,11 @@ export class TeamMemberCache {
    */
   getCacheStats(): MemberCacheStats {
     const caches = Array.from(this.memoryCache.values());
-    const totalMembers = caches.reduce((sum, cache) => sum + cache.members.length, 0);
-    const timestamps = caches.map(c => c.lastUpdated);
+    const totalMembers = caches.reduce(
+      (sum, cache) => sum + cache.members.length,
+      0
+    );
+    const timestamps = caches.map((c) => c.lastUpdated);
 
     return {
       cacheSize: this.memoryCache.size,
@@ -302,10 +328,14 @@ export class TeamMemberCache {
     if (this.memoryCache.size <= this.MAX_CACHE_SIZE) return;
 
     // Sort by lastUpdated and remove oldest
-    const sorted = Array.from(this.memoryCache.entries())
-      .sort((a, b) => a[1].lastUpdated - b[1].lastUpdated);
+    const sorted = Array.from(this.memoryCache.entries()).sort(
+      (a, b) => a[1].lastUpdated - b[1].lastUpdated
+    );
 
-    const toRemove = sorted.slice(0, this.memoryCache.size - this.MAX_CACHE_SIZE);
+    const toRemove = sorted.slice(
+      0,
+      this.memoryCache.size - this.MAX_CACHE_SIZE
+    );
     toRemove.forEach(([key]) => {
       this.memoryCache.delete(key);
       console.log(`🗑️ Evicted old cache: ${key}`);

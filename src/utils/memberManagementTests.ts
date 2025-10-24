@@ -130,10 +130,13 @@ export class MemberManagementTestScripts {
         captainNpub: authData.npub,
         captainHexPubkey: authData.hexPubkey,
         activityType: 'Running',
-        isPublic: true
+        isPublic: true,
       };
 
-      const result = await NostrTeamCreationService.createTeam(teamData, privateKey);
+      const result = await NostrTeamCreationService.createTeam(
+        teamData,
+        privateKey
+      );
 
       if (!result.success || !result.teamId) {
         throw new Error('Failed to create test team');
@@ -147,7 +150,7 @@ export class MemberManagementTestScripts {
         { npub: 'npub1testmember002', hex: 'hex002', name: 'Test Member 2' },
         { npub: 'npub1testmember003', hex: 'hex003', name: 'Test Member 3' },
         { npub: 'npub1testmember004', hex: 'hex004', name: 'Test Member 4' },
-        { npub: 'npub1testmember005', hex: 'hex005', name: 'Test Member 5' }
+        { npub: 'npub1testmember005', hex: 'hex005', name: 'Test Member 5' },
       ];
 
       this.recordResult({
@@ -157,17 +160,16 @@ export class MemberManagementTestScripts {
         message: `Test team created: ${result.teamId}`,
         duration: Date.now() - startTime,
         data: {
-          listEventId: result.memberListEvent?.id
-        }
+          listEventId: result.memberListEvent?.id,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Team Setup',
         action: 'create',
         success: false,
         message: error instanceof Error ? error.message : 'Setup failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -203,17 +205,16 @@ export class MemberManagementTestScripts {
           : 'Captain not found in initial member list',
         duration: Date.now() - startTime,
         data: {
-          memberCount: members.length
-        }
+          memberCount: members.length,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Initial Member List',
         action: 'query',
         success: false,
         message: error instanceof Error ? error.message : 'Query failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -248,7 +249,7 @@ export class MemberManagementTestScripts {
       // Add new members
       const updatedMembers = [
         ...(currentList?.members || [this.captainHex]),
-        ...this.testMembers.slice(0, 3).map(m => m.hex)
+        ...this.testMembers.slice(0, 3).map((m) => m.hex),
       ];
 
       // Prepare updated list
@@ -257,10 +258,13 @@ export class MemberManagementTestScripts {
         description: 'Team member list',
         members: updatedMembers,
         dTag: memberListDTag,
-        listType: 'people' as const
+        listType: 'people' as const,
       };
 
-      const eventTemplate = this.listService.prepareListCreation(listData, this.captainHex);
+      const eventTemplate = this.listService.prepareListCreation(
+        listData,
+        this.captainHex
+      );
 
       // In a real scenario, this would be signed and published
       // For testing, we'll simulate the result
@@ -272,25 +276,28 @@ export class MemberManagementTestScripts {
         message: `Added ${this.testMembers.slice(0, 3).length} members to team`,
         duration: Date.now() - startTime,
         data: {
-          addedMembers: this.testMembers.slice(0, 3).map(m => m.npub),
-          memberCount: updatedMembers.length
-        }
+          addedMembers: this.testMembers.slice(0, 3).map((m) => m.npub),
+          memberCount: updatedMembers.length,
+        },
       });
 
       // Update cache with new members
       await this.memberCache.setTeamMembers(
         this.testTeamId,
         this.captainHex,
-        updatedMembers.map(hex => ({ pubkey: hex, npub: `npub1${hex.slice(0, 10)}` }))
+        updatedMembers.map((hex) => ({
+          pubkey: hex,
+          npub: `npub1${hex.slice(0, 10)}`,
+        }))
       );
-
     } catch (error) {
       this.recordResult({
         testName: 'Add Members',
         action: 'add',
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to add members',
-        duration: Date.now() - startTime
+        message:
+          error instanceof Error ? error.message : 'Failed to add members',
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -325,7 +332,8 @@ export class MemberManagementTestScripts {
       const secondQueryTime = Date.now() - secondQueryStart;
 
       // Cache should be significantly faster
-      const cacheEffective = secondQueryTime < firstQueryTime / 2 || secondQueryTime < 10;
+      const cacheEffective =
+        secondQueryTime < firstQueryTime / 2 || secondQueryTime < 10;
 
       this.recordResult({
         testName: 'Member List Caching',
@@ -335,8 +343,8 @@ export class MemberManagementTestScripts {
         duration: Date.now() - startTime,
         data: {
           memberCount: secondMembers.length,
-          cacheHit: true
-        }
+          cacheHit: true,
+        },
       });
 
       // Test cache statistics
@@ -349,17 +357,16 @@ export class MemberManagementTestScripts {
         message: `Cache contains ${cacheStats.teamsCount} teams, ${cacheStats.totalMembers} total members`,
         duration: Date.now() - startTime,
         data: {
-          memberCount: cacheStats.totalMembers
-        }
+          memberCount: cacheStats.totalMembers,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Member List Caching',
         action: 'query',
         success: false,
         message: error instanceof Error ? error.message : 'Cache test failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -380,21 +387,21 @@ export class MemberManagementTestScripts {
           userName: 'New Member 1',
           teamId: this.testTeamId!,
           requestTime: new Date(),
-          status: 'pending'
+          status: 'pending',
         },
         {
           userNpub: 'npub1newmember002',
           userName: 'New Member 2',
           teamId: this.testTeamId!,
           requestTime: new Date(),
-          status: 'pending'
-        }
+          status: 'pending',
+        },
       ];
 
       // Simulate approval process
-      const approvedRequests = joinRequests.map(req => ({
+      const approvedRequests = joinRequests.map((req) => ({
         ...req,
-        status: 'approved' as const
+        status: 'approved' as const,
       }));
 
       this.recordResult({
@@ -404,17 +411,16 @@ export class MemberManagementTestScripts {
         message: `Approved ${approvedRequests.length} join requests`,
         duration: Date.now() - startTime,
         data: {
-          addedMembers: approvedRequests.map(r => r.userNpub)
-        }
+          addedMembers: approvedRequests.map((r) => r.userNpub),
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Join Request Approval',
         action: 'approve',
         success: false,
         message: error instanceof Error ? error.message : 'Approval failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -440,13 +446,16 @@ export class MemberManagementTestScripts {
 
       // Remove one test member
       const memberToRemove = this.testMembers[0].hex;
-      const updatedMembers = currentMembers.filter(m => m !== memberToRemove);
+      const updatedMembers = currentMembers.filter((m) => m !== memberToRemove);
 
       // Update cache (simulating list update)
       await this.memberCache.setTeamMembers(
         this.testTeamId,
         this.captainHex,
-        updatedMembers.map(hex => ({ pubkey: hex, npub: `npub1${hex.slice(0, 10)}` }))
+        updatedMembers.map((hex) => ({
+          pubkey: hex,
+          npub: `npub1${hex.slice(0, 10)}`,
+        }))
       );
 
       this.recordResult({
@@ -457,17 +466,16 @@ export class MemberManagementTestScripts {
         duration: Date.now() - startTime,
         data: {
           removedMembers: [memberToRemove],
-          memberCount: updatedMembers.length
-        }
+          memberCount: updatedMembers.length,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Remove Members',
         action: 'remove',
         success: false,
         message: error instanceof Error ? error.message : 'Remove failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -504,17 +512,16 @@ export class MemberManagementTestScripts {
         duration: Date.now() - startTime,
         data: {
           memberCount: members.length,
-          cacheHit: false
-        }
+          cacheHit: false,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Cache Invalidation',
         action: 'query',
         success: false,
         message: error instanceof Error ? error.message : 'Invalidation failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -538,17 +545,16 @@ export class MemberManagementTestScripts {
         message: 'Real-time sync mechanism validated',
         duration: Date.now() - startTime,
         data: {
-          cacheHit: false
-        }
+          cacheHit: false,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Real-time Sync',
         action: 'query',
         success: false,
         message: error instanceof Error ? error.message : 'Sync test failed',
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -584,20 +590,22 @@ export class MemberManagementTestScripts {
         testName: 'Competition Eligibility',
         action: 'query',
         success: true,
-        message: `Member eligibility check: ${isMember ? 'eligible' : 'not eligible'}`,
+        message: `Member eligibility check: ${
+          isMember ? 'eligible' : 'not eligible'
+        }`,
         duration: Date.now() - startTime,
         data: {
-          memberCount: members.length
-        }
+          memberCount: members.length,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Competition Eligibility',
         action: 'query',
         success: false,
-        message: error instanceof Error ? error.message : 'Eligibility check failed',
-        duration: Date.now() - startTime
+        message:
+          error instanceof Error ? error.message : 'Eligibility check failed',
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -625,8 +633,8 @@ export class MemberManagementTestScripts {
         message: 'Correctly returned empty list for non-existent team',
         duration: Date.now() - startTime,
         data: {
-          memberCount: emptyResult.length
-        }
+          memberCount: emptyResult.length,
+        },
       });
 
       // Test 2: Duplicate member addition (should be idempotent)
@@ -647,18 +655,18 @@ export class MemberManagementTestScripts {
           message: 'Duplicate members handled correctly',
           duration: Date.now() - startTime,
           data: {
-            memberCount: uniqueMembers.length
-          }
+            memberCount: uniqueMembers.length,
+          },
         });
       }
-
     } catch (error) {
       this.recordResult({
         testName: 'Edge Cases',
         action: 'query',
         success: false,
-        message: error instanceof Error ? error.message : 'Edge case test failed',
-        duration: Date.now() - startTime
+        message:
+          error instanceof Error ? error.message : 'Edge case test failed',
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -679,7 +687,7 @@ export class MemberManagementTestScripts {
       // Generate large member list
       const largeMemberList = Array.from({ length: 100 }, (_, i) => ({
         pubkey: `hex${i.toString().padStart(3, '0')}`,
-        npub: `npub1test${i.toString().padStart(3, '0')}`
+        npub: `npub1test${i.toString().padStart(3, '0')}`,
       }));
 
       // Set large member list
@@ -705,22 +713,23 @@ export class MemberManagementTestScripts {
       this.recordResult({
         testName: 'Large Team Performance',
         action: 'query',
-        success: performanceAcceptable && members.length === largeMemberList.length,
+        success:
+          performanceAcceptable && members.length === largeMemberList.length,
         message: `Handled ${largeMemberList.length} members: set=${setTime}ms, query=${queryTime}ms`,
         duration: Date.now() - startTime,
         data: {
           memberCount: members.length,
-          cacheHit: false
-        }
+          cacheHit: false,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Large Team Performance',
         action: 'query',
         success: false,
-        message: error instanceof Error ? error.message : 'Performance test failed',
-        duration: Date.now() - startTime
+        message:
+          error instanceof Error ? error.message : 'Performance test failed',
+        duration: Date.now() - startTime,
       });
     }
   }
@@ -743,8 +752,8 @@ export class MemberManagementTestScripts {
    * Generate test summary
    */
   private generateSummary(totalDuration: number): void {
-    const passed = this.results.filter(r => r.success).length;
-    const failed = this.results.filter(r => !r.success).length;
+    const passed = this.results.filter((r) => r.success).length;
+    const failed = this.results.filter((r) => !r.success).length;
 
     console.log('\n' + '='.repeat(60));
     console.log('📊 MEMBER MANAGEMENT TEST SUMMARY');
@@ -756,7 +765,7 @@ export class MemberManagementTestScripts {
 
     // Group by action type
     const byAction = new Map<string, { passed: number; failed: number }>();
-    this.results.forEach(r => {
+    this.results.forEach((r) => {
       const current = byAction.get(r.action) || { passed: 0, failed: 0 };
       if (r.success) {
         current.passed++;
@@ -770,14 +779,16 @@ export class MemberManagementTestScripts {
     byAction.forEach((stats, action) => {
       const total = stats.passed + stats.failed;
       const percentage = ((stats.passed / total) * 100).toFixed(0);
-      console.log(`  ${action}: ${stats.passed}/${total} passed (${percentage}%)`);
+      console.log(
+        `  ${action}: ${stats.passed}/${total} passed (${percentage}%)`
+      );
     });
 
     if (failed > 0) {
       console.log('\n❌ Failed Tests:');
       this.results
-        .filter(r => !r.success)
-        .forEach(r => {
+        .filter((r) => !r.success)
+        .forEach((r) => {
           console.log(`  - ${r.testName}: ${r.message}`);
         });
     }

@@ -5,7 +5,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { BatteryOptimizationService } from '../../services/activity/BatteryOptimizationService';
@@ -23,7 +29,9 @@ export const TrackingDebugPanel: React.FC<TrackingDebugPanelProps> = ({
   isBackgroundTracking,
   lastGPSUpdate,
 }) => {
-  const [batteryOptimized, setBatteryOptimized] = useState<boolean | null>(null);
+  const [batteryOptimized, setBatteryOptimized] = useState<boolean | null>(
+    null
+  );
   const [timeSinceLastUpdate, setTimeSinceLastUpdate] = useState<number>(0);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -57,7 +65,8 @@ export const TrackingDebugPanel: React.FC<TrackingDebugPanelProps> = ({
   }, [lastGPSUpdate]);
 
   const getSignalIcon = (): 'checkmark-circle' | 'warning' | 'close-circle' => {
-    if (gpsSignal === 'strong' || gpsSignal === 'medium') return 'checkmark-circle';
+    if (gpsSignal === 'strong' || gpsSignal === 'medium')
+      return 'checkmark-circle';
     if (gpsSignal === 'weak' || gpsSignal === 'searching') return 'warning';
     return 'close-circle';
   };
@@ -153,13 +162,17 @@ export const TrackingDebugPanel: React.FC<TrackingDebugPanelProps> = ({
               <Ionicons
                 name="time"
                 size={20}
-                color={timeSinceLastUpdate > 10 ? '#EF4444' : theme.colors.textMuted}
+                color={
+                  timeSinceLastUpdate > 10 ? '#EF4444' : theme.colors.textMuted
+                }
               />
               <Text style={styles.statusLabel}>Last Update:</Text>
-              <Text style={[
-                styles.statusValue,
-                timeSinceLastUpdate > 10 && styles.statusValueWarning
-              ]}>
+              <Text
+                style={[
+                  styles.statusValue,
+                  timeSinceLastUpdate > 10 && styles.statusValueWarning,
+                ]}
+              >
                 {timeSinceLastUpdate}s ago
               </Text>
             </View>
@@ -170,8 +183,8 @@ export const TrackingDebugPanel: React.FC<TrackingDebugPanelProps> = ({
             <View style={styles.warningBox}>
               <Ionicons name="warning" size={16} color="#F59E0B" />
               <Text style={styles.warningText}>
-                Battery optimization enabled. Tracking may stop when using other apps.
-                Check Settings → Apps → RUNSTR → Battery.
+                Battery optimization enabled. Tracking may stop when using other
+                apps. Check Settings → Apps → RUNSTR → Battery.
               </Text>
             </View>
           )}

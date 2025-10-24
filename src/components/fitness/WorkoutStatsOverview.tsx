@@ -4,11 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet
-} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../../styles/theme';
 import { Card } from '../ui/Card';
 import type { UnifiedWorkout } from '../../services/fitness/workoutMergeService';
@@ -29,7 +25,7 @@ interface PeriodStats {
 }
 
 export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
-  workouts
+  workouts,
 }) => {
   const [stats, setStats] = useState<PeriodStats>({
     totalWorkouts: 0,
@@ -37,7 +33,7 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
     totalDuration: 0,
     totalCalories: 0,
     averagePerWeek: 0,
-    streak: 0
+    streak: 0,
   });
 
   useEffect(() => {
@@ -49,23 +45,34 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
     const filteredWorkouts = workouts;
     const previousPeriodWorkouts: UnifiedWorkout[] = [];
 
-    const currentStats = WorkoutGroupingService.calculateGroupStats(filteredWorkouts);
-    const previousStats = previousPeriodWorkouts.length > 0
-      ? WorkoutGroupingService.calculateGroupStats(previousPeriodWorkouts)
-      : null;
+    const currentStats =
+      WorkoutGroupingService.calculateGroupStats(filteredWorkouts);
+    const previousStats =
+      previousPeriodWorkouts.length > 0
+        ? WorkoutGroupingService.calculateGroupStats(previousPeriodWorkouts)
+        : null;
 
     // Calculate comparison percentage
     let comparisonPercent: number | undefined;
     if (previousStats && previousStats.totalWorkouts > 0) {
-      comparisonPercent = ((currentStats.totalWorkouts - previousStats.totalWorkouts) /
-        previousStats.totalWorkouts) * 100;
+      comparisonPercent =
+        ((currentStats.totalWorkouts - previousStats.totalWorkouts) /
+          previousStats.totalWorkouts) *
+        100;
     }
 
     // Calculate average per week based on all data
-    const weeksInPeriod = workouts.length > 0
-      ? Math.max(1, Math.ceil((new Date().getTime() - new Date(workouts[workouts.length - 1].startTime).getTime()) /
-        (7 * 24 * 60 * 60 * 1000)))
-      : 1;
+    const weeksInPeriod =
+      workouts.length > 0
+        ? Math.max(
+            1,
+            Math.ceil(
+              (new Date().getTime() -
+                new Date(workouts[workouts.length - 1].startTime).getTime()) /
+                (7 * 24 * 60 * 60 * 1000)
+            )
+          )
+        : 1;
 
     // Calculate streak (consecutive days with workouts)
     const streak = calculateStreak(workouts);
@@ -77,7 +84,7 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
       totalCalories: currentStats.totalCalories,
       averagePerWeek: currentStats.totalWorkouts / Math.max(1, weeksInPeriod),
       comparisonPercent,
-      streak
+      streak,
     });
   };
 
@@ -85,7 +92,8 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
     if (workouts.length === 0) return 0;
 
     const sortedWorkouts = [...workouts].sort(
-      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
 
     let streak = 0;
@@ -93,7 +101,7 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
     currentDate.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 365; i++) {
-      const hasWorkout = sortedWorkouts.some(w => {
+      const hasWorkout = sortedWorkouts.some((w) => {
         const workoutDate = new Date(w.startTime);
         workoutDate.setHours(0, 0, 0, 0);
         return workoutDate.getTime() === currentDate.getTime();
@@ -141,8 +149,14 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
             <Text style={styles.mainStatValue}>{stats.totalWorkouts}</Text>
             <Text style={styles.mainStatLabel}>Workouts</Text>
             {stats.comparisonPercent !== undefined && (
-              <Text style={[styles.comparison, { color: getComparisonColor(stats.comparisonPercent) }]}>
-                {getComparisonArrow(stats.comparisonPercent)} {Math.abs(stats.comparisonPercent).toFixed(0)}%
+              <Text
+                style={[
+                  styles.comparison,
+                  { color: getComparisonColor(stats.comparisonPercent) },
+                ]}
+              >
+                {getComparisonArrow(stats.comparisonPercent)}{' '}
+                {Math.abs(stats.comparisonPercent).toFixed(0)}%
               </Text>
             )}
           </View>
@@ -158,22 +172,30 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
         <View style={styles.secondaryStats}>
           {stats.totalDistance > 0 && (
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{formatDistance(stats.totalDistance)}</Text>
+              <Text style={styles.statValue}>
+                {formatDistance(stats.totalDistance)}
+              </Text>
             </View>
           )}
 
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{formatDuration(stats.totalDuration)}</Text>
+            <Text style={styles.statValue}>
+              {formatDuration(stats.totalDuration)}
+            </Text>
           </View>
 
           {stats.totalCalories > 0 && (
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats.totalCalories.toFixed(0)} cal</Text>
+              <Text style={styles.statValue}>
+                {stats.totalCalories.toFixed(0)} cal
+              </Text>
             </View>
           )}
 
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.averagePerWeek.toFixed(1)}/wk</Text>
+            <Text style={styles.statValue}>
+              {stats.averagePerWeek.toFixed(1)}/wk
+            </Text>
           </View>
         </View>
       </Card>
@@ -183,65 +205,65 @@ export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16
+    marginVertical: 16,
   },
   statsCard: {
     marginHorizontal: 16,
-    padding: 20
+    padding: 20,
   },
   mainStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 20,
   },
   mainStatItem: {
-    alignItems: 'center'
+    alignItems: 'center',
   },
   mainStatValue: {
     fontSize: 32,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 4
+    marginBottom: 4,
   },
   mainStatLabel: {
     fontSize: 14,
-    color: theme.colors.textMuted
+    color: theme.colors.textMuted,
   },
   comparison: {
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 4
+    marginTop: 4,
   },
   streakContainer: {
     alignItems: 'center',
     backgroundColor: theme.colors.cardBackground,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 8
+    paddingVertical: 8,
   },
   streakValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.warning
+    color: theme.colors.warning,
   },
   streakLabel: {
     fontSize: 10,
-    color: theme.colors.textMuted
+    color: theme.colors.textMuted,
   },
   secondaryStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border
+    borderTopColor: theme.colors.border,
   },
   statItem: {
-    alignItems: 'center'
+    alignItems: 'center',
   },
   statValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text
-  }
+    color: theme.colors.text,
+  },
 });

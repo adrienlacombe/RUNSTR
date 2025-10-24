@@ -25,40 +25,51 @@ export function useTeamMembers(teamId: string, captainPubkey: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchMembers = useCallback(async (bypassCache = false) => {
-    if (!teamId || !captainPubkey) {
-      setMembers([]);
-      setLoading(false);
-      return;
-    }
+  const fetchMembers = useCallback(
+    async (bypassCache = false) => {
+      if (!teamId || !captainPubkey) {
+        setMembers([]);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
-      const cacheKey = `members:${teamId}:${captainPubkey}`;
+        const cacheKey = `members:${teamId}:${captainPubkey}`;
 
-      const data = bypassCache
-        ? await UnifiedCacheService.forceFetch(
-            cacheKey,
-            async () => TeamMemberCache.getInstance().getTeamMembers(teamId, captainPubkey),
-            'members'
-          )
-        : await UnifiedCacheService.fetch(
-            cacheKey,
-            async () => TeamMemberCache.getInstance().getTeamMembers(teamId, captainPubkey),
-            'members'
-          );
+        const data = bypassCache
+          ? await UnifiedCacheService.forceFetch(
+              cacheKey,
+              async () =>
+                TeamMemberCache.getInstance().getTeamMembers(
+                  teamId,
+                  captainPubkey
+                ),
+              'members'
+            )
+          : await UnifiedCacheService.fetch(
+              cacheKey,
+              async () =>
+                TeamMemberCache.getInstance().getTeamMembers(
+                  teamId,
+                  captainPubkey
+                ),
+              'members'
+            );
 
-      setMembers(data || []);
-    } catch (err) {
-      console.error('useTeamMembers error:', err);
-      setError(err as Error);
-      setMembers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId, captainPubkey]);
+        setMembers(data || []);
+      } catch (err) {
+        console.error('useTeamMembers error:', err);
+        setError(err as Error);
+        setMembers([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [teamId, captainPubkey]
+  );
 
   useEffect(() => {
     fetchMembers();
@@ -85,92 +96,116 @@ export function useLeagueRankings(
   const [error, setError] = useState<Error | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchRankings = useCallback(async (bypassCache = false) => {
-    if (!competitionId || !parameters) {
-      setRankings([]);
-      setLoading(false);
-      return;
-    }
+  const fetchRankings = useCallback(
+    async (bypassCache = false) => {
+      if (!competitionId || !parameters) {
+        setRankings([]);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
-      const cacheKey = `rankings:${competitionId}:${JSON.stringify(parameters)}`;
+        const cacheKey = `rankings:${competitionId}:${JSON.stringify(
+          parameters
+        )}`;
 
-      const data = bypassCache
-        ? await UnifiedCacheService.forceFetch(
-            cacheKey,
-            async () => {
-              // If participants provided, use them
-              const memberList = participants || [];
+        const data = bypassCache
+          ? await UnifiedCacheService.forceFetch(
+              cacheKey,
+              async () => {
+                // If participants provided, use them
+                const memberList = participants || [];
 
-              // Note: LeagueParameters doesn't have teamId/captainPubkey directly
-              // These would need to be passed separately to the hook
-              // For now, use the participants list if provided
+                // Note: LeagueParameters doesn't have teamId/captainPubkey directly
+                // These would need to be passed separately to the hook
+                // For now, use the participants list if provided
 
-              // Get workouts for members
-              const workoutsCacheKey = `competition-workouts:${competitionId}:${memberList.sort().join(',')}`;
-              const workouts = await UnifiedCacheService.fetch(
-                workoutsCacheKey,
-                async () => {
-                  // This would query kind 1301 events
-                  // Note: getCompetitionWorkouts method needs to be implemented
-                  // For now return empty array as placeholder
-                  return [] as any[];
-                },
-                'workouts'
-              );
-
-              // Compute rankings locally
-              const result = await leagueRankingService.getInstance().getRankings(
-                competitionId,
-                memberList.map(npub => ({ npub, name: npub.slice(0, 8) + '...', isActive: true })),
-                parameters
-              );
-
-              return result.rankings;
-            },
-            'leaderboards'
-          )
-        : await UnifiedCacheService.fetch(
-            cacheKey,
-            async () => {
-              const memberList = participants || [];
-
-              if (!participants && parameters.teamId && parameters.captainPubkey) {
-                const membersCacheKey = `members:${parameters.teamId}:${parameters.captainPubkey}`;
-                const cachedMembers = await UnifiedCacheService.fetch(
-                  membersCacheKey,
-                  async () => TeamMemberCache.getInstance().getTeamMembers(
-                    parameters.teamId!,
-                    parameters.captainPubkey!
-                  ),
-                  'members'
+                // Get workouts for members
+                const workoutsCacheKey = `competition-workouts:${competitionId}:${memberList
+                  .sort()
+                  .join(',')}`;
+                const workouts = await UnifiedCacheService.fetch(
+                  workoutsCacheKey,
+                  async () => {
+                    // This would query kind 1301 events
+                    // Note: getCompetitionWorkouts method needs to be implemented
+                    // For now return empty array as placeholder
+                    return [] as any[];
+                  },
+                  'workouts'
                 );
-                memberList.push(...(cachedMembers || []));
-              }
 
-              const result = await leagueRankingService.getInstance().getRankings(
-                competitionId,
-                memberList.map(npub => ({ npub, name: npub.slice(0, 8) + '...', isActive: true })),
-                parameters
-              );
+                // Compute rankings locally
+                const result = await leagueRankingService
+                  .getInstance()
+                  .getRankings(
+                    competitionId,
+                    memberList.map((npub) => ({
+                      npub,
+                      name: npub.slice(0, 8) + '...',
+                      isActive: true,
+                    })),
+                    parameters
+                  );
 
-              return result.rankings;
-            },
-            'leaderboards'
-          );
+                return result.rankings;
+              },
+              'leaderboards'
+            )
+          : await UnifiedCacheService.fetch(
+              cacheKey,
+              async () => {
+                const memberList = participants || [];
 
-      setRankings(data || []);
-    } catch (err) {
-      console.error('useLeagueRankings error:', err);
-      setError(err as Error);
-      setRankings([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [competitionId, parameters, participants]);
+                if (
+                  !participants &&
+                  parameters.teamId &&
+                  parameters.captainPubkey
+                ) {
+                  const membersCacheKey = `members:${parameters.teamId}:${parameters.captainPubkey}`;
+                  const cachedMembers = await UnifiedCacheService.fetch(
+                    membersCacheKey,
+                    async () =>
+                      TeamMemberCache.getInstance().getTeamMembers(
+                        parameters.teamId!,
+                        parameters.captainPubkey!
+                      ),
+                    'members'
+                  );
+                  memberList.push(...(cachedMembers || []));
+                }
+
+                const result = await leagueRankingService
+                  .getInstance()
+                  .getRankings(
+                    competitionId,
+                    memberList.map((npub) => ({
+                      npub,
+                      name: npub.slice(0, 8) + '...',
+                      isActive: true,
+                    })),
+                    parameters
+                  );
+
+                return result.rankings;
+              },
+              'leaderboards'
+            );
+
+        setRankings(data || []);
+      } catch (err) {
+        console.error('useLeagueRankings error:', err);
+        setError(err as Error);
+        setRankings([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [competitionId, parameters, participants]
+  );
 
   useEffect(() => {
     fetchRankings();
@@ -203,44 +238,47 @@ export function useNostrProfile(npub: string | null | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchProfile = useCallback(async (bypassCache = false) => {
-    if (!npub) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
+  const fetchProfile = useCallback(
+    async (bypassCache = false) => {
+      if (!npub) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
-      const cacheKey = `profile:${npub}`;
+        const cacheKey = `profile:${npub}`;
 
-      const data = bypassCache
-        ? await UnifiedCacheService.forceFetch(
-            cacheKey,
-            async () => {
-              return nostrProfileService.getProfile(npub);
-            },
-            'profiles'
-          )
-        : await UnifiedCacheService.fetch(
-            cacheKey,
-            async () => {
-              return nostrProfileService.getProfile(npub);
-            },
-            'profiles'
-          );
+        const data = bypassCache
+          ? await UnifiedCacheService.forceFetch(
+              cacheKey,
+              async () => {
+                return nostrProfileService.getProfile(npub);
+              },
+              'profiles'
+            )
+          : await UnifiedCacheService.fetch(
+              cacheKey,
+              async () => {
+                return nostrProfileService.getProfile(npub);
+              },
+              'profiles'
+            );
 
-      setProfile(data);
-    } catch (err) {
-      console.error('useNostrProfile error:', err);
-      setError(err as Error);
-      setProfile(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [npub]);
+        setProfile(data);
+      } catch (err) {
+        console.error('useNostrProfile error:', err);
+        setError(err as Error);
+        setProfile(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [npub]
+  );
 
   useEffect(() => {
     fetchProfile();
@@ -317,39 +355,42 @@ export function useWorkouts(npub: string | null | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchWorkouts = useCallback(async (bypassCache = false) => {
-    if (!npub) {
-      setWorkouts([]);
-      setLoading(false);
-      return;
-    }
+  const fetchWorkouts = useCallback(
+    async (bypassCache = false) => {
+      if (!npub) {
+        setWorkouts([]);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
-      const cacheKey = `workouts:${npub}`;
+        const cacheKey = `workouts:${npub}`;
 
-      // For workouts, we'd need to implement a service method
-      // For now, return empty array
-      const data = await UnifiedCacheService.fetch(
-        cacheKey,
-        async () => {
-          // This would fetch kind 1301 events for the user
-          return [] as NostrWorkout[];
-        },
-        'workouts'
-      );
+        // For workouts, we'd need to implement a service method
+        // For now, return empty array
+        const data = await UnifiedCacheService.fetch(
+          cacheKey,
+          async () => {
+            // This would fetch kind 1301 events for the user
+            return [] as NostrWorkout[];
+          },
+          'workouts'
+        );
 
-      setWorkouts(data || []);
-    } catch (err) {
-      console.error('useWorkouts error:', err);
-      setError(err as Error);
-      setWorkouts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [npub]);
+        setWorkouts(data || []);
+      } catch (err) {
+        console.error('useWorkouts error:', err);
+        setError(err as Error);
+        setWorkouts([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [npub]
+  );
 
   useEffect(() => {
     fetchWorkouts();
@@ -372,17 +413,23 @@ export function useCacheInvalidation() {
     CacheInvalidator.onWorkoutPosted(userNpub, teamId);
   }, []);
 
-  const invalidateMember = useCallback((teamId: string, memberNpub: string, action: 'add' | 'remove') => {
-    if (action === 'add') {
-      CacheInvalidator.onMemberAdded(teamId, memberNpub);
-    } else {
-      CacheInvalidator.onMemberRemoved(teamId, memberNpub);
-    }
-  }, []);
+  const invalidateMember = useCallback(
+    (teamId: string, memberNpub: string, action: 'add' | 'remove') => {
+      if (action === 'add') {
+        CacheInvalidator.onMemberAdded(teamId, memberNpub);
+      } else {
+        CacheInvalidator.onMemberRemoved(teamId, memberNpub);
+      }
+    },
+    []
+  );
 
-  const invalidateCompetition = useCallback((competitionId: string, teamId?: string) => {
-    CacheInvalidator.onCompetitionUpdated(competitionId, teamId);
-  }, []);
+  const invalidateCompetition = useCallback(
+    (competitionId: string, teamId?: string) => {
+      CacheInvalidator.onCompetitionUpdated(competitionId, teamId);
+    },
+    []
+  );
 
   const invalidateTeam = useCallback((teamId: string) => {
     CacheInvalidator.onTeamUpdated(teamId);
@@ -423,31 +470,34 @@ export function useCacheInvalidation() {
 export function useCachedData<T>(
   cacheKey: string,
   fetcher: () => Promise<T>,
-  ttlKey: keyof typeof UnifiedCacheService['TTL'] = 'computed',
+  ttlKey: keyof (typeof UnifiedCacheService)['TTL'] = 'computed',
   dependencies: any[] = []
 ) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchData = useCallback(
+    async (bypassCache = false) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const result = bypassCache
-        ? await UnifiedCacheService.forceFetch(cacheKey, fetcher, ttlKey)
-        : await UnifiedCacheService.fetch(cacheKey, fetcher, ttlKey);
+        const result = bypassCache
+          ? await UnifiedCacheService.forceFetch(cacheKey, fetcher, ttlKey)
+          : await UnifiedCacheService.fetch(cacheKey, fetcher, ttlKey);
 
-      setData(result);
-    } catch (err) {
-      console.error(`useCachedData error for ${cacheKey}:`, err);
-      setError(err as Error);
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [cacheKey, ...dependencies]);
+        setData(result);
+      } catch (err) {
+        console.error(`useCachedData error for ${cacheKey}:`, err);
+        setError(err as Error);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cacheKey, ...dependencies]
+  );
 
   useEffect(() => {
     fetchData();

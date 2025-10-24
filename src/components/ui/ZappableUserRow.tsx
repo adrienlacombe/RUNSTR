@@ -5,7 +5,13 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableWithoutFeedback } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { theme } from '../../styles/theme';
 import { Avatar } from './Avatar';
 import { NWCLightningButton } from '../lightning/NWCLightningButton';
@@ -42,10 +48,11 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
   const [challengeWizardVisible, setChallengeWizardVisible] = useState(false);
 
   // Resolve display name with fallback chain
-  const displayName = profile?.name ||
-                     profile?.display_name ||
-                     fallbackName ||
-                     `${npub.slice(0, 8)}...`;
+  const displayName =
+    profile?.name ||
+    profile?.display_name ||
+    fallbackName ||
+    `${npub.slice(0, 8)}...`;
 
   const avatarUrl = profile?.picture;
 
@@ -101,9 +108,7 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
 
         {/* Additional content (stats, etc) on the right */}
         {additionalContent && (
-          <View style={styles.additionalContent}>
-            {additionalContent}
-          </View>
+          <View style={styles.additionalContent}>{additionalContent}</View>
         )}
       </View>
 

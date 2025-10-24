@@ -4,7 +4,14 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, InteractionManager } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  InteractionManager,
+} from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { Card } from '../ui/Card';
@@ -52,7 +59,7 @@ export const HealthKitPermissionCard: React.FC<
 
   useEffect(() => {
     checkCurrentStatus();
-    
+
     // Cleanup abort controller on unmount
     return () => {
       if (abortControllerRef.current) {
@@ -122,10 +129,10 @@ export const HealthKitPermissionCard: React.FC<
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Create new AbortController for this operation
     abortControllerRef.current = new AbortController();
-    
+
     setIsLoading(true);
     setStatus('requesting');
 
@@ -169,12 +176,12 @@ export const HealthKitPermissionCard: React.FC<
 
         // Permission granted, now sync workouts
         setStatus('syncing');
-        
+
         // Check if operation was cancelled before sync
         if (abortControllerRef.current?.signal.aborted) {
           throw new Error('Operation cancelled');
         }
-        
+
         const syncResult = await healthKitService.syncWorkouts(userId, teamId);
 
         // Check if operation was cancelled after sync
@@ -213,8 +220,9 @@ export const HealthKitPermissionCard: React.FC<
           onPermissionDenied?.(syncResult.error || 'Sync failed');
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+
         // Handle cancellation gracefully
         if (errorMessage === 'Operation cancelled') {
           console.log('HealthKit operation was cancelled by user');
@@ -239,12 +247,12 @@ export const HealthKitPermissionCard: React.FC<
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Create new AbortController for this operation
     abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
-    
+
     // Defer heavy sync operations until after UI interactions complete
     InteractionManager.runAfterInteractions(async () => {
       try {
@@ -288,9 +296,10 @@ export const HealthKitPermissionCard: React.FC<
         }
       } catch (error) {
         console.error('Manual sync error:', error);
-        
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
+
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+
         // Handle cancellation gracefully
         if (errorMessage === 'Operation cancelled') {
           console.log('Manual sync was cancelled by user');
@@ -300,7 +309,7 @@ export const HealthKitPermissionCard: React.FC<
           const userMessage = errorMessage.includes('timed out')
             ? 'Sync is taking too long. Please try again or check your internet connection.'
             : 'Could not sync workouts at this time. Please try again later.';
-          
+
           Alert.alert('Sync Failed', userMessage);
         }
       } finally {
@@ -315,7 +324,7 @@ export const HealthKitPermissionCard: React.FC<
     if (isLoading) {
       return 'Tap to cancel sync';
     }
-    
+
     switch (status) {
       case 'granted':
         return showStats && stats.totalHealthKitWorkouts > 0
@@ -361,18 +370,17 @@ export const HealthKitPermissionCard: React.FC<
       <TouchableOpacity
         style={styles.content}
         onPress={
-          isLoading 
-            ? cancelSync 
-            : status === 'granted' 
-              ? handleManualSync 
-              : requestPermissionAndSync
+          isLoading
+            ? cancelSync
+            : status === 'granted'
+            ? handleManualSync
+            : requestPermissionAndSync
         }
         disabled={false} // Always enabled - changes function based on state
         activeOpacity={0.7}
       >
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
-          </View>
+          <View style={styles.iconContainer}></View>
           <View style={styles.info}>
             <Text style={styles.title}>Apple Health</Text>
             <Text style={[styles.status, { color: getStatusColor() }]}>
@@ -388,15 +396,10 @@ export const HealthKitPermissionCard: React.FC<
               />
             )}
             {isLoading && (
-              <AntDesign
-                name="close"
-                size={16}
-                color={theme.colors.primary}
-              />
+              <AntDesign name="close" size={16} color={theme.colors.primary} />
             )}
-            {(status === 'requesting' || status === 'syncing') && !isLoading && (
-              <Text style={styles.loadingText}>⟳</Text>
-            )}
+            {(status === 'requesting' || status === 'syncing') &&
+              !isLoading && <Text style={styles.loadingText}>⟳</Text>}
           </View>
         </View>
 
@@ -418,7 +421,11 @@ export const HealthKitPermissionCard: React.FC<
               }}
               style={styles.dismissButton}
             >
-              <AntDesign name="close" size={14} color={theme.colors.textSecondary} />
+              <AntDesign
+                name="close"
+                size={14}
+                color={theme.colors.textSecondary}
+              />
             </TouchableOpacity>
           </View>
         )}

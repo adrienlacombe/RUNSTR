@@ -70,7 +70,11 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
     }
 
     // Feature flag guard: Require NWC when Cashu is disabled
-    if (FEATURES.ENABLE_NWC_WALLET && !FEATURES.ENABLE_CASHU_WALLET && !hasNWC) {
+    if (
+      FEATURES.ENABLE_NWC_WALLET &&
+      !FEATURES.ENABLE_CASHU_WALLET &&
+      !hasNWC
+    ) {
       Alert.alert(
         'Wallet Not Connected',
         'Please connect a Lightning wallet in Settings to receive payments.',
@@ -80,7 +84,10 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
     }
 
     if (!isInitialized && !hasNWC) {
-      Alert.alert('Wallet Not Ready', 'Please wait for wallet to initialize and try again.');
+      Alert.alert(
+        'Wallet Not Ready',
+        'Please wait for wallet to initialize and try again.'
+      );
       return;
     }
 
@@ -146,9 +153,14 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
 
         // Provide helpful instructions for common errors
         if (error.message.includes('initialize')) {
-          errorMessage = 'Wallet is initializing. Please wait a moment and try again.';
-        } else if (error.message.includes('network') || error.message.includes('connection')) {
-          errorMessage = 'Network error. Please check your internet connection and try again.';
+          errorMessage =
+            'Wallet is initializing. Please wait a moment and try again.';
+        } else if (
+          error.message.includes('network') ||
+          error.message.includes('connection')
+        ) {
+          errorMessage =
+            'Network error. Please check your internet connection and try again.';
         } else if (error.message.includes('timeout')) {
           errorMessage = 'Request timed out. Please try again.';
         }
@@ -159,7 +171,6 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
       setIsGenerating(false);
     }
   };
-
 
   const handleCopyInvoice = async () => {
     await Clipboard.setStringAsync(invoice);
@@ -208,91 +219,113 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
             </Text>
           </View>
 
-
           {/* Lightning Invoice */}
           {!invoice ? (
             <>
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Amount to Receive</Text>
-                    <View style={styles.inputContainer}>
-                      <TextInput
-                        style={styles.amountInput}
-                        value={amount}
-                        onChangeText={setAmount}
-                        keyboardType="numeric"
-                        placeholder="0"
-                        placeholderTextColor={theme.colors.textMuted}
-                      />
-                      <Text style={styles.unitText}>sats</Text>
-                    </View>
-                  </View>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Amount to Receive</Text>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.amountInput}
+                    value={amount}
+                    onChangeText={setAmount}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor={theme.colors.textMuted}
+                  />
+                  <Text style={styles.unitText}>sats</Text>
+                </View>
+              </View>
 
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  (isGenerating || !amount || !isInitialized || isLoading) &&
+                    styles.buttonDisabled,
+                ]}
+                onPress={handleGenerateLightningInvoice}
+                disabled={
+                  isGenerating || !amount || !isInitialized || isLoading
+                }
+              >
+                {isGenerating || (isLoading && !isInitialized) ? (
+                  <ActivityIndicator color={theme.colors.accentText} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="flash"
+                      size={20}
+                      color={theme.colors.accentText}
+                    />
+                    <Text style={styles.primaryButtonText}>
+                      {!isInitialized ? 'Initializing...' : 'Generate Invoice'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Lightning Invoice</Text>
+                <Text style={styles.amountDisplay}>{amount} sats</Text>
+
+                <View style={styles.qrContainer}>
+                  <QRCode
+                    value={invoice}
+                    size={200}
+                    color={theme.colors.text}
+                    backgroundColor={theme.colors.cardBackground}
+                  />
+                </View>
+
+                <View style={styles.invoiceContainer}>
+                  <Text style={styles.invoiceText} numberOfLines={3}>
+                    {invoice}
+                  </Text>
                   <TouchableOpacity
-                    style={[styles.primaryButton, (isGenerating || !amount || !isInitialized || isLoading) && styles.buttonDisabled]}
-                    onPress={handleGenerateLightningInvoice}
-                    disabled={isGenerating || !amount || !isInitialized || isLoading}
+                    style={styles.copyButton}
+                    onPress={handleCopyInvoice}
                   >
-                    {isGenerating || (isLoading && !isInitialized) ? (
-                      <ActivityIndicator color={theme.colors.accentText} />
-                    ) : (
-                      <>
-                        <Ionicons name="flash" size={20} color={theme.colors.accentText} />
-                        <Text style={styles.primaryButtonText}>
-                          {!isInitialized ? 'Initializing...' : 'Generate Invoice'}
-                        </Text>
-                      </>
-                    )}
+                    <Ionicons
+                      name="copy"
+                      size={20}
+                      color={theme.colors.accent}
+                    />
                   </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Lightning Invoice</Text>
-                    <Text style={styles.amountDisplay}>{amount} sats</Text>
+                </View>
 
-                    <View style={styles.qrContainer}>
-                      <QRCode
-                        value={invoice}
-                        size={200}
-                        color={theme.colors.text}
-                        backgroundColor={theme.colors.cardBackground}
-                      />
-                    </View>
-
-                    <View style={styles.invoiceContainer}>
-                      <Text style={styles.invoiceText} numberOfLines={3}>
-                        {invoice}
-                      </Text>
-                      <TouchableOpacity style={styles.copyButton} onPress={handleCopyInvoice}>
-                        <Ionicons name="copy" size={20} color={theme.colors.accent} />
-                      </TouchableOpacity>
-                    </View>
-
-                    {isCheckingPayment && (
-                      <View style={styles.checkingPayment}>
-                        <ActivityIndicator size="small" color={theme.colors.accent} />
-                        <Text style={styles.checkingText}>Checking for payment...</Text>
-                      </View>
-                    )}
+                {isCheckingPayment && (
+                  <View style={styles.checkingPayment}>
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.colors.accent}
+                    />
+                    <Text style={styles.checkingText}>
+                      Checking for payment...
+                    </Text>
                   </View>
+                )}
+              </View>
 
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => {
-                      setInvoice('');
-                      setQuoteHash('');
-                      setAmount('');
-                      if (checkIntervalRef.current) {
-                        clearInterval(checkIntervalRef.current);
-                      }
-                      setIsCheckingPayment(false);
-                    }}
-                  >
-                    <Text style={styles.secondaryButtonText}>Generate New Invoice</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => {
+                  setInvoice('');
+                  setQuoteHash('');
+                  setAmount('');
+                  if (checkIntervalRef.current) {
+                    clearInterval(checkIntervalRef.current);
+                  }
+                  setIsCheckingPayment(false);
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  Generate New Invoice
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -350,7 +383,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
   },
-
 
   // Inputs
   section: {
@@ -438,7 +470,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontFamily: 'monospace',
   },
-
 
   copyButton: {
     padding: 8,

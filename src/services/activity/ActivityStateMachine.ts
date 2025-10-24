@@ -54,7 +54,9 @@ export interface StateTransition {
 export class ActivityStateMachine {
   private currentState: ActivityState = 'idle';
   private context: StateContext = {};
-  private listeners: Set<(state: ActivityState, context: StateContext) => void> = new Set();
+  private listeners: Set<
+    (state: ActivityState, context: StateContext) => void
+  > = new Set();
   private stateHistory: Array<{ state: ActivityState; timestamp: number }> = [];
 
   // Define valid state transitions
@@ -260,7 +262,9 @@ export class ActivityStateMachine {
 
     // Check guard condition if present
     if (transition.guard && !transition.guard(this.context, event)) {
-      console.log(`Guard prevented transition from ${this.currentState} to ${transition.to}`);
+      console.log(
+        `Guard prevented transition from ${this.currentState} to ${transition.to}`
+      );
       return false;
     }
 
@@ -300,14 +304,16 @@ export class ActivityStateMachine {
     event: StateEvent
   ): StateTransition | undefined {
     return this.transitions.find(
-      t => t.from === fromState && t.event === event.type
+      (t) => t.from === fromState && t.event === event.type
     );
   }
 
   /**
    * Subscribe to state changes
    */
-  subscribe(listener: (state: ActivityState, context: StateContext) => void): () => void {
+  subscribe(
+    listener: (state: ActivityState, context: StateContext) => void
+  ): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -316,7 +322,7 @@ export class ActivityStateMachine {
    * Notify all listeners of state change
    */
   private notifyListeners(): void {
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener) => {
       listener(this.currentState, this.context);
     });
   }
@@ -339,7 +345,7 @@ export class ActivityStateMachine {
    * Get state history (states only)
    */
   getStateHistory(): ActivityState[] {
-    return this.stateHistory.map(h => h.state);
+    return this.stateHistory.map((h) => h.state);
   }
 
   /**
@@ -354,9 +360,12 @@ export class ActivityStateMachine {
    * Check if in active tracking state
    */
   isTracking(): boolean {
-    return ['tracking_active', 'tracking_paused', 'gps_lost', 'gps_recovering'].includes(
-      this.currentState
-    );
+    return [
+      'tracking_active',
+      'tracking_paused',
+      'gps_lost',
+      'gps_recovering',
+    ].includes(this.currentState);
   }
 
   /**
@@ -384,9 +393,12 @@ export class ActivityStateMachine {
    * Check if can stop
    */
   canStop(): boolean {
-    return ['tracking_active', 'tracking_paused', 'gps_lost', 'gps_recovering'].includes(
-      this.currentState
-    );
+    return [
+      'tracking_active',
+      'tracking_paused',
+      'gps_lost',
+      'gps_recovering',
+    ].includes(this.currentState);
   }
 
   /**

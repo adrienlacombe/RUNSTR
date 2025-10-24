@@ -59,9 +59,10 @@ export class SplitTrackingService {
       const distanceKm = currentKm;
 
       // Calculate split time (time for this specific kilometer)
-      const previousSplitTime = this.splits.length > 0
-        ? this.splits[this.splits.length - 1].elapsedTime
-        : 0;
+      const previousSplitTime =
+        this.splits.length > 0
+          ? this.splits[this.splits.length - 1].elapsedTime
+          : 0;
       const splitTime = currentElapsedSeconds - previousSplitTime;
 
       // Calculate pace (seconds per km for this split)
@@ -79,7 +80,11 @@ export class SplitTrackingService {
       this.splits.push(newSplit);
       this.lastSplitDistance = currentDistanceMeters;
 
-      console.log(`🏃 Split ${splitNumber}: ${this.formatSplitTime(splitTime)} (${this.formatPace(pace)}/km)`);
+      console.log(
+        `🏃 Split ${splitNumber}: ${this.formatSplitTime(
+          splitTime
+        )} (${this.formatPace(pace)}/km)`
+      );
 
       return newSplit;
     }
@@ -124,7 +129,10 @@ export class SplitTrackingService {
     }
 
     // Calculate average pace
-    const totalSplitTime = this.splits.reduce((sum, split) => sum + split.splitTime, 0);
+    const totalSplitTime = this.splits.reduce(
+      (sum, split) => sum + split.splitTime,
+      0
+    );
     const averagePace = totalSplitTime / this.splits.length;
 
     // Find fastest and slowest splits
@@ -144,13 +152,17 @@ export class SplitTrackingService {
     let isNegativeSplit = false;
     if (this.splits.length >= 4) {
       const midpoint = Math.floor(this.splits.length / 2);
-      const firstHalfAvg = this.calculateAveragePace(this.splits.slice(0, midpoint));
-      const secondHalfAvg = this.calculateAveragePace(this.splits.slice(midpoint));
+      const firstHalfAvg = this.calculateAveragePace(
+        this.splits.slice(0, midpoint)
+      );
+      const secondHalfAvg = this.calculateAveragePace(
+        this.splits.slice(midpoint)
+      );
       isNegativeSplit = secondHalfAvg < firstHalfAvg;
     }
 
     // Calculate consistency based on pace variance
-    const paceVariance = this.calculateVariance(this.splits.map(s => s.pace));
+    const paceVariance = this.calculateVariance(this.splits.map((s) => s.pace));
     const consistency = this.categorizeConsistency(paceVariance);
 
     return {
@@ -178,14 +190,16 @@ export class SplitTrackingService {
     if (values.length === 0) return 0;
 
     const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-    const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+    const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
     return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
   }
 
   /**
    * Categorize consistency based on pace variance
    */
-  private categorizeConsistency(variance: number): 'excellent' | 'good' | 'variable' {
+  private categorizeConsistency(
+    variance: number
+  ): 'excellent' | 'good' | 'variable' {
     // Variance thresholds (in seconds squared)
     // Less than 100 = very consistent (within 10 seconds per km)
     // Less than 400 = moderately consistent (within 20 seconds per km)

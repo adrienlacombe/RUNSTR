@@ -22,7 +22,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Device from 'expo-device';
 import { theme } from '../../styles/theme';
-import { validateName, validateBio, validateLightningAddress, validateUrl } from '../../utils/profileValidation';
+import {
+  validateName,
+  validateBio,
+  validateLightningAddress,
+  validateUrl,
+} from '../../utils/profileValidation';
 import { EditableProfile } from '../../services/nostr/NostrProfilePublisher';
 
 interface ProfileSetupStepProps {
@@ -42,13 +47,18 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
   const [profilePicture, setProfilePicture] = useState<string>('');
   const [banner, setBanner] = useState('');
   const [lightningAddress, setLightningAddress] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; bio?: string; lud16?: string; banner?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    bio?: string;
+    lud16?: string;
+    banner?: string;
+  }>({});
 
   const handleNameChange = (text: string) => {
     setName(text);
     // Clear error when user starts typing
     if (errors.name) {
-      setErrors(prev => ({ ...prev, name: undefined }));
+      setErrors((prev) => ({ ...prev, name: undefined }));
     }
   };
 
@@ -56,7 +66,7 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
     setBio(text);
     // Clear error when user starts typing
     if (errors.bio) {
-      setErrors(prev => ({ ...prev, bio: undefined }));
+      setErrors((prev) => ({ ...prev, bio: undefined }));
     }
   };
 
@@ -64,7 +74,7 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
     setLightningAddress(text);
     // Clear error when user starts typing
     if (errors.lud16) {
-      setErrors(prev => ({ ...prev, lud16: undefined }));
+      setErrors((prev) => ({ ...prev, lud16: undefined }));
     }
   };
 
@@ -72,7 +82,7 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
     setBanner(text);
     // Clear error when user starts typing
     if (errors.banner) {
-      setErrors(prev => ({ ...prev, banner: undefined }));
+      setErrors((prev) => ({ ...prev, banner: undefined }));
     }
   };
 
@@ -81,7 +91,8 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
     try {
       // Request permissions
       console.log('[ProfileSetup] Requesting photo library permissions...');
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log('[ProfileSetup] Photo library permission status:', status);
 
       if (status !== 'granted') {
@@ -91,12 +102,18 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
           'Please grant photo library access in Settings to select a profile picture.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => {
-              if (Platform.OS === 'ios') {
-                // On iOS, we can't directly open settings, but user can navigate manually
-                Alert.alert('Open Settings', 'Please go to Settings > RUNSTR > Photos and enable access.');
-              }
-            }}
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  // On iOS, we can't directly open settings, but user can navigate manually
+                  Alert.alert(
+                    'Open Settings',
+                    'Please go to Settings > RUNSTR > Photos and enable access.'
+                  );
+                }
+              },
+            },
           ]
         );
         return;
@@ -111,7 +128,10 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
         quality: 0.8,
       });
 
-      console.log('[ProfileSetup] Image picker result:', { canceled: result.canceled, assetsCount: result.assets?.length });
+      console.log('[ProfileSetup] Image picker result:', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length,
+      });
 
       if (!result.canceled && result.assets[0]) {
         console.log('[ProfileSetup] Image selected:', result.assets[0].uri);
@@ -147,11 +167,17 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
           'Please grant camera access in Settings to take a profile picture.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => {
-              if (Platform.OS === 'ios') {
-                Alert.alert('Open Settings', 'Please go to Settings > RUNSTR > Camera and enable access.');
-              }
-            }}
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  Alert.alert(
+                    'Open Settings',
+                    'Please go to Settings > RUNSTR > Camera and enable access.'
+                  );
+                }
+              },
+            },
           ]
         );
         return;
@@ -165,7 +191,10 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
         quality: 0.8,
       });
 
-      console.log('[ProfileSetup] Camera result:', { canceled: result.canceled, assetsCount: result.assets?.length });
+      console.log('[ProfileSetup] Camera result:', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length,
+      });
 
       if (!result.canceled && result.assets[0]) {
         console.log('[ProfileSetup] Photo captured:', result.assets[0].uri);
@@ -192,8 +221,13 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
 
     // Check if camera is available
     const cameraPermissions = await ImagePicker.getCameraPermissionsAsync();
-    const cameraAvailable = cameraPermissions.canAskAgain || cameraPermissions.granted;
-    console.log('[ProfileSetup] Camera available:', cameraAvailable, cameraPermissions);
+    const cameraAvailable =
+      cameraPermissions.canAskAgain || cameraPermissions.granted;
+    console.log(
+      '[ProfileSetup] Camera available:',
+      cameraAvailable,
+      cameraPermissions
+    );
 
     // Use ActionSheetIOS on iOS for better iPad support
     if (Platform.OS === 'ios') {
@@ -210,7 +244,10 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
           message: 'Choose a photo source',
         },
         async (buttonIndex) => {
-          console.log('[ProfileSetup] ActionSheet button pressed:', buttonIndex);
+          console.log(
+            '[ProfileSetup] ActionSheet button pressed:',
+            buttonIndex
+          );
           if (cameraAvailable) {
             if (buttonIndex === 0) {
               await handleTakePhoto();
@@ -246,7 +283,12 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
   };
 
   const validateForm = (): boolean => {
-    const newErrors: { name?: string; bio?: string; lud16?: string; banner?: string } = {};
+    const newErrors: {
+      name?: string;
+      bio?: string;
+      lud16?: string;
+      banner?: string;
+    } = {};
 
     // Only validate if fields have content
     if (name) {
@@ -330,7 +372,7 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 20 }
+          { paddingTop: insets.top + 20 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
@@ -361,12 +403,20 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
                   hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                   testID="remove-photo-button"
                 >
-                  <Ionicons name="close-circle" size={28} color={theme.colors.error} />
+                  <Ionicons
+                    name="close-circle"
+                    size={28}
+                    color={theme.colors.error}
+                  />
                 </TouchableOpacity>
               </>
             ) : (
               <View style={styles.photoPlaceholder}>
-                <Ionicons name="camera" size={40} color={theme.colors.textMuted} />
+                <Ionicons
+                  name="camera"
+                  size={40}
+                  color={theme.colors.textMuted}
+                />
                 <Text style={styles.photoPlaceholderText}>Add Photo</Text>
               </View>
             )}
@@ -426,7 +476,12 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
           />
           {errors.lud16 && <Text style={styles.errorText}>{errors.lud16}</Text>}
           <Text style={styles.helperText}>
-            <Ionicons name="information-circle" size={12} color={theme.colors.textMuted} /> Receive Bitcoin tips and rewards
+            <Ionicons
+              name="information-circle"
+              size={12}
+              color={theme.colors.textMuted}
+            />{' '}
+            Receive Bitcoin tips and rewards
           </Text>
         </View>
 
@@ -446,13 +501,19 @@ export const ProfileSetupStep: React.FC<ProfileSetupStepProps> = ({
             autoCorrect={false}
             keyboardType="url"
           />
-          {errors.banner && <Text style={styles.errorText}>{errors.banner}</Text>}
+          {errors.banner && (
+            <Text style={styles.errorText}>{errors.banner}</Text>
+          )}
           <Text style={styles.helperText}>Banner image for your profile</Text>
         </View>
 
         {/* Note */}
         <View style={styles.noteContainer}>
-          <Ionicons name="information-circle" size={20} color={theme.colors.text} />
+          <Ionicons
+            name="information-circle"
+            size={20}
+            color={theme.colors.text}
+          />
           <Text style={styles.noteText}>
             You can always update your profile later in Settings
           </Text>

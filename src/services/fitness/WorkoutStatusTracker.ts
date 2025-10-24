@@ -35,7 +35,7 @@ export class WorkoutStatusTracker {
   private async loadCache(): Promise<void> {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const workoutKeys = keys.filter(k =>
+      const workoutKeys = keys.filter((k) =>
         k.startsWith('@runstr:workout_status:')
       );
 
@@ -86,10 +86,7 @@ export class WorkoutStatusTracker {
   /**
    * Mark workout as posted to social (kind 1)
    */
-  async markAsPosted(
-    workoutId: string,
-    eventId?: string
-  ): Promise<void> {
+  async markAsPosted(workoutId: string, eventId?: string): Promise<void> {
     try {
       const currentStatus = await this.getStatus(workoutId);
       const updatedStatus: WorkoutStatus = {
@@ -113,10 +110,7 @@ export class WorkoutStatusTracker {
   /**
    * Mark workout as competed (kind 1301)
    */
-  async markAsCompeted(
-    workoutId: string,
-    eventId?: string
-  ): Promise<void> {
+  async markAsCompeted(workoutId: string, eventId?: string): Promise<void> {
     try {
       const currentStatus = await this.getStatus(workoutId);
       const updatedStatus: WorkoutStatus = {
@@ -179,7 +173,7 @@ export class WorkoutStatusTracker {
   async clearAllStatus(): Promise<void> {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const workoutKeys = keys.filter(k =>
+      const workoutKeys = keys.filter((k) =>
         k.startsWith('@runstr:workout_status:')
       );
 

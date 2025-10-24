@@ -96,10 +96,17 @@ class NutzapRewardService {
     memo?: string
   ): Promise<{ success: boolean; rewardId?: string; error?: string }> {
     try {
-      console.log(`[RewardService] Sending ${amount} sats to ${recipientPubkey.slice(0, 8)}...`);
+      console.log(
+        `[RewardService] Sending ${amount} sats to ${recipientPubkey.slice(
+          0,
+          8
+        )}...`
+      );
 
       // Create reward ID
-      const rewardId = `reward_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const rewardId = `reward_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
 
       // Create reward record
       const reward: TeamReward = {
@@ -176,9 +183,17 @@ class NutzapRewardService {
     success: boolean;
     successful: number;
     failed: number;
-    results: Array<{ recipientPubkey: string; success: boolean; error?: string }>;
+    results: Array<{
+      recipientPubkey: string;
+      success: boolean;
+      error?: string;
+    }>;
   }> {
-    const results: Array<{ recipientPubkey: string; success: boolean; error?: string }> = [];
+    const results: Array<{
+      recipientPubkey: string;
+      success: boolean;
+      error?: string;
+    }> = [];
     let successful = 0;
     let failed = 0;
 
@@ -193,7 +208,10 @@ class NutzapRewardService {
 
       if (result.success) {
         successful++;
-        results.push({ recipientPubkey: reward.recipientPubkey, success: true });
+        results.push({
+          recipientPubkey: reward.recipientPubkey,
+          success: true,
+        });
       } else {
         failed++;
         results.push({
@@ -204,7 +222,7 @@ class NutzapRewardService {
       }
 
       // Small delay between sends to avoid overwhelming the mint
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     return {
@@ -235,7 +253,9 @@ class NutzapRewardService {
       // Validate connection before critical query
       const connected = GlobalNDKService.isConnected();
       if (!connected) {
-        console.warn('[RewardService] No relay connections - attempting reconnect...');
+        console.warn(
+          '[RewardService] No relay connections - attempting reconnect...'
+        );
         await GlobalNDKService.reconnect();
       }
 
@@ -269,15 +289,23 @@ class NutzapRewardService {
   /**
    * Get reward history for a team
    */
-  async getTeamRewardHistory(teamId: string, limit: number = 50): Promise<TeamReward[]> {
+  async getTeamRewardHistory(
+    teamId: string,
+    limit: number = 50
+  ): Promise<TeamReward[]> {
     try {
-      const historyStr = await AsyncStorage.getItem(STORAGE_KEYS.REWARD_HISTORY);
+      const historyStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.REWARD_HISTORY
+      );
       if (!historyStr) return [];
 
       const allHistory: TeamReward[] = JSON.parse(historyStr);
       return allHistory
-        .filter(r => r.teamId === teamId)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .filter((r) => r.teamId === teamId)
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
         .slice(0, limit);
     } catch (error) {
       console.error('[RewardService] Error loading history:', error);
@@ -290,7 +318,9 @@ class NutzapRewardService {
    */
   async getPendingRewards(): Promise<TeamReward[]> {
     try {
-      const pendingStr = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_REWARDS);
+      const pendingStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.PENDING_REWARDS
+      );
       return pendingStr ? JSON.parse(pendingStr) : [];
     } catch (error) {
       console.error('[RewardService] Error loading pending rewards:', error);
@@ -303,7 +333,9 @@ class NutzapRewardService {
    */
   private async saveRewardToHistory(reward: TeamReward): Promise<void> {
     try {
-      const historyStr = await AsyncStorage.getItem(STORAGE_KEYS.REWARD_HISTORY);
+      const historyStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.REWARD_HISTORY
+      );
       const history: TeamReward[] = historyStr ? JSON.parse(historyStr) : [];
 
       // Add new reward
@@ -314,7 +346,10 @@ class NutzapRewardService {
         history.splice(0, history.length - 1000);
       }
 
-      await AsyncStorage.setItem(STORAGE_KEYS.REWARD_HISTORY, JSON.stringify(history));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.REWARD_HISTORY,
+        JSON.stringify(history)
+      );
     } catch (error) {
       console.error('[RewardService] Error saving to history:', error);
     }
@@ -325,10 +360,15 @@ class NutzapRewardService {
    */
   private async savePendingReward(reward: TeamReward): Promise<void> {
     try {
-      const pendingStr = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_REWARDS);
+      const pendingStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.PENDING_REWARDS
+      );
       const pending: TeamReward[] = pendingStr ? JSON.parse(pendingStr) : [];
       pending.push(reward);
-      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_REWARDS, JSON.stringify(pending));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.PENDING_REWARDS,
+        JSON.stringify(pending)
+      );
     } catch (error) {
       console.error('[RewardService] Error saving pending reward:', error);
     }
@@ -339,12 +379,17 @@ class NutzapRewardService {
    */
   private async removePendingReward(rewardId: string): Promise<void> {
     try {
-      const pendingStr = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_REWARDS);
+      const pendingStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.PENDING_REWARDS
+      );
       if (!pendingStr) return;
 
       const pending: TeamReward[] = JSON.parse(pendingStr);
-      const filtered = pending.filter(r => r.id !== rewardId);
-      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_REWARDS, JSON.stringify(filtered));
+      const filtered = pending.filter((r) => r.id !== rewardId);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.PENDING_REWARDS,
+        JSON.stringify(filtered)
+      );
     } catch (error) {
       console.error('[RewardService] Error removing pending reward:', error);
     }
@@ -366,19 +411,23 @@ class NutzapRewardService {
     uniqueRecipients: number;
   }> {
     try {
-      const historyStr = await AsyncStorage.getItem(STORAGE_KEYS.REWARD_HISTORY);
+      const historyStr = await AsyncStorage.getItem(
+        STORAGE_KEYS.REWARD_HISTORY
+      );
       if (!historyStr) {
         return { totalSent: 0, rewardCount: 0, uniqueRecipients: 0 };
       }
 
       const history: TeamReward[] = JSON.parse(historyStr);
       const captainRewards = history.filter(
-        r => r.captainPubkey === captainPubkey && r.status === 'completed'
+        (r) => r.captainPubkey === captainPubkey && r.status === 'completed'
       );
 
       const totalSent = captainRewards.reduce((sum, r) => sum + r.amount, 0);
       const rewardCount = captainRewards.length;
-      const uniqueRecipients = new Set(captainRewards.map(r => r.recipientPubkey)).size;
+      const uniqueRecipients = new Set(
+        captainRewards.map((r) => r.recipientPubkey)
+      ).size;
 
       return { totalSent, rewardCount, uniqueRecipients };
     } catch (error) {

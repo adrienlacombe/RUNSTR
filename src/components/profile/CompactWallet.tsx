@@ -43,7 +43,12 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   // Legacy Cashu wallet state (feature flagged)
-  const { balance: cashuBalance, isInitialized, isInitializing, refreshBalance: refreshStoreBalance } = useWalletStore();
+  const {
+    balance: cashuBalance,
+    isInitialized,
+    isInitializing,
+    refreshBalance: refreshStoreBalance,
+  } = useWalletStore();
   const { claimNutzaps } = useNutzap(false);
   const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
 
@@ -80,7 +85,10 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
     try {
       const balanceResult = await NWCWalletService.getBalance();
       setNwcBalance(balanceResult.balance);
-      console.log('[CompactWallet] NWC balance refreshed:', balanceResult.balance);
+      console.log(
+        '[CompactWallet] NWC balance refreshed:',
+        balanceResult.balance
+      );
     } catch (error) {
       console.error('[CompactWallet] NWC refresh error:', error);
     } finally {
@@ -101,21 +109,22 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
   }, []);
 
   // Legacy Cashu handlers (feature flagged)
-  const handleClaim = useCallback(async (silent: boolean = true) => {
-    if (!FEATURES.ENABLE_CASHU_WALLET) return;
+  const handleClaim = useCallback(
+    async (silent: boolean = true) => {
+      if (!FEATURES.ENABLE_CASHU_WALLET) return;
 
-    const result = await claimNutzaps();
-    if (result.claimed > 0) {
-      setLastClaimTime(new Date());
-      if (!silent) {
-        Alert.alert(
-          'Payment Received!',
-          `Received ${result.claimed} sats`,
-          [{ text: 'OK' }]
-        );
+      const result = await claimNutzaps();
+      if (result.claimed > 0) {
+        setLastClaimTime(new Date());
+        if (!silent) {
+          Alert.alert('Payment Received!', `Received ${result.claimed} sats`, [
+            { text: 'OK' },
+          ]);
+        }
       }
-    }
-  }, [claimNutzaps]);
+    },
+    [claimNutzaps]
+  );
 
   const handleRefreshCashu = useCallback(async () => {
     if (!FEATURES.ENABLE_CASHU_WALLET) return;
@@ -134,7 +143,7 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
   // Legacy Cashu initialization (feature flagged)
   useEffect(() => {
     if (FEATURES.ENABLE_CASHU_WALLET && isInitialized) {
-      refreshStoreBalance().catch(err =>
+      refreshStoreBalance().catch((err) =>
         console.warn('[CompactWallet] Cashu balance sync failed:', err)
       );
     }
@@ -152,7 +161,9 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
 
   // Determine which wallet system to use
   const balance = FEATURES.ENABLE_NWC_WALLET ? nwcBalance : cashuBalance;
-  const handleRefresh = FEATURES.ENABLE_NWC_WALLET ? handleRefreshNWC : handleRefreshCashu;
+  const handleRefresh = FEATURES.ENABLE_NWC_WALLET
+    ? handleRefreshNWC
+    : handleRefreshCashu;
 
   const formatBalance = (sats: number): string => {
     if (sats >= 1000000) {
@@ -171,13 +182,18 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
           // No wallet configured - show connect prompt
           <View style={styles.noWalletContainer}>
             <View style={styles.noWalletIcon}>
-              <Ionicons name="wallet-outline" size={32} color={theme.colors.textMuted} />
+              <Ionicons
+                name="wallet-outline"
+                size={32}
+                color={theme.colors.textMuted}
+              />
             </View>
             <Text style={styles.noWalletTitle}>
               Connect Wallet to Send Bitcoin
             </Text>
             <Text style={styles.noWalletDescription}>
-              Connect your Lightning wallet (NWC) to send zaps, pay event fees, and make challenge wagers
+              Connect your Lightning wallet (NWC) to send zaps, pay event fees,
+              and make challenge wagers
             </Text>
             <TouchableOpacity
               style={styles.connectButton}
@@ -196,11 +212,9 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
           <>
             {/* Centered balance with sync indicator and refresh button */}
             <View style={styles.balanceContainer}>
-              <Text style={styles.balanceAmount}>
-                {formatBalance(balance)}
-              </Text>
+              <Text style={styles.balanceAmount}>{formatBalance(balance)}</Text>
               <Text style={styles.balanceUnit}>sats</Text>
-              {(isLoading || isRefreshing) ? (
+              {isLoading || isRefreshing ? (
                 <ActivityIndicator
                   size="small"
                   color={theme.colors.textMuted}
@@ -212,7 +226,11 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
                   style={styles.refreshButton}
                   activeOpacity={0.6}
                 >
-                  <Ionicons name="refresh" size={16} color={theme.colors.textMuted} />
+                  <Ionicons
+                    name="refresh"
+                    size={16}
+                    color={theme.colors.textMuted}
+                  />
                 </TouchableOpacity>
               )}
             </View>
@@ -233,7 +251,11 @@ export const CompactWallet: React.FC<CompactWalletProps> = ({
                 onPress={onReceivePress}
                 activeOpacity={0.7}
               >
-                <Ionicons name="arrow-down" size={16} color={theme.colors.text} />
+                <Ionicons
+                  name="arrow-down"
+                  size={16}
+                  color={theme.colors.text}
+                />
                 <Text style={styles.actionText}>Receive</Text>
               </TouchableOpacity>
             </View>

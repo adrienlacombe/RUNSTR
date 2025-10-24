@@ -11,7 +11,11 @@ import { NWCStorageService } from './NWCStorageService';
  * Timeout wrapper for SDK calls
  * Prevents hanging on network issues
  */
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
@@ -36,12 +40,15 @@ async function withRetry<T>(
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
-      console.log(`[Retry] Attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+      console.log(
+        `[Retry] Attempt ${attempt}/${maxRetries} failed:`,
+        lastError.message
+      );
 
       // Don't delay after last attempt
       if (attempt < maxRetries) {
         const delay = delayMs * attempt; // Exponential backoff: 1s, 2s, 3s
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
@@ -160,11 +167,12 @@ class NWCWalletServiceClass {
 
       // Get balance with retry and timeout
       const result = await withRetry(
-        () => withTimeout(
-          this.nwcClient!.getBalance(),
-          30000, // 30 second timeout
-          'Balance fetch timeout'
-        ),
+        () =>
+          withTimeout(
+            this.nwcClient!.getBalance(),
+            30000, // 30 second timeout
+            'Balance fetch timeout'
+          ),
         3, // 3 retries
         1000 // 1 second initial delay
       );
@@ -196,14 +204,18 @@ class NWCWalletServiceClass {
    * Send payment via Lightning invoice
    * Checks balance and connectivity before sending
    */
-  async sendPayment(invoice: string, amount?: number): Promise<SendPaymentResult> {
+  async sendPayment(
+    invoice: string,
+    amount?: number
+  ): Promise<SendPaymentResult> {
     try {
       // Check if NWC configured
       const hasWallet = await this.isAvailable();
       if (!hasWallet) {
         return {
           success: false,
-          error: 'No wallet configured. Please connect your wallet in settings.',
+          error:
+            'No wallet configured. Please connect your wallet in settings.',
         };
       }
 
@@ -267,7 +279,10 @@ class NWCWalletServiceClass {
         // Provide helpful error messages
         if (errorMessage.includes('insufficient')) {
           errorMessage = 'Insufficient balance';
-        } else if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+        } else if (
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('network')
+        ) {
           errorMessage = 'Network error - please check your connection';
         }
       }
@@ -294,7 +309,8 @@ class NWCWalletServiceClass {
       if (!hasWallet) {
         return {
           success: false,
-          error: 'No wallet configured. Please connect your wallet in settings.',
+          error:
+            'No wallet configured. Please connect your wallet in settings.',
         };
       }
 
@@ -363,7 +379,9 @@ class NWCWalletServiceClass {
    * Check if invoice has been paid
    * @param invoiceOrHash - Either a BOLT11 invoice string or payment hash
    */
-  async lookupInvoice(invoiceOrHash: string): Promise<{ paid: boolean; success: boolean; error?: string }> {
+  async lookupInvoice(
+    invoiceOrHash: string
+  ): Promise<{ paid: boolean; success: boolean; error?: string }> {
     try {
       const hasWallet = await this.isAvailable();
       if (!hasWallet) {
@@ -379,7 +397,10 @@ class NWCWalletServiceClass {
 
       // Check if it's an invoice (starts with 'lnbc') or payment hash
       let lookupParam: any;
-      if (invoiceOrHash.startsWith('lnbc') || invoiceOrHash.startsWith('lntb')) {
+      if (
+        invoiceOrHash.startsWith('lnbc') ||
+        invoiceOrHash.startsWith('lntb')
+      ) {
         // It's a BOLT11 invoice
         lookupParam = { invoice: invoiceOrHash };
       } else {
@@ -496,10 +517,10 @@ class NWCWalletServiceClass {
    * Useful for captain dashboard transaction history
    */
   async listTransactions(params?: {
-    from?: number;     // Start timestamp (unix seconds)
-    until?: number;    // End timestamp (unix seconds)
-    limit?: number;    // Max number of transactions
-    offset?: number;   // Pagination offset
+    from?: number; // Start timestamp (unix seconds)
+    until?: number; // End timestamp (unix seconds)
+    limit?: number; // Max number of transactions
+    offset?: number; // Pagination offset
     type?: 'incoming' | 'outgoing'; // Filter by transaction type
   }): Promise<{
     success: boolean;

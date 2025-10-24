@@ -5,9 +5,19 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Image,
+  Modal,
+} from 'react-native';
 import { theme } from '../../styles/theme';
-import type { Season1Leaderboard, SeasonActivityType } from '../../types/season';
+import type {
+  Season1Leaderboard,
+  SeasonActivityType,
+} from '../../types/season';
 import { calculatePrize } from '../../types/season';
 import { ChallengeIconButton } from '../ui/ChallengeIconButton';
 import { QuickChallengeWizard } from '../wizards/QuickChallengeWizard';
@@ -25,9 +35,15 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
   activityType,
   isLoading,
 }) => {
-  const [currentUserPubkey, setCurrentUserPubkey] = useState<string | null>(null);
+  const [currentUserPubkey, setCurrentUserPubkey] = useState<string | null>(
+    null
+  );
   const [challengeWizardVisible, setChallengeWizardVisible] = useState(false);
-  const [selectedOpponent, setSelectedOpponent] = useState<{ pubkey: string; name: string; picture?: string } | null>(null);
+  const [selectedOpponent, setSelectedOpponent] = useState<{
+    pubkey: string;
+    name: string;
+    picture?: string;
+  } | null>(null);
 
   // Get current user's pubkey
   useEffect(() => {
@@ -55,7 +71,11 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
     return 'Anonymous';
   };
 
-  const handleChallengePress = (pubkey: string, name?: string, picture?: string) => {
+  const handleChallengePress = (
+    pubkey: string,
+    name?: string,
+    picture?: string
+  ) => {
     setSelectedOpponent({
       pubkey,
       name: name || pubkey.slice(0, 8) + '...',
@@ -68,7 +88,8 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
     return (
       <View style={styles.container}>
         <Text style={styles.title}>
-          {activityType.charAt(0).toUpperCase() + activityType.slice(1)} Leaderboard
+          {activityType.charAt(0).toUpperCase() + activityType.slice(1)}{' '}
+          Leaderboard
         </Text>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.text} />
@@ -81,7 +102,8 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
     return (
       <View style={styles.container}>
         <Text style={styles.title}>
-          {activityType.charAt(0).toUpperCase() + activityType.slice(1)} Leaderboard
+          {activityType.charAt(0).toUpperCase() + activityType.slice(1)}{' '}
+          Leaderboard
         </Text>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No participants yet</Text>
@@ -100,7 +122,8 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>
-          {activityType.charAt(0).toUpperCase() + activityType.slice(1)} Leaderboard
+          {activityType.charAt(0).toUpperCase() + activityType.slice(1)}{' '}
+          Leaderboard
         </Text>
         <Text style={styles.subtitle}>
           {leaderboard.totalParticipants} participants
@@ -126,7 +149,9 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
                 ) : (
                   <View style={[styles.avatar, styles.avatarFallback]}>
                     <Text style={styles.avatarFallbackText}>
-                      {(participant.name || participant.pubkey).charAt(0).toUpperCase()}
+                      {(participant.name || participant.pubkey)
+                        .charAt(0)
+                        .toUpperCase()}
                     </Text>
                   </View>
                 )}
@@ -139,30 +164,40 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
                   </Text>
 
                   {/* Challenge Icon & Zap Button - Right next to username */}
-                  {currentUserPubkey && participant.pubkey !== currentUserPubkey && (
-                    <View style={styles.actionButtonsContainer}>
-                      <ChallengeIconButton
-                        userPubkey={participant.pubkey}
-                        userName={formatName(participant.name, participant.pubkey)}
-                        onPress={() => handleChallengePress(
-                          participant.pubkey,
-                          participant.name,
-                          participant.picture
-                        )}
-                      />
-                      <NutzapLightningButton
-                        recipientNpub={participant.pubkey}
-                        recipientName={formatName(participant.name, participant.pubkey)}
-                        size="small"
-                        style={styles.zapButton}
-                      />
-                    </View>
-                  )}
+                  {currentUserPubkey &&
+                    participant.pubkey !== currentUserPubkey && (
+                      <View style={styles.actionButtonsContainer}>
+                        <ChallengeIconButton
+                          userPubkey={participant.pubkey}
+                          userName={formatName(
+                            participant.name,
+                            participant.pubkey
+                          )}
+                          onPress={() =>
+                            handleChallengePress(
+                              participant.pubkey,
+                              participant.name,
+                              participant.picture
+                            )
+                          }
+                        />
+                        <NutzapLightningButton
+                          recipientNpub={participant.pubkey}
+                          recipientName={formatName(
+                            participant.name,
+                            participant.pubkey
+                          )}
+                          size="small"
+                          style={styles.zapButton}
+                        />
+                      </View>
+                    )}
                 </View>
 
                 {participant.workoutCount > 0 && (
                   <Text style={styles.workoutCount}>
-                    {participant.workoutCount} workout{participant.workoutCount !== 1 ? 's' : ''}
+                    {participant.workoutCount} workout
+                    {participant.workoutCount !== 1 ? 's' : ''}
                   </Text>
                 )}
               </View>
@@ -172,10 +207,7 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
                   {formatDistance(participant.totalDistance)}
                 </Text>
                 {prize > 0 && (
-                  <Text style={[
-                    styles.prize,
-                    rank <= 3 && styles.prizeTop3
-                  ]}>
+                  <Text style={[styles.prize, rank <= 3 && styles.prizeTop3]}>
                     {prize.toLocaleString()} sats
                   </Text>
                 )}

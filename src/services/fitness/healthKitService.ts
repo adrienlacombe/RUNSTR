@@ -27,19 +27,25 @@ let ExpoHealthKit: any = null;
 if (Platform.OS === 'ios') {
   try {
     const healthKitModule = require('@yzlin/expo-healthkit');
-    
+
     // Check different export patterns
     if (healthKitModule.default) {
       ExpoHealthKit = healthKitModule.default;
     } else if (healthKitModule.ExpoHealthKit) {
       ExpoHealthKit = healthKitModule.ExpoHealthKit;
-    } else if (typeof healthKitModule === 'object' && healthKitModule.isHealthDataAvailable) {
+    } else if (
+      typeof healthKitModule === 'object' &&
+      healthKitModule.isHealthDataAvailable
+    ) {
       ExpoHealthKit = healthKitModule;
     } else {
       ExpoHealthKit = healthKitModule;
     }
   } catch (e) {
-    errorLog('HealthKit Service: Failed to import @yzlin/expo-healthkit:', e.message);
+    errorLog(
+      'HealthKit Service: Failed to import @yzlin/expo-healthkit:',
+      e.message
+    );
     ExpoHealthKit = null;
   }
 }
@@ -125,7 +131,10 @@ export class HealthKitService {
         ExpoHealthKit = healthKitModule.default;
       } else if (healthKitModule.ExpoHealthKit) {
         ExpoHealthKit = healthKitModule.ExpoHealthKit;
-      } else if (typeof healthKitModule === 'object' && healthKitModule.isHealthDataAvailable) {
+      } else if (
+        typeof healthKitModule === 'object' &&
+        healthKitModule.isHealthDataAvailable
+      ) {
         ExpoHealthKit = healthKitModule;
       } else {
         ExpoHealthKit = healthKitModule;
@@ -159,7 +168,10 @@ export class HealthKitService {
    */
   private async saveAuthorizationStatus(authorized: boolean) {
     try {
-      await AsyncStorage.setItem('@healthkit:authorized', authorized ? 'true' : 'false');
+      await AsyncStorage.setItem(
+        '@healthkit:authorized',
+        authorized ? 'true' : 'false'
+      );
       this.isAuthorized = authorized;
       console.log(`✅ HealthKit: Saved authorization status: ${authorized}`);
     } catch (error) {
@@ -236,11 +248,11 @@ export class HealthKitService {
 
     try {
       console.log('🔍 DEBUG: HealthKit initialize() starting...');
-      
+
       // Simplified approach: Just request permissions directly
       // iOS should handle already-granted permissions without showing dialogs
       console.log('🔍 DEBUG: Requesting permissions directly...');
-      
+
       // Request permissions from iOS
       const permissionsResult = await this.requestPermissions();
       console.log('🔍 DEBUG: Permission request result:', permissionsResult);
@@ -254,9 +266,16 @@ export class HealthKitService {
       // Verify actual iOS authorization status after permission request
       const actuallyAuthorized = await this.checkActualAuthorizationStatus();
       await this.saveAuthorizationStatus(actuallyAuthorized);
-      console.log(`🔍 DEBUG: HealthKit initialized, authorization verified: ${actuallyAuthorized}`);
+      console.log(
+        `🔍 DEBUG: HealthKit initialized, authorization verified: ${actuallyAuthorized}`
+      );
 
-      return { success: actuallyAuthorized, error: actuallyAuthorized ? undefined : 'Permission verification failed' };
+      return {
+        success: actuallyAuthorized,
+        error: actuallyAuthorized
+          ? undefined
+          : 'Permission verification failed',
+      };
     } catch (error) {
       errorLog('HealthKit: Initialization failed:', error);
       return {
@@ -316,7 +335,10 @@ export class HealthKitService {
               console.log('📋 Read permissions:', readPermissions.slice(0, 5)); // Log first 5 for brevity
               console.log('📝 Write permissions:', writePermissions);
 
-              const authResult = await ExpoHealthKit.requestAuthorization(readPermissions, writePermissions);
+              const authResult = await ExpoHealthKit.requestAuthorization(
+                readPermissions,
+                writePermissions
+              );
 
               console.log('✅ HealthKit authorization completed');
               console.log('📊 Authorization result:', authResult);
@@ -332,11 +354,12 @@ export class HealthKitService {
       },
       this.PERMISSION_TIMEOUT,
       'Permission request'
-    ).catch(error => {
+    ).catch((error) => {
       let errorMessage = 'HealthKit permissions denied';
       if (error instanceof Error) {
         if (error.message.includes('timed out')) {
-          errorMessage = 'Permission request is taking too long. Please try again or check your device settings.';
+          errorMessage =
+            'Permission request is taking too long. Please try again or check your device settings.';
         } else {
           errorMessage = error.message;
         }
@@ -421,14 +444,20 @@ export class HealthKitService {
   async fetchWorkoutsProgressive(
     startDate: Date,
     endDate: Date,
-    onProgress?: (progress: { current: number; total: number; workouts: number }) => void
+    onProgress?: (progress: {
+      current: number;
+      total: number;
+      workouts: number;
+    }) => void
   ): Promise<HealthKitWorkout[]> {
     // Check authorization FIRST before attempting to fetch
     if (!this.isAuthorized) {
       console.log('🔍 HealthKit: Not authorized, attempting to initialize...');
       const initResult = await this.initialize();
       if (!initResult.success) {
-        throw new Error(`HealthKit not authorized: ${initResult.error || 'Permission denied'}`);
+        throw new Error(
+          `HealthKit not authorized: ${initResult.error || 'Permission denied'}`
+        );
       }
     }
 
@@ -439,14 +468,18 @@ export class HealthKitService {
     this.syncInProgress = true;
     this.abortController = new AbortController();
 
-    console.log(`📱 HealthKit: Starting progressive fetch from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+    console.log(
+      `📱 HealthKit: Starting progressive fetch from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
+    );
 
     try {
       const chunks = this.createDateChunks(startDate, endDate, 7); // 7-day chunks
       const allWorkouts: HealthKitWorkout[] = [];
       const processedIds = new Set<string>();
 
-      console.log(`📊 HealthKit: Created ${chunks.length} date chunks for fetching`);
+      console.log(
+        `📊 HealthKit: Created ${chunks.length} date chunks for fetching`
+      );
 
       for (let i = 0; i < chunks.length; i++) {
         // Check if aborted
@@ -460,7 +493,7 @@ export class HealthKitService {
           const workouts = await this.fetchWorkoutChunk(chunk.start, chunk.end);
 
           // Deduplicate
-          const uniqueWorkouts = workouts.filter(w => {
+          const uniqueWorkouts = workouts.filter((w) => {
             const workoutId = w.id || w.UUID;
             if (processedIds.has(workoutId)) return false;
             processedIds.add(workoutId);
@@ -473,16 +506,22 @@ export class HealthKitService {
           onProgress?.({
             current: i + 1,
             total: chunks.length,
-            workouts: allWorkouts.length
+            workouts: allWorkouts.length,
           });
 
-          console.log(`📊 HealthKit: Chunk ${i + 1}/${chunks.length} complete, total workouts: ${allWorkouts.length}`);
+          console.log(
+            `📊 HealthKit: Chunk ${i + 1}/${
+              chunks.length
+            } complete, total workouts: ${allWorkouts.length}`
+          );
 
           // Allow UI to breathe between chunks
-          await new Promise(resolve => setTimeout(resolve, 50));
-
+          await new Promise((resolve) => setTimeout(resolve, 50));
         } catch (error) {
-          console.warn(`⚠️ HealthKit: Failed to fetch chunk ${i + 1}/${chunks.length}:`, error);
+          console.warn(
+            `⚠️ HealthKit: Failed to fetch chunk ${i + 1}/${chunks.length}:`,
+            error
+          );
           // Continue with next chunk instead of failing entirely
         }
       }
@@ -490,10 +529,11 @@ export class HealthKitService {
       // Cache the results
       await this.cacheWorkouts(allWorkouts);
 
-      console.log(`✅ HealthKit: Progressive fetch complete, found ${allWorkouts.length} workouts`);
+      console.log(
+        `✅ HealthKit: Progressive fetch complete, found ${allWorkouts.length} workouts`
+      );
 
       return allWorkouts;
-
     } finally {
       this.syncInProgress = false;
       this.abortController = null;
@@ -503,27 +543,43 @@ export class HealthKitService {
   /**
    * Fetch a single chunk of workouts
    */
-  private async fetchWorkoutChunk(startDate: Date, endDate: Date): Promise<HealthKitWorkout[]> {
+  private async fetchWorkoutChunk(
+    startDate: Date,
+    endDate: Date
+  ): Promise<HealthKitWorkout[]> {
     return this.executeWithTimeout(
       async () => {
         // HealthKit library expects Date objects, NOT ISO strings
         const query = {
           from: startDate,
           to: endDate,
-          limit: 100
+          limit: 100,
         };
 
-        console.log(`📱 Querying HealthKit workouts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
-        console.log('📊 Query object being sent:', { from: startDate.toISOString(), to: endDate.toISOString(), limit: query.limit });
+        console.log(
+          `📱 Querying HealthKit workouts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
+        );
+        console.log('📊 Query object being sent:', {
+          from: startDate.toISOString(),
+          to: endDate.toISOString(),
+          limit: query.limit,
+        });
 
         let results;
         try {
           results = await ExpoHealthKit.queryWorkouts(query);
-          console.log(`📱 HealthKit query successful, returned ${results?.length || 0} raw workouts`);
+          console.log(
+            `📱 HealthKit query successful, returned ${
+              results?.length || 0
+            } raw workouts`
+          );
 
           // Log first workout for debugging if any exist
           if (results && results.length > 0) {
-            console.log('🏃 First workout sample:', JSON.stringify(results[0], null, 2));
+            console.log(
+              '🏃 First workout sample:',
+              JSON.stringify(results[0], null, 2)
+            );
           }
         } catch (queryError) {
           console.error('❌ HealthKit queryWorkouts failed:', queryError);
@@ -539,7 +595,10 @@ export class HealthKitService {
               return false;
             }
             if (!w.duration || w.duration < 60) {
-              console.log(`⏱️  Workout too short (${w.duration}s), skipping:`, w.uuid);
+              console.log(
+                `⏱️  Workout too short (${w.duration}s), skipping:`,
+                w.uuid
+              );
               return false;
             }
             return true;
@@ -558,7 +617,8 @@ export class HealthKitService {
    * Transform HealthKit workout to our format with activity type mapping
    */
   private transformWorkout(hkWorkout: any): HealthKitWorkout {
-    const activityType = HK_WORKOUT_TYPE_MAP[hkWorkout.workoutActivityType] || 'other';
+    const activityType =
+      HK_WORKOUT_TYPE_MAP[hkWorkout.workoutActivityType] || 'other';
 
     return {
       UUID: hkWorkout.uuid,
@@ -570,14 +630,18 @@ export class HealthKitService {
       totalEnergyBurned: hkWorkout.totalEnergyBurned || 0,
       workoutActivityType: hkWorkout.workoutActivityType || 0,
       sourceName: hkWorkout.sourceName || 'Unknown',
-      activityType: activityType
+      activityType: activityType,
     };
   }
 
   /**
    * Create date chunks for progressive loading
    */
-  private createDateChunks(startDate: Date, endDate: Date, daysPerChunk: number) {
+  private createDateChunks(
+    startDate: Date,
+    endDate: Date,
+    daysPerChunk: number
+  ) {
     const chunks = [];
     let current = new Date(startDate);
 
@@ -587,7 +651,7 @@ export class HealthKitService {
 
       chunks.push({
         start: new Date(current),
-        end: chunkEnd > endDate ? endDate : chunkEnd
+        end: chunkEnd > endDate ? endDate : chunkEnd,
       });
 
       current = chunkEnd;
@@ -655,11 +719,7 @@ export class HealthKitService {
         },
       };
     } catch (error) {
-      errorLog(
-        'HealthKit: Error normalizing workout:',
-        error,
-        hkWorkout
-      );
+      errorLog('HealthKit: Error normalizing workout:', error, hkWorkout);
       return null;
     }
   }
@@ -681,10 +741,13 @@ export class HealthKitService {
       }
 
       // Save to local cache (AsyncStorage)
-      await AsyncStorage.setItem(cacheKey, JSON.stringify({
-        ...workout,
-        cachedAt: new Date().toISOString()
-      }));
+      await AsyncStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          ...workout,
+          cachedAt: new Date().toISOString(),
+        })
+      );
 
       debugLog(
         `HealthKit: Cached workout - ${workout.type}, ${workout.duration}s`
@@ -708,31 +771,43 @@ export class HealthKitService {
     try {
       // Try to query workouts as a test - if we can fetch data, permissions are granted
       // This is more reliable than getAuthorizationStatusForType which returns "undetermined" for privacy
-      console.log('🔍 HealthKit: Verifying authorization by testing workout query...');
+      console.log(
+        '🔍 HealthKit: Verifying authorization by testing workout query...'
+      );
 
       const testQuery = {
         from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Last 24 hours
         to: new Date().toISOString(),
-        limit: 1 // Just test with 1 workout
+        limit: 1, // Just test with 1 workout
       };
 
       try {
         // Attempt to query workouts - if this succeeds, we have permissions
         const testResults = await ExpoHealthKit.queryWorkouts(testQuery);
-        console.log('✅ HealthKit: Authorization verified - successfully queried workouts');
+        console.log(
+          '✅ HealthKit: Authorization verified - successfully queried workouts'
+        );
         return true; // Query succeeded = permissions granted
       } catch (queryError: any) {
         // Check if error is due to missing permissions vs other issues
         const errorMessage = queryError?.message || String(queryError);
 
-        if (errorMessage.includes('not authorized') || errorMessage.includes('permission')) {
-          console.log('❌ HealthKit: Authorization check failed - permissions not granted');
+        if (
+          errorMessage.includes('not authorized') ||
+          errorMessage.includes('permission')
+        ) {
+          console.log(
+            '❌ HealthKit: Authorization check failed - permissions not granted'
+          );
           return false;
         }
 
         // Other errors (network, etc.) don't necessarily mean no permissions
         // If we're not sure, assume permissions are OK to avoid false negatives
-        console.warn('⚠️ HealthKit: Authorization check inconclusive, assuming OK:', errorMessage);
+        console.warn(
+          '⚠️ HealthKit: Authorization check inconclusive, assuming OK:',
+          errorMessage
+        );
         return true;
       }
     } catch (error) {
@@ -797,7 +872,7 @@ export class HealthKitService {
       const cacheData = {
         workouts,
         timestamp: Date.now(),
-        version: '1.0'
+        version: '1.0',
       };
 
       await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
@@ -826,7 +901,9 @@ export class HealthKitService {
         return null;
       }
 
-      debugLog(`HealthKit: Retrieved ${cacheData.workouts.length} cached workouts`);
+      debugLog(
+        `HealthKit: Retrieved ${cacheData.workouts.length} cached workouts`
+      );
       return cacheData.workouts;
     } catch (error) {
       console.warn('Failed to get cached workouts:', error);
@@ -855,7 +932,9 @@ export class HealthKitService {
     try {
       // Get all cached HealthKit workouts for this user
       const keys = await AsyncStorage.getAllKeys();
-      const healthKitKeys = keys.filter(key => key.startsWith('healthkit_workout_'));
+      const healthKitKeys = keys.filter((key) =>
+        key.startsWith('healthkit_workout_')
+      );
 
       let totalCount = 0;
       let recentCount = 0;
@@ -868,7 +947,10 @@ export class HealthKitService {
             const workout = JSON.parse(workoutData);
             if (workout.userId === userId) {
               totalCount++;
-              if (workout.cachedAt && new Date(workout.cachedAt) > sevenDaysAgo) {
+              if (
+                workout.cachedAt &&
+                new Date(workout.cachedAt) > sevenDaysAgo
+              ) {
                 recentCount++;
               }
             }
@@ -906,30 +988,42 @@ export class HealthKitService {
       debugLog('HealthKit: Not authorized, attempting initialization...');
       const initResult = await this.initialize();
       if (!initResult.success) {
-        errorLog('HealthKit: Failed to initialize for getRecentWorkouts:', initResult.error);
+        errorLog(
+          'HealthKit: Failed to initialize for getRecentWorkouts:',
+          initResult.error
+        );
         return [];
       }
     }
 
     try {
-      debugLog(`HealthKit: Fetching recent workouts (${days} days) for user ${userId}`);
+      debugLog(
+        `HealthKit: Fetching recent workouts (${days} days) for user ${userId}`
+      );
 
       // Create proper date range for HealthKit query
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      console.log(`📅 Querying workouts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+      console.log(
+        `📅 Querying workouts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
+      );
 
       // HealthKit library expects Date objects, NOT ISO strings
       const options = {
         from: startDate,
         to: endDate,
         limit: 100, // Reasonable limit
-        ascending: false // Get newest workouts first
+        ascending: false, // Get newest workouts first
       };
 
-      console.log('📊 Query options for getRecentWorkouts:', { from: startDate.toISOString(), to: endDate.toISOString(), limit: options.limit, ascending: options.ascending });
+      console.log('📊 Query options for getRecentWorkouts:', {
+        from: startDate.toISOString(),
+        to: endDate.toISOString(),
+        limit: options.limit,
+        ascending: options.ascending,
+      });
 
       let healthKitWorkouts;
       try {
@@ -945,113 +1039,150 @@ export class HealthKitService {
         );
       } catch (queryError) {
         console.error('❌ Failed to query HealthKit workouts:', queryError);
-        console.error('❌ Query options that failed:', JSON.stringify(options, null, 2));
+        console.error(
+          '❌ Query options that failed:',
+          JSON.stringify(options, null, 2)
+        );
         // Return empty array instead of throwing to prevent UI crashes
         return [];
       }
 
-      console.log(`📊 Processing ${healthKitWorkouts?.length || 0} HealthKit workouts for UI display`);
+      console.log(
+        `📊 Processing ${
+          healthKitWorkouts?.length || 0
+        } HealthKit workouts for UI display`
+      );
 
       // Filter and transform to match expected format
-      const validWorkouts = (healthKitWorkouts || []).filter(
-        (workout: any) => {
+      const validWorkouts = (healthKitWorkouts || [])
+        .filter((workout: any) => {
           if (!workout.uuid) {
             console.warn('⚠️  Workout missing UUID for UI, skipping');
             return false;
           }
           if (!workout.startDate || !workout.endDate) {
-            console.warn('⚠️  Workout missing date info for UI, skipping:', workout.uuid);
+            console.warn(
+              '⚠️  Workout missing date info for UI, skipping:',
+              workout.uuid
+            );
             return false;
           }
           return true;
-        }
-      ).map((workout: any, index: number) => {
-        // Debug: Log first workout to see ALL available properties
-        if (index === 0 && workout) {
-          console.log('📊 DEBUG: Available workout properties:', Object.keys(workout));
-          console.log('📊 DEBUG: Full workout object:', workout);
-          console.log('📊 DEBUG: Specific fields check:');
-          console.log('  - uuid:', workout.uuid);
-          console.log('  - duration:', workout.duration);
-          console.log('  - distance:', workout.distance);
-          console.log('  - totalDistance:', workout.totalDistance);
-          console.log('  - totalEnergyBurned:', workout.totalEnergyBurned);
-          console.log('  - activeEnergyBurned:', workout.activeEnergyBurned);
-          console.log('  - energyBurned:', workout.energyBurned);
-          console.log('  - workoutActivityType:', workout.workoutActivityType);
-        }
+        })
+        .map((workout: any, index: number) => {
+          // Debug: Log first workout to see ALL available properties
+          if (index === 0 && workout) {
+            console.log(
+              '📊 DEBUG: Available workout properties:',
+              Object.keys(workout)
+            );
+            console.log('📊 DEBUG: Full workout object:', workout);
+            console.log('📊 DEBUG: Specific fields check:');
+            console.log('  - uuid:', workout.uuid);
+            console.log('  - duration:', workout.duration);
+            console.log('  - distance:', workout.distance);
+            console.log('  - totalDistance:', workout.totalDistance);
+            console.log('  - totalEnergyBurned:', workout.totalEnergyBurned);
+            console.log('  - activeEnergyBurned:', workout.activeEnergyBurned);
+            console.log('  - energyBurned:', workout.energyBurned);
+            console.log(
+              '  - workoutActivityType:',
+              workout.workoutActivityType
+            );
+          }
 
-        // Extract distance - HealthKit returns HKQuantity objects, not raw numbers
-        // Try to extract numeric value from HKQuantity object (.quantity, .doubleValue, or .value)
-        const distanceRaw = workout.totalDistance || workout.distance || workout.distanceInMeters;
-        const distance = distanceRaw?.quantity
-          || distanceRaw?.doubleValue
-          || distanceRaw?.value
-          || (typeof distanceRaw === 'number' ? distanceRaw : 0);
+          // Extract distance - HealthKit returns HKQuantity objects, not raw numbers
+          // Try to extract numeric value from HKQuantity object (.quantity, .doubleValue, or .value)
+          const distanceRaw =
+            workout.totalDistance ||
+            workout.distance ||
+            workout.distanceInMeters;
+          const distance =
+            distanceRaw?.quantity ||
+            distanceRaw?.doubleValue ||
+            distanceRaw?.value ||
+            (typeof distanceRaw === 'number' ? distanceRaw : 0);
 
-        // Extract calories - HealthKit returns HKQuantity objects, not raw numbers
-        // Try to extract numeric value from HKQuantity object (.quantity, .doubleValue, or .value)
-        const caloriesRaw = workout.totalEnergyBurned || workout.activeEnergyBurned || workout.energyBurned || workout.calories;
-        const calories = caloriesRaw?.quantity
-          || caloriesRaw?.doubleValue
-          || caloriesRaw?.value
-          || (typeof caloriesRaw === 'number' ? caloriesRaw : 0);
+          // Extract calories - HealthKit returns HKQuantity objects, not raw numbers
+          // Try to extract numeric value from HKQuantity object (.quantity, .doubleValue, or .value)
+          const caloriesRaw =
+            workout.totalEnergyBurned ||
+            workout.activeEnergyBurned ||
+            workout.energyBurned ||
+            workout.calories;
+          const calories =
+            caloriesRaw?.quantity ||
+            caloriesRaw?.doubleValue ||
+            caloriesRaw?.value ||
+            (typeof caloriesRaw === 'number' ? caloriesRaw : 0);
 
-        // Debug: Log extracted values for first workout
-        if (index === 0) {
-          console.log('📊 DEBUG: Extracted values from first workout:');
-          console.log(`  - Distance raw:`, distanceRaw);
-          console.log(`  - Distance extracted:`, distance, 'meters');
-          console.log(`  - Calories raw:`, caloriesRaw);
-          console.log(`  - Calories extracted:`, calories, 'kcal');
-        }
+          // Debug: Log extracted values for first workout
+          if (index === 0) {
+            console.log('📊 DEBUG: Extracted values from first workout:');
+            console.log(`  - Distance raw:`, distanceRaw);
+            console.log(`  - Distance extracted:`, distance, 'meters');
+            console.log(`  - Calories raw:`, caloriesRaw);
+            console.log(`  - Calories extracted:`, calories, 'kcal');
+          }
 
-        const workoutData = this.normalizeWorkout(
-          {
-            UUID: workout.uuid,
-            startDate: workout.startDate,
-            endDate: workout.endDate,
-            duration: workout.duration || 0,
-            totalDistance: distance,
-            totalEnergyBurned: calories,
-            workoutActivityType: workout.workoutActivityType || 0,
-            sourceName: workout.sourceName || 'Unknown',
-          },
-          userId
-        );
+          const workoutData = this.normalizeWorkout(
+            {
+              UUID: workout.uuid,
+              startDate: workout.startDate,
+              endDate: workout.endDate,
+              duration: workout.duration || 0,
+              totalDistance: distance,
+              totalEnergyBurned: calories,
+              workoutActivityType: workout.workoutActivityType || 0,
+              sourceName: workout.sourceName || 'Unknown',
+            },
+            userId
+          );
 
-        console.log(`🔍 Workout ${workout.uuid?.slice(0, 8)}: distance=${distance}m, calories=${calories}kcal, duration=${workout.duration}s`);
+          console.log(
+            `🔍 Workout ${workout.uuid?.slice(
+              0,
+              8
+            )}: distance=${distance}m, calories=${calories}kcal, duration=${
+              workout.duration
+            }s`
+          );
 
-        // Return in format expected by AppleHealthTab (simplified Workout interface)
-        return {
-          id: workoutData?.id || `healthkit_${workout.uuid}`,
-          type: workoutData?.type || 'other',
-          duration: workoutData?.duration || 0,
-          distance: workoutData?.distance || 0,
-          calories: workoutData?.calories || 0,
-          startTime: workout.startDate,
-          endTime: workout.endDate,
-          source: 'healthkit',
-          metadata: workoutData?.metadata || {},
-        };
-      }).filter(Boolean); // Remove any null results
+          // Return in format expected by AppleHealthTab (simplified Workout interface)
+          return {
+            id: workoutData?.id || `healthkit_${workout.uuid}`,
+            type: workoutData?.type || 'other',
+            duration: workoutData?.duration || 0,
+            distance: workoutData?.distance || 0,
+            calories: workoutData?.calories || 0,
+            startTime: workout.startDate,
+            endTime: workout.endDate,
+            source: 'healthkit',
+            metadata: workoutData?.metadata || {},
+          };
+        })
+        .filter(Boolean); // Remove any null results
 
-      console.log(`✅ HealthKit: Returning ${validWorkouts.length} valid workouts for UI display`);
+      console.log(
+        `✅ HealthKit: Returning ${validWorkouts.length} valid workouts for UI display`
+      );
       return validWorkouts;
     } catch (error) {
       errorLog('HealthKit: Error in getRecentWorkouts:', error);
-      
+
       console.error('❌ HealthKit getRecentWorkouts failed:', {
         error: error.message,
         userId,
         days,
         authorized: this.isAuthorized,
-        available: HealthKitService.isAvailable()
+        available: HealthKitService.isAvailable(),
       });
 
       // Provide user-friendly error messages for timeout scenarios
       if (error instanceof Error && error.message.includes('timed out')) {
-        throw new Error('Workout sync is taking too long. Please try again or check your internet connection.');
+        throw new Error(
+          'Workout sync is taking too long. Please try again or check your internet connection.'
+        );
       }
 
       // Return empty array instead of throwing for UI components

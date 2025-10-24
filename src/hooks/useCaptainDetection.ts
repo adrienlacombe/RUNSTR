@@ -41,23 +41,28 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
    */
   const checkCaptainStatus = useCallback(async () => {
     if (!user?.id) {
-      setState(prev => ({ 
-        ...prev, 
-        isCaptain: false, 
-        isLoading: false, 
+      setState((prev) => ({
+        ...prev,
+        isCaptain: false,
+        isLoading: false,
         error: 'No user found',
         captainOfTeams: [],
       }));
       return;
     }
 
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      console.log(`🔍 useCaptainDetection: Checking captain status for ${user.id.slice(0, 8)}...`);
-      
+      console.log(
+        `🔍 useCaptainDetection: Checking captain status for ${user.id.slice(
+          0,
+          8
+        )}...`
+      );
+
       const captainStatus = await captainService.getCaptainStatus(user.id);
-      
+
       setState({
         isCaptain: captainStatus.isCaptain,
         isLoading: false,
@@ -66,14 +71,21 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
         lastChecked: captainStatus.lastChecked,
       });
 
-      console.log(`✅ useCaptainDetection: Captain status = ${captainStatus.isCaptain} (${captainStatus.captainOfTeams.length} teams)`);
-
+      console.log(
+        `✅ useCaptainDetection: Captain status = ${captainStatus.isCaptain} (${captainStatus.captainOfTeams.length} teams)`
+      );
     } catch (error) {
-      console.error('❌ useCaptainDetection: Failed to check captain status:', error);
-      setState(prev => ({
+      console.error(
+        '❌ useCaptainDetection: Failed to check captain status:',
+        error
+      );
+      setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to check captain status',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to check captain status',
       }));
     }
   }, [user?.id, captainService]);
@@ -84,13 +96,13 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
   const refreshCaptainStatus = useCallback(async () => {
     if (!user?.id) return;
 
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
       console.log(`🔄 useCaptainDetection: Force refreshing captain status...`);
-      
+
       const captainStatus = await captainService.refreshCaptainStatus(user.id);
-      
+
       setState({
         isCaptain: captainStatus.isCaptain,
         isLoading: false,
@@ -99,14 +111,21 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
         lastChecked: captainStatus.lastChecked,
       });
 
-      console.log(`✅ useCaptainDetection: Refreshed captain status = ${captainStatus.isCaptain}`);
-
+      console.log(
+        `✅ useCaptainDetection: Refreshed captain status = ${captainStatus.isCaptain}`
+      );
     } catch (error) {
-      console.error('❌ useCaptainDetection: Failed to refresh captain status:', error);
-      setState(prev => ({
+      console.error(
+        '❌ useCaptainDetection: Failed to refresh captain status:',
+        error
+      );
+      setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to refresh captain status',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to refresh captain status',
       }));
     }
   }, [user?.id, captainService]);
@@ -114,9 +133,12 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
   /**
    * Check if user is captain of specific team
    */
-  const isCaptainOfTeam = useCallback((teamId: string): boolean => {
-    return state.captainOfTeams.includes(teamId);
-  }, [state.captainOfTeams]);
+  const isCaptainOfTeam = useCallback(
+    (teamId: string): boolean => {
+      return state.captainOfTeams.includes(teamId);
+    },
+    [state.captainOfTeams]
+  );
 
   /**
    * Auto-check captain status when user changes
@@ -138,9 +160,14 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
     const setupSubscription = async () => {
       try {
         subscriptionId = await captainService.subscribeToTeamUpdates(user.id);
-        console.log(`📡 useCaptainDetection: Subscribed to team updates: ${subscriptionId}`);
+        console.log(
+          `📡 useCaptainDetection: Subscribed to team updates: ${subscriptionId}`
+        );
       } catch (error) {
-        console.warn('⚠️ useCaptainDetection: Failed to subscribe to team updates:', error);
+        console.warn(
+          '⚠️ useCaptainDetection: Failed to subscribe to team updates:',
+          error
+        );
       }
     };
 
@@ -148,7 +175,9 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
 
     return () => {
       if (subscriptionId) {
-        console.log(`📡 useCaptainDetection: Unsubscribing from team updates: ${subscriptionId}`);
+        console.log(
+          `📡 useCaptainDetection: Unsubscribing from team updates: ${subscriptionId}`
+        );
         // TODO: Implement unsubscription when CaptainDetectionService supports it
       }
     };
@@ -167,10 +196,12 @@ export const useCaptainDetection = (): CaptainDetectionHook => {
  */
 export const useTeamCaptainDetection = (teamId?: string) => {
   const captainDetection = useCaptainDetection();
-  
+
   return {
     ...captainDetection,
-    isCaptainOfThisTeam: teamId ? captainDetection.isCaptainOfTeam(teamId) : false,
+    isCaptainOfThisTeam: teamId
+      ? captainDetection.isCaptainOfTeam(teamId)
+      : false,
   };
 };
 

@@ -20,7 +20,11 @@ export interface NavigationHandlers {
     refreshData?: () => Promise<void>
   ) => Promise<void>;
   handleTeamSelect: (team: DiscoveryTeam) => void;
-  handleTeamView: (team: DiscoveryTeam, navigation: any, userNpub?: string) => Promise<void>;
+  handleTeamView: (
+    team: DiscoveryTeam,
+    navigation: any,
+    userNpub?: string
+  ) => Promise<void>;
   handleTeamDiscoveryClose: () => void;
   handleMenuPress: (navigation: any) => void;
   handleLeaveTeam: (
@@ -31,7 +35,11 @@ export interface NavigationHandlers {
   handleAnnouncements: () => void;
   handleAddEvent: (navigation: any) => void;
   handleAddChallenge: (navigation: any) => void;
-  handleCaptainDashboard: (navigation: any, teamId?: string, teamName?: string) => void;
+  handleCaptainDashboard: (
+    navigation: any,
+    teamId?: string,
+    teamName?: string
+  ) => void;
   handleTeamCreation: (navigation: any) => void;
   handleTeamCreationComplete: (
     teamData: TeamCreationData,
@@ -87,7 +95,9 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
         // Use NostrTeamService for pure Nostr joining (no Supabase)
         const nostrTeamService = getNostrTeamService();
-        const cachedTeams = Array.from(nostrTeamService.getDiscoveredTeams().values());
+        const cachedTeams = Array.from(
+          nostrTeamService.getDiscoveredTeams().values()
+        );
         const nostrTeam = cachedTeams.find((t) => t.id === team.id);
 
         if (!nostrTeam) {
@@ -126,12 +136,15 @@ export const createNavigationHandlers = (): NavigationHandlers => {
                     userIsMember: true,
                     currentUserNpub, // Pass the working npub to avoid component-level AsyncStorage corruption
                   });
-                }
-              }
+                },
+              },
             ]
           );
         } else {
-          console.error('NavigationHandlers: Team join failed:', joinResult.error);
+          console.error(
+            'NavigationHandlers: Team join failed:',
+            joinResult.error
+          );
           Alert.alert(
             'Join Failed',
             joinResult.error || 'Unable to join team. Please try again.'
@@ -165,7 +178,11 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       );
     },
 
-    handleTeamView: async (team: DiscoveryTeam, navigation: any, userNpub?: string) => {
+    handleTeamView: async (
+      team: DiscoveryTeam,
+      navigation: any,
+      userNpub?: string
+    ) => {
       console.log(
         'NavigationHandlers: Navigating to team dashboard:',
         team.name
@@ -174,10 +191,13 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       // Use passed userNpub (from working discovery page auth) instead of AsyncStorage lookups
       let currentUserNpub: string | undefined = userNpub;
 
-      console.log('🔄 NavigationHandlers: User from passed parameter (same as working discovery):', {
-        hasNpub: !!currentUserNpub,
-        npubSlice: currentUserNpub?.slice(0, 20) + '...' || 'undefined',
-      });
+      console.log(
+        '🔄 NavigationHandlers: User from passed parameter (same as working discovery):',
+        {
+          hasNpub: !!currentUserNpub,
+          npubSlice: currentUserNpub?.slice(0, 20) + '...' || 'undefined',
+        }
+      );
 
       // Only try AsyncStorage fallback if no npub was passed
       if (!currentUserNpub) {
@@ -191,7 +211,10 @@ export const createNavigationHandlers = (): NavigationHandlers => {
             npubSlice: currentUserNpub?.slice(0, 20) + '...' || 'undefined',
           });
         } catch (error) {
-          console.error('❌ NavigationHandlers: Failed to get user from AuthService:', error);
+          console.error(
+            '❌ NavigationHandlers: Failed to get user from AuthService:',
+            error
+          );
           // Final fallback to store
           const user = useUserStore.getState().user;
           currentUserNpub = user?.npub;
@@ -211,11 +234,15 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         const cachedStatus = await CaptainCache.getCaptainStatus(team.id);
         if (cachedStatus !== null) {
           userIsCaptain = cachedStatus;
-          console.log(`✅ NavigationHandlers: Using cached captain status for ${team.name}: ${userIsCaptain}`);
+          console.log(
+            `✅ NavigationHandlers: Using cached captain status for ${team.name}: ${userIsCaptain}`
+          );
         } else {
           // Fallback only if not cached
           userIsCaptain = isTeamCaptain(currentUserNpub, team);
-          console.log(`⚠️ NavigationHandlers: No cached status, calculated: ${userIsCaptain}`);
+          console.log(
+            `⚠️ NavigationHandlers: No cached status, calculated: ${userIsCaptain}`
+          );
           // Cache it for next time
           await CaptainCache.setCaptainStatus(team.id, userIsCaptain);
         }
@@ -227,7 +254,8 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       console.log('🎖️ NavigationHandlers: Team view navigation:', {
         teamName: team.name,
         userNpub: currentUserNpub?.slice(0, 8) + '...',
-        teamCaptainId: 'captainId' in team ? team.captainId?.slice(0, 8) + '...' : 'N/A',
+        teamCaptainId:
+          'captainId' in team ? team.captainId?.slice(0, 8) + '...' : 'N/A',
         userIsCaptain,
         calculatedUserIsMember,
         finalUserIsMember: userIsMember,
@@ -270,8 +298,8 @@ export const createNavigationHandlers = (): NavigationHandlers => {
               onPress: () => {
                 // Navigate back to team discovery
                 navigation.navigate('Teams');
-              }
-            }
+              },
+            },
           ]
         );
       } catch (error) {
@@ -312,13 +340,19 @@ export const createNavigationHandlers = (): NavigationHandlers => {
     },
 
     // Profile Screen Handlers
-    handleCaptainDashboard: async (navigation: any, teamId?: string, teamName?: string) => {
+    handleCaptainDashboard: async (
+      navigation: any,
+      teamId?: string,
+      teamName?: string
+    ) => {
       try {
-        console.log('🎖️ NavigationHandlers: Captain dashboard access requested');
+        console.log(
+          '🎖️ NavigationHandlers: Captain dashboard access requested'
+        );
         console.log('🎖️ NavigationHandlers: Parameters received:', {
           teamId,
           teamName,
-          hasNavigation: !!navigation
+          hasNavigation: !!navigation,
         });
 
         // Get current user from store
@@ -332,7 +366,10 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           return;
         }
 
-        console.log('✅ NavigationHandlers: User found:', user.npub?.slice(0, 8) + '...');
+        console.log(
+          '✅ NavigationHandlers: User found:',
+          user.npub?.slice(0, 8) + '...'
+        );
 
         // First check cached captain status
         let isCaptain = false;
@@ -357,7 +394,10 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           const captainService = CaptainDetectionService.getInstance();
           const captainStatus = await captainService.getCaptainStatus(user.id);
 
-          if (captainStatus.isCaptain && captainStatus.captainOfTeams.length > 0) {
+          if (
+            captainStatus.isCaptain &&
+            captainStatus.captainOfTeams.length > 0
+          ) {
             isCaptain = true;
             captainTeamId = captainStatus.captainOfTeams[0];
             // Cache for next time
@@ -366,7 +406,9 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         }
 
         if (!isCaptain) {
-          console.log('❌ NavigationHandlers: User is not a captain of any team');
+          console.log(
+            '❌ NavigationHandlers: User is not a captain of any team'
+          );
           Alert.alert(
             'Access Denied',
             'Only team captains can access the dashboard. Create a team to become a captain.'
@@ -374,15 +416,20 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           return;
         }
 
-        console.log(`✅ NavigationHandlers: Captain access granted for team ${captainTeamId}`);
+        console.log(
+          `✅ NavigationHandlers: Captain access granted for team ${captainTeamId}`
+        );
 
         // Navigate to captain dashboard with team information
-        console.log('🚀 NavigationHandlers: Attempting navigation with params:', {
-          teamId: captainTeamId,
-          teamName: captainTeamName || 'Team',
-          isCaptain: true,
-          userNpub: user.npub,
-        });
+        console.log(
+          '🚀 NavigationHandlers: Attempting navigation with params:',
+          {
+            teamId: captainTeamId,
+            teamName: captainTeamName || 'Team',
+            isCaptain: true,
+            userNpub: user.npub,
+          }
+        );
 
         navigation.navigate('CaptainDashboard', {
           teamId: captainTeamId,
@@ -392,9 +439,11 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         });
 
         console.log('✅ NavigationHandlers: Navigation call completed');
-
       } catch (error) {
-        console.error('❌ NavigationHandlers: Error checking captain dashboard access:', error);
+        console.error(
+          '❌ NavigationHandlers: Error checking captain dashboard access:',
+          error
+        );
         Alert.alert(
           'Error',
           'Unable to verify captain permissions. Please try again.'
@@ -503,7 +552,6 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         [{ text: 'OK' }]
       );
     },
-
 
     handleEditMember: (memberId: string) => {
       console.log('Edit member:', memberId);

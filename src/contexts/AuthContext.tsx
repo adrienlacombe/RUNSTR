@@ -3,7 +3,13 @@
  * iOS-inspired authentication management with React Context
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '../services/auth/authService';
 import { getNpubFromStorage, getUserNostrIdentifiers } from '../utils/nostr';
@@ -51,7 +57,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState('Connecting to Nostr...');
+  const [connectionStatus, setConnectionStatus] = useState(
+    'Connecting to Nostr...'
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
@@ -83,22 +91,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await unifiedCache.initialize();
 
         // Load from UnifiedCache (already prefetched by SplashInit)
-        const cachedUser = unifiedCache.getCached<User>(CacheKeys.USER_PROFILE(hexPubkey));
+        const cachedUser = unifiedCache.getCached<User>(
+          CacheKeys.USER_PROFILE(hexPubkey)
+        );
 
         if (cachedUser) {
-          console.log('⚡ AuthContext: Loaded user from UnifiedCache (instant)');
+          console.log(
+            '⚡ AuthContext: Loaded user from UnifiedCache (instant)'
+          );
           setCurrentUser(cachedUser);
           setIsConnected(true);
           setConnectionStatus('Connected');
 
           // Subscribe to profile updates
-          unifiedCache.subscribe(CacheKeys.USER_PROFILE(hexPubkey), (updatedUser) => {
-            console.log('🔄 AuthContext: User profile updated from cache');
-            setCurrentUser(updatedUser);
-          });
+          unifiedCache.subscribe(
+            CacheKeys.USER_PROFILE(hexPubkey),
+            (updatedUser) => {
+              console.log('🔄 AuthContext: User profile updated from cache');
+              setCurrentUser(updatedUser);
+            }
+          );
         } else {
           // ✅ ANDROID FIX: If no cached user, load from Nostr with timeout protection
-          console.log('⚠️ AuthContext: No cached user - fetching from Nostr...');
+          console.log(
+            '⚠️ AuthContext: No cached user - fetching from Nostr...'
+          );
           setIsConnected(true);
           setConnectionStatus('Loading profile...');
 
@@ -116,7 +133,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // Try to upgrade to full profile in background (non-blocking)
           loadUserProfile().catch((err) => {
-            console.warn('⚠️ AuthContext: Profile upgrade failed, using fallback:', err);
+            console.warn(
+              '⚠️ AuthContext: Profile upgrade failed, using fallback:',
+              err
+            );
           });
         }
       } else {
@@ -124,7 +144,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setCurrentUser(null);
       }
     } catch (error) {
-      console.error('❌ AuthContext: Error checking stored credentials:', error);
+      console.error(
+        '❌ AuthContext: Error checking stored credentials:',
+        error
+      );
       setIsAuthenticated(false);
       setCurrentUser(null);
     }
@@ -157,7 +180,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // ALWAYS fetch fresh Nostr profile data to get bio, picture, banner
         console.log('📡 Fetching fresh Nostr profile data...');
         try {
-          const directUser = await DirectNostrProfileService.getCurrentUserProfile();
+          const directUser =
+            await DirectNostrProfileService.getCurrentUserProfile();
           if (directUser) {
             // Merge fresh Nostr data with cached user
             const updatedUser: User = {
@@ -175,12 +199,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               hasBio: !!updatedUser.bio,
               hasPicture: !!updatedUser.picture,
               hasBanner: !!updatedUser.banner,
-              displayName: updatedUser.displayName
+              displayName: updatedUser.displayName,
             });
 
             setCurrentUser(updatedUser);
             // Update cache with fresh data
-            await appCache.set('current_user_profile', updatedUser, 5 * 60 * 1000);
+            await appCache.set(
+              'current_user_profile',
+              updatedUser,
+              5 * 60 * 1000
+            );
           }
         } catch (error) {
           console.warn('⚠️ Failed to fetch fresh profile data:', error);
@@ -231,7 +259,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('❌ Error loading profile:', error);
-      setInitError(error instanceof Error ? error.message : 'Failed to load profile');
+      setInitError(
+        error instanceof Error ? error.message : 'Failed to load profile'
+      );
     }
   };
 
@@ -240,7 +270,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const refreshProfileInBackground = async (): Promise<void> => {
     try {
-      const directUser = await DirectNostrProfileService.getCurrentUserProfile();
+      const directUser =
+        await DirectNostrProfileService.getCurrentUserProfile();
       if (directUser) {
         const user: User = {
           id: directUser.id,
@@ -275,58 +306,69 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Sign in with nsec - directly updates authentication state
    * Similar to iOS signInWithNostrKey() method
    */
-  const signIn = useCallback(async (nsec: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      console.log('🚀 AuthContext: Starting sign in process...');
-      setConnectionStatus('Authenticating...');
-      
-      // Use existing AuthService for validation and storage
-      const result = await AuthService.signInWithNostr(nsec);
-      
-      if (!result.success || !result.user) {
-        console.error('❌ AuthContext: Authentication failed:', result.error);
-        return { success: false, error: result.error };
+  const signIn = useCallback(
+    async (nsec: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        console.log('🚀 AuthContext: Starting sign in process...');
+        setConnectionStatus('Authenticating...');
+
+        // Use existing AuthService for validation and storage
+        const result = await AuthService.signInWithNostr(nsec);
+
+        if (!result.success || !result.user) {
+          console.error('❌ AuthContext: Authentication failed:', result.error);
+          return { success: false, error: result.error };
+        }
+
+        console.log(
+          '✅ AuthContext: Authentication successful - updating state'
+        );
+
+        // ✅ FIX: Clear new signup flag for returning users
+        // This prevents returning users from seeing onboarding wizard
+        await AsyncStorage.setItem('@runstr:is_new_signup', 'false');
+
+        // Direct state updates (like iOS app)
+        setIsAuthenticated(true);
+        setConnectionStatus('Loading your fitness journey...');
+
+        // Start loading profile in background while showing splash
+        setTimeout(() => {
+          setCurrentUser(result.user);
+          setIsConnected(true);
+          setConnectionStatus('Connected');
+          setInitError(null);
+        }, 100);
+
+        // Request location permissions after successful login (in background)
+        setTimeout(async () => {
+          console.log('📍 Requesting location permissions after login...');
+          await locationPermissionService.requestActivityTrackingPermissions();
+        }, 500);
+
+        return { success: true };
+      } catch (error) {
+        console.error('❌ AuthContext: Sign in error:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Authentication failed';
+        return { success: false, error: errorMessage };
       }
-      
-      console.log('✅ AuthContext: Authentication successful - updating state');
-
-      // ✅ FIX: Clear new signup flag for returning users
-      // This prevents returning users from seeing onboarding wizard
-      await AsyncStorage.setItem('@runstr:is_new_signup', 'false');
-
-      // Direct state updates (like iOS app)
-      setIsAuthenticated(true);
-      setConnectionStatus('Loading your fitness journey...');
-
-      // Start loading profile in background while showing splash
-      setTimeout(() => {
-        setCurrentUser(result.user);
-        setIsConnected(true);
-        setConnectionStatus('Connected');
-        setInitError(null);
-      }, 100);
-
-      // Request location permissions after successful login (in background)
-      setTimeout(async () => {
-        console.log('📍 Requesting location permissions after login...');
-        await locationPermissionService.requestActivityTrackingPermissions();
-      }, 500);
-
-      return { success: true };
-    } catch (error) {
-      console.error('❌ AuthContext: Sign in error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      return { success: false, error: errorMessage };
-    }
-  }, []);
+    },
+    []
+  );
 
   /**
    * Sign up with new Nostr identity - generates fresh keypair
    * One-click signup that creates a new Nostr identity
    */
-  const signUp = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+  const signUp = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
     try {
-      console.log('🚀 AuthContext: Starting sign up process (generating new identity)...');
+      console.log(
+        '🚀 AuthContext: Starting sign up process (generating new identity)...'
+      );
       setConnectionStatus('Generating identity...');
 
       // Use AuthService to generate new Nostr identity
@@ -363,7 +405,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('❌ AuthContext: Sign up error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create identity';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create identity';
       return { success: false, error: errorMessage };
     }
   }, []);
@@ -371,7 +414,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Sign in with Amber - uses external key management
    */
-  const signInWithAmber = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+  const signInWithAmber = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
     try {
       console.log('🟠 AuthContext: Starting Amber Sign-In process...');
       setConnectionStatus('Authenticating with Amber...');
@@ -380,11 +426,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const result = await AuthService.signInWithAmber();
 
       if (!result.success || !result.user) {
-        console.error('❌ AuthContext: Amber authentication failed:', result.error);
+        console.error(
+          '❌ AuthContext: Amber authentication failed:',
+          result.error
+        );
         return { success: false, error: result.error };
       }
 
-      console.log('✅ AuthContext: Amber authentication successful - updating state');
+      console.log(
+        '✅ AuthContext: Amber authentication successful - updating state'
+      );
 
       // Direct state updates (like iOS app)
       setIsAuthenticated(true);
@@ -402,13 +453,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const signer = await UnifiedSigningService.getInstance().getSigner();
         if (signer) {
-          const { GlobalNDKService } = await import('../services/nostr/GlobalNDKService');
+          const { GlobalNDKService } = await import(
+            '../services/nostr/GlobalNDKService'
+          );
           const ndk = await GlobalNDKService.getInstance();
           ndk.signer = signer;
-          console.log('✅ AuthContext: Set Amber signer on GlobalNDK after login');
+          console.log(
+            '✅ AuthContext: Set Amber signer on GlobalNDK after login'
+          );
         }
       } catch (signerError) {
-        console.error('⚠️ AuthContext: Failed to set signer on GlobalNDK:', signerError);
+        console.error(
+          '⚠️ AuthContext: Failed to set signer on GlobalNDK:',
+          signerError
+        );
         // Don't fail the login if signer setup fails - UnifiedSigningService will handle it
       }
 
@@ -425,7 +483,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('❌ AuthContext: Amber Sign-In error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Amber Sign-In failed';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Amber Sign-In failed';
       return { success: false, error: errorMessage };
     }
   }, []);
@@ -433,7 +492,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Sign in with Apple - generates deterministic Nostr keys
    */
-  const signInWithApple = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+  const signInWithApple = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
     try {
       console.log('🍎 AuthContext: Starting Apple Sign-In process...');
       setConnectionStatus('Authenticating with Apple...');
@@ -442,11 +504,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const result = await AuthService.signInWithApple();
 
       if (!result.success || !result.user) {
-        console.error('❌ AuthContext: Apple authentication failed:', result.error);
+        console.error(
+          '❌ AuthContext: Apple authentication failed:',
+          result.error
+        );
         return { success: false, error: result.error };
       }
 
-      console.log('✅ AuthContext: Apple authentication successful - updating state');
+      console.log(
+        '✅ AuthContext: Apple authentication successful - updating state'
+      );
 
       // Direct state updates (like iOS app)
       setIsAuthenticated(true);
@@ -467,7 +534,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('❌ AuthContext: Apple Sign-In error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Apple Sign-In failed';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Apple Sign-In failed';
       return { success: false, error: errorMessage };
     }
   }, [refreshProfileInBackground]);
@@ -479,16 +547,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = useCallback(async (): Promise<void> => {
     try {
       console.log('🔓 AuthContext: Starting sign out process...');
-      
+
       await AuthService.signOut();
-      
+
       // Clear all state (like iOS app)
       setIsAuthenticated(false);
       setCurrentUser(null);
       setIsConnected(false);
       setConnectionStatus('Disconnected');
       setInitError(null);
-      
+
       console.log('✅ AuthContext: Sign out complete');
     } catch (error) {
       console.error('❌ AuthContext: Sign out error:', error);
@@ -517,7 +585,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await checkStoredCredentials();
       } catch (error) {
         console.error('❌ AuthContext: Initialization failed:', error);
-        setInitError(error instanceof Error ? error.message : 'Initialization failed');
+        setInitError(
+          error instanceof Error ? error.message : 'Initialization failed'
+        );
       } finally {
         setIsInitializing(false);
       }
@@ -567,9 +637,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 

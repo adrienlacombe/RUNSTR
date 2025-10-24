@@ -10,8 +10,14 @@ import NostrTeamCreationService from '../services/nostr/NostrTeamCreationService
 import { NostrCompetitionService } from '../services/nostr/NostrCompetitionService';
 import Competition1301QueryService from '../services/competition/Competition1301QueryService';
 import LeagueRankingService from '../services/competition/leagueRankingService';
-import type { NostrActivityType, NostrLeagueCompetitionType } from '../types/nostrCompetition';
-import type { LeagueParticipant, LeagueParameters } from '../services/competition/leagueRankingService';
+import type {
+  NostrActivityType,
+  NostrLeagueCompetitionType,
+} from '../types/nostrCompetition';
+import type {
+  LeagueParticipant,
+  LeagueParameters,
+} from '../services/competition/leagueRankingService';
 import type { NostrWorkout } from '../types/nostrWorkout';
 
 export interface SimulatedUser {
@@ -90,10 +96,15 @@ export class CompetitionSimulator {
    */
   async initialize(config: SimulationConfig): Promise<void> {
     console.log('🚀 Initializing Competition Simulator');
-    console.log(`📊 Config: ${config.teamSize} users, ${config.competitionDuration} days, ${config.activityType}`);
+    console.log(
+      `📊 Config: ${config.teamSize} users, ${config.competitionDuration} days, ${config.activityType}`
+    );
 
     // Generate simulated users
-    this.simulatedUsers = this.generateSimulatedUsers(config.teamSize, config.activityType);
+    this.simulatedUsers = this.generateSimulatedUsers(
+      config.teamSize,
+      config.activityType
+    );
 
     // Setup test team and competition
     await this.setupTestEnvironment(config);
@@ -156,13 +167,12 @@ export class CompetitionSimulator {
         duration: Date.now() - this.startTime.getTime(),
         events: this.events,
         finalLeaderboard: this.currentLeaderboard,
-        statistics
+        statistics,
       };
 
       this.generateSimulationReport(result);
 
       return result;
-
     } finally {
       this.isRunning = false;
     }
@@ -190,10 +200,13 @@ export class CompetitionSimulator {
       captainNpub: authData.npub,
       captainHexPubkey: authData.hexPubkey,
       activityType: config.activityType,
-      isPublic: true
+      isPublic: true,
     };
 
-    const teamResult = await NostrTeamCreationService.createTeam(teamData, privateKey);
+    const teamResult = await NostrTeamCreationService.createTeam(
+      teamData,
+      privateKey
+    );
     if (!teamResult.success || !teamResult.teamId) {
       throw new Error('Failed to create simulation team');
     }
@@ -202,7 +215,9 @@ export class CompetitionSimulator {
     // Create competition
     console.log('🏆 Creating simulated competition...');
     const startDate = new Date();
-    const endDate = new Date(Date.now() + config.competitionDuration * 24 * 60 * 60 * 1000);
+    const endDate = new Date(
+      Date.now() + config.competitionDuration * 24 * 60 * 60 * 1000
+    );
 
     const leagueData = {
       teamId: this.teamId,
@@ -217,10 +232,13 @@ export class CompetitionSimulator {
       maxParticipants: config.teamSize * 2,
       requireApproval: false,
       allowLateJoining: true,
-      scoringFrequency: 'daily' as const
+      scoringFrequency: 'daily' as const,
     };
 
-    const competitionResult = await NostrCompetitionService.createLeague(leagueData, privateKey);
+    const competitionResult = await NostrCompetitionService.createLeague(
+      leagueData,
+      privateKey
+    );
     if (!competitionResult.success || !competitionResult.competitionId) {
       throw new Error('Failed to create simulation competition');
     }
@@ -230,24 +248,40 @@ export class CompetitionSimulator {
   /**
    * Generate simulated users with diverse profiles
    */
-  private generateSimulatedUsers(count: number, primaryActivity: NostrActivityType): SimulatedUser[] {
+  private generateSimulatedUsers(
+    count: number,
+    primaryActivity: NostrActivityType
+  ): SimulatedUser[] {
     const users: SimulatedUser[] = [];
-    const performanceLevels: Array<'elite' | 'advanced' | 'intermediate' | 'beginner'> =
-      ['elite', 'advanced', 'intermediate', 'beginner'];
-    const consistencyPatterns: Array<'daily' | 'regular' | 'sporadic'> =
-      ['daily', 'regular', 'sporadic'];
+    const performanceLevels: Array<
+      'elite' | 'advanced' | 'intermediate' | 'beginner'
+    > = ['elite', 'advanced', 'intermediate', 'beginner'];
+    const consistencyPatterns: Array<'daily' | 'regular' | 'sporadic'> = [
+      'daily',
+      'regular',
+      'sporadic',
+    ];
 
     for (let i = 0; i < count; i++) {
-      const performanceLevel = performanceLevels[Math.floor(Math.random() * performanceLevels.length)];
-      const consistency = consistencyPatterns[Math.floor(Math.random() * consistencyPatterns.length)];
+      const performanceLevel =
+        performanceLevels[Math.floor(Math.random() * performanceLevels.length)];
+      const consistency =
+        consistencyPatterns[
+          Math.floor(Math.random() * consistencyPatterns.length)
+        ];
 
       const user: SimulatedUser = {
         npub: `npub1sim${i.toString().padStart(6, '0')}`,
         name: `Simulated User ${i + 1}`,
         performanceLevel,
         consistency,
-        preferredActivity: Math.random() > 0.7 ? primaryActivity : this.randomActivity(),
-        workoutPattern: this.generateWorkoutPattern(performanceLevel, consistency, primaryActivity)
+        preferredActivity:
+          Math.random() > 0.7 ? primaryActivity : this.randomActivity(),
+        workoutPattern: this.generateWorkoutPattern(
+          performanceLevel,
+          consistency,
+          primaryActivity
+        ),
       };
 
       users.push(user);
@@ -270,29 +304,29 @@ export class CompetitionSimulator {
         avgDuration: 60 + Math.random() * 30,
         avgCalories: 800 + Math.random() * 400,
         variability: 0.2,
-        peakDays: [1, 3, 5, 6] // Mon, Wed, Fri, Sat
+        peakDays: [1, 3, 5, 6], // Mon, Wed, Fri, Sat
       },
       'advanced-Running': {
         avgDistance: 10 + Math.random() * 5,
         avgDuration: 45 + Math.random() * 15,
         avgCalories: 500 + Math.random() * 200,
         variability: 0.3,
-        peakDays: [1, 3, 5]
+        peakDays: [1, 3, 5],
       },
       'intermediate-Running': {
         avgDistance: 5 + Math.random() * 3,
         avgDuration: 30 + Math.random() * 10,
         avgCalories: 300 + Math.random() * 100,
         variability: 0.4,
-        peakDays: [2, 4, 6]
+        peakDays: [2, 4, 6],
       },
       'beginner-Running': {
         avgDistance: 2 + Math.random() * 2,
         avgDuration: 20 + Math.random() * 10,
         avgCalories: 150 + Math.random() * 50,
         variability: 0.5,
-        peakDays: [0, 6] // Weekends only
-      }
+        peakDays: [0, 6], // Weekends only
+      },
     };
 
     const key = `${level}-${activity}`;
@@ -302,7 +336,9 @@ export class CompetitionSimulator {
   /**
    * Simulate competition start
    */
-  private async simulateCompetitionStart(config: SimulationConfig): Promise<void> {
+  private async simulateCompetitionStart(
+    config: SimulationConfig
+  ): Promise<void> {
     // Simulate users joining
     for (const user of this.simulatedUsers) {
       const shouldJoin = Math.random() > 0.1; // 90% join rate
@@ -313,8 +349,8 @@ export class CompetitionSimulator {
           userId: user.npub,
           data: {
             teamId: this.teamId,
-            competitionId: this.competitionId
-          }
+            competitionId: this.competitionId,
+          },
         });
       }
     }
@@ -327,8 +363,8 @@ export class CompetitionSimulator {
         userId: 'system',
         data: {
           type: 'competition_started',
-          message: `${config.competitionType} competition has begun!`
-        }
+          message: `${config.competitionType} competition has begun!`,
+        },
       });
     }
   }
@@ -336,7 +372,10 @@ export class CompetitionSimulator {
   /**
    * Simulate a single day of competition
    */
-  private async simulateDay(day: number, config: SimulationConfig): Promise<void> {
+  private async simulateDay(
+    day: number,
+    config: SimulationConfig
+  ): Promise<void> {
     const dayOfWeek = day % 7;
 
     for (const user of this.simulatedUsers) {
@@ -349,7 +388,7 @@ export class CompetitionSimulator {
           timestamp: new Date(),
           eventType: 'workout',
           userId: user.npub,
-          data: workout
+          data: workout,
         });
 
         // Simulate zaps between users
@@ -359,7 +398,9 @@ export class CompetitionSimulator {
       }
     }
 
-    console.log(`   📊 Day ${day}: ${this.getDayWorkoutCount()} workouts recorded`);
+    console.log(
+      `   📊 Day ${day}: ${this.getDayWorkoutCount()} workouts recorded`
+    );
   }
 
   /**
@@ -367,9 +408,9 @@ export class CompetitionSimulator {
    */
   private shouldUserWorkout(user: SimulatedUser, dayOfWeek: number): boolean {
     const baseChance = {
-      'daily': 0.95,
-      'regular': 0.6,
-      'sporadic': 0.3
+      daily: 0.95,
+      regular: 0.6,
+      sporadic: 0.3,
     };
 
     let chance = baseChance[user.consistency];
@@ -385,16 +426,26 @@ export class CompetitionSimulator {
   /**
    * Generate workout data for user
    */
-  private generateWorkout(user: SimulatedUser, day: number): Partial<NostrWorkout> {
+  private generateWorkout(
+    user: SimulatedUser,
+    day: number
+  ): Partial<NostrWorkout> {
     const pattern = user.workoutPattern;
     const variability = pattern.variability;
 
     // Add some progression over time
     const progressionFactor = 1 + (day / 30) * 0.1;
 
-    const distance = pattern.avgDistance * (1 + (Math.random() - 0.5) * variability) * progressionFactor;
-    const duration = pattern.avgDuration * (1 + (Math.random() - 0.5) * variability);
-    const calories = pattern.avgCalories * (1 + (Math.random() - 0.5) * variability) * progressionFactor;
+    const distance =
+      pattern.avgDistance *
+      (1 + (Math.random() - 0.5) * variability) *
+      progressionFactor;
+    const duration =
+      pattern.avgDuration * (1 + (Math.random() - 0.5) * variability);
+    const calories =
+      pattern.avgCalories *
+      (1 + (Math.random() - 0.5) * variability) *
+      progressionFactor;
 
     return {
       type: user.preferredActivity,
@@ -403,7 +454,7 @@ export class CompetitionSimulator {
       duration: Math.max(10, duration),
       calories: Math.max(50, calories),
       startTime: new Date().toISOString(),
-      endTime: new Date(Date.now() + duration * 60000).toISOString()
+      endTime: new Date(Date.now() + duration * 60000).toISOString(),
     };
   }
 
@@ -414,28 +465,30 @@ export class CompetitionSimulator {
     const previousLeader = this.currentLeaderboard[0]?.npub;
 
     // Simulate leaderboard calculation
-    const participants: LeagueParticipant[] = this.simulatedUsers.map(u => ({
+    const participants: LeagueParticipant[] = this.simulatedUsers.map((u) => ({
       npub: u.npub,
       name: u.name,
       avatar: '',
-      isActive: true
+      isActive: true,
     }));
 
     const parameters: LeagueParameters = {
       activityType: config.activityType,
       competitionType: config.competitionType,
-      startDate: new Date(Date.now() - config.competitionDuration * 24 * 60 * 60 * 1000).toISOString(),
+      startDate: new Date(
+        Date.now() - config.competitionDuration * 24 * 60 * 60 * 1000
+      ).toISOString(),
       endDate: new Date().toISOString(),
-      scoringFrequency: 'daily'
+      scoringFrequency: 'daily',
     };
 
     // Simulate ranking update (in real scenario, would query actual workouts)
     const mockRankings = participants
-      .map(p => ({
+      .map((p) => ({
         npub: p.npub,
         name: p.name,
         score: Math.random() * 1000,
-        rank: 0
+        rank: 0,
       }))
       .sort((a, b) => b.score - a.score)
       .map((r, i) => ({ ...r, rank: i + 1 }));
@@ -452,8 +505,8 @@ export class CompetitionSimulator {
         data: {
           newLeader,
           previousLeader,
-          topThree: this.currentLeaderboard.slice(0, 3).map(r => r.npub)
-        }
+          topThree: this.currentLeaderboard.slice(0, 3).map((r) => r.npub),
+        },
       });
     }
   }
@@ -461,7 +514,10 @@ export class CompetitionSimulator {
   /**
    * Simulate notifications
    */
-  private async simulateNotifications(day: number, config: SimulationConfig): Promise<void> {
+  private async simulateNotifications(
+    day: number,
+    config: SimulationConfig
+  ): Promise<void> {
     // Daily leaderboard update
     if (day % 1 === 0) {
       this.recordEvent({
@@ -470,8 +526,8 @@ export class CompetitionSimulator {
         userId: 'system',
         data: {
           type: 'leaderboard_update',
-          message: `Day ${day} leaderboard: ${this.currentLeaderboard[0]?.name} leads!`
-        }
+          message: `Day ${day} leaderboard: ${this.currentLeaderboard[0]?.name} leads!`,
+        },
       });
     }
 
@@ -483,8 +539,8 @@ export class CompetitionSimulator {
         userId: 'system',
         data: {
           type: 'halfway',
-          message: 'Competition halfway point reached!'
-        }
+          message: 'Competition halfway point reached!',
+        },
       });
     }
 
@@ -496,8 +552,8 @@ export class CompetitionSimulator {
         userId: 'system',
         data: {
           type: 'final_day',
-          message: 'Final day of competition!'
-        }
+          message: 'Final day of competition!',
+        },
       });
     }
   }
@@ -506,7 +562,10 @@ export class CompetitionSimulator {
    * Simulate zap between users
    */
   private async simulateZap(fromUser: string): Promise<void> {
-    const toUser = this.simulatedUsers[Math.floor(Math.random() * this.simulatedUsers.length)];
+    const toUser =
+      this.simulatedUsers[
+        Math.floor(Math.random() * this.simulatedUsers.length)
+      ];
     if (toUser.npub !== fromUser) {
       const amount = [21, 100, 500, 1000][Math.floor(Math.random() * 4)];
 
@@ -517,8 +576,8 @@ export class CompetitionSimulator {
         data: {
           to: toUser.npub,
           amount,
-          message: 'Great workout! ⚡'
-        }
+          message: 'Great workout! ⚡',
+        },
       });
     }
   }
@@ -526,7 +585,9 @@ export class CompetitionSimulator {
   /**
    * Simulate competition end
    */
-  private async simulateCompetitionEnd(config: SimulationConfig): Promise<void> {
+  private async simulateCompetitionEnd(
+    config: SimulationConfig
+  ): Promise<void> {
     // Final leaderboard
     await this.updateLeaderboard(config);
 
@@ -540,8 +601,8 @@ export class CompetitionSimulator {
         data: {
           type: 'competition_ended',
           message: `Competition ended! Winner: ${winner.name}`,
-          finalRankings: this.currentLeaderboard.slice(0, 10)
-        }
+          finalRankings: this.currentLeaderboard.slice(0, 10),
+        },
       });
     }
 
@@ -554,8 +615,8 @@ export class CompetitionSimulator {
         data: {
           to: winner.npub,
           amount: 10000, // Prize amount
-          message: '🏆 Competition winner prize!'
-        }
+          message: '🏆 Competition winner prize!',
+        },
       });
     }
   }
@@ -564,15 +625,15 @@ export class CompetitionSimulator {
    * Calculate simulation statistics
    */
   private calculateStatistics(): SimulationStatistics {
-    const workoutEvents = this.events.filter(e => e.eventType === 'workout');
-    const zapEvents = this.events.filter(e => e.eventType === 'zap');
+    const workoutEvents = this.events.filter((e) => e.eventType === 'workout');
+    const zapEvents = this.events.filter((e) => e.eventType === 'zap');
 
     const userWorkoutCounts = new Map<string, number>();
     let totalDistance = 0;
     let totalDuration = 0;
     let totalCalories = 0;
 
-    workoutEvents.forEach(event => {
+    workoutEvents.forEach((event) => {
       const count = userWorkoutCounts.get(event.userId) || 0;
       userWorkoutCounts.set(event.userId, count + 1);
 
@@ -581,9 +642,14 @@ export class CompetitionSimulator {
       totalCalories += event.data.calories || 0;
     });
 
-    const totalSatsTransferred = zapEvents.reduce((sum, e) => sum + (e.data.amount || 0), 0);
+    const totalSatsTransferred = zapEvents.reduce(
+      (sum, e) => sum + (e.data.amount || 0),
+      0
+    );
 
-    const sortedUsers = Array.from(userWorkoutCounts.entries()).sort((a, b) => b[1] - a[1]);
+    const sortedUsers = Array.from(userWorkoutCounts.entries()).sort(
+      (a, b) => b[1] - a[1]
+    );
 
     return {
       totalWorkouts: workoutEvents.length,
@@ -596,7 +662,7 @@ export class CompetitionSimulator {
       mostActiveUser: sortedUsers[0]?.[0] || 'none',
       leastActiveUser: sortedUsers[sortedUsers.length - 1]?.[0] || 'none',
       leaderboardChanges: this.leaderboardUpdateCount,
-      peakActivityTime: this.findPeakActivityTime()
+      peakActivityTime: this.findPeakActivityTime(),
     };
   }
 
@@ -607,13 +673,15 @@ export class CompetitionSimulator {
     const hourCounts = new Map<number, number>();
 
     this.events
-      .filter(e => e.eventType === 'workout')
-      .forEach(e => {
+      .filter((e) => e.eventType === 'workout')
+      .forEach((e) => {
         const hour = e.timestamp.getHours();
         hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
       });
 
-    const sortedHours = Array.from(hourCounts.entries()).sort((a, b) => b[1] - a[1]);
+    const sortedHours = Array.from(hourCounts.entries()).sort(
+      (a, b) => b[1] - a[1]
+    );
     const peakHour = sortedHours[0]?.[0] || 0;
 
     return `${peakHour}:00-${peakHour + 1}:00`;
@@ -638,28 +706,46 @@ export class CompetitionSimulator {
     console.log('\n📈 Activity Statistics:');
     console.log(`   Total Workouts: ${stats.totalWorkouts}`);
     console.log(`   Total Distance: ${stats.totalDistance.toFixed(1)} km`);
-    console.log(`   Total Duration: ${(stats.totalDuration / 60).toFixed(1)} hours`);
+    console.log(
+      `   Total Duration: ${(stats.totalDuration / 60).toFixed(1)} hours`
+    );
     console.log(`   Total Calories: ${stats.totalCalories.toLocaleString()}`);
     console.log(`   Avg Workouts/User: ${stats.avgWorkoutsPerUser.toFixed(1)}`);
 
     console.log('\n⚡ Engagement Metrics:');
     console.log(`   Total Zaps: ${stats.totalZaps}`);
-    console.log(`   Sats Transferred: ${stats.totalSatsTransferred.toLocaleString()}`);
+    console.log(
+      `   Sats Transferred: ${stats.totalSatsTransferred.toLocaleString()}`
+    );
     console.log(`   Leaderboard Changes: ${stats.leaderboardChanges}`);
     console.log(`   Peak Activity: ${stats.peakActivityTime}`);
 
     console.log('\n🏆 Final Leaderboard:');
-    result.finalLeaderboard.slice(0, 5).forEach(entry => {
-      const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : '  ';
-      console.log(`   ${medal} #${entry.rank} ${entry.name}: ${entry.score.toFixed(0)} points`);
+    result.finalLeaderboard.slice(0, 5).forEach((entry) => {
+      const medal =
+        entry.rank === 1
+          ? '🥇'
+          : entry.rank === 2
+          ? '🥈'
+          : entry.rank === 3
+          ? '🥉'
+          : '  ';
+      console.log(
+        `   ${medal} #${entry.rank} ${entry.name}: ${entry.score.toFixed(
+          0
+        )} points`
+      );
     });
 
     console.log('\n👑 Competition Insights:');
     console.log(`   Most Active: ${stats.mostActiveUser}`);
     console.log(`   Least Active: ${stats.leastActiveUser}`);
 
-    const simulationTime = (result.endTime.getTime() - result.startTime.getTime()) / 1000;
-    console.log(`\n⏱️ Simulation completed in ${simulationTime.toFixed(1)} seconds`);
+    const simulationTime =
+      (result.endTime.getTime() - result.startTime.getTime()) / 1000;
+    console.log(
+      `\n⏱️ Simulation completed in ${simulationTime.toFixed(1)} seconds`
+    );
 
     console.log('\n' + '='.repeat(60));
   }
@@ -677,7 +763,7 @@ export class CompetitionSimulator {
   private getDayWorkoutCount(): number {
     const today = new Date().toDateString();
     return this.events.filter(
-      e => e.eventType === 'workout' && e.timestamp.toDateString() === today
+      (e) => e.eventType === 'workout' && e.timestamp.toDateString() === today
     ).length;
   }
 
@@ -686,8 +772,13 @@ export class CompetitionSimulator {
    */
   private randomActivity(): NostrActivityType {
     const activities: NostrActivityType[] = [
-      'Running', 'Walking', 'Cycling', 'Strength Training',
-      'Yoga', 'Meditation', 'Diet'
+      'Running',
+      'Walking',
+      'Cycling',
+      'Strength Training',
+      'Yoga',
+      'Meditation',
+      'Diet',
     ];
     return activities[Math.floor(Math.random() * activities.length)];
   }
@@ -696,7 +787,7 @@ export class CompetitionSimulator {
    * Delay helper
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -736,7 +827,7 @@ export async function runCompetitionSimulation(
     simulationSpeed: 'accelerated',
     enableNotifications: true,
     enableZaps: true,
-    ...config
+    ...config,
   };
 
   const simulator = new CompetitionSimulator();

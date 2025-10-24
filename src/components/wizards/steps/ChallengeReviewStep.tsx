@@ -44,7 +44,10 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
   };
 
   const getActivityLabel = () => {
-    return configuration.activityType.charAt(0).toUpperCase() + configuration.activityType.slice(1);
+    return (
+      configuration.activityType.charAt(0).toUpperCase() +
+      configuration.activityType.slice(1)
+    );
   };
 
   const opponentDisplayName =
@@ -62,7 +65,10 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionLabel}>Opponent</Text>
           {onEditOpponent && (
-            <TouchableOpacity onPress={onEditOpponent} style={styles.editButton}>
+            <TouchableOpacity
+              onPress={onEditOpponent}
+              style={styles.editButton}
+            >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           )}
@@ -71,7 +77,10 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
         <View style={styles.opponentCard}>
           <View style={styles.opponentAvatar}>
             {opponent.picture ? (
-              <Image source={{ uri: opponent.picture }} style={styles.avatarImage} />
+              <Image
+                source={{ uri: opponent.picture }}
+                style={styles.avatarImage}
+              />
             ) : (
               <Text style={styles.avatarText}>{opponentAvatarText}</Text>
             )}
@@ -100,7 +109,10 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionLabel}>Challenge Details</Text>
           {onEditConfiguration && (
-            <TouchableOpacity onPress={onEditConfiguration} style={styles.editButton}>
+            <TouchableOpacity
+              onPress={onEditConfiguration}
+              style={styles.editButton}
+            >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           )}
@@ -213,7 +225,8 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
             ⚡ Your opponent will pay this address when accepting the challenge
           </Text>
           <Text style={styles.lightningHelper}>
-            💰 If you win, you'll receive {(configuration.wagerAmount * 2).toLocaleString()} sats here
+            💰 If you win, you'll receive{' '}
+            {(configuration.wagerAmount * 2).toLocaleString()} sats here
           </Text>
         </View>
       </View>
@@ -223,14 +236,19 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
         <Text style={styles.summaryLabel}>Challenge Summary</Text>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryText}>
-            You're challenging <Text style={styles.summaryHighlight}>{opponentDisplayName}</Text> to
-            a {configuration.duration}-day{' '}
-            <Text style={styles.summaryHighlight}>{getActivityLabel().toLowerCase()}</Text> competition
-            measuring <Text style={styles.summaryHighlight}>{getMetricLabel()}</Text>.
+            You're challenging{' '}
+            <Text style={styles.summaryHighlight}>{opponentDisplayName}</Text>{' '}
+            to a {configuration.duration}-day{' '}
+            <Text style={styles.summaryHighlight}>
+              {getActivityLabel().toLowerCase()}
+            </Text>{' '}
+            competition measuring{' '}
+            <Text style={styles.summaryHighlight}>{getMetricLabel()}</Text>.
           </Text>
           <Text style={styles.summarySubtext}>
-            The challenge starts immediately upon acceptance and runs for {configuration.duration}{' '}
-            days. Winner takes all {(configuration.wagerAmount * 2).toLocaleString()} sats.
+            The challenge starts immediately upon acceptance and runs for{' '}
+            {configuration.duration} days. Winner takes all{' '}
+            {(configuration.wagerAmount * 2).toLocaleString()} sats.
           </Text>
         </View>
       </View>
@@ -238,8 +256,8 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
       {/* Warning */}
       <View style={styles.warningSection}>
         <Text style={styles.warningText}>
-          Once sent, this challenge cannot be cancelled. Make sure all details are correct before
-          proceeding.
+          Once sent, this challenge cannot be cancelled. Make sure all details
+          are correct before proceeding.
         </Text>
       </View>
     </ScrollView>

@@ -50,10 +50,14 @@ export class NostrWorkoutService {
     if (this.isInitialized) return;
 
     try {
-      console.log('🔄 Initializing NostrWorkoutService with SimpleWorkoutService...');
+      console.log(
+        '🔄 Initializing NostrWorkoutService with SimpleWorkoutService...'
+      );
       // SimpleWorkoutService initializes automatically
       this.isInitialized = true;
-      console.log('✅ NostrWorkoutService initialized with 113x improved performance');
+      console.log(
+        '✅ NostrWorkoutService initialized with 113x improved performance'
+      );
     } catch (error) {
       console.error('❌ Failed to initialize NostrWorkoutService:', error);
       throw error;
@@ -79,7 +83,12 @@ export class NostrWorkoutService {
   ): Promise<NostrWorkoutSyncResult> {
     await this.initialize();
 
-    console.log(`🚀 NostrWorkoutService: Delegating to SimpleWorkoutService for pubkey: ${pubkey.slice(0, 16)}...`);
+    console.log(
+      `🚀 NostrWorkoutService: Delegating to SimpleWorkoutService for pubkey: ${pubkey.slice(
+        0,
+        16
+      )}...`
+    );
     const startTime = Date.now();
 
     try {
@@ -98,15 +107,23 @@ export class NostrWorkoutService {
       };
 
       // Delegate to SimpleWorkoutService for breakthrough performance
-      const workouts = await this.simpleWorkoutService.discoverUserWorkouts(filters);
+      const workouts = await this.simpleWorkoutService.discoverUserWorkouts(
+        filters
+      );
 
-      console.log(`✅ SimpleWorkoutService delegation: Found ${workouts.length} workouts (vs ~1 with old approach)`);
+      console.log(
+        `✅ SimpleWorkoutService delegation: Found ${workouts.length} workouts (vs ~1 with old approach)`
+      );
 
       // Store workouts locally (preserve existing behavior)
       await this.storeWorkouts(options.userId, workouts);
 
       // Update statistics (preserve existing behavior)
-      await this.updateWorkoutStats(options.userId, workouts, Date.now() - startTime);
+      await this.updateWorkoutStats(
+        options.userId,
+        workouts,
+        Date.now() - startTime
+      );
 
       // Create result in expected format
       const result: NostrWorkoutSyncResult = {
@@ -126,12 +143,15 @@ export class NostrWorkoutService {
         ],
       };
 
-      console.log(`✅ NostrWorkoutService: Completed with ${workouts.length} workouts, ${Date.now() - startTime}ms`);
+      console.log(
+        `✅ NostrWorkoutService: Completed with ${workouts.length} workouts, ${
+          Date.now() - startTime
+        }ms`
+      );
       return result;
-
     } catch (error) {
       console.error('❌ NostrWorkoutService delegation failed:', error);
-      
+
       // Return error result in expected format
       const result: NostrWorkoutSyncResult = {
         status: 'error',
@@ -192,8 +212,9 @@ export class NostrWorkoutService {
     const allWorkouts = await this.getStoredWorkouts(options.userId);
 
     // Sort by date (newest first)
-    const sortedWorkouts = allWorkouts.sort((a, b) =>
-      new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    const sortedWorkouts = allWorkouts.sort(
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
 
     // Calculate pagination
@@ -202,7 +223,9 @@ export class NostrWorkoutService {
     const paginatedWorkouts = sortedWorkouts.slice(startIdx, endIdx);
     const hasMore = sortedWorkouts.length > endIdx;
 
-    console.log(`✅ Returning ${paginatedWorkouts.length} workouts for page ${page}`);
+    console.log(
+      `✅ Returning ${paginatedWorkouts.length} workouts for page ${page}`
+    );
 
     return {
       workouts: paginatedWorkouts,
@@ -476,25 +499,31 @@ export class NostrWorkoutService {
    * Delegates to SimpleWorkoutService for better performance
    */
   static async getWorkoutsWithPagination(
-    hexPubkey: string, 
+    hexPubkey: string,
     untilTimestamp: number
   ): Promise<NostrWorkout[]> {
     try {
-      console.log(`📖 NostrWorkoutService: Delegating pagination to SimpleWorkoutService for ${hexPubkey.slice(0, 16)}...`);
-      
+      console.log(
+        `📖 NostrWorkoutService: Delegating pagination to SimpleWorkoutService for ${hexPubkey.slice(
+          0,
+          16
+        )}...`
+      );
+
       // Use singleton instance for pagination
       const simpleWorkoutService = SimpleWorkoutService.getInstance();
-      
+
       // Delegate to SimpleWorkoutService pagination method
       const workouts = await simpleWorkoutService.getWorkoutsWithPagination(
-        hexPubkey, 
-        untilTimestamp, 
+        hexPubkey,
+        untilTimestamp,
         20 // Reasonable pagination chunk size
       );
-      
-      console.log(`✅ SimpleWorkoutService pagination: Found ${workouts.length} older workouts`);
-      return workouts;
 
+      console.log(
+        `✅ SimpleWorkoutService pagination: Found ${workouts.length} older workouts`
+      );
+      return workouts;
     } catch (error) {
       console.error(`❌ Pagination delegation failed: ${error}`);
       return [];

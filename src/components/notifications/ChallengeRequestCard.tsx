@@ -4,7 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import type { ChallengeNotification } from '../../services/notifications/ChallengeNotificationHandler';
@@ -26,13 +33,19 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
   const [status, setStatus] = useState<'pending' | 'accepted' | 'declined'>(
-    notification.type === 'request' ? 'pending' : notification.type === 'accepted' ? 'accepted' : 'declined'
+    notification.type === 'request'
+      ? 'pending'
+      : notification.type === 'accepted'
+      ? 'accepted'
+      : 'declined'
   );
 
   const handleAccept = async () => {
     setIsAccepting(true);
     try {
-      const result = await challengeNotificationHandler.acceptChallenge(notification.id);
+      const result = await challengeNotificationHandler.acceptChallenge(
+        notification.id
+      );
       if (result.success) {
         setStatus('accepted');
         onAccept?.();
@@ -50,7 +63,9 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
   const handleDecline = async () => {
     setIsDeclining(true);
     try {
-      const result = await challengeNotificationHandler.declineChallenge(notification.id);
+      const result = await challengeNotificationHandler.declineChallenge(
+        notification.id
+      );
       if (result.success) {
         setStatus('declined');
         onDecline?.();
@@ -132,17 +147,29 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
       {/* Challenge Details */}
       <View style={styles.details}>
         <View style={styles.detailRow}>
-          <Ionicons name="barbell-outline" size={16} color={theme.colors.textSecondary} />
+          <Ionicons
+            name="barbell-outline"
+            size={16}
+            color={theme.colors.textSecondary}
+          />
           <Text style={styles.detailText}>{notification.activityType}</Text>
         </View>
 
         <View style={styles.detailRow}>
-          <Ionicons name="speedometer-outline" size={16} color={theme.colors.textSecondary} />
+          <Ionicons
+            name="speedometer-outline"
+            size={16}
+            color={theme.colors.textSecondary}
+          />
           <Text style={styles.detailText}>{formatMetric()}</Text>
         </View>
 
         <View style={styles.detailRow}>
-          <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
+          <Ionicons
+            name="time-outline"
+            size={16}
+            color={theme.colors.textSecondary}
+          />
           <Text style={styles.detailText}>{formatDuration()}</Text>
         </View>
 
@@ -165,7 +192,11 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
               <ActivityIndicator size="small" color={theme.colors.text} />
             ) : (
               <>
-                <Ionicons name="close-outline" size={20} color={theme.colors.text} />
+                <Ionicons
+                  name="close-outline"
+                  size={20}
+                  color={theme.colors.text}
+                />
                 <Text style={styles.declineButtonText}>Decline</Text>
               </>
             )}
@@ -181,7 +212,11 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
               <ActivityIndicator size="small" color={theme.colors.accentText} />
             ) : (
               <>
-                <Ionicons name="checkmark-outline" size={20} color={theme.colors.accentText} />
+                <Ionicons
+                  name="checkmark-outline"
+                  size={20}
+                  color={theme.colors.accentText}
+                />
                 <Text style={styles.acceptButtonText}>Accept</Text>
               </>
             )}
@@ -195,7 +230,9 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
           <Ionicons name="checkmark-circle" size={20} color="#00ff00" />
           <Text style={styles.statusText}>Challenge Accepted!</Text>
           {onViewChallenge && (
-            <TouchableOpacity onPress={() => onViewChallenge(notification.challengeId)}>
+            <TouchableOpacity
+              onPress={() => onViewChallenge(notification.challengeId)}
+            >
               <Text style={styles.viewLink}>View Challenge</Text>
             </TouchableOpacity>
           )}
@@ -204,7 +241,11 @@ export const ChallengeRequestCard: React.FC<ChallengeRequestCardProps> = ({
 
       {status === 'declined' && (
         <View style={styles.statusContainer}>
-          <Ionicons name="close-circle" size={20} color={theme.colors.textMuted} />
+          <Ionicons
+            name="close-circle"
+            size={20}
+            color={theme.colors.textMuted}
+          />
           <Text style={[styles.statusText, styles.statusTextDeclined]}>
             Challenge Declined
           </Text>

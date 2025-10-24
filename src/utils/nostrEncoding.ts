@@ -7,11 +7,13 @@
 const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
 function polymod(values: number[]): number {
-  const GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  const GENERATOR = [
+    0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3,
+  ];
   let chk = 1;
   for (const value of values) {
     const b = chk >> 25;
-    chk = (chk & 0x1ffffff) << 5 ^ value;
+    chk = ((chk & 0x1ffffff) << 5) ^ value;
     for (let i = 0; i < 5; i++) {
       if ((b >> i) & 1) {
         chk ^= GENERATOR[i];
@@ -38,12 +40,17 @@ function createChecksum(hrp: string, data: number[]): number[] {
   const mod = polymod(values) ^ 1;
   const result: number[] = [];
   for (let i = 0; i < 6; i++) {
-    result.push((mod >> 5 * (5 - i)) & 31);
+    result.push((mod >> (5 * (5 - i))) & 31);
   }
   return result;
 }
 
-function convertBits(data: number[], fromBits: number, toBits: number, pad: boolean): number[] | null {
+function convertBits(
+  data: number[],
+  fromBits: number,
+  toBits: number,
+  pad: boolean
+): number[] | null {
   let acc = 0;
   let bits = 0;
   const result: number[] = [];
@@ -62,7 +69,7 @@ function convertBits(data: number[], fromBits: number, toBits: number, pad: bool
     if (bits > 0) {
       result.push((acc << (toBits - bits)) & maxv);
     }
-  } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) {
+  } else if (bits >= fromBits || (acc << (toBits - bits)) & maxv) {
     return null;
   }
 
@@ -111,7 +118,10 @@ export function nsecEncode(privateKeyHex: string): string {
     // Encode with 'nsec' human-readable part
     const encoded = bech32Encode('nsec', words);
 
-    console.log('[NostrEncoding] Successfully encoded nsec:', encoded.slice(0, 10) + '...');
+    console.log(
+      '[NostrEncoding] Successfully encoded nsec:',
+      encoded.slice(0, 10) + '...'
+    );
     return encoded;
   } catch (error) {
     console.error('[NostrEncoding] nsecEncode error:', error);
@@ -140,7 +150,10 @@ export function npubEncode(publicKeyHex: string): string {
 
     const encoded = bech32Encode('npub', words);
 
-    console.log('[NostrEncoding] Successfully encoded npub:', encoded.slice(0, 20) + '...');
+    console.log(
+      '[NostrEncoding] Successfully encoded npub:',
+      encoded.slice(0, 20) + '...'
+    );
     return encoded;
   } catch (error) {
     console.error('[NostrEncoding] npubEncode error:', error);
@@ -183,7 +196,7 @@ export function nsecDecode(nsec: string): string {
     }
 
     // Convert bytes to hex
-    const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hex = bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
 
     return hex;
   } catch (error) {

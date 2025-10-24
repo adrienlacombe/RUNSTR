@@ -181,7 +181,9 @@ export class TeamMatchingAlgorithm {
 
     // Bonus for pace compatibility (if we have user pace data)
     if (fitnessProfile.avgPaceSeconds && team.stats?.avgPace !== '0:00/mi') {
-      const teamPaceSeconds = this.parsePaceToSeconds(team.stats?.avgPace || '0:00/mi');
+      const teamPaceSeconds = this.parsePaceToSeconds(
+        team.stats?.avgPace || '0:00/mi'
+      );
       if (teamPaceSeconds) {
         const paceDiff = Math.abs(
           fitnessProfile.avgPaceSeconds - teamPaceSeconds
@@ -197,7 +199,9 @@ export class TeamMatchingAlgorithm {
           reasons.push('Your pace is compatible with team average');
         } else {
           warnings.push(
-            `Team pace (${team.stats?.avgPace || 'unknown'}) differs significantly from yours`
+            `Team pace (${
+              team.stats?.avgPace || 'unknown'
+            }) differs significantly from yours`
           );
         }
       }
@@ -343,7 +347,8 @@ export class TeamMatchingAlgorithm {
     let score = 50;
     const reasons: string[] = [];
 
-    const totalActivity = (team.stats?.activeEvents ?? 0) + (team.stats?.activeChallenges ?? 0);
+    const totalActivity =
+      (team.stats?.activeEvents ?? 0) + (team.stats?.activeChallenges ?? 0);
 
     if (userPrefs.timeCommitment === 'high' && totalActivity > 12) {
       score = 90;
@@ -432,10 +437,7 @@ export class TeamMatchingAlgorithm {
     if (userPrefs.primaryGoal === 'social' && memberCount > 100) {
       score = 90;
       reasons.push('Large team provides more social opportunities');
-    } else if (
-      userPrefs.primaryGoal === 'competition' &&
-      memberCount < 150
-    ) {
+    } else if (userPrefs.primaryGoal === 'competition' && memberCount < 150) {
       score = 85;
       reasons.push('Optimal size for competitive recognition');
     } else if (memberCount < 10) {
@@ -484,7 +486,9 @@ export class TeamMatchingAlgorithm {
       return 0.5; // unknown, assume average
     }
 
-    const teamPaceSeconds = this.parsePaceToSeconds(team.stats?.avgPace || '0:00/mi');
+    const teamPaceSeconds = this.parsePaceToSeconds(
+      team.stats?.avgPace || '0:00/mi'
+    );
     if (!teamPaceSeconds) return 0.5;
 
     const userPace = fitnessProfile.avgPaceSeconds;
@@ -521,7 +525,8 @@ export class TeamMatchingAlgorithm {
   private static estimatePayoutFrequency(
     team: DiscoveryTeam
   ): 'low' | 'medium' | 'high' {
-    const totalActivity = (team.stats?.activeEvents ?? 0) + (team.stats?.activeChallenges ?? 0);
+    const totalActivity =
+      (team.stats?.activeEvents ?? 0) + (team.stats?.activeChallenges ?? 0);
 
     if (totalActivity > 15) return 'high';
     if (totalActivity > 8) return 'medium';

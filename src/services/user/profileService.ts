@@ -37,16 +37,20 @@ export class ProfileService {
       // Get local preferences from AsyncStorage
       const preferencesKey = `@runstr:preferences_${userId}`;
       const storedPreferences = await AsyncStorage.getItem(preferencesKey);
-      const preferences = storedPreferences ? JSON.parse(storedPreferences) : undefined;
+      const preferences = storedPreferences
+        ? JSON.parse(storedPreferences)
+        : undefined;
 
       // Get local notification settings
       const notificationKey = `@runstr:notifications_${userId}`;
       const storedNotifications = await AsyncStorage.getItem(notificationKey);
-      const notificationSettings = storedNotifications ? JSON.parse(storedNotifications) : undefined;
+      const notificationSettings = storedNotifications
+        ? JSON.parse(storedNotifications)
+        : undefined;
 
       console.log('✅ Found user profile from Nostr:', {
         name: nostrProfile.name,
-        npub: nostrProfile.npub?.slice(0, 20) + '...'
+        npub: nostrProfile.npub?.slice(0, 20) + '...',
       });
 
       // Create user profile from Nostr data
@@ -86,10 +90,15 @@ export class ProfileService {
     try {
       const preferencesKey = `@runstr:preferences_${userId}`;
       const storedPreferences = await AsyncStorage.getItem(preferencesKey);
-      const currentPreferences = storedPreferences ? JSON.parse(storedPreferences) : {};
+      const currentPreferences = storedPreferences
+        ? JSON.parse(storedPreferences)
+        : {};
 
       const updatedPreferences = { ...currentPreferences, ...preferences };
-      await AsyncStorage.setItem(preferencesKey, JSON.stringify(updatedPreferences));
+      await AsyncStorage.setItem(
+        preferencesKey,
+        JSON.stringify(updatedPreferences)
+      );
 
       return { success: true, message: 'Preferences updated locally' };
     } catch (error) {
@@ -111,9 +120,15 @@ export class ProfileService {
       const currentSettings = storedSettings ? JSON.parse(storedSettings) : {};
 
       const updatedSettings = { ...currentSettings, ...settings };
-      await AsyncStorage.setItem(notificationKey, JSON.stringify(updatedSettings));
+      await AsyncStorage.setItem(
+        notificationKey,
+        JSON.stringify(updatedSettings)
+      );
 
-      return { success: true, message: 'Notification settings updated locally' };
+      return {
+        success: true,
+        message: 'Notification settings updated locally',
+      };
     } catch (error) {
       console.error('Error updating notification settings:', error);
       return { success: false, error: 'Failed to update settings' };

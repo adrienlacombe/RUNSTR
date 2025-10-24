@@ -14,34 +14,34 @@
  */
 
 export interface KalmanFilterState {
-  distance: number;        // Estimated distance (meters)
-  velocity: number;        // Estimated velocity (meters/second)
-  estimateError: number;   // Uncertainty in distance estimate
-  velocityError: number;   // Uncertainty in velocity estimate
-  lastUpdateTime: number;  // Timestamp of last update (ms)
+  distance: number; // Estimated distance (meters)
+  velocity: number; // Estimated velocity (meters/second)
+  estimateError: number; // Uncertainty in distance estimate
+  velocityError: number; // Uncertainty in velocity estimate
+  lastUpdateTime: number; // Timestamp of last update (ms)
 }
 
 export interface KalmanMeasurement {
-  distance: number;        // Measured distance increment (meters)
-  timeDelta: number;       // Time since last measurement (seconds)
-  accuracy: number;        // GPS accuracy (meters) - used as measurement noise
-  confidence: number;      // Confidence score (0-1) from validator
+  distance: number; // Measured distance increment (meters)
+  timeDelta: number; // Time since last measurement (seconds)
+  accuracy: number; // GPS accuracy (meters) - used as measurement noise
+  confidence: number; // Confidence score (0-1) from validator
 }
 
 export interface KalmanFilterConfig {
-  processNoise: number;           // How much we trust our motion model (lower = trust more)
-  initialEstimateError: number;   // Initial uncertainty in distance
-  initialVelocityError: number;   // Initial uncertainty in velocity
-  minMeasurementNoise: number;    // Minimum measurement uncertainty
-  maxMeasurementNoise: number;    // Maximum measurement uncertainty
+  processNoise: number; // How much we trust our motion model (lower = trust more)
+  initialEstimateError: number; // Initial uncertainty in distance
+  initialVelocityError: number; // Initial uncertainty in velocity
+  minMeasurementNoise: number; // Minimum measurement uncertainty
+  maxMeasurementNoise: number; // Maximum measurement uncertainty
 }
 
 const DEFAULT_CONFIG: KalmanFilterConfig = {
-  processNoise: 0.1,              // Small process noise = trust constant velocity model
-  initialEstimateError: 5.0,      // Start with 5m uncertainty in distance
-  initialVelocityError: 1.0,      // Start with 1 m/s uncertainty in velocity
-  minMeasurementNoise: 2.0,       // Even "perfect" GPS has 2m noise
-  maxMeasurementNoise: 50.0,      // Cap measurement noise at 50m
+  processNoise: 0.1, // Small process noise = trust constant velocity model
+  initialEstimateError: 5.0, // Start with 5m uncertainty in distance
+  initialVelocityError: 1.0, // Start with 1 m/s uncertainty in velocity
+  minMeasurementNoise: 2.0, // Even "perfect" GPS has 2m noise
+  maxMeasurementNoise: 50.0, // Cap measurement noise at 50m
 };
 
 /**
@@ -97,7 +97,11 @@ export class KalmanDistanceFilter {
       this.state.velocity = measurement.distance / Math.max(dt, 0.1); // Avoid division by zero
       this.state.lastUpdateTime = now;
       this.isInitialized = true;
-      console.log(`🔵 Kalman filter initialized: distance=${measurement.distance.toFixed(1)}m, velocity=${this.state.velocity.toFixed(2)}m/s`);
+      console.log(
+        `🔵 Kalman filter initialized: distance=${measurement.distance.toFixed(
+          1
+        )}m, velocity=${this.state.velocity.toFixed(2)}m/s`
+      );
       return { ...this.state };
     }
 
@@ -108,8 +112,10 @@ export class KalmanDistanceFilter {
 
     // Predict error covariance
     // Error grows over time due to process noise
-    const predictedDistanceError = this.state.estimateError + this.config.processNoise * dt;
-    const predictedVelocityError = this.state.velocityError + this.config.processNoise * dt;
+    const predictedDistanceError =
+      this.state.estimateError + this.config.processNoise * dt;
+    const predictedVelocityError =
+      this.state.velocityError + this.config.processNoise * dt;
 
     // === UPDATE STEP ===
     // Calculate measurement noise based on GPS accuracy and confidence
@@ -124,18 +130,22 @@ export class KalmanDistanceFilter {
     // K = predicted_error / (predicted_error + measurement_noise)
     // K close to 1 = trust measurement more
     // K close to 0 = trust prediction more
-    const kalmanGain = predictedDistanceError / (predictedDistanceError + measurementNoise);
+    const kalmanGain =
+      predictedDistanceError / (predictedDistanceError + measurementNoise);
 
     // Update distance estimate
     // new_estimate = prediction + K * (measurement - prediction)
-    const cumulativeMeasuredDistance = this.state.distance + measurement.distance;
+    const cumulativeMeasuredDistance =
+      this.state.distance + measurement.distance;
     const innovation = cumulativeMeasuredDistance - predictedDistance;
     const updatedDistance = predictedDistance + kalmanGain * innovation;
 
     // Update velocity estimate (based on measurement)
     const measuredVelocity = measurement.distance / dt;
-    const velocityGain = predictedVelocityError / (predictedVelocityError + measurementNoise);
-    const updatedVelocity = predictedVelocity + velocityGain * (measuredVelocity - predictedVelocity);
+    const velocityGain =
+      predictedVelocityError / (predictedVelocityError + measurementNoise);
+    const updatedVelocity =
+      predictedVelocity + velocityGain * (measuredVelocity - predictedVelocity);
 
     // Update error covariance
     // error = (1 - K) * predicted_error
@@ -153,9 +163,15 @@ export class KalmanDistanceFilter {
 
     // Debug logging for significant corrections
     if (Math.abs(innovation) > 5) {
-      console.log(`🔵 Kalman correction: innovation=${innovation.toFixed(1)}m, gain=${kalmanGain.toFixed(3)}, ` +
-        `prediction=${predictedDistance.toFixed(1)}m, measurement=${cumulativeMeasuredDistance.toFixed(1)}m, ` +
-        `updated=${updatedDistance.toFixed(1)}m`);
+      console.log(
+        `🔵 Kalman correction: innovation=${innovation.toFixed(
+          1
+        )}m, gain=${kalmanGain.toFixed(3)}, ` +
+          `prediction=${predictedDistance.toFixed(
+            1
+          )}m, measurement=${cumulativeMeasuredDistance.toFixed(1)}m, ` +
+          `updated=${updatedDistance.toFixed(1)}m`
+      );
     }
 
     return { ...this.state };
@@ -213,7 +229,10 @@ export class KalmanDistanceFilter {
     // error <= 2m -> confidence = 1.0
     // error >= 20m -> confidence = 0.0
     const maxError = 20;
-    const confidence = Math.max(0, Math.min(1, 1 - this.state.estimateError / maxError));
+    const confidence = Math.max(
+      0,
+      Math.min(1, 1 - this.state.estimateError / maxError)
+    );
     return confidence;
   }
 

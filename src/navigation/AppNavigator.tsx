@@ -4,7 +4,13 @@
  */
 
 import React from 'react';
-import { View, ActivityIndicator, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
 // Navigation container provided by Expo Router - removed NavigationContainer import
 import { createStackNavigator } from '@react-navigation/stack';
 
@@ -20,6 +26,7 @@ import { CaptainDashboardScreen } from '../screens/CaptainDashboardScreen';
 import { TeamCreationWizard } from '../components/wizards/TeamCreationWizard';
 import { GlobalChallengeWizard } from '../components/wizards/GlobalChallengeWizard';
 import { EventDetailScreen } from '../screens/EventDetailScreen';
+import { EventCaptainDashboardScreen } from '../screens/EventCaptainDashboardScreen';
 import { LeagueDetailScreen } from '../screens/LeagueDetailScreen';
 import { ChallengeDetailScreen } from '../screens/ChallengeDetailScreen';
 import { ChallengeLeaderboardScreen } from '../screens/ChallengeLeaderboardScreen';
@@ -50,7 +57,12 @@ export type RootStackParamList = {
   Login: undefined;
   Onboarding: { nsec?: string };
   Team: undefined;
-  EnhancedTeamScreen: { team: any; userIsMember?: boolean; currentUserNpub?: string; userIsCaptain?: boolean }; // Individual team dashboard
+  EnhancedTeamScreen: {
+    team: any;
+    userIsMember?: boolean;
+    currentUserNpub?: string;
+    userIsCaptain?: boolean;
+  }; // Individual team dashboard
   Profile: undefined;
   ProfileEdit: undefined;
   Wallet: undefined;
@@ -61,6 +73,7 @@ export type RootStackParamList = {
   };
   TeamCreation: undefined;
   EventDetail: { eventId: string; eventData?: any };
+  EventCaptainDashboard: { eventId: string; eventData: any };
   LeagueDetail: { leagueId: string; leagueData?: any };
   ChallengeDetail: { challengeId: string };
   CompetitionsList: undefined;
@@ -417,7 +430,6 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
         )}
       </Stack.Screen>
 
-
       {/* Team Creation Wizard */}
       <Stack.Screen
         name="TeamCreation"
@@ -466,6 +478,16 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
         name="EventDetail"
         options={screenConfigurations.EventDetail}
         component={EventDetailScreen}
+      />
+
+      {/* Event Captain Dashboard Screen */}
+      <Stack.Screen
+        name="EventCaptainDashboard"
+        component={EventCaptainDashboardScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
       />
 
       {/* League Detail Screen */}

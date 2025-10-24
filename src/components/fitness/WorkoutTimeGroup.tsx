@@ -12,14 +12,17 @@ import {
   Animated,
   LayoutAnimation,
   UIManager,
-  Platform
+  Platform,
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { Card } from '../ui/Card';
 import type { WorkoutGroup } from '../../utils/workoutGrouping';
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -32,7 +35,7 @@ interface WorkoutTimeGroupProps {
 export const WorkoutTimeGroup: React.FC<WorkoutTimeGroupProps> = ({
   group,
   onToggle,
-  renderWorkout
+  renderWorkout,
 }) => {
   const [rotation] = useState(new Animated.Value(group.isExpanded ? 1 : 0));
 
@@ -42,7 +45,7 @@ export const WorkoutTimeGroup: React.FC<WorkoutTimeGroupProps> = ({
     Animated.timing(rotation, {
       toValue: group.isExpanded ? 0 : 1,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
 
     onToggle(group.key);
@@ -79,14 +82,14 @@ export const WorkoutTimeGroup: React.FC<WorkoutTimeGroupProps> = ({
       hiking: '🥾',
       gym: '💪',
       strength_training: '🏋️',
-      yoga: '🧘'
+      yoga: '🧘',
     };
     return icons[type] || '';
   };
 
   const spin = rotation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '90deg']
+    outputRange: ['0deg', '90deg'],
   });
 
   return (
@@ -99,7 +102,9 @@ export const WorkoutTimeGroup: React.FC<WorkoutTimeGroupProps> = ({
             </Animated.View>
             <View style={styles.titleContainer}>
               <Text style={styles.title}>{group.title}</Text>
-              <Text style={styles.workoutCount}>{group.stats.totalWorkouts} workouts</Text>
+              <Text style={styles.workoutCount}>
+                {group.stats.totalWorkouts} workouts
+              </Text>
             </View>
           </View>
         </Card>
@@ -111,13 +116,15 @@ export const WorkoutTimeGroup: React.FC<WorkoutTimeGroupProps> = ({
           {group.stats.averagePace && (
             <View style={styles.paceContainer}>
               <Text style={styles.paceLabel}>Avg Pace: </Text>
-              <Text style={styles.paceValue}>{formatPace(group.stats.averagePace)}</Text>
+              <Text style={styles.paceValue}>
+                {formatPace(group.stats.averagePace)}
+              </Text>
             </View>
           )}
 
           {/* Render workouts */}
           <View style={styles.workoutsList}>
-            {group.workouts.map(workout => (
+            {group.workouts.map((workout) => (
               <View key={workout.id} style={styles.workoutItem}>
                 {renderWorkout(workout)}
               </View>
@@ -131,79 +138,79 @@ export const WorkoutTimeGroup: React.FC<WorkoutTimeGroupProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16
+    marginBottom: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 12
+    borderRadius: 12,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1
+    flex: 1,
   },
   chevron: {
     fontSize: 24,
     color: theme.colors.textSecondary,
     marginRight: 12,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   titleContainer: {
-    flex: 1
+    flex: 1,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 2
+    marginBottom: 2,
   },
   workoutCount: {
     fontSize: 12,
-    color: theme.colors.textMuted
+    color: theme.colors.textMuted,
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: 16
+    gap: 16,
   },
   stat: {
-    alignItems: 'center'
+    alignItems: 'center',
   },
   statValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text
+    color: theme.colors.text,
   },
   statLabel: {
     fontSize: 10,
     color: theme.colors.textMuted,
-    marginTop: 2
+    marginTop: 2,
   },
   content: {
     marginTop: 8,
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
   paceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 8
+    marginBottom: 8,
   },
   paceLabel: {
     fontSize: 12,
-    color: theme.colors.textMuted
+    color: theme.colors.textMuted,
   },
   paceValue: {
     fontSize: 12,
     color: theme.colors.accent,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   workoutsList: {
-    gap: 8
+    gap: 8,
   },
   workoutItem: {
-    marginBottom: 0
-  }
+    marginBottom: 0,
+  },
 });

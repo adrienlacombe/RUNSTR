@@ -160,7 +160,10 @@ export class NostrProtocolHandler {
       try {
         const { data } = nip19.decode(pubkey);
         hexPubkey = data as string;
-        console.log('🔑 Converted npub to hex for workout filter:', pubkey.slice(0, 12) + '... → ' + hexPubkey.slice(0, 12) + '...');
+        console.log(
+          '🔑 Converted npub to hex for workout filter:',
+          pubkey.slice(0, 12) + '... → ' + hexPubkey.slice(0, 12) + '...'
+        );
       } catch (error) {
         console.error('❌ Failed to decode npub:', error);
         // Fallback to original pubkey
@@ -263,7 +266,7 @@ export class NostrProtocolHandler {
         tags: eventTemplate.tags || [],
         content: eventTemplate.content || '',
         id: '',
-        sig: ''
+        sig: '',
       };
 
       // Sign with the signer (handles both nsec and Amber automatically)
@@ -276,12 +279,18 @@ export class NostrProtocolHandler {
         const amberEventId = signer.getLastSignedEventId();
         if (amberEventId) {
           id = amberEventId;
-          console.log('✅ Using event ID from Amber:', id.substring(0, 16) + '...');
+          console.log(
+            '✅ Using event ID from Amber:',
+            id.substring(0, 16) + '...'
+          );
         } else {
           // Fallback: calculate event ID if Amber didn't return it
           const { getEventHash } = await import('nostr-tools');
           id = getEventHash(unsignedEvent as any);
-          console.log('⚠️ Amber did not return event ID, calculated locally:', id.substring(0, 16) + '...');
+          console.log(
+            '⚠️ Amber did not return event ID, calculated locally:',
+            id.substring(0, 16) + '...'
+          );
         }
       } else {
         // For other signers (nsec), calculate event ID locally
@@ -293,7 +302,7 @@ export class NostrProtocolHandler {
       const signedEvent: Event = {
         ...unsignedEvent,
         id,
-        sig: signature
+        sig: signature,
       };
 
       console.log(

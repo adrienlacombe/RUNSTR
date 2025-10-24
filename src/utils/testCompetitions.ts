@@ -35,7 +35,11 @@ export class CompetitionTester {
     await this.testMemberListQuery();
     await this.testCompetitionQuery();
 
-    console.log(`✅ Tests complete: ${this.results.filter(r => r.success).length}/${this.results.length} passed`);
+    console.log(
+      `✅ Tests complete: ${this.results.filter((r) => r.success).length}/${
+        this.results.length
+      } passed`
+    );
 
     return this.results;
   }
@@ -387,11 +391,12 @@ export class CompetitionTester {
     }
 
     try {
-      const queryResult = await NostrCompetitionService.getInstance().queryCompetitions({
-        kinds: [30100, 30101],
-        '#team': [this.testTeamId],
-        limit: 100,
-      });
+      const queryResult =
+        await NostrCompetitionService.getInstance().queryCompetitions({
+          kinds: [30100, 30101],
+          '#team': [this.testTeamId],
+          limit: 100,
+        });
 
       const totalCount = queryResult.leagues.length + queryResult.events.length;
 

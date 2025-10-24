@@ -17,7 +17,11 @@ interface UseNutzapReturn {
   error: string | null;
 
   // Actions
-  sendNutzap: (recipientPubkey: string, amount: number, memo?: string) => Promise<boolean>;
+  sendNutzap: (
+    recipientPubkey: string,
+    amount: number,
+    memo?: string
+  ) => Promise<boolean>;
   claimNutzaps: () => Promise<{ claimed: number; total: number }>;
   refreshBalance: () => Promise<void>;
   clearWallet: () => Promise<void>;

@@ -41,11 +41,18 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
       <View style={styles.participantsList}>
         {safeParticipants.length > 0 ? (
           safeParticipants.map((participant) => (
-            <View key={participant?.id || Math.random().toString()} style={styles.participantItem}>
+            <View
+              key={participant?.id || Math.random().toString()}
+              style={styles.participantItem}
+            >
               <View style={styles.participantAvatar}>
-                <Text style={styles.avatarText}>{participant?.avatar || 'U'}</Text>
+                <Text style={styles.avatarText}>
+                  {participant?.avatar || 'U'}
+                </Text>
               </View>
-              <Text style={styles.participantName}>{participant?.name || 'Unknown'}</Text>
+              <Text style={styles.participantName}>
+                {participant?.name || 'Unknown'}
+              </Text>
               <View
                 style={[
                   styles.participantStatus,

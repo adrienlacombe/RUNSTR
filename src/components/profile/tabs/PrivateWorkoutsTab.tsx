@@ -18,7 +18,10 @@ import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
 import { CustomAlert } from '../../ui/CustomAlert';
 import { EnhancedWorkoutCard } from '../shared/EnhancedWorkoutCard';
-import { MonthlyWorkoutGroup, groupWorkoutsByMonth } from '../shared/MonthlyWorkoutGroup';
+import {
+  MonthlyWorkoutGroup,
+  groupWorkoutsByMonth,
+} from '../shared/MonthlyWorkoutGroup';
 import { AdvancedAnalyticsCard } from '../AdvancedAnalyticsCard';
 import localWorkoutStorage from '../../../services/fitness/LocalWorkoutStorageService';
 import type { LocalWorkout } from '../../../services/fitness/LocalWorkoutStorageService';
@@ -46,12 +49,18 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [postingWorkoutId, setPostingWorkoutId] = useState<string | null>(null);
-  const [postingType, setPostingType] = useState<'social' | 'nostr' | null>(null);
+  const [postingType, setPostingType] = useState<'social' | 'nostr' | null>(
+    null
+  );
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
     title: string;
     message: string;
-    buttons: Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
   }>({
     title: '',
     message: '',
@@ -69,7 +78,9 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
       // Zero loading time - instant from AsyncStorage
       const unsyncedWorkouts = await localWorkoutStorage.getUnsyncedWorkouts();
 
-      console.log(` Loaded ${unsyncedWorkouts.length} local workouts (instant display)`);
+      console.log(
+        ` Loaded ${unsyncedWorkouts.length} local workouts (instant display)`
+      );
       setWorkouts(unsyncedWorkouts);
     } catch (error) {
       console.error('❌ Failed to load local workouts:', error);
@@ -166,7 +177,8 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   const handleDeleteWorkout = async (workoutId: string) => {
     setAlertConfig({
       title: 'Delete Workout',
-      message: 'Are you sure you want to delete this workout? This cannot be undone.',
+      message:
+        'Are you sure you want to delete this workout? This cannot be undone.',
       buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -194,7 +206,7 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   };
 
   // Convert LocalWorkout to UnifiedWorkout for compatibility
-  const unifiedWorkouts: UnifiedWorkout[] = workouts.map(w => ({
+  const unifiedWorkouts: UnifiedWorkout[] = workouts.map((w) => ({
     ...w,
     userId: userId,
     syncedToNostr: false,
@@ -206,60 +218,75 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   // Group workouts by month
   const monthlyGroups = groupWorkoutsByMonth(unifiedWorkouts);
 
-  const renderWorkout = useCallback((workout: Workout) => {
-    const localWorkout = workouts.find(w => w.id === workout.id);
-    if (!localWorkout) return null;
+  const renderWorkout = useCallback(
+    (workout: Workout) => {
+      const localWorkout = workouts.find((w) => w.id === workout.id);
+      if (!localWorkout) return null;
 
-    const isPosting = postingWorkoutId === workout.id;
+      const isPosting = postingWorkoutId === workout.id;
 
-    return (
-      <View style={styles.workoutContainer}>
-        <EnhancedWorkoutCard
-          workout={workout}
-          hideActions={true} // We'll use custom actions
-        />
+      return (
+        <View style={styles.workoutContainer}>
+          <EnhancedWorkoutCard
+            workout={workout}
+            hideActions={true} // We'll use custom actions
+          />
 
-        <View style={styles.workoutActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.postButton]}
-            onPress={() => handlePostToSocial(localWorkout)}
-            disabled={isPosting && postingType === 'social'}
-          >
-            {isPosting && postingType === 'social' ? (
-              <Text style={styles.postButtonText}>Posting...</Text>
-            ) : (
-              <>
-                <Ionicons name="chatbubble-outline" size={16} color={theme.colors.accentText} />
-                <Text style={styles.postButtonText}>Post</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={styles.workoutActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.postButton]}
+              onPress={() => handlePostToSocial(localWorkout)}
+              disabled={isPosting && postingType === 'social'}
+            >
+              {isPosting && postingType === 'social' ? (
+                <Text style={styles.postButtonText}>Posting...</Text>
+              ) : (
+                <>
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={16}
+                    color={theme.colors.accentText}
+                  />
+                  <Text style={styles.postButtonText}>Post</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.publicButton]}
-            onPress={() => handlePostToNostr(localWorkout)}
-            disabled={isPosting && postingType === 'nostr'}
-          >
-            {isPosting && postingType === 'nostr' ? (
-              <Text style={styles.publicButtonText}>Posting...</Text>
-            ) : (
-              <>
-                <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.accentText} />
-                <Text style={styles.publicButtonText}>Public</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.publicButton]}
+              onPress={() => handlePostToNostr(localWorkout)}
+              disabled={isPosting && postingType === 'nostr'}
+            >
+              {isPosting && postingType === 'nostr' ? (
+                <Text style={styles.publicButtonText}>Posting...</Text>
+              ) : (
+                <>
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={16}
+                    color={theme.colors.accentText}
+                  />
+                  <Text style={styles.publicButtonText}>Public</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDeleteWorkout(localWorkout.id)}
-          >
-            <Ionicons name="trash-outline" size={16} color={theme.colors.accent} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDeleteWorkout(localWorkout.id)}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={16}
+                color={theme.colors.accent}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    );
-  }, [workouts, postingWorkoutId, postingType]);
+      );
+    },
+    [workouts, postingWorkoutId, postingType]
+  );
 
   const renderMonthlyGroup = ({ item }: { item: any }) => (
     <MonthlyWorkoutGroup
@@ -273,11 +300,15 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
     return (
       <View style={styles.container}>
         <Card style={styles.emptyState}>
-          <Ionicons name="phone-portrait-outline" size={64} color={theme.colors.textMuted} />
+          <Ionicons
+            name="phone-portrait-outline"
+            size={64}
+            color={theme.colors.textMuted}
+          />
           <Text style={styles.emptyStateTitle}>No Local Workouts</Text>
           <Text style={styles.emptyStateText}>
-            Record workouts with the Activity Tracker to see them here.
-            Once posted to Nostr, they'll move to the Public tab.
+            Record workouts with the Activity Tracker to see them here. Once
+            posted to Nostr, they'll move to the Public tab.
           </Text>
         </Card>
       </View>
@@ -308,11 +339,10 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
             {/* Header with workout count */}
             <View style={styles.header}>
               <Text style={styles.headerText}>
-                {workouts.length} local workout{workouts.length !== 1 ? 's' : ''}
+                {workouts.length} local workout
+                {workouts.length !== 1 ? 's' : ''}
               </Text>
-              <Text style={styles.headerSubtext}>
-                Not posted to Nostr yet
-              </Text>
+              <Text style={styles.headerSubtext}>Not posted to Nostr yet</Text>
             </View>
           </>
         }

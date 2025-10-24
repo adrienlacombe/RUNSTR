@@ -129,7 +129,10 @@ export class StreamingLocationStorage {
   /**
    * Douglas-Peucker algorithm for path simplification
    */
-  private douglasPeucker(points: LocationPoint[], epsilon: number): LocationPoint[] {
+  private douglasPeucker(
+    points: LocationPoint[],
+    epsilon: number
+  ): LocationPoint[] {
     if (points.length <= 2) return points;
 
     // Find point with maximum distance from line
@@ -260,13 +263,17 @@ export class StreamingLocationStorage {
         maxSpeed = Math.max(maxSpeed, points[i].speed);
       }
 
-      if (points[i].altitude !== undefined && points[i - 1].altitude !== undefined) {
+      if (
+        points[i].altitude !== undefined &&
+        points[i - 1].altitude !== undefined
+      ) {
         const gain = points[i].altitude - points[i - 1].altitude;
         if (gain > 0) elevationGain += gain;
       }
     }
 
-    const duration = (points[points.length - 1].timestamp - points[0].timestamp) / 1000;
+    const duration =
+      (points[points.length - 1].timestamp - points[0].timestamp) / 1000;
     const averageSpeed = duration > 0 ? totalDistance / duration : 0;
 
     return {
@@ -288,7 +295,8 @@ export class StreamingLocationStorage {
     const Δφ = ((p2.latitude - p1.latitude) * Math.PI) / 180;
     const Δλ = ((p2.longitude - p1.longitude) * Math.PI) / 180;
 
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
       Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -326,7 +334,10 @@ export class StreamingLocationStorage {
 
     for (const segment of this.segments) {
       combined.totalDistance += segment.statistics.totalDistance;
-      combined.maxSpeed = Math.max(combined.maxSpeed, segment.statistics.maxSpeed);
+      combined.maxSpeed = Math.max(
+        combined.maxSpeed,
+        segment.statistics.maxSpeed
+      );
       combined.elevationGain += segment.statistics.elevationGain;
       combined.pointCount += segment.statistics.pointCount;
     }

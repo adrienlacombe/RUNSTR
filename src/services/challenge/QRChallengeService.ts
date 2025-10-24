@@ -5,7 +5,11 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ActivityType, MetricType, DurationOption } from '../../types/challenge';
+import type {
+  ActivityType,
+  MetricType,
+  DurationOption,
+} from '../../types/challenge';
 
 const QR_CHALLENGES_STORAGE_KEY = '@runstr:qr_challenges';
 const QR_CHALLENGE_EXPIRY_DAYS = 30; // QR challenges expire after 30 days
@@ -146,7 +150,9 @@ export class QRChallengeService {
    * Get QR challenges created by a specific user
    * Also filters out expired challenges (>30 days old)
    */
-  public async getCreatedQRChallenges(userPubkey: string): Promise<QRChallengeData[]> {
+  public async getCreatedQRChallenges(
+    userPubkey: string
+  ): Promise<QRChallengeData[]> {
     try {
       const allChallenges = await this.getStoredQRChallenges();
       const nowTimestamp = Math.floor(Date.now() / 1000);
@@ -155,7 +161,8 @@ export class QRChallengeService {
       // Filter by creator and expiry
       const validChallenges = allChallenges.filter((challenge) => {
         const isCreator = challenge.creator_pubkey === userPubkey;
-        const isNotExpired = (nowTimestamp - challenge.created_at) < expirySeconds;
+        const isNotExpired =
+          nowTimestamp - challenge.created_at < expirySeconds;
         return isCreator && isNotExpired;
       });
 
@@ -192,7 +199,7 @@ export class QRChallengeService {
 
       // Keep only non-expired challenges
       const validChallenges = allChallenges.filter((challenge) => {
-        return (nowTimestamp - challenge.created_at) < expirySeconds;
+        return nowTimestamp - challenge.created_at < expirySeconds;
       });
 
       // Save filtered list

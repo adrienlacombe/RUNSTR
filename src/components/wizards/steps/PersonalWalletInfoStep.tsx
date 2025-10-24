@@ -4,12 +4,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../../../styles/theme';
 import { TeamCreationStepProps } from '../../../types';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,17 +43,26 @@ export const PersonalWalletInfoStep: React.FC<TeamCreationStepProps> = ({
           <Text style={styles.sectionTitle}>How It Works</Text>
 
           <View style={styles.benefitItem}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.colors.statusConnected} />
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={theme.colors.statusConnected}
+            />
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Your Wallet, Your Control</Text>
               <Text style={styles.benefitText}>
-                As team captain, you'll send rewards directly from your personal wallet
+                As team captain, you'll send rewards directly from your personal
+                wallet
               </Text>
             </View>
           </View>
 
           <View style={styles.benefitItem}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.colors.statusConnected} />
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={theme.colors.statusConnected}
+            />
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Instant P2P Payments</Text>
               <Text style={styles.benefitText}>
@@ -68,21 +72,31 @@ export const PersonalWalletInfoStep: React.FC<TeamCreationStepProps> = ({
           </View>
 
           <View style={styles.benefitItem}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.colors.statusConnected} />
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={theme.colors.statusConnected}
+            />
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Automatic Wallet Creation</Text>
               <Text style={styles.benefitText}>
-                Your NutZap wallet was created when you logged in - it's ready to use
+                Your NutZap wallet was created when you logged in - it's ready
+                to use
               </Text>
             </View>
           </View>
 
           <View style={styles.benefitItem}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.colors.statusConnected} />
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={theme.colors.statusConnected}
+            />
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Lightning Compatible</Text>
               <Text style={styles.benefitText}>
-                Deposit and withdraw using Lightning Network for instant transfers
+                Deposit and withdraw using Lightning Network for instant
+                transfers
               </Text>
             </View>
           </View>
@@ -90,9 +104,14 @@ export const PersonalWalletInfoStep: React.FC<TeamCreationStepProps> = ({
 
         {/* Info Box */}
         <View style={styles.infoBox}>
-          <Ionicons name="information-circle" size={20} color={theme.colors.textMuted} />
+          <Ionicons
+            name="information-circle"
+            size={20}
+            color={theme.colors.textMuted}
+          />
           <Text style={styles.infoText}>
-            Team members will receive rewards directly to their personal wallets. No complex team wallet management required!
+            Team members will receive rewards directly to their personal
+            wallets. No complex team wallet management required!
           </Text>
         </View>
 

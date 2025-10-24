@@ -29,7 +29,12 @@ export interface EventQRData {
   ends: number;
 }
 
-export type QRData = ChallengeQRData | EventQRData;
+export interface NWCQRData {
+  type: 'nwc';
+  connectionString: string;
+}
+
+export type QRData = ChallengeQRData | EventQRData | NWCQRData;
 
 class QRCodeService {
   private static instance: QRCodeService;
@@ -52,7 +57,9 @@ class QRCodeService {
       name: challenge.name,
       activity: challenge.activity,
       metric: challenge.metric,
-      duration: Math.floor((challenge.expiresAt - challenge.startsAt) / (24 * 60 * 60)),
+      duration: Math.floor(
+        (challenge.expiresAt - challenge.startsAt) / (24 * 60 * 60)
+      ),
       wager: challenge.wager,
       startsAt: challenge.startsAt,
       expiresAt: challenge.expiresAt,
@@ -90,6 +97,15 @@ class QRCodeService {
    */
   parseQR(qrString: string): QRData | null {
     try {
+      // Check if it's a raw NWC connection string (not JSON)
+      if (qrString.startsWith('nostr+walletconnect://')) {
+        return {
+          type: 'nwc',
+          connectionString: qrString,
+        };
+      }
+
+      // Otherwise try to parse as JSON (challenge/event)
       const data = JSON.parse(qrString);
       return this.validateQRData(data) ? data : null;
     } catch (error) {

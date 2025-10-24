@@ -4,7 +4,10 @@
  * Displays in-app notifications for incoming challenge requests
  */
 
-import { challengeRequestService, type PendingChallenge } from '../challenge/ChallengeRequestService';
+import {
+  challengeRequestService,
+  type PendingChallenge,
+} from '../challenge/ChallengeRequestService';
 import { nostrProfileService } from '../nostr/NostrProfileService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import type { Event } from 'nostr-tools';
@@ -33,7 +36,9 @@ export interface ChallengeNotification {
   accepterName?: string;
 }
 
-export type ChallengeNotificationCallback = (notification: ChallengeNotification) => void;
+export type ChallengeNotificationCallback = (
+  notification: ChallengeNotification
+) => void;
 
 export class ChallengeNotificationHandler {
   private static instance: ChallengeNotificationHandler;
@@ -49,7 +54,8 @@ export class ChallengeNotificationHandler {
 
   static getInstance(): ChallengeNotificationHandler {
     if (!ChallengeNotificationHandler.instance) {
-      ChallengeNotificationHandler.instance = new ChallengeNotificationHandler();
+      ChallengeNotificationHandler.instance =
+        new ChallengeNotificationHandler();
     }
     return ChallengeNotificationHandler.instance;
   }
@@ -59,10 +65,14 @@ export class ChallengeNotificationHandler {
    */
   private async loadNotifications(): Promise<void> {
     try {
-      const pendingChallenges = await challengeRequestService.getPendingChallenges();
+      const pendingChallenges =
+        await challengeRequestService.getPendingChallenges();
 
       for (const challenge of pendingChallenges) {
-        const notification = await this.challengeToNotification(challenge, 'request');
+        const notification = await this.challengeToNotification(
+          challenge,
+          'request'
+        );
         if (notification) {
           this.notifications.set(notification.id, notification);
         }
@@ -82,14 +92,17 @@ export class ChallengeNotificationHandler {
     type: 'request' | 'accepted' | 'declined'
   ): Promise<ChallengeNotification | null> {
     try {
-      const profile = await nostrProfileService.getProfile(challenge.challengerPubkey);
+      const profile = await nostrProfileService.getProfile(
+        challenge.challengerPubkey
+      );
 
       return {
         id: challenge.challengeId,
         type,
         challengeId: challenge.challengeId,
         challengerPubkey: challenge.challengerPubkey,
-        challengerName: profile?.display_name || profile?.name || 'Unknown User',
+        challengerName:
+          profile?.display_name || profile?.name || 'Unknown User',
         challengerPicture: profile?.picture,
         activityType: challenge.activityType,
         metric: challenge.metric,
@@ -118,38 +131,49 @@ export class ChallengeNotificationHandler {
     try {
       const userIdentifiers = await getUserNostrIdentifiers();
       if (!userIdentifiers?.hexPubkey) {
-        console.warn('User not authenticated, cannot start challenge notifications');
+        console.warn(
+          'User not authenticated, cannot start challenge notifications'
+        );
         return;
       }
 
       // Subscribe to incoming challenge requests
-      this.subscriptionId = await challengeRequestService.subscribeToIncomingChallenges(
-        async (challenge: PendingChallenge) => {
-          if (this.processedEvents.has(challenge.challengeId)) {
-            return;
-          }
+      this.subscriptionId =
+        await challengeRequestService.subscribeToIncomingChallenges(
+          async (challenge: PendingChallenge) => {
+            if (this.processedEvents.has(challenge.challengeId)) {
+              return;
+            }
 
-          this.processedEvents.add(challenge.challengeId);
+            this.processedEvents.add(challenge.challengeId);
 
-          const notification = await this.challengeToNotification(challenge, 'request');
-          if (notification) {
-            this.notifications.set(notification.id, notification);
-            this.notifyCallbacks(notification);
-
-            // Publish to unified notification store
-            await this.publishToUnifiedStore(notification);
-
-            console.log(
-              `New challenge request from ${notification.challengerName}: ${notification.activityType}`
+            const notification = await this.challengeToNotification(
+              challenge,
+              'request'
             );
+            if (notification) {
+              this.notifications.set(notification.id, notification);
+              this.notifyCallbacks(notification);
+
+              // Publish to unified notification store
+              await this.publishToUnifiedStore(notification);
+
+              console.log(
+                `New challenge request from ${notification.challengerName}: ${notification.activityType}`
+              );
+            }
           }
-        }
-      );
+        );
 
       this.isActive = true;
-      console.log(`Challenge notification monitoring active: ${this.subscriptionId}`);
+      console.log(
+        `Challenge notification monitoring active: ${this.subscriptionId}`
+      );
     } catch (error) {
-      console.error('Failed to start challenge notification monitoring:', error);
+      console.error(
+        'Failed to start challenge notification monitoring:',
+        error
+      );
       throw error;
     }
   }
@@ -164,7 +188,10 @@ export class ChallengeNotificationHandler {
       try {
         await challengeRequestService.unsubscribe(this.subscriptionId);
       } catch (error) {
-        console.warn('Failed to unsubscribe from challenge notifications:', error);
+        console.warn(
+          'Failed to unsubscribe from challenge notifications:',
+          error
+        );
       }
     }
 
@@ -213,7 +240,8 @@ export class ChallengeNotificationHandler {
    * Get unread notification count
    */
   getUnreadCount(): number {
-    return Array.from(this.notifications.values()).filter((n) => !n.read).length;
+    return Array.from(this.notifications.values()).filter((n) => !n.read)
+      .length;
   }
 
   /**
@@ -239,14 +267,18 @@ export class ChallengeNotificationHandler {
   /**
    * Accept a challenge from notification
    */
-  async acceptChallenge(notificationId: string): Promise<{ success: boolean; error?: string }> {
+  async acceptChallenge(
+    notificationId: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const notification = this.notifications.get(notificationId);
       if (!notification) {
         return { success: false, error: 'Notification not found' };
       }
 
-      const result = await challengeRequestService.acceptChallenge(notification.challengeId);
+      const result = await challengeRequestService.acceptChallenge(
+        notification.challengeId
+      );
 
       if (result.success) {
         // Update notification
@@ -348,14 +380,17 @@ export class ChallengeNotificationHandler {
   ): Promise<void> {
     try {
       // Get accepter's profile
-      const accepterProfile = await nostrProfileService.getProfile(accepterPubkey);
+      const accepterProfile = await nostrProfileService.getProfile(
+        accepterPubkey
+      );
 
       const notification: ChallengeNotification = {
         id: `payment_${challengeId}`,
         type: 'payment_required',
         challengeId,
         challengerPubkey: accepterPubkey, // The person who accepted (for display)
-        challengerName: accepterProfile?.display_name || accepterProfile?.name || 'Someone',
+        challengerName:
+          accepterProfile?.display_name || accepterProfile?.name || 'Someone',
         challengerPicture: accepterProfile?.picture,
         accepterPubkey,
         accepterName: accepterProfile?.display_name || accepterProfile?.name,
@@ -374,7 +409,9 @@ export class ChallengeNotificationHandler {
       // Publish to unified store
       await this.publishToUnifiedStore(notification);
 
-      console.log(`Payment required notification created for challenge: ${challengeId}`);
+      console.log(
+        `Payment required notification created for challenge: ${challengeId}`
+      );
     } catch (error) {
       console.error('Failed to create payment required notification:', error);
     }
@@ -383,7 +420,9 @@ export class ChallengeNotificationHandler {
   /**
    * Publish challenge notification to unified store
    */
-  private async publishToUnifiedStore(notification: ChallengeNotification): Promise<void> {
+  private async publishToUnifiedStore(
+    notification: ChallengeNotification
+  ): Promise<void> {
     try {
       const metadata: ChallengeNotificationMetadata = {
         challengeId: notification.challengeId,
@@ -400,7 +439,11 @@ export class ChallengeNotificationHandler {
         await unifiedNotificationStore.addNotification(
           'challenge_payment_required',
           'Pay to Activate Challenge',
-          `${notification.challengerName || 'Someone'} accepted your challenge! Pay ${notification.wagerAmount} sats to activate.`,
+          `${
+            notification.challengerName || 'Someone'
+          } accepted your challenge! Pay ${
+            notification.wagerAmount
+          } sats to activate.`,
           metadata,
           {
             icon: 'wallet',
@@ -444,7 +487,9 @@ export class ChallengeNotificationHandler {
         await unifiedNotificationStore.addNotification(
           'challenge_accepted',
           'Challenge Accepted!',
-          `${notification.challengerName || 'Your opponent'} accepted your challenge`,
+          `${
+            notification.challengerName || 'Your opponent'
+          } accepted your challenge`,
           metadata,
           {
             icon: 'checkmark-circle',
@@ -463,7 +508,9 @@ export class ChallengeNotificationHandler {
         await unifiedNotificationStore.addNotification(
           'challenge_declined',
           'Challenge Declined',
-          `${notification.challengerName || 'Your opponent'} declined your challenge`,
+          `${
+            notification.challengerName || 'Your opponent'
+          } declined your challenge`,
           metadata,
           {
             icon: 'close-circle',
@@ -472,9 +519,13 @@ export class ChallengeNotificationHandler {
         );
       }
     } catch (error) {
-      console.error('[ChallengeNotificationHandler] Failed to publish to unified store:', error);
+      console.error(
+        '[ChallengeNotificationHandler] Failed to publish to unified store:',
+        error
+      );
     }
   }
 }
 
-export const challengeNotificationHandler = ChallengeNotificationHandler.getInstance();
+export const challengeNotificationHandler =
+  ChallengeNotificationHandler.getInstance();

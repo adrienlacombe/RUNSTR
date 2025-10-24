@@ -5,8 +5,14 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { ProfileService, type UserProfile } from '../services/user/profileService';
-import { TeamMembershipService, type TeamSwitchResult } from '../services/team/teamMembershipService';
+import {
+  ProfileService,
+  type UserProfile,
+} from '../services/user/profileService';
+import {
+  TeamMembershipService,
+  type TeamSwitchResult,
+} from '../services/team/teamMembershipService';
 import { AuthService } from '../services/auth/authService';
 import { TeamMatchingAlgorithm } from '../utils/teamMatching';
 import type {
@@ -107,11 +113,16 @@ export const useUserStore = create<UserStoreState>()(
       set({ isLoadingUser: true, userError: null });
 
       try {
-        console.log('🔍 UserStore: Loading user with pure Nostr profile service...');
-        
+        console.log(
+          '🔍 UserStore: Loading user with pure Nostr profile service...'
+        );
+
         // Use DirectNostrProfileService instead of legacy UserService
-        const { DirectNostrProfileService } = await import('../services/user/directNostrProfileService');
-        const directUser = await DirectNostrProfileService.getCurrentUserProfile();
+        const { DirectNostrProfileService } = await import(
+          '../services/user/directNostrProfileService'
+        );
+        const directUser =
+          await DirectNostrProfileService.getCurrentUserProfile();
 
         if (directUser) {
           // Convert DirectNostrUser to UserProfile format for store compatibility
@@ -138,7 +149,10 @@ export const useUserStore = create<UserStoreState>()(
             teamSwitchCooldownUntil: undefined,
           };
 
-          console.log('✅ UserStore: Loaded pure Nostr user profile:', userProfile.name);
+          console.log(
+            '✅ UserStore: Loaded pure Nostr user profile:',
+            userProfile.name
+          );
 
           set({
             user: userProfile,
@@ -146,13 +160,17 @@ export const useUserStore = create<UserStoreState>()(
           });
 
           // Skip additional data loading for now to avoid more Supabase calls
-          console.log('ℹ️  UserStore: Skipping additional data loading to avoid legacy service calls');
-          
+          console.log(
+            'ℹ️  UserStore: Skipping additional data loading to avoid legacy service calls'
+          );
         } else {
           set({ userError: 'Failed to load user profile from Nostr' });
         }
       } catch (error) {
-        console.error('❌ UserStore: Error loading user with pure Nostr:', error);
+        console.error(
+          '❌ UserStore: Error loading user with pure Nostr:',
+          error
+        );
         set({ userError: 'Failed to load user data from Nostr' });
       } finally {
         set({ isLoadingUser: false });
@@ -205,7 +223,9 @@ export const useUserStore = create<UserStoreState>()(
       set({ isLoadingRecommendations: true, recommendationsError: null });
 
       try {
-        const recommendations = await TeamMembershipService.getRecommendedTeams(user.id);
+        const recommendations = await TeamMembershipService.getRecommendedTeams(
+          user.id
+        );
 
         set({ recommendedTeams: recommendations });
       } catch (error) {
@@ -266,7 +286,9 @@ export const useUserStore = create<UserStoreState>()(
       if (!user) return;
 
       try {
-        const cooldownInfo = await TeamMembershipService.getTeamSwitchCooldown(user.id);
+        const cooldownInfo = await TeamMembershipService.getTeamSwitchCooldown(
+          user.id
+        );
         set({ switchCooldown: cooldownInfo });
       } catch (error) {
         console.error('Error loading switch cooldown:', error);
@@ -298,7 +320,9 @@ export const useUserStore = create<UserStoreState>()(
       if (!user) return;
 
       try {
-        const stats = await TeamMembershipService.getTeamParticipationStats(user.id);
+        const stats = await TeamMembershipService.getTeamParticipationStats(
+          user.id
+        );
         set({ participationStats: stats });
       } catch (error) {
         console.error('Error loading participation stats:', error);
@@ -328,10 +352,11 @@ export const useUserStore = create<UserStoreState>()(
       set({ isLoadingUser: true, userError: null });
 
       try {
-        const result = await TeamMembershipService.initializeUserForTeamDiscovery(
-          user.id,
-          basicInfo
-        );
+        const result =
+          await TeamMembershipService.initializeUserForTeamDiscovery(
+            user.id,
+            basicInfo
+          );
 
         if (result.success) {
           // Reload user to get updated preferences

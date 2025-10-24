@@ -54,7 +54,7 @@ export const WalletSetupStep: React.FC<WalletSetupStepProps> = ({
         style={styles.container}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
         ]}
       >
         {/* Icon */}
@@ -66,9 +66,7 @@ export const WalletSetupStep: React.FC<WalletSetupStepProps> = ({
         <Text style={styles.title}>Connect Your Lightning Wallet</Text>
 
         {/* Subtitle */}
-        <Text style={styles.subtitle}>
-          Join the Bitcoin economy of fitness
-        </Text>
+        <Text style={styles.subtitle}>Join the Bitcoin economy of fitness</Text>
 
         {/* Benefits Section */}
         <View style={styles.benefitsContainer}>
@@ -76,27 +74,43 @@ export const WalletSetupStep: React.FC<WalletSetupStepProps> = ({
 
           <View style={styles.benefitItem}>
             <View style={styles.benefitIcon}>
-              <Ionicons name="trophy" size={24} color={theme.colors.orangeBright} />
+              <Ionicons
+                name="trophy"
+                size={24}
+                color={theme.colors.orangeBright}
+              />
             </View>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Win Bitcoin Rewards</Text>
-              <Text style={styles.benefitText}>Compete in challenges and earn sats</Text>
+              <Text style={styles.benefitText}>
+                Compete in challenges and earn sats
+              </Text>
             </View>
           </View>
 
           <View style={styles.benefitItem}>
             <View style={styles.benefitIcon}>
-              <Ionicons name="flash-outline" size={24} color={theme.colors.orangeBright} />
+              <Ionicons
+                name="flash-outline"
+                size={24}
+                color={theme.colors.orangeBright}
+              />
             </View>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Send Instant Zaps</Text>
-              <Text style={styles.benefitText}>Tip teammates for motivation</Text>
+              <Text style={styles.benefitText}>
+                Tip teammates for motivation
+              </Text>
             </View>
           </View>
 
           <View style={styles.benefitItem}>
             <View style={styles.benefitIcon}>
-              <Ionicons name="ticket" size={24} color={theme.colors.orangeBright} />
+              <Ionicons
+                name="ticket"
+                size={24}
+                color={theme.colors.orangeBright}
+              />
             </View>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Pay Entry Fees</Text>
@@ -106,11 +120,17 @@ export const WalletSetupStep: React.FC<WalletSetupStepProps> = ({
 
           <View style={styles.benefitItem}>
             <View style={styles.benefitIcon}>
-              <Ionicons name="heart" size={24} color={theme.colors.orangeBright} />
+              <Ionicons
+                name="heart"
+                size={24}
+                color={theme.colors.orangeBright}
+              />
             </View>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitTitle}>Support Charities</Text>
-              <Text style={styles.benefitText}>Donate to your team's cause</Text>
+              <Text style={styles.benefitText}>
+                Donate to your team's cause
+              </Text>
             </View>
           </View>
         </View>
@@ -134,16 +154,27 @@ export const WalletSetupStep: React.FC<WalletSetupStepProps> = ({
 
         {/* Security Note */}
         <View style={styles.securityNote}>
-          <Ionicons name="shield-checkmark" size={20} color={theme.colors.orangeBright} />
+          <Ionicons
+            name="shield-checkmark"
+            size={20}
+            color={theme.colors.orangeBright}
+          />
           <Text style={styles.securityText}>
-            Your wallet remains in your control. RUNSTR never has access to your private keys.
+            Your wallet remains in your control. RUNSTR never has access to your
+            private keys.
           </Text>
         </View>
 
         {hasConnected && (
           <View style={styles.successContainer}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
-            <Text style={styles.successText}>Wallet connected successfully!</Text>
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={theme.colors.success}
+            />
+            <Text style={styles.successText}>
+              Wallet connected successfully!
+            </Text>
           </View>
         )}
       </ScrollView>

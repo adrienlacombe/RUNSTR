@@ -63,7 +63,9 @@ export class UnifiedSigningService {
         // Auto-upgrade: set auth method for old users
         await AsyncStorage.setItem('@runstr:auth_method', 'nostr');
         this.cachedAuthMethod = 'nostr';
-        console.log('✅ UnifiedSigningService: Auto-detected nostr auth method (backward compatibility)');
+        console.log(
+          '✅ UnifiedSigningService: Auto-detected nostr auth method (backward compatibility)'
+        );
         return 'nostr';
       }
 
@@ -76,7 +78,10 @@ export class UnifiedSigningService {
 
       return null;
     } catch (error) {
-      console.error('UnifiedSigningService: Error detecting auth method:', error);
+      console.error(
+        'UnifiedSigningService: Error detecting auth method:',
+        error
+      );
       return null;
     }
   }
@@ -113,7 +118,9 @@ export class UnifiedSigningService {
         const ndk = await GlobalNDKService.getInstance();
         ndk.signer = signer;
 
-        console.log('✅ UnifiedSigningService: Created NDKPrivateKeySigner from nsec and set on GlobalNDK');
+        console.log(
+          '✅ UnifiedSigningService: Created NDKPrivateKeySigner from nsec and set on GlobalNDK'
+        );
         return signer;
       }
 
@@ -130,11 +137,15 @@ export class UnifiedSigningService {
         const ndk = await GlobalNDKService.getInstance();
         ndk.signer = signer;
 
-        console.log('✅ UnifiedSigningService: Created AmberNDKSigner and set on GlobalNDK');
+        console.log(
+          '✅ UnifiedSigningService: Created AmberNDKSigner and set on GlobalNDK'
+        );
         return signer;
       }
 
-      console.warn('⚠️ UnifiedSigningService: No authentication method available');
+      console.warn(
+        '⚠️ UnifiedSigningService: No authentication method available'
+      );
       return null;
     } catch (error) {
       console.error('UnifiedSigningService: Error getting signer:', error);
@@ -155,7 +166,9 @@ export class UnifiedSigningService {
       }
 
       const authMethod = await this.getAuthMethod();
-      console.log(`🔐 UnifiedSigningService: Signing event (kind ${event.kind}) with ${authMethod}`);
+      console.log(
+        `🔐 UnifiedSigningService: Signing event (kind ${event.kind}) with ${authMethod}`
+      );
 
       // Sign the event
       const signature = await signer.sign(event);
@@ -167,41 +180,67 @@ export class UnifiedSigningService {
 
       if (authMethod === 'amber') {
         // Provide helpful Amber-specific error messages
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
 
         // User rejected or canceled in Amber
-        if (errorMessage.includes('rejected') || errorMessage.includes('canceled')) {
-          throw new Error('Signing request rejected in Amber. Please approve the request to continue.');
+        if (
+          errorMessage.includes('rejected') ||
+          errorMessage.includes('canceled')
+        ) {
+          throw new Error(
+            'Signing request rejected in Amber. Please approve the request to continue.'
+          );
         }
 
         // Amber not installed
-        if (errorMessage.includes('Could not open Amber') ||
-            errorMessage.includes('not found') ||
-            errorMessage.includes('No Activity found') ||
-            errorMessage.includes('ActivityNotFoundException')) {
-          throw new Error('Could not connect to Amber. Please ensure Amber app is installed and try again.');
+        if (
+          errorMessage.includes('Could not open Amber') ||
+          errorMessage.includes('not found') ||
+          errorMessage.includes('No Activity found') ||
+          errorMessage.includes('ActivityNotFoundException')
+        ) {
+          throw new Error(
+            'Could not connect to Amber. Please ensure Amber app is installed and try again.'
+          );
         }
 
         // Timeout
-        if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
-          throw new Error('Amber response timed out. Please try again and respond promptly in Amber.');
+        if (
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('timed out')
+        ) {
+          throw new Error(
+            'Amber response timed out. Please try again and respond promptly in Amber.'
+          );
         }
 
         // Permission denied
         if (errorMessage.includes('permission')) {
-          throw new Error('Amber permission denied. Please check app permissions in Amber settings.');
+          throw new Error(
+            'Amber permission denied. Please check app permissions in Amber settings.'
+          );
         }
 
         // Amber crashed or stopped responding
-        if (errorMessage.includes('crash') || errorMessage.includes('stopped')) {
-          throw new Error('Amber app crashed. Please restart Amber and try again.');
+        if (
+          errorMessage.includes('crash') ||
+          errorMessage.includes('stopped')
+        ) {
+          throw new Error(
+            'Amber app crashed. Please restart Amber and try again.'
+          );
         }
 
         throw new Error(`Amber signing failed: ${errorMessage}`);
       }
 
       // Generic error for other auth methods
-      throw new Error(`Event signing failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Event signing failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -274,13 +313,18 @@ export class UnifiedSigningService {
 
       // Amber users don't have access to private key
       if (authMethod === 'amber') {
-        console.warn('⚠️ UnifiedSigningService: Cannot get private key for Amber users');
+        console.warn(
+          '⚠️ UnifiedSigningService: Cannot get private key for Amber users'
+        );
         return null;
       }
 
       return null;
     } catch (error) {
-      console.error('UnifiedSigningService: Error getting legacy private key:', error);
+      console.error(
+        'UnifiedSigningService: Error getting legacy private key:',
+        error
+      );
       return null;
     }
   }

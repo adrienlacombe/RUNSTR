@@ -100,7 +100,7 @@ export function getPendingFetchStats(): {
 } {
   return {
     count: pendingFetches.size,
-    keys: Array.from(pendingFetches.keys())
+    keys: Array.from(pendingFetches.keys()),
   };
 }
 

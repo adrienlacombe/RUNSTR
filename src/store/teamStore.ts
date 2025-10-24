@@ -42,7 +42,9 @@ export const useTeamStore = create<TeamStoreState>((set: any, get: any) => ({
 
     try {
       // TODO: Replace with Nostr team discovery
-      console.warn('TeamStore: getTeamsForDiscovery disabled - needs Nostr implementation');
+      console.warn(
+        'TeamStore: getTeamsForDiscovery disabled - needs Nostr implementation'
+      );
       const teams: DiscoveryTeam[] = [];
       const featuredTeams = teams.filter((team) => team.isFeatured);
 

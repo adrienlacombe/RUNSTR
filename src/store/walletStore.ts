@@ -9,7 +9,11 @@ import nutzapService from '../services/nutzap/nutzapService';
 
 interface Transaction {
   id: string;
-  type: 'nutzap_sent' | 'nutzap_received' | 'lightning_received' | 'lightning_sent';
+  type:
+    | 'nutzap_sent'
+    | 'nutzap_received'
+    | 'lightning_received'
+    | 'lightning_sent';
   amount: number;
   timestamp: number;
   memo?: string;
@@ -56,14 +60,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
     // Prevent multiple initializations
     if (state.isInitialized || state.isInitializing) {
-      console.log('[WalletStore] Already initialized or initializing, skipping...');
+      console.log(
+        '[WalletStore] Already initialized or initializing, skipping...'
+      );
       return;
     }
 
     set({ isInitializing: true, error: null });
 
     try {
-      console.log(`[WalletStore] Initializing global wallet... (quick resume: ${quickResume})`);
+      console.log(
+        `[WalletStore] Initializing global wallet... (quick resume: ${quickResume})`
+      );
 
       // Get user's nsec from storage if not provided
       let userNsec = nsec;
@@ -74,7 +82,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       // Initialize service with quick resume flag
       // Quick resume skips Nostr queries if cache is fresh (<2 minutes)
-      const walletState = await nutzapService.initialize(userNsec || undefined, quickResume);
+      const walletState = await nutzapService.initialize(
+        userNsec || undefined,
+        quickResume
+      );
 
       // Check if wallet exists (has balance or was just created)
       const hasWallet = walletState.balance > 0 || walletState.created;
@@ -98,12 +109,14 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
 
       // Note: Auto-claim is now handled by WalletSync background service
-
     } catch (error) {
       console.error('[WalletStore] Initialization error:', error);
       set({
         isInitializing: false,
-        error: error instanceof Error ? error.message : 'Failed to initialize wallet',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to initialize wallet',
       });
     }
   },
@@ -112,7 +125,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   createWallet: async () => {
     try {
       console.log('[WalletStore] Creating RUNSTR wallet...');
-      const WalletCore = (await import('../services/nutzap/WalletCore')).default;
+      const WalletCore = (await import('../services/nutzap/WalletCore'))
+        .default;
 
       const result = await WalletCore.createRunstrWallet();
 
@@ -124,7 +138,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           walletExists: true,
           balance,
           lastSync: Date.now(),
-          error: null
+          error: null,
         });
       } else {
         console.error('[WalletStore] Wallet creation failed:', result.error);
@@ -132,7 +146,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
     } catch (error) {
       console.error('[WalletStore] Error creating wallet:', error);
-      set({ error: error instanceof Error ? error.message : 'Failed to create wallet' });
+      set({
+        error:
+          error instanceof Error ? error.message : 'Failed to create wallet',
+      });
     }
   },
 
@@ -154,7 +171,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   // Add transaction to history
   addTransaction: (transaction: Transaction) => {
-    set(state => ({
+    set((state) => ({
       transactions: [transaction, ...state.transactions].slice(0, 100), // Keep last 100
     }));
   },

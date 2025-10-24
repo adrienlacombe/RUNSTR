@@ -35,7 +35,8 @@ export class NostrCompetitionBridge {
   private leaderboardService: LeaderboardService;
 
   private constructor() {
-    this.competitionContextService = NostrCompetitionContextService.getInstance();
+    this.competitionContextService =
+      NostrCompetitionContextService.getInstance();
     this.leaderboardService = LeaderboardService.getInstance();
   }
 
@@ -305,7 +306,7 @@ export class NostrCompetitionBridge {
       //   userId,
       //   userPubkey
       // );
-      
+
       // Return simplified result without competition count for now
       const competitionsFound = 0;
 
@@ -346,11 +347,11 @@ export class NostrCompetitionBridge {
           // 1. The team associated with the competition
           // 2. The NostrTeam object
           // This should be handled by a higher-level service that has access to team data
-          
+
           console.log(
             `⚠️ Leaderboard update skipped for ${competition.type} ${competition.id} - requires team integration`
           );
-          
+
           const updateResult = { success: true };
 
           if (updateResult.success) {

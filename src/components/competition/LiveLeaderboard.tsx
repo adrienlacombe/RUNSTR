@@ -68,7 +68,9 @@ export const LiveLeaderboard: React.FC<LiveLeaderboardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [subscription, setSubscription] = useState<NDKSubscription | null>(null);
+  const [subscription, setSubscription] = useState<NDKSubscription | null>(
+    null
+  );
 
   const leaderboardService = LeaderboardService.getInstance();
 
@@ -327,18 +329,18 @@ export const LiveLeaderboard: React.FC<LiveLeaderboardProps> = ({
 
       {/* Show distribution panel for captains when competition is complete */}
       {userIsCaptain &&
-       competition.endTime < Math.floor(Date.now() / 1000) &&
-       displayEntries.length > 0 && (
-        <CompetitionDistributionPanel
-          competition={competition}
-          winners={displayEntries}
-          captainPubkey={currentUserPubkey || team.captain}
-          onDistributionComplete={() => {
-            // Refresh the leaderboard after distribution
-            handleRefresh();
-          }}
-        />
-      )}
+        competition.endTime < Math.floor(Date.now() / 1000) &&
+        displayEntries.length > 0 && (
+          <CompetitionDistributionPanel
+            competition={competition}
+            winners={displayEntries}
+            captainPubkey={currentUserPubkey || team.captain}
+            onDistributionComplete={() => {
+              // Refresh the leaderboard after distribution
+              handleRefresh();
+            }}
+          />
+        )}
     </View>
   );
 };

@@ -39,12 +39,9 @@ interface EnhancedWorkoutHistoryScreenProps {
   onNavigateToTeam: () => void;
 }
 
-export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreenProps> = ({
-  userId,
-  pubkey,
-  onNavigateBack,
-  onNavigateToTeam,
-}) => {
+export const EnhancedWorkoutHistoryScreen: React.FC<
+  EnhancedWorkoutHistoryScreenProps
+> = ({ userId, pubkey, onNavigateBack, onNavigateToTeam }) => {
   const [signer, setSigner] = useState<NDKSigner | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -68,7 +65,10 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
         console.warn('[EnhancedWorkoutHistory] No signer available');
       }
     } catch (error) {
-      console.error('[EnhancedWorkoutHistory] ❌ Failed to load credentials:', error);
+      console.error(
+        '[EnhancedWorkoutHistory] ❌ Failed to load credentials:',
+        error
+      );
     } finally {
       setIsInitializing(false);
     }
@@ -80,7 +80,9 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
    */
   const handlePostToSocial = async (workout: LocalWorkout) => {
     try {
-      console.log(`[EnhancedWorkoutHistory] Posting workout ${workout.id} to Nostr...`);
+      console.log(
+        `[EnhancedWorkoutHistory] Posting workout ${workout.id} to Nostr...`
+      );
 
       if (!signer) {
         Alert.alert('Error', 'No signer available. Please log in again.');
@@ -107,18 +109,20 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
       );
 
       if (result.success && result.eventId) {
-        console.log(`[EnhancedWorkoutHistory] ✅ Workout published as kind 1: ${result.eventId}`);
+        console.log(
+          `[EnhancedWorkoutHistory] ✅ Workout published as kind 1: ${result.eventId}`
+        );
 
         // DO NOT mark as synced - kind 1 social posts don't affect private tab
-        Alert.alert(
-          'Success',
-          'Workout posted to social feeds!'
-        );
+        Alert.alert('Success', 'Workout posted to social feeds!');
       } else {
         throw new Error(result.error || 'Failed to publish workout');
       }
     } catch (error) {
-      console.error('[EnhancedWorkoutHistory] ❌ Post to social failed:', error);
+      console.error(
+        '[EnhancedWorkoutHistory] ❌ Post to social failed:',
+        error
+      );
       Alert.alert(
         'Error',
         'Failed to post workout to social feeds. Please try again.'
@@ -132,7 +136,9 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
    */
   const handlePostToNostr = async (workout: LocalWorkout) => {
     try {
-      console.log(`[EnhancedWorkoutHistory] Posting workout ${workout.id} as kind 1301...`);
+      console.log(
+        `[EnhancedWorkoutHistory] Posting workout ${workout.id} as kind 1301...`
+      );
 
       if (!signer) {
         Alert.alert('Error', 'No signer available. Please log in again.');
@@ -159,7 +165,9 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
       );
 
       if (result.success && result.eventId) {
-        console.log(`[EnhancedWorkoutHistory] ✅ Workout published as kind 1301: ${result.eventId}`);
+        console.log(
+          `[EnhancedWorkoutHistory] ✅ Workout published as kind 1301: ${result.eventId}`
+        );
 
         // Mark workout as synced - IT WILL DISAPPEAR FROM PRIVATE TAB
         await localWorkoutStorage.markAsSynced(workout.id, result.eventId);
@@ -173,7 +181,10 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
         throw new Error(result.error || 'Failed to publish workout');
       }
     } catch (error) {
-      console.error('[EnhancedWorkoutHistory] ❌ Post to Nostr (1301) failed:', error);
+      console.error(
+        '[EnhancedWorkoutHistory] ❌ Post to Nostr (1301) failed:',
+        error
+      );
       Alert.alert(
         'Error',
         'Failed to post workout to Nostr. Please try again.'
@@ -192,9 +203,7 @@ export const EnhancedWorkoutHistoryScreen: React.FC<EnhancedWorkoutHistoryScreen
   // Show Advanced Analytics screen if active
   if (showAnalytics) {
     return (
-      <AdvancedAnalyticsScreen
-        onNavigateBack={() => setShowAnalytics(false)}
-      />
+      <AdvancedAnalyticsScreen onNavigateBack={() => setShowAnalytics(false)} />
     );
   }
 

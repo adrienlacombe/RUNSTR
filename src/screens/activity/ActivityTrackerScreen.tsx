@@ -4,7 +4,15 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Animated,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -16,7 +24,14 @@ import { MeditationTrackerScreen } from './MeditationTrackerScreen';
 import { StrengthTrackerScreen } from './StrengthTrackerScreen';
 import { DietTrackerScreen } from './DietTrackerScreen';
 
-type ActivityTab = 'run' | 'walk' | 'cycle' | 'strength' | 'diet' | 'meditation' | 'manual';
+type ActivityTab =
+  | 'run'
+  | 'walk'
+  | 'cycle'
+  | 'strength'
+  | 'diet'
+  | 'meditation'
+  | 'manual';
 type MoreOption = 'strength' | 'diet' | 'meditation' | 'manual';
 
 interface TabButtonProps {
@@ -26,7 +41,12 @@ interface TabButtonProps {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress, icon }) => (
+const TabButton: React.FC<TabButtonProps> = ({
+  label,
+  isActive,
+  onPress,
+  icon,
+}) => (
   <TouchableOpacity
     style={[styles.tabButton, isActive && styles.activeTabButton]}
     onPress={onPress}
@@ -48,7 +68,11 @@ interface MoreMenuProps {
   onSelectOption: (option: MoreOption) => void;
 }
 
-const MoreMenu: React.FC<MoreMenuProps> = ({ visible, onClose, onSelectOption }) => {
+const MoreMenu: React.FC<MoreMenuProps> = ({
+  visible,
+  onClose,
+  onSelectOption,
+}) => {
   const slideAnim = React.useRef(new Animated.Value(300)).current;
 
   React.useEffect(() => {
@@ -99,7 +123,11 @@ const MoreMenu: React.FC<MoreMenuProps> = ({ visible, onClose, onSelectOption })
           >
             <Ionicons name="barbell" size={24} color={theme.colors.text} />
             <Text style={styles.moreMenuLabel}>Strength Training</Text>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
@@ -110,7 +138,11 @@ const MoreMenu: React.FC<MoreMenuProps> = ({ visible, onClose, onSelectOption })
           >
             <Ionicons name="restaurant" size={24} color={theme.colors.text} />
             <Text style={styles.moreMenuLabel}>Diet/Meals</Text>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
@@ -121,7 +153,11 @@ const MoreMenu: React.FC<MoreMenuProps> = ({ visible, onClose, onSelectOption })
           >
             <Ionicons name="body" size={24} color={theme.colors.text} />
             <Text style={styles.moreMenuLabel}>Meditation</Text>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
@@ -132,7 +168,11 @@ const MoreMenu: React.FC<MoreMenuProps> = ({ visible, onClose, onSelectOption })
           >
             <Ionicons name="create" size={24} color={theme.colors.text} />
             <Text style={styles.moreMenuLabel}>Manual Entry</Text>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
         </Animated.View>
       </TouchableOpacity>
@@ -195,7 +235,9 @@ export const ActivityTrackerScreen: React.FC = () => {
         />
         <TabButton
           label="More"
-          isActive={['strength', 'diet', 'meditation', 'manual'].includes(activeTab)}
+          isActive={['strength', 'diet', 'meditation', 'manual'].includes(
+            activeTab
+          )}
           onPress={() => setShowMoreMenu(true)}
           icon="ellipsis-horizontal"
         />

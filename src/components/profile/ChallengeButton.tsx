@@ -124,10 +124,7 @@ export const ChallengeButton: React.FC<ChallengeButtonProps> = ({
           style={styles.textIcon}
         />
         <Text
-          style={[
-            styles.buttonLabel,
-            disabled && styles.buttonLabelDisabled,
-          ]}
+          style={[styles.buttonLabel, disabled && styles.buttonLabelDisabled]}
         >
           Challenge
         </Text>

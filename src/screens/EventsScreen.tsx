@@ -28,10 +28,13 @@ import { season1Service } from '../services/season/Season1Service';
 import type { Season1Leaderboard, SeasonActivityType } from '../types/season';
 
 export const EventsScreen: React.FC = () => {
-  const [selectedActivity, setSelectedActivity] = useState<SeasonActivityType>('running');
+  const [selectedActivity, setSelectedActivity] =
+    useState<SeasonActivityType>('running');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<Season1Leaderboard | null>(null);
+  const [leaderboard, setLeaderboard] = useState<Season1Leaderboard | null>(
+    null
+  );
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
 
   // Load leaderboard data

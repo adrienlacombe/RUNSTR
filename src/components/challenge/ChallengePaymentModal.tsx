@@ -105,7 +105,9 @@ export const ChallengePaymentModal: React.FC<ChallengePaymentModalProps> = ({
             <Text style={styles.challengeName}>{challengeName}</Text>
             <View style={styles.amountContainer}>
               <Ionicons name="flash" size={20} color={theme.colors.accent} />
-              <Text style={styles.amount}>{wagerAmount.toLocaleString()} sats</Text>
+              <Text style={styles.amount}>
+                {wagerAmount.toLocaleString()} sats
+              </Text>
             </View>
             <Text style={styles.description}>{getDescription()}</Text>
           </View>
@@ -131,7 +133,11 @@ export const ChallengePaymentModal: React.FC<ChallengePaymentModalProps> = ({
               style={styles.invoiceContainer}
               activeOpacity={0.7}
             >
-              <Text style={styles.invoice} numberOfLines={3} ellipsizeMode="middle">
+              <Text
+                style={styles.invoice}
+                numberOfLines={3}
+                ellipsizeMode="middle"
+              >
                 {invoice}
               </Text>
               <View style={styles.copyIndicator}>
@@ -182,7 +188,11 @@ export const ChallengePaymentModal: React.FC<ChallengePaymentModalProps> = ({
             onPress={handlePaid}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.accentText} />
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color={theme.colors.accentText}
+            />
             <Text style={styles.paidButtonText}>I Paid This Invoice</Text>
           </TouchableOpacity>
 

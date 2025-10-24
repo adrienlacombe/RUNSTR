@@ -15,17 +15,21 @@ export const GarminTab: React.FC = () => {
         <Text style={styles.title}>Garmin Connect</Text>
         <Text style={styles.subtitle}>Coming Soon</Text>
         <Text style={styles.description}>
-          Connect your Garmin devices to view and share your workouts.
-          We'll support all Garmin fitness devices including:
+          Connect your Garmin devices to view and share your workouts. We'll
+          support all Garmin fitness devices including:
         </Text>
-        
+
         <View style={styles.featureList}>
           <Text style={styles.feature}>• Forerunner, Fenix, Venu series</Text>
-          <Text style={styles.feature}>• Running, cycling, swimming workouts</Text>
-          <Text style={styles.feature}>• Advanced metrics (VO2, Training Effect)</Text>
+          <Text style={styles.feature}>
+            • Running, cycling, swimming workouts
+          </Text>
+          <Text style={styles.feature}>
+            • Advanced metrics (VO2, Training Effect)
+          </Text>
           <Text style={styles.feature}>• Post to Nostr with one tap</Text>
         </View>
-        
+
         <View style={styles.badge}>
           <Text style={styles.badgeText}>In Development</Text>
         </View>

@@ -33,7 +33,7 @@ const testWorkout: PublishableWorkout = {
 
 async function testKind1Format() {
   console.log('🧪 Testing Kind 1 Workout Post Format\n');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
 
   try {
     // Initialize the workout publishing service
@@ -48,8 +48,16 @@ async function testKind1Format() {
     console.log(`📝 Test User: ${npub.substring(0, 20)}...`);
     console.log('\n🏃‍♂️ Test Workout Data:');
     console.log(`  - Type: ${testWorkout.type}`);
-    console.log(`  - Duration: ${Math.floor(testWorkout.duration / 60)}:${(testWorkout.duration % 60).toString().padStart(2, '0')}`);
-    console.log(`  - Distance: ${((testWorkout.distance || 0) / 1000).toFixed(2)} km`);
+    console.log(
+      `  - Duration: ${Math.floor(testWorkout.duration / 60)}:${(
+        testWorkout.duration % 60
+      )
+        .toString()
+        .padStart(2, '0')}`
+    );
+    console.log(
+      `  - Distance: ${((testWorkout.distance || 0) / 1000).toFixed(2)} km`
+    );
     console.log(`  - Calories: ${testWorkout.calories} kcal`);
     console.log(`  - Elevation: ${testWorkout.elevationGain} m`);
 
@@ -88,7 +96,6 @@ async function testKind1Format() {
     console.log('   1. Set up your nsec in the app');
     console.log('   2. Complete a workout or use manual entry');
     console.log('   3. Tap "Post to Nostr" to see it live');
-
   } catch (error) {
     console.error('❌ Test failed:', error);
     process.exit(1);
@@ -96,10 +103,12 @@ async function testKind1Format() {
 }
 
 // Run the test
-testKind1Format().then(() => {
-  console.log('\n🎉 Format test complete!');
-  process.exit(0);
-}).catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+testKind1Format()
+  .then(() => {
+    console.log('\n🎉 Format test complete!');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });

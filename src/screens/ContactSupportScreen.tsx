@@ -31,7 +31,9 @@ interface IssueCategory {
   icon: string;
 }
 
-export const ContactSupportScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const ContactSupportScreen: React.FC<{ navigation: any }> = ({
+  navigation,
+}) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -56,7 +58,9 @@ export const ContactSupportScreen: React.FC<{ navigation: any }> = ({ navigation
     const gatherDebugInfo = async () => {
       const appVersion = '1.0.0'; // You might want to get this from app.json
       const deviceInfo = `${Device.brand} ${Device.modelName} (${Platform.OS} ${Platform.Version})`;
-      const userNpub = user?.npub ? user.npub.slice(0, 8) + '...' : 'Not logged in';
+      const userNpub = user?.npub
+        ? user.npub.slice(0, 8) + '...'
+        : 'Not logged in';
       const teamInfo = 'N/A'; // Could fetch from store if needed
 
       const info = `App Version: ${appVersion}
@@ -86,7 +90,10 @@ Team: ${teamInfo}`;
       return;
     }
     if (!userEmail.trim() || !userEmail.includes('@')) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address for responses');
+      Alert.alert(
+        'Invalid Email',
+        'Please enter a valid email address for responses'
+      );
       return;
     }
 
@@ -116,7 +123,7 @@ Team: ${teamInfo}`;
       // Show success message
       Alert.alert(
         'Request Submitted',
-        'Your support request has been received. We\'ll respond within 24-48 hours to the email provided.',
+        "Your support request has been received. We'll respond within 24-48 hours to the email provided.",
         [
           {
             text: 'OK',
@@ -143,7 +150,7 @@ Team: ${teamInfo}`;
   };
 
   const getCategoryIcon = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c) => c.id === categoryId);
     return category?.icon || 'help-outline';
   };
 
@@ -154,7 +161,10 @@ Team: ${teamInfo}`;
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <View style={styles.headerSpacer} />
@@ -175,7 +185,8 @@ Team: ${teamInfo}`;
                   key={category.id}
                   style={[
                     styles.categoryButton,
-                    selectedCategory === category.id && styles.categoryButtonActive,
+                    selectedCategory === category.id &&
+                      styles.categoryButtonActive,
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
@@ -191,7 +202,8 @@ Team: ${teamInfo}`;
                   <Text
                     style={[
                       styles.categoryLabel,
-                      selectedCategory === category.id && styles.categoryLabelActive,
+                      selectedCategory === category.id &&
+                        styles.categoryLabelActive,
                     ]}
                   >
                     {category.label}
@@ -251,7 +263,8 @@ Team: ${teamInfo}`;
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Debug Information</Text>
             <Text style={styles.debugText}>
-              The following information will be included to help resolve your issue:
+              The following information will be included to help resolve your
+              issue:
             </Text>
             <View style={styles.debugBox}>
               <Text style={styles.debugInfo}>{debugInfo}</Text>
@@ -262,12 +275,24 @@ Team: ${teamInfo}`;
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Other Ways to Get Help</Text>
             <TouchableOpacity style={styles.alternativeMethod}>
-              <Ionicons name="logo-twitter" size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.alternativeText}>Follow @runstrapp for updates</Text>
+              <Ionicons
+                name="logo-twitter"
+                size={20}
+                color={theme.colors.textSecondary}
+              />
+              <Text style={styles.alternativeText}>
+                Follow @runstrapp for updates
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.alternativeMethod}>
-              <Ionicons name="people" size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.alternativeText}>Join our Nostr community</Text>
+              <Ionicons
+                name="people"
+                size={20}
+                color={theme.colors.textSecondary}
+              />
+              <Text style={styles.alternativeText}>
+                Join our Nostr community
+              </Text>
             </TouchableOpacity>
           </Card>
 

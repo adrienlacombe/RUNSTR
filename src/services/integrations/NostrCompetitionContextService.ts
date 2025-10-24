@@ -68,7 +68,8 @@ export class NostrCompetitionContextService {
 
   static getInstance(): NostrCompetitionContextService {
     if (!NostrCompetitionContextService.instance) {
-      NostrCompetitionContextService.instance = new NostrCompetitionContextService();
+      NostrCompetitionContextService.instance =
+        new NostrCompetitionContextService();
     }
     return NostrCompetitionContextService.instance;
   }
@@ -96,7 +97,9 @@ export class NostrCompetitionContextService {
       // Check cache first
       const cachedContext = await this.getCachedCompetitionContext(userId);
       if (cachedContext && this.isCacheValid(cachedContext)) {
-        console.log(`Using cached Nostr competition context for user ${userId}`);
+        console.log(
+          `Using cached Nostr competition context for user ${userId}`
+        );
         return this.filterCompetitionsByDate(
           cachedContext.activeCompetitions,
           workoutDate
@@ -146,13 +149,19 @@ export class NostrCompetitionContextService {
       }
 
       // Check activity type matching
-      const workoutActivityType = this.mapWorkoutTypeToActivityType(workout.type);
+      const workoutActivityType = this.mapWorkoutTypeToActivityType(
+        workout.type
+      );
       if (workoutActivityType !== competition.activityType.toLowerCase()) {
-        console.log(`Workout type ${workout.type} doesn't match competition activity ${competition.activityType}`);
+        console.log(
+          `Workout type ${workout.type} doesn't match competition activity ${competition.activityType}`
+        );
         return false;
       }
 
-      console.log(`✅ Workout ${workout.id} validates for competition ${competition.name}`);
+      console.log(
+        `✅ Workout ${workout.id} validates for competition ${competition.name}`
+      );
       return true;
     } catch (error) {
       console.error('Error validating workout for Nostr competition:', error);
@@ -208,20 +217,22 @@ export class NostrCompetitionContextService {
 
       // Get user's team memberships (would need team service integration)
       const userTeams = await this.getUserTeamMemberships(userPubkey);
-      
+
       if (userTeams.length === 0) {
         console.log('User has no team memberships');
         return [];
       }
 
       // Query all competitions from these teams
-      const competitionResult = await this.competitionService.queryCompetitions({
-        kinds: [30100, 30101], // Leagues and Events
-        '#team': userTeams,
-        '#status': ['upcoming', 'active'],
-        since: Math.floor((Date.now() - (30 * 24 * 60 * 60 * 1000)) / 1000), // Last 30 days
-        limit: 500,
-      });
+      const competitionResult = await this.competitionService.queryCompetitions(
+        {
+          kinds: [30100, 30101], // Leagues and Events
+          '#team': userTeams,
+          '#status': ['upcoming', 'active'],
+          since: Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000), // Last 30 days
+          limit: 500,
+        }
+      );
 
       const competitions: NostrCompetition[] = [];
 
@@ -289,21 +300,27 @@ export class NostrCompetitionContextService {
   /**
    * Check for new competitions and trigger notifications
    */
-  private async checkAndNotifyNewCompetitions(competitions: NostrCompetition[]): Promise<void> {
+  private async checkAndNotifyNewCompetitions(
+    competitions: NostrCompetition[]
+  ): Promise<void> {
     const notificationTrigger = LocalNotificationTrigger.getInstance();
 
     for (const competition of competitions) {
       // Check if we've already notified about this competition
-      const hasNotified = await NotificationCache.hasNotifiedCompetition(competition.id);
+      const hasNotified = await NotificationCache.hasNotifiedCompetition(
+        competition.id
+      );
 
       if (!hasNotified) {
         // This is a new competition we haven't notified about
-        const startTime = competition.type === 'league'
-          ? new Date(competition.startDate!)
-          : new Date(competition.eventDate!);
+        const startTime =
+          competition.type === 'league'
+            ? new Date(competition.startDate!)
+            : new Date(competition.eventDate!);
 
         // Only notify if competition hasn't started yet or started within last 24 hours
-        const hoursSinceStart = (Date.now() - startTime.getTime()) / (1000 * 60 * 60);
+        const hoursSinceStart =
+          (Date.now() - startTime.getTime()) / (1000 * 60 * 60);
         if (hoursSinceStart < 24) {
           await notificationTrigger.notifyNewCompetition(
             competition.name,
@@ -313,7 +330,10 @@ export class NostrCompetitionContextService {
           );
 
           // Mark as notified
-          await NotificationCache.markCompetitionNotified(competition.id, competition.name);
+          await NotificationCache.markCompetitionNotified(
+            competition.id,
+            competition.name
+          );
         }
       }
     }
@@ -322,7 +342,9 @@ export class NostrCompetitionContextService {
   /**
    * Check for competitions ending soon and trigger notifications
    */
-  private async checkAndNotifyEndingSoon(competitions: NostrCompetition[]): Promise<void> {
+  private async checkAndNotifyEndingSoon(
+    competitions: NostrCompetition[]
+  ): Promise<void> {
     const notificationTrigger = LocalNotificationTrigger.getInstance();
 
     for (const competition of competitions) {
@@ -337,7 +359,8 @@ export class NostrCompetitionContextService {
       }
 
       if (endTime) {
-        const hoursUntilEnd = (endTime.getTime() - Date.now()) / (1000 * 60 * 60);
+        const hoursUntilEnd =
+          (endTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
         // Notify if ending within 24 hours
         if (hoursUntilEnd > 0 && hoursUntilEnd <= 24) {
@@ -356,7 +379,10 @@ export class NostrCompetitionContextService {
             );
 
             // Mark alert as sent
-            await NotificationCache.markEndingAlertSent(competition.id, hoursUntilEnd);
+            await NotificationCache.markEndingAlertSent(
+              competition.id,
+              hoursUntilEnd
+            );
           }
         }
       }
@@ -374,8 +400,10 @@ export class NostrCompetitionContextService {
         // This would be the actual implementation when teamService is available
         // return await this.teamService.getUserTeamMemberships(userPubkey);
       }
-      
-      console.log('⚠️ Team service not available, returning empty team memberships');
+
+      console.log(
+        '⚠️ Team service not available, returning empty team memberships'
+      );
       return [];
     } catch (error) {
       console.error('Error getting user team memberships:', error);
@@ -395,7 +423,9 @@ export class NostrCompetitionContextService {
       // It's a league
       const startDate = new Date(competition.startDate);
       const endDate = new Date(competition.endDate);
-      return startDate <= now && now <= endDate && competition.status === 'active';
+      return (
+        startDate <= now && now <= endDate && competition.status === 'active'
+      );
     } else {
       // It's an event
       const eventDate = new Date(competition.eventDate);
@@ -403,7 +433,9 @@ export class NostrCompetitionContextService {
       eventStart.setHours(0, 0, 0, 0);
       const eventEnd = new Date(eventDate);
       eventEnd.setHours(23, 59, 59, 999);
-      return eventStart <= now && now <= eventEnd && competition.status === 'active';
+      return (
+        eventStart <= now && now <= eventEnd && competition.status === 'active'
+      );
     }
   }
 
@@ -431,8 +463,11 @@ export class NostrCompetitionContextService {
         eventStart.setHours(0, 0, 0, 0);
         const eventEnd = new Date(eventDate);
         eventEnd.setHours(23, 59, 59, 999);
-        
-        return workoutTime >= eventStart.getTime() && workoutTime <= eventEnd.getTime();
+
+        return (
+          workoutTime >= eventStart.getTime() &&
+          workoutTime <= eventEnd.getTime()
+        );
       }
     }
 
@@ -456,13 +491,13 @@ export class NostrCompetitionContextService {
    */
   private mapWorkoutTypeToActivityType(workoutType: string): string {
     const mapping: Record<string, string> = {
-      'running': 'running',
-      'walking': 'walking', 
-      'cycling': 'cycling',
-      'strength_training': 'strength training',
-      'yoga': 'yoga',
-      'gym': 'strength training',
-      'other': 'other',
+      running: 'running',
+      walking: 'walking',
+      cycling: 'cycling',
+      strength_training: 'strength training',
+      yoga: 'yoga',
+      gym: 'strength training',
+      other: 'other',
     };
 
     return mapping[workoutType.toLowerCase()] || workoutType.toLowerCase();

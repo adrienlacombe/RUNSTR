@@ -73,16 +73,21 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
       }
 
       const fetchEvents = async () => {
-        console.log('[SimpleTeamScreen] 🔍 useFocusEffect triggered - Team data check:', {
-          hasData: !!data,
-          hasTeam: !!team,
-          teamId: team?.id,
-          teamName: team?.name,
-          teamKeys: team ? Object.keys(team) : [],
-        });
+        console.log(
+          '[SimpleTeamScreen] 🔍 useFocusEffect triggered - Team data check:',
+          {
+            hasData: !!data,
+            hasTeam: !!team,
+            teamId: team?.id,
+            teamName: team?.name,
+            teamKeys: team ? Object.keys(team) : [],
+          }
+        );
 
         if (!team?.id) {
-          console.warn('[SimpleTeamScreen] ⚠️ No team.id found, cannot fetch events');
+          console.warn(
+            '[SimpleTeamScreen] ⚠️ No team.id found, cannot fetch events'
+          );
           setLoadingEvents(false);
           return;
         }
@@ -91,25 +96,43 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
         const cachedEvents = unifiedCache.getCached(CacheKeys.COMPETITIONS);
         if (cachedEvents && Array.isArray(cachedEvents)) {
           // Filter cached events for this specific team
-          const teamCachedEvents = cachedEvents.filter((event: any) => event.teamId === team.id);
-          console.log('[SimpleTeamScreen] ⚡ Cache hit: Displaying', teamCachedEvents.length, 'cached events INSTANTLY');
+          const teamCachedEvents = cachedEvents.filter(
+            (event: any) => event.teamId === team.id
+          );
+          console.log(
+            '[SimpleTeamScreen] ⚡ Cache hit: Displaying',
+            teamCachedEvents.length,
+            'cached events INSTANTLY'
+          );
           setEvents(teamCachedEvents);
           setLoadingEvents(false); // ✅ Hide spinner immediately - UI is instant
         } else {
-          console.log('[SimpleTeamScreen] 📱 Cache miss: No cached events, will show spinner');
+          console.log(
+            '[SimpleTeamScreen] 📱 Cache miss: No cached events, will show spinner'
+          );
           setLoadingEvents(true); // Only show spinner on first load when no cache
         }
 
         // ✅ NON-BLOCKING: Fetch fresh data in background (UI already responsive)
-        console.log('[SimpleTeamScreen] 🔄 Starting background fetch for fresh events...');
-        SimpleCompetitionService.getInstance().getTeamEvents(team.id)
+        console.log(
+          '[SimpleTeamScreen] 🔄 Starting background fetch for fresh events...'
+        );
+        SimpleCompetitionService.getInstance()
+          .getTeamEvents(team.id)
           .then((freshEvents) => {
-            console.log('[SimpleTeamScreen] ✅ Background fetch complete:', freshEvents.length, 'events');
+            console.log(
+              '[SimpleTeamScreen] ✅ Background fetch complete:',
+              freshEvents.length,
+              'events'
+            );
             setEvents(freshEvents);
             setLoadingEvents(false);
           })
           .catch((error) => {
-            console.error('[SimpleTeamScreen] ❌ Background fetch error:', error);
+            console.error(
+              '[SimpleTeamScreen] ❌ Background fetch error:',
+              error
+            );
             setLoadingEvents(false);
             // Keep showing cached data if background fetch fails
           });
@@ -135,9 +158,16 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
 
     setRefreshing(true);
     try {
-      console.log('[SimpleTeamScreen] 🔄 Pull-to-refresh: Fetching events for team:', team.id);
-      const teamEvents = await SimpleCompetitionService.getInstance().getTeamEvents(team.id);
-      console.log('[SimpleTeamScreen] ✅ Pull-to-refresh: Found events:', teamEvents.length);
+      console.log(
+        '[SimpleTeamScreen] 🔄 Pull-to-refresh: Fetching events for team:',
+        team.id
+      );
+      const teamEvents =
+        await SimpleCompetitionService.getInstance().getTeamEvents(team.id);
+      console.log(
+        '[SimpleTeamScreen] ✅ Pull-to-refresh: Found events:',
+        teamEvents.length
+      );
       setEvents(teamEvents);
     } catch (error) {
       console.error('[SimpleTeamScreen] ❌ Pull-to-refresh error:', error);
@@ -147,19 +177,32 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
   }, [team?.id]);
 
   // Handle charity zap
-  const handleCharityZap = useCallback(async (charityId: string, charityName: string) => {
-    console.log('[SimpleTeamScreen] ⚡ Initiating charity zap:', charityName);
-    try {
-      const result = await CharityZapService.zapCharity(charityId, charityName);
-      if (result.success) {
-        console.log('[SimpleTeamScreen] ✅ Charity zap successful:', result.amount, 'sats');
-      } else {
-        console.error('[SimpleTeamScreen] ❌ Charity zap failed:', result.error);
+  const handleCharityZap = useCallback(
+    async (charityId: string, charityName: string) => {
+      console.log('[SimpleTeamScreen] ⚡ Initiating charity zap:', charityName);
+      try {
+        const result = await CharityZapService.zapCharity(
+          charityId,
+          charityName
+        );
+        if (result.success) {
+          console.log(
+            '[SimpleTeamScreen] ✅ Charity zap successful:',
+            result.amount,
+            'sats'
+          );
+        } else {
+          console.error(
+            '[SimpleTeamScreen] ❌ Charity zap failed:',
+            result.error
+          );
+        }
+      } catch (error) {
+        console.error('[SimpleTeamScreen] ❌ Charity zap error:', error);
       }
-    } catch (error) {
-      console.error('[SimpleTeamScreen] ❌ Charity zap error:', error);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Safety check
   if (!team) {
@@ -239,17 +282,18 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
                 onPress={onCaptainDashboard}
                 activeOpacity={0.8}
               >
-                <Ionicons name="shield" size={20} color={theme.colors.background} />
+                <Ionicons
+                  name="shield"
+                  size={20}
+                  color={theme.colors.background}
+                />
                 <Text style={styles.captainButtonText}>Captain Dashboard</Text>
               </TouchableOpacity>
             )}
 
             {/* Join Team Button */}
             {showJoinButton && !userIsMemberProp && (
-              <TouchableOpacity
-                style={styles.joinButton}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.joinButton} activeOpacity={0.8}>
                 <Text style={styles.joinButtonText}>Join Team</Text>
               </TouchableOpacity>
             )}
@@ -257,7 +301,11 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
             {/* Member Badge */}
             {userIsMemberProp && !userIsCaptain && (
               <View style={styles.memberBadge}>
-                <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color={theme.colors.success}
+                />
                 <Text style={styles.memberBadgeText}>Team Member</Text>
               </View>
             )}
@@ -289,7 +337,11 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
             </View>
           ) : events.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="calendar-outline" size={48} color={theme.colors.textMuted} />
+              <Ionicons
+                name="calendar-outline"
+                size={48}
+                color={theme.colors.textMuted}
+              />
               <Text style={styles.emptyText}>No events scheduled</Text>
               {userIsCaptain && (
                 <Text style={styles.emptySubtext}>
@@ -308,7 +360,11 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
                 >
                   <View style={styles.cardHeader}>
                     <View style={styles.iconContainer}>
-                      <Ionicons name="flag" size={20} color={theme.colors.accent} />
+                      <Ionicons
+                        name="flag"
+                        size={20}
+                        color={theme.colors.accent}
+                      />
                     </View>
                     <View style={styles.cardInfo}>
                       <Text style={styles.cardName}>{event.name}</Text>
@@ -320,17 +376,31 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
                         })}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.textMuted}
+                    />
                   </View>
 
                   <View style={styles.cardDetails}>
                     <View style={styles.detailItem}>
-                      <Ionicons name="footsteps" size={16} color={theme.colors.textMuted} />
-                      <Text style={styles.detailText}>{event.activityType}</Text>
+                      <Ionicons
+                        name="footsteps"
+                        size={16}
+                        color={theme.colors.textMuted}
+                      />
+                      <Text style={styles.detailText}>
+                        {event.activityType}
+                      </Text>
                     </View>
                     {event.targetDistance && (
                       <View style={styles.detailItem}>
-                        <Ionicons name="flag-outline" size={16} color={theme.colors.textMuted} />
+                        <Ionicons
+                          name="flag-outline"
+                          size={16}
+                          color={theme.colors.textMuted}
+                        />
                         <Text style={styles.detailText}>
                           {event.targetDistance} {event.targetUnit}
                         </Text>

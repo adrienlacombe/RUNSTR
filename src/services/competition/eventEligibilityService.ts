@@ -72,16 +72,25 @@ export class EventEligibilityService {
     workout: NostrWorkout,
     userTeams?: string[]
   ): Promise<WorkoutEligibilityResult> {
-    const cacheKey = `${workout.nostrEventId}_${userTeams?.join(',') || 'no_teams'}`;
-    
+    const cacheKey = `${workout.nostrEventId}_${
+      userTeams?.join(',') || 'no_teams'
+    }`;
+
     // Check cache first
     const cached = this.eligibilityCache.get(cacheKey);
     if (cached && this.isCacheValid(cached.eligibilityCheckedAt)) {
-      console.log(`📋 Using cached eligibility for workout: ${workout.nostrEventId.slice(0, 16)}...`);
+      console.log(
+        `📋 Using cached eligibility for workout: ${workout.nostrEventId.slice(
+          0,
+          16
+        )}...`
+      );
       return cached;
     }
 
-    console.log(`🔍 Checking event eligibility for workout: ${workout.type}, ${workout.distance}m, ${workout.duration}min`);
+    console.log(
+      `🔍 Checking event eligibility for workout: ${workout.type}, ${workout.distance}m, ${workout.duration}min`
+    );
 
     try {
       // Get active events from user's teams
@@ -90,7 +99,7 @@ export class EventEligibilityService {
 
       // Check eligibility for each event
       const eligibleEvents: EligibleEvent[] = [];
-      
+
       for (const event of activeEvents) {
         const eligibility = this.calculateEventEligibility(workout, event);
         if (eligibility.eligible) {
@@ -112,12 +121,13 @@ export class EventEligibilityService {
       // Cache result
       this.eligibilityCache.set(cacheKey, result);
 
-      console.log(`✅ Eligibility check complete: ${eligibleEvents.length} eligible events found`);
+      console.log(
+        `✅ Eligibility check complete: ${eligibleEvents.length} eligible events found`
+      );
       return result;
-
     } catch (error) {
       console.error('❌ Failed to check workout eligibility:', error);
-      
+
       return {
         workout,
         eligibleEvents: [],
@@ -130,17 +140,22 @@ export class EventEligibilityService {
   /**
    * Get active events from user's teams
    */
-  private async getActiveEventsFromTeams(teamIds: string[]): Promise<NostrEvent[]> {
+  private async getActiveEventsFromTeams(
+    teamIds: string[]
+  ): Promise<NostrEvent[]> {
     const allActiveEvents: NostrEvent[] = [];
-    
+
     for (const teamId of teamIds) {
       try {
         // Get team's active events
-        const teamEvents = await this.nostrCompetitionService.getTeamEvents(teamId, {
-          activeOnly: true,
-          includeExpired: false,
-        });
-        
+        const teamEvents = await this.nostrCompetitionService.getTeamEvents(
+          teamId,
+          {
+            activeOnly: true,
+            includeExpired: false,
+          }
+        );
+
         allActiveEvents.push(...teamEvents);
       } catch (error) {
         console.error(`❌ Failed to get events for team ${teamId}:`, error);
@@ -149,8 +164,10 @@ export class EventEligibilityService {
 
     // Remove duplicates and filter for events still accepting entries
     const uniqueEvents = this.deduplicateEvents(allActiveEvents);
-    const openEvents = uniqueEvents.filter(event => this.isEventOpenForEntry(event));
-    
+    const openEvents = uniqueEvents.filter((event) =>
+      this.isEventOpenForEntry(event)
+    );
+
     return openEvents;
   }
 
@@ -161,13 +178,15 @@ export class EventEligibilityService {
     workout: NostrWorkout,
     event: NostrEvent
   ): { eligible: boolean; eligibleEvent?: EligibleEvent; reason?: string } {
-    
     // Check basic activity type match
-    const activityMatch = this.checkActivityTypeMatch(workout.type, event.activityType);
+    const activityMatch = this.checkActivityTypeMatch(
+      workout.type,
+      event.activityType
+    );
     if (!activityMatch.matches) {
-      return { 
-        eligible: false, 
-        reason: `Activity type mismatch: workout is ${workout.type}, event requires ${event.activityType}` 
+      return {
+        eligible: false,
+        reason: `Activity type mismatch: workout is ${workout.type}, event requires ${event.activityType}`,
       };
     }
 
@@ -176,13 +195,14 @@ export class EventEligibilityService {
     if (!timingMatch.valid) {
       return {
         eligible: false,
-        reason: timingMatch.reason || 'Workout timing does not match event period'
+        reason:
+          timingMatch.reason || 'Workout timing does not match event period',
       };
     }
 
     // Calculate competition-specific eligibility score
     const competitionMatch = this.checkCompetitionCriteria(workout, event);
-    
+
     if (competitionMatch.score > 0) {
       const eligibleEvent: EligibleEvent = {
         eventId: event.id,
@@ -205,7 +225,8 @@ export class EventEligibilityService {
 
     return {
       eligible: false,
-      reason: competitionMatch.reason || 'Workout does not meet competition criteria'
+      reason:
+        competitionMatch.reason || 'Workout does not meet competition criteria',
     };
   }
 
@@ -216,21 +237,20 @@ export class EventEligibilityService {
     workoutType: WorkoutType,
     eventActivityType: NostrActivityType
   ): { matches: boolean; confidence: number } {
-    
     // Direct matches
     const directMatches: Record<WorkoutType, NostrActivityType[]> = {
-      'running': ['Running'],
-      'walking': ['Walking'],
-      'cycling': ['Cycling'],
-      'hiking': ['Walking', 'Running'], // Hiking can match both
-      'gym': ['Strength Training'],
-      'strength_training': ['Strength Training'],
-      'yoga': ['Yoga'],
-      'other': [], // Other requires manual matching
+      running: ['Running'],
+      walking: ['Walking'],
+      cycling: ['Cycling'],
+      hiking: ['Walking', 'Running'], // Hiking can match both
+      gym: ['Strength Training'],
+      strength_training: ['Strength Training'],
+      yoga: ['Yoga'],
+      other: [], // Other requires manual matching
     };
 
     const possibleMatches = directMatches[workoutType] || [];
-    
+
     if (possibleMatches.includes(eventActivityType)) {
       return { matches: true, confidence: 1.0 };
     }
@@ -250,7 +270,6 @@ export class EventEligibilityService {
     workout: NostrWorkout,
     event: NostrEvent
   ): { valid: boolean; reason?: string } {
-    
     const workoutDate = new Date(workout.startTime);
     const eventStart = new Date(event.startDate);
     const eventEnd = new Date(event.endDate);
@@ -258,25 +277,25 @@ export class EventEligibilityService {
 
     // Check if workout is within event period
     if (workoutDate < eventStart) {
-      return { 
-        valid: false, 
-        reason: `Workout completed before event started (${eventStart.toLocaleDateString()})` 
+      return {
+        valid: false,
+        reason: `Workout completed before event started (${eventStart.toLocaleDateString()})`,
       };
     }
 
     if (workoutDate > eventEnd) {
-      return { 
-        valid: false, 
-        reason: `Workout completed after event ended (${eventEnd.toLocaleDateString()})` 
+      return {
+        valid: false,
+        reason: `Workout completed after event ended (${eventEnd.toLocaleDateString()})`,
       };
     }
 
     // Check if we're still within entry deadline
     const now = new Date();
     if (now > entryDeadline) {
-      return { 
-        valid: false, 
-        reason: `Entry deadline has passed (${entryDeadline.toLocaleDateString()})` 
+      return {
+        valid: false,
+        reason: `Entry deadline has passed (${entryDeadline.toLocaleDateString()})`,
       };
     }
 
@@ -290,7 +309,6 @@ export class EventEligibilityService {
     workout: NostrWorkout,
     event: NostrEvent
   ): { score: number; reason: string } {
-    
     const competitionType = event.competitionType;
     let score = 0;
     let reason = '';
@@ -366,7 +384,6 @@ export class EventEligibilityService {
     event: EligibleEvent,
     userPrivateKey: string
   ): Promise<EventAutoEntryResult> {
-    
     console.log(`🎯 Auto-entering workout into event: ${event.eventName}`);
 
     try {
@@ -404,13 +421,17 @@ export class EventEligibilityService {
       } else {
         throw new Error(result.message || 'Entry submission failed');
       }
-
     } catch (error) {
-      console.error(`❌ Auto-entry failed for event ${event.eventName}:`, error);
+      console.error(
+        `❌ Auto-entry failed for event ${event.eventName}:`,
+        error
+      );
       return {
         success: false,
         eventId: event.eventId,
-        message: `Failed to enter event: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to enter event: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       };
     }
   }
@@ -422,9 +443,11 @@ export class EventEligibilityService {
     workout: NostrWorkout,
     userTeams: string[]
   ): Promise<EligibleEvent[]> {
-    
-    const eligibilityResult = await this.checkWorkoutEligibility(workout, userTeams);
-    
+    const eligibilityResult = await this.checkWorkoutEligibility(
+      workout,
+      userTeams
+    );
+
     // Return top 3 suggestions
     return eligibilityResult.eligibleEvents.slice(0, 3);
   }
@@ -438,7 +461,7 @@ export class EventEligibilityService {
    */
   private deduplicateEvents(events: NostrEvent[]): NostrEvent[] {
     const seen = new Set<string>();
-    return events.filter(event => {
+    return events.filter((event) => {
       if (seen.has(event.id)) {
         return false;
       }

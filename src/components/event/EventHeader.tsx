@@ -32,7 +32,10 @@ export const EventHeader: React.FC<EventHeaderProps> = ({
   const safeType = type || 'Event';
   const safeDescription = description || '';
   const safeDaysRemaining = Math.max(0, Math.floor(daysRemaining || 0));
-  const safeProgressPercentage = Math.max(0, Math.min(100, progressPercentage || 0));
+  const safeProgressPercentage = Math.max(
+    0,
+    Math.min(100, progressPercentage || 0)
+  );
 
   return (
     <View style={styles.container}>
@@ -41,9 +44,7 @@ export const EventHeader: React.FC<EventHeaderProps> = ({
 
       {/* Event Meta */}
       <View style={styles.meta}>
-        <Text style={styles.date}>
-          {safeStartDate}
-        </Text>
+        <Text style={styles.date}>{safeStartDate}</Text>
         <View style={styles.typeBadge}>
           <Text style={styles.typeText}>{safeType}</Text>
         </View>
@@ -56,7 +57,10 @@ export const EventHeader: React.FC<EventHeaderProps> = ({
       <View style={styles.progressSection}>
         <View style={styles.progressBar}>
           <View
-            style={[styles.progressFill, { width: `${safeProgressPercentage}%` }]}
+            style={[
+              styles.progressFill,
+              { width: `${safeProgressPercentage}%` },
+            ]}
           />
         </View>
         <Text style={styles.progressText}>

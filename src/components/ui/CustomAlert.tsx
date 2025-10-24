@@ -97,7 +97,8 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                   style={[
                     styles.buttonText,
                     button.style === 'cancel' && styles.cancelButtonText,
-                    button.style === 'destructive' && styles.destructiveButtonText,
+                    button.style === 'destructive' &&
+                      styles.destructiveButtonText,
                   ]}
                 >
                   {button.text}
@@ -113,19 +114,13 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
 
 // Static helper method for imperative usage
 let alertInstance: {
-  show: (
-    title: string,
-    message?: string,
-    buttons?: AlertButton[]
-  ) => void;
+  show: (title: string, message?: string, buttons?: AlertButton[]) => void;
 } | null = null;
 
 export const CustomAlertManager = {
-  register: (
-    instance: {
-      show: (title: string, message?: string, buttons?: AlertButton[]) => void;
-    }
-  ) => {
+  register: (instance: {
+    show: (title: string, message?: string, buttons?: AlertButton[]) => void;
+  }) => {
     alertInstance = instance;
   },
   alert: (title: string, message?: string, buttons?: AlertButton[]) => {

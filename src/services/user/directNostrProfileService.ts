@@ -9,7 +9,8 @@ import { nostrProfileService } from '../nostr/NostrProfileService';
 import { NostrCacheService } from '../cache/NostrCacheService';
 import type { UserWithWallet } from '../../types';
 
-export interface DirectNostrUser extends Omit<UserWithWallet, 'id' | 'createdAt' | 'lastSyncAt'> {
+export interface DirectNostrUser
+  extends Omit<UserWithWallet, 'id' | 'createdAt' | 'lastSyncAt'> {
   id: string; // Generated from npub
   npub: string;
   name: string;
@@ -19,7 +20,7 @@ export interface DirectNostrUser extends Omit<UserWithWallet, 'id' | 'createdAt'
   currentTeamId?: string;
   createdAt: string; // Generated timestamp
   lastSyncAt?: string;
-  
+
   // Nostr profile fields
   bio?: string;
   website?: string;
@@ -27,7 +28,7 @@ export interface DirectNostrUser extends Omit<UserWithWallet, 'id' | 'createdAt'
   banner?: string;
   lud16?: string;
   displayName?: string;
-  
+
   // Wallet fields (simplified for Nostr users)
   personalWalletAddress?: string;
   lightningAddress?: string;
@@ -42,31 +43,40 @@ export class DirectNostrProfileService {
    */
   static async getCurrentUserProfile(): Promise<DirectNostrUser | null> {
     try {
-      console.log('🔍 DirectNostrProfileService: Getting profile with caching...');
-      
+      console.log(
+        '🔍 DirectNostrProfileService: Getting profile with caching...'
+      );
+
       // Get stored npub from AsyncStorage
       const storedNpub = await getNpubFromStorage();
-      
+
       if (!storedNpub) {
         console.log('❌ DirectNostrProfileService: No stored npub found');
         return null;
       }
-      
-      console.log('✅ DirectNostrProfileService: Found stored npub:', storedNpub.slice(0, 20) + '...');
-      
+
+      console.log(
+        '✅ DirectNostrProfileService: Found stored npub:',
+        storedNpub.slice(0, 20) + '...'
+      );
+
       // Try to get cached profile first (instant display)
-      const cachedProfile = await NostrCacheService.getCachedProfile<DirectNostrUser>(storedNpub);
+      const cachedProfile =
+        await NostrCacheService.getCachedProfile<DirectNostrUser>(storedNpub);
       if (cachedProfile) {
         console.log('⚡ DirectNostrProfileService: Using cached profile data');
         // Start background refresh but return cached data immediately
         this.backgroundRefreshProfile(storedNpub);
         return cachedProfile;
       }
-      
+
       // No cache - fetch fresh data (first time or expired)
       return await this.fetchFreshProfile(storedNpub);
     } catch (error) {
-      console.error('❌ DirectNostrProfileService: Error getting user profile:', error);
+      console.error(
+        '❌ DirectNostrProfileService: Error getting user profile:',
+        error
+      );
       return null;
     }
   }
@@ -74,41 +84,57 @@ export class DirectNostrProfileService {
   /**
    * Fetch fresh profile data with timeout protection
    */
-  private static async fetchFreshProfile(storedNpub: string): Promise<DirectNostrUser | null> {
+  private static async fetchFreshProfile(
+    storedNpub: string
+  ): Promise<DirectNostrUser | null> {
     try {
-      console.log('📡 DirectNostrProfileService: Fetching fresh profile data for:', storedNpub.slice(0, 20) + '...');
+      console.log(
+        '📡 DirectNostrProfileService: Fetching fresh profile data for:',
+        storedNpub.slice(0, 20) + '...'
+      );
 
       // Create timeout promise (10 seconds max for better reliability)
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);  // 10 second timeout for profile (needs more time)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000); // 10 second timeout for profile (needs more time)
       });
-      
+
       // Create profile fetch promise
       const profilePromise = nostrProfileService.getProfile(storedNpub);
-      
+
       // Race between fetch and timeout
       let nostrProfile = null;
       try {
         nostrProfile = await Promise.race([profilePromise, timeoutPromise]);
-        
+
         if (nostrProfile) {
-          console.log('✅ DirectNostrProfileService: Loaded fresh Nostr profile:', {
-            displayName: nostrProfile.display_name || nostrProfile.name,
-            picture: nostrProfile.picture ? nostrProfile.picture.substring(0, 100) : 'none',
-            banner: nostrProfile.banner ? nostrProfile.banner.substring(0, 100) : 'none',
-            bio: nostrProfile.about?.substring(0, 50) + '...',
-            lud16: nostrProfile.lud16
-          });
+          console.log(
+            '✅ DirectNostrProfileService: Loaded fresh Nostr profile:',
+            {
+              displayName: nostrProfile.display_name || nostrProfile.name,
+              picture: nostrProfile.picture
+                ? nostrProfile.picture.substring(0, 100)
+                : 'none',
+              banner: nostrProfile.banner
+                ? nostrProfile.banner.substring(0, 100)
+                : 'none',
+              bio: nostrProfile.about?.substring(0, 50) + '...',
+              lud16: nostrProfile.lud16,
+            }
+          );
         }
       } catch (timeoutError) {
-        console.warn('⏰ DirectNostrProfileService: Profile fetch timed out, using fallback');
+        console.warn(
+          '⏰ DirectNostrProfileService: Profile fetch timed out, using fallback'
+        );
         // Continue with null profile - will show basic fallback profile
       }
-      
+
       // If no profile data found, return null instead of creating fallback with "User xr8tvnnn"
       // This allows the UI to show proper loading states
       if (!nostrProfile) {
-        console.log('⚠️ DirectNostrProfileService: No profile data from Nostr, returning null for proper loading state');
+        console.log(
+          '⚠️ DirectNostrProfileService: No profile data from Nostr, returning null for proper loading state'
+        );
         return null;
       }
 
@@ -139,23 +165,29 @@ export class DirectNostrProfileService {
         walletBalance: 0, // Members receive payments directly to Lightning address
         hasWalletCredentials: false, // No CoinOS integration for pure Nostr users
       };
-      
+
       // Cache the fresh profile data
       await NostrCacheService.setCachedProfile(storedNpub, directUser);
-      
-      console.log('✅ DirectNostrProfileService: Created and cached user profile:', {
-        id: directUser.id,
-        name: directUser.name,
-        displayName: directUser.displayName,
-        hasPicture: !!directUser.picture,
-        hasBanner: !!directUser.banner,
-        hasBio: !!directUser.bio,
-        hasLightning: !!directUser.lud16,
-      });
-      
+
+      console.log(
+        '✅ DirectNostrProfileService: Created and cached user profile:',
+        {
+          id: directUser.id,
+          name: directUser.name,
+          displayName: directUser.displayName,
+          hasPicture: !!directUser.picture,
+          hasBanner: !!directUser.banner,
+          hasBio: !!directUser.bio,
+          hasLightning: !!directUser.lud16,
+        }
+      );
+
       return directUser;
     } catch (error) {
-      console.error('❌ DirectNostrProfileService: Error fetching fresh profile:', error);
+      console.error(
+        '❌ DirectNostrProfileService: Error fetching fresh profile:',
+        error
+      );
       return null;
     }
   }
@@ -163,19 +195,28 @@ export class DirectNostrProfileService {
   /**
    * Background refresh of profile data (non-blocking)
    */
-  private static async backgroundRefreshProfile(storedNpub: string): Promise<void> {
+  private static async backgroundRefreshProfile(
+    storedNpub: string
+  ): Promise<void> {
     try {
-      console.log('🔄 DirectNostrProfileService: Starting background profile refresh...');
-      
+      console.log(
+        '🔄 DirectNostrProfileService: Starting background profile refresh...'
+      );
+
       // Fetch fresh data in background with timeout
       const freshProfile = await this.fetchFreshProfile(storedNpub);
-      
+
       if (freshProfile) {
-        console.log('✅ DirectNostrProfileService: Background refresh completed');
+        console.log(
+          '✅ DirectNostrProfileService: Background refresh completed'
+        );
         // Data is automatically cached by fetchFreshProfile
       }
     } catch (error) {
-      console.warn('⚠️ DirectNostrProfileService: Background refresh failed:', error);
+      console.warn(
+        '⚠️ DirectNostrProfileService: Background refresh failed:',
+        error
+      );
       // Don't throw - this is background operation
     }
   }
@@ -189,25 +230,35 @@ export class DirectNostrProfileService {
       const storedNpub = await getNpubFromStorage();
       if (!storedNpub) return null;
 
-      console.log('🏃‍♂️ DirectNostrProfileService: Checking for cached profile before creating fallback');
+      console.log(
+        '🏃‍♂️ DirectNostrProfileService: Checking for cached profile before creating fallback'
+      );
 
       // Try to get cached profile first
-      const cachedProfile = await NostrCacheService.getCachedProfile<DirectNostrUser>(storedNpub);
+      const cachedProfile =
+        await NostrCacheService.getCachedProfile<DirectNostrUser>(storedNpub);
       if (cachedProfile) {
-        console.log('✅ DirectNostrProfileService: Using cached profile as fallback');
+        console.log(
+          '✅ DirectNostrProfileService: Using cached profile as fallback'
+        );
         return cachedProfile;
       }
 
       // Return null to allow UI to show loading state
       // This prevents showing "User xr8tvnnn" or other fake names
-      console.log('⚠️ DirectNostrProfileService: No cached profile, returning null for loading state');
+      console.log(
+        '⚠️ DirectNostrProfileService: No cached profile, returning null for loading state'
+      );
       return null;
     } catch (error) {
-      console.error('❌ DirectNostrProfileService: Error in getFallbackProfile:', error);
+      console.error(
+        '❌ DirectNostrProfileService: Error in getFallbackProfile:',
+        error
+      );
       return null;
     }
   }
-  
+
   /**
    * Check if user has valid stored Nostr credentials
    */
@@ -216,11 +267,14 @@ export class DirectNostrProfileService {
       const storedNpub = await getNpubFromStorage();
       return !!storedNpub && storedNpub.startsWith('npub1');
     } catch (error) {
-      console.error('DirectNostrProfileService: Error checking credentials:', error);
+      console.error(
+        'DirectNostrProfileService: Error checking credentials:',
+        error
+      );
       return false;
     }
   }
-  
+
   /**
    * Get user's stored npub
    */
@@ -228,11 +282,14 @@ export class DirectNostrProfileService {
     try {
       return await getNpubFromStorage();
     } catch (error) {
-      console.error('DirectNostrProfileService: Error getting stored npub:', error);
+      console.error(
+        'DirectNostrProfileService: Error getting stored npub:',
+        error
+      );
       return null;
     }
   }
-  
+
   /**
    * Refresh profile data by re-fetching from Nostr
    */

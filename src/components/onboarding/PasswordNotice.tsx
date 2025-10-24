@@ -113,14 +113,17 @@ export const PasswordNotice: React.FC<PasswordNoticeProps> = ({
 
       {/* Description */}
       <Text style={styles.description}>
-        We've generated a secure password for your account. Please save it somewhere safe - you'll need it to login on other devices.
+        We've generated a secure password for your account. Please save it
+        somewhere safe - you'll need it to login on other devices.
       </Text>
 
       {/* Password Display */}
       <View style={styles.passwordContainer}>
         <Text style={styles.passwordLabel}>Your Password:</Text>
 
-        <View style={[styles.passwordBox, !hasPassword && styles.passwordBoxError]}>
+        <View
+          style={[styles.passwordBox, !hasPassword && styles.passwordBoxError]}
+        >
           <Text style={styles.passwordText} numberOfLines={2}>
             {hasPassword ? displayPassword : 'Password not available'}
           </Text>
@@ -146,7 +149,9 @@ export const PasswordNotice: React.FC<PasswordNoticeProps> = ({
               <Ionicons
                 name={hasCopied ? 'checkmark' : 'copy'}
                 size={22}
-                color={hasCopied ? theme.colors.text : theme.colors.textSecondary}
+                color={
+                  hasCopied ? theme.colors.text : theme.colors.textSecondary
+                }
               />
             </TouchableOpacity>
           </View>
@@ -164,9 +169,15 @@ export const PasswordNotice: React.FC<PasswordNoticeProps> = ({
         onPress={handleAcknowledge}
         activeOpacity={0.7}
       >
-        <View style={[styles.checkbox, hasAcknowledged && styles.checkboxChecked]}>
+        <View
+          style={[styles.checkbox, hasAcknowledged && styles.checkboxChecked]}
+        >
           {hasAcknowledged && (
-            <Ionicons name="checkmark" size={16} color={theme.colors.background} />
+            <Ionicons
+              name="checkmark"
+              size={16}
+              color={theme.colors.background}
+            />
           )}
         </View>
         <Text style={styles.checkboxText}>
@@ -185,10 +196,12 @@ export const PasswordNotice: React.FC<PasswordNoticeProps> = ({
           disabled={!hasAcknowledged || !hasPassword}
           activeOpacity={0.8}
         >
-          <Text style={[
-            styles.continueButtonText,
-            !hasAcknowledged && styles.continueButtonTextDisabled,
-          ]}>
+          <Text
+            style={[
+              styles.continueButtonText,
+              !hasAcknowledged && styles.continueButtonTextDisabled,
+            ]}
+          >
             Continue to RUNSTR
           </Text>
         </TouchableOpacity>

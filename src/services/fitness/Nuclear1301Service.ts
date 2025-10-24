@@ -26,35 +26,51 @@ export class Nuclear1301Service {
   async getUserWorkouts(pubkey: string): Promise<NostrWorkout[]> {
     try {
       if (!pubkey) {
-        console.log('⚠️ No pubkey provided - returning empty array (nuclear approach)');
+        console.log(
+          '⚠️ No pubkey provided - returning empty array (nuclear approach)'
+        );
         return [];
       }
 
-      console.log('🚀🚀🚀 NUCLEAR WORKOUT APPROACH: Getting ALL 1301 events for user (no filtering)...');
+      console.log(
+        '🚀🚀🚀 NUCLEAR WORKOUT APPROACH: Getting ALL 1301 events for user (no filtering)...'
+      );
       console.log('🔍 Input pubkey analysis:', {
         pubkey: pubkey.slice(0, 12) + '...',
         length: pubkey.length,
         startsWithNpub: pubkey.startsWith('npub1'),
-        isValidHex: /^[0-9a-fA-F]{64}$/.test(pubkey)
+        isValidHex: /^[0-9a-fA-F]{64}$/.test(pubkey),
       });
-      
+
       // NUCLEAR APPROACH: Use NDK (like successful team discovery)
       const { nip19 } = await import('nostr-tools');
       const NDK = await import('@nostr-dev-kit/ndk');
-      
+
       let hexPubkey = pubkey;
       if (pubkey.startsWith('npub1')) {
         const decoded = nip19.decode(pubkey);
         hexPubkey = decoded.data as string;
-        console.log(`🔧 Converted npub to hex: ${pubkey.slice(0, 20)}... → ${hexPubkey.slice(0, 20)}...`);
+        console.log(
+          `🔧 Converted npub to hex: ${pubkey.slice(
+            0,
+            20
+          )}... → ${hexPubkey.slice(0, 20)}...`
+        );
       }
 
-      console.log(`📊 NDK NUCLEAR QUERY: Getting ALL kind 1301 events for ${hexPubkey.slice(0, 16)}...`);
+      console.log(
+        `📊 NDK NUCLEAR QUERY: Getting ALL kind 1301 events for ${hexPubkey.slice(
+          0,
+          16
+        )}...`
+      );
 
       // Use GlobalNDKService for shared relay connections
       console.log('[NDK Workout] Getting GlobalNDK instance...');
       const ndk = await GlobalNDKService.getInstance();
-      console.log('[NDK Workout] Using GlobalNDK instance with shared relay connections');
+      console.log(
+        '[NDK Workout] Using GlobalNDK instance with shared relay connections'
+      );
 
       const events: any[] = [];
 
@@ -62,9 +78,9 @@ export class Nuclear1301Service {
       const nuclearFilter = {
         kinds: [1301],
         authors: [hexPubkey],
-        limit: 500
+        limit: 500,
         // NO time filters (since/until) - nuclear approach
-        // NO content filters - nuclear approach  
+        // NO content filters - nuclear approach
         // NO tag validation - nuclear approach
       };
 
@@ -72,7 +88,7 @@ export class Nuclear1301Service {
 
       // Use NDK subscription (like teams)
       const subscription = ndk.subscribe(nuclearFilter, {
-        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY
+        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY,
       });
 
       subscription.on('event', (event: any) => {
@@ -81,27 +97,35 @@ export class Nuclear1301Service {
           kind: event.kind,
           created_at: new Date(event.created_at * 1000).toISOString(),
           pubkey: event.pubkey?.slice(0, 8),
-          tags: event.tags?.length
+          tags: event.tags?.length,
         });
-        
+
         // ULTRA NUCLEAR: Accept ANY kind 1301 event - ZERO validation!
         if (event.kind === 1301) {
           events.push(event);
-          console.log(`✅ NDK NUCLEAR ACCEPT: Event ${events.length} added - NO filtering!`);
+          console.log(
+            `✅ NDK NUCLEAR ACCEPT: Event ${events.length} added - NO filtering!`
+          );
         }
       });
 
       subscription.on('eose', () => {
-        console.log('📨 NDK EOSE received - continuing to wait for complete timeout...');
+        console.log(
+          '📨 NDK EOSE received - continuing to wait for complete timeout...'
+        );
       });
 
-      // Wait for ALL events (nuclear approach - ultra-fast timeout proven by script) 
-      console.log('⏰ NDK NUCLEAR TIMEOUT: Waiting 3 seconds for ALL 1301 events...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
+      // Wait for ALL events (nuclear approach - ultra-fast timeout proven by script)
+      console.log(
+        '⏰ NDK NUCLEAR TIMEOUT: Waiting 3 seconds for ALL 1301 events...'
+      );
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
       subscription.stop();
 
-      console.log(`🚀🚀🚀 NUCLEAR RESULT: Found ${events.length} raw 1301 events`);
+      console.log(
+        `🚀🚀🚀 NUCLEAR RESULT: Found ${events.length} raw 1301 events`
+      );
 
       if (events.length === 0) {
         console.log('⚠️ NO 1301 EVENTS FOUND - This suggests:');
@@ -112,7 +136,7 @@ export class Nuclear1301Service {
 
       // ULTRA NUCLEAR PARSING: Create workouts from ALL 1301 events - ZERO validation!
       const workouts: NostrWorkout[] = [];
-      
+
       for (const event of events) {
         try {
           // ULTRA NUCLEAR: Accept ANY tags, ANY content, ANY structure
@@ -121,7 +145,7 @@ export class Nuclear1301Service {
           let duration = 0;
           let distance = 0;
           let calories = 0;
-          
+
           // Parse tags with support for both runstr and other formats
           for (const tag of tags) {
             // Exercise/activity type - support multiple tag names
@@ -134,7 +158,9 @@ export class Nuclear1301Service {
               const timeStr = tag[1];
               // Check if it's HH:MM:SS format (runstr style)
               if (timeStr.includes(':')) {
-                const parts = timeStr.split(':').map((p: string) => parseInt(p) || 0);
+                const parts = timeStr
+                  .split(':')
+                  .map((p: string) => parseInt(p) || 0);
                 if (parts.length === 3) {
                   duration = parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS to seconds
                 } else if (parts.length === 2) {
@@ -164,7 +190,8 @@ export class Nuclear1301Service {
             }
 
             // Calories
-            if (tag[0] === 'calories' && tag[1]) calories = parseInt(tag[1]) || 0;
+            if (tag[0] === 'calories' && tag[1])
+              calories = parseInt(tag[1]) || 0;
 
             // Source identification (to identify RUNSTR posts)
             if (tag[0] === 'source' && tag[1] === 'RUNSTR') {
@@ -179,19 +206,26 @@ export class Nuclear1301Service {
             userId: 'nostr_user', // Generic for tab display
             type: workoutType as any,
             startTime: new Date(event.created_at * 1000).toISOString(),
-            endTime: new Date((event.created_at + Math.max(duration, 60)) * 1000).toISOString(), // duration is already in seconds
+            endTime: new Date(
+              (event.created_at + Math.max(duration, 60)) * 1000
+            ).toISOString(), // duration is already in seconds
             duration: duration, // Duration in seconds
             distance: distance, // Distance in meters
             calories: calories,
             source: 'nostr',
             nostrEventId: event.id,
             nostrPubkey: event.pubkey,
-            syncedAt: new Date().toISOString()
+            syncedAt: new Date().toISOString(),
           };
 
           workouts.push(workout);
-          console.log(`✅ ULTRA NUCLEAR WORKOUT ${workouts.length}: ${workout.type} - ${new Date(workout.startTime).toDateString()} (dur:${workout.duration}, dist:${workout.distance})`);
-          
+          console.log(
+            `✅ ULTRA NUCLEAR WORKOUT ${workouts.length}: ${
+              workout.type
+            } - ${new Date(workout.startTime).toDateString()} (dur:${
+              workout.duration
+            }, dist:${workout.distance})`
+          );
         } catch (error) {
           console.warn(`⚠️ Error in ultra nuclear parsing ${event.id}:`, error);
           // ULTRA NUCLEAR: Even if parsing fails, create a basic workout
@@ -207,25 +241,37 @@ export class Nuclear1301Service {
             source: 'nostr',
             nostrEventId: event.id,
             nostrPubkey: event.pubkey,
-            syncedAt: new Date().toISOString()
+            syncedAt: new Date().toISOString(),
           };
           workouts.push(fallbackWorkout);
-          console.log(`🆘 FALLBACK WORKOUT ${workouts.length}: raw_1301 - ${new Date(fallbackWorkout.startTime).toDateString()}`);
+          console.log(
+            `🆘 FALLBACK WORKOUT ${workouts.length}: raw_1301 - ${new Date(
+              fallbackWorkout.startTime
+            ).toDateString()}`
+          );
         }
       }
 
-      console.log(`🎉 NUCLEAR SUCCESS: Created ${workouts.length} workout objects from ${events.length} raw events`);
-      
+      console.log(
+        `🎉 NUCLEAR SUCCESS: Created ${workouts.length} workout objects from ${events.length} raw events`
+      );
+
       if (workouts.length > 0) {
         // Show date range
-        const dates = workouts.map(w => new Date(w.startTime).getTime()).sort();
+        const dates = workouts
+          .map((w) => new Date(w.startTime).getTime())
+          .sort();
         const oldest = new Date(dates[0]);
         const newest = new Date(dates[dates.length - 1]);
-        console.log(`📅 Date range: ${oldest.toDateString()} → ${newest.toDateString()}`);
+        console.log(
+          `📅 Date range: ${oldest.toDateString()} → ${newest.toDateString()}`
+        );
       }
 
-      return workouts.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-
+      return workouts.sort(
+        (a, b) =>
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
     } catch (error) {
       console.error('❌ Nuclear 1301 discovery failed:', error);
       return [];
@@ -236,14 +282,19 @@ export class Nuclear1301Service {
    * Get LIMITED 1301 events for user - Optimized for prefetch
    * Fetches only specified number of most recent workouts
    */
-  async getUserWorkoutsWithLimit(pubkey: string, limit: number = 20): Promise<NostrWorkout[]> {
+  async getUserWorkoutsWithLimit(
+    pubkey: string,
+    limit: number = 20
+  ): Promise<NostrWorkout[]> {
     try {
       if (!pubkey) {
         console.log('⚠️ No pubkey provided - returning empty array');
         return [];
       }
 
-      console.log(`🚀 Fetching last ${limit} workouts for user (optimized for speed)...`);
+      console.log(
+        `🚀 Fetching last ${limit} workouts for user (optimized for speed)...`
+      );
 
       // Use NDK
       const { nip19 } = await import('nostr-tools');
@@ -264,14 +315,14 @@ export class Nuclear1301Service {
       const optimizedFilter = {
         kinds: [1301],
         authors: [hexPubkey],
-        limit: limit // Only fetch the specified number of workouts
+        limit: limit, // Only fetch the specified number of workouts
       };
 
       console.log('⚡ OPTIMIZED FILTER:', optimizedFilter);
 
       // Use NDK subscription
       const subscription = ndk.subscribe(optimizedFilter, {
-        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY
+        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY,
       });
 
       subscription.on('event', (event: any) => {
@@ -281,7 +332,7 @@ export class Nuclear1301Service {
       });
 
       // Shorter timeout for limited queries (2 seconds)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       subscription.stop();
 
       console.log(`✅ Fetched ${events.length} events (limit was ${limit})`);
@@ -310,7 +361,7 @@ export class Nuclear1301Service {
             source: 'nostr',
             nostrEventId: event.id,
             nostrPubkey: event.pubkey,
-            syncedAt: new Date().toISOString()
+            syncedAt: new Date().toISOString(),
           };
           workouts.push(workout);
         } catch (error) {
@@ -320,9 +371,11 @@ export class Nuclear1301Service {
 
       // Sort by date (newest first) and return only the limit
       return workouts
-        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        )
         .slice(0, limit);
-
     } catch (error) {
       console.error('❌ Limited workout fetch failed:', error);
       return [];

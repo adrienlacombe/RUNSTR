@@ -25,13 +25,13 @@ interface CacheConfig {
 export class UnifiedCacheService {
   // Centralized TTL configuration (in milliseconds)
   private static readonly TTL: CacheConfig = {
-    profiles: 120 * 60 * 1000,      // 2 hours - profiles rarely change
-    teams: 60 * 60 * 1000,           // 1 hour - team info is stable
-    members: 5 * 60 * 1000,          // 5 minutes - member lists can change
-    workouts: 5 * 60 * 1000,         // 5 minutes - new workouts posted frequently
-    leaderboards: 5 * 60 * 1000,     // 5 minutes - rankings need freshness
-    competitions: 30 * 60 * 1000,    // 30 minutes - competition settings stable
-    computed: 5 * 60 * 1000,         // 5 minutes - computed data default
+    profiles: 120 * 60 * 1000, // 2 hours - profiles rarely change
+    teams: 60 * 60 * 1000, // 1 hour - team info is stable
+    members: 5 * 60 * 1000, // 5 minutes - member lists can change
+    workouts: 5 * 60 * 1000, // 5 minutes - new workouts posted frequently
+    leaderboards: 5 * 60 * 1000, // 5 minutes - rankings need freshness
+    competitions: 30 * 60 * 1000, // 30 minutes - competition settings stable
+    computed: 5 * 60 * 1000, // 5 minutes - computed data default
   };
 
   // Memory cache for instant access
@@ -85,16 +85,16 @@ export class UnifiedCacheService {
     const ttl = this.TTL[ttlKey];
 
     const promise = fetcher()
-      .then(data => {
+      .then((data) => {
         const entry: CacheEntry<T> = {
           data,
           timestamp: Date.now(),
-          expiresAt: Date.now() + ttl
+          expiresAt: Date.now() + ttl,
         };
 
         // Store in both memory and persistent cache
         this.memoryCache.set(key, entry);
-        this.saveToStorage(key, entry).catch(err =>
+        this.saveToStorage(key, entry).catch((err) =>
           console.warn(`UnifiedCache: Failed to persist ${key}:`, err)
         );
 
@@ -104,7 +104,7 @@ export class UnifiedCacheService {
         console.log(`✅ UnifiedCache: Cached ${key} with TTL ${ttl}ms`);
         return data;
       })
-      .catch(error => {
+      .catch((error) => {
         // Clear loading state on error
         this.loading.delete(key);
         throw error;
@@ -155,14 +155,17 @@ export class UnifiedCacheService {
         // Clear from storage (check all keys)
         try {
           const allKeys = await AsyncStorage.getAllKeys();
-          const cacheKeys = allKeys.filter(k =>
-            k.startsWith(this.STORAGE_PREFIX) &&
-            regex.test(k.replace(this.STORAGE_PREFIX, ''))
+          const cacheKeys = allKeys.filter(
+            (k) =>
+              k.startsWith(this.STORAGE_PREFIX) &&
+              regex.test(k.replace(this.STORAGE_PREFIX, ''))
           );
 
           if (cacheKeys.length > 0) {
             await AsyncStorage.multiRemove(cacheKeys);
-            console.log(`🗑️ UnifiedCache: Removed ${cacheKeys.length} storage entries`);
+            console.log(
+              `🗑️ UnifiedCache: Removed ${cacheKeys.length} storage entries`
+            );
           }
         } catch (error) {
           console.warn('UnifiedCache: Error clearing storage:', error);
@@ -213,7 +216,7 @@ export class UnifiedCacheService {
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
-      expiresAt: Date.now() + ttl
+      expiresAt: Date.now() + ttl,
     };
 
     this.memoryCache.set(key, entry);
@@ -234,11 +237,15 @@ export class UnifiedCacheService {
     // Clear persistent cache
     try {
       const allKeys = await AsyncStorage.getAllKeys();
-      const cacheKeys = allKeys.filter(k => k.startsWith(this.STORAGE_PREFIX));
+      const cacheKeys = allKeys.filter((k) =>
+        k.startsWith(this.STORAGE_PREFIX)
+      );
 
       if (cacheKeys.length > 0) {
         await AsyncStorage.multiRemove(cacheKeys);
-        console.log(`✅ UnifiedCache: Removed ${cacheKeys.length} persistent entries`);
+        console.log(
+          `✅ UnifiedCache: Removed ${cacheKeys.length} persistent entries`
+        );
       }
     } catch (error) {
       console.warn('UnifiedCache: Error clearing storage:', error);
@@ -256,7 +263,7 @@ export class UnifiedCacheService {
     return {
       memoryEntries: this.memoryCache.size,
       loadingRequests: this.loading.size,
-      cacheKeys: Array.from(this.memoryCache.keys())
+      cacheKeys: Array.from(this.memoryCache.keys()),
     };
   }
 
@@ -270,7 +277,9 @@ export class UnifiedCacheService {
   /**
    * Helper: Get from AsyncStorage
    */
-  private static async getFromStorage<T>(key: string): Promise<CacheEntry<T> | null> {
+  private static async getFromStorage<T>(
+    key: string
+  ): Promise<CacheEntry<T> | null> {
     try {
       const stored = await AsyncStorage.getItem(this.STORAGE_PREFIX + key);
       if (stored) {
@@ -285,7 +294,10 @@ export class UnifiedCacheService {
   /**
    * Helper: Save to AsyncStorage
    */
-  private static async saveToStorage<T>(key: string, entry: CacheEntry<T>): Promise<void> {
+  private static async saveToStorage<T>(
+    key: string,
+    entry: CacheEntry<T>
+  ): Promise<void> {
     try {
       await AsyncStorage.setItem(
         this.STORAGE_PREFIX + key,
@@ -303,7 +315,10 @@ export class UnifiedCacheService {
     try {
       await AsyncStorage.removeItem(this.STORAGE_PREFIX + key);
     } catch (error) {
-      console.warn(`UnifiedCache: Failed to remove ${key} from storage:`, error);
+      console.warn(
+        `UnifiedCache: Failed to remove ${key} from storage:`,
+        error
+      );
     }
   }
 
@@ -313,11 +328,14 @@ export class UnifiedCacheService {
   static pruneMemoryCache(maxEntries: number = 100): void {
     if (this.memoryCache.size <= maxEntries) return;
 
-    console.log(`🧹 UnifiedCache: Pruning memory cache (${this.memoryCache.size} entries)`);
+    console.log(
+      `🧹 UnifiedCache: Pruning memory cache (${this.memoryCache.size} entries)`
+    );
 
     // Sort by timestamp and remove oldest
-    const sorted = Array.from(this.memoryCache.entries())
-      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const sorted = Array.from(this.memoryCache.entries()).sort(
+      (a, b) => a[1].timestamp - b[1].timestamp
+    );
 
     const toRemove = sorted.slice(0, this.memoryCache.size - maxEntries);
     toRemove.forEach(([key]) => {

@@ -109,11 +109,17 @@ export class LocationValidator {
       const maxAllowedDistance = timeDeltaMs > 600000 ? 500 : 200;
 
       if (distance > maxAllowedDistance) {
-        console.log(`Transport detected: ${distance.toFixed(0)}m jump after pause (max allowed: ${maxAllowedDistance}m)`);
+        console.log(
+          `Transport detected: ${distance.toFixed(
+            0
+          )}m jump after pause (max allowed: ${maxAllowedDistance}m)`
+        );
         return {
           isValid: false,
           confidence: 0,
-          reason: `Transport detected - ${distance.toFixed(0)}m jump after pause`,
+          reason: `Transport detected - ${distance.toFixed(
+            0
+          )}m jump after pause`,
         };
       }
     }
@@ -148,7 +154,11 @@ export class LocationValidator {
       // Minimum distance: 0.75m to filter GPS jitter while allowing slow movement
       // Reduced from 1.0m to prevent distance freezing during slow running
       if (distance < 0.75) {
-        console.log(`⚠️ [ANDROID] GPS jitter filtered: distance=${distance.toFixed(2)}m < 0.75m`);
+        console.log(
+          `⚠️ [ANDROID] GPS jitter filtered: distance=${distance.toFixed(
+            2
+          )}m < 0.75m`
+        );
         return {
           isValid: false,
           confidence: 0,
@@ -159,7 +169,11 @@ export class LocationValidator {
       // Only check for extreme teleportation (2x more lenient than iOS)
       const androidMaxJump = this.config.maxJumpDistance * 2;
       if (distance > androidMaxJump) {
-        console.log(`❌ [ANDROID] Extreme teleportation: ${distance.toFixed(0)}m > ${androidMaxJump}m`);
+        console.log(
+          `❌ [ANDROID] Extreme teleportation: ${distance.toFixed(
+            0
+          )}m > ${androidMaxJump}m`
+        );
         return {
           isValid: false,
           confidence: 0,
@@ -170,7 +184,11 @@ export class LocationValidator {
       // Only check for extreme speeds (2x more lenient than iOS)
       const androidMaxSpeed = this.config.maxSpeedMps * 2;
       if (speed > androidMaxSpeed) {
-        console.log(`❌ [ANDROID] Extreme speed: ${(speed * 3.6).toFixed(1)} km/h > ${(androidMaxSpeed * 3.6).toFixed(1)} km/h`);
+        console.log(
+          `❌ [ANDROID] Extreme speed: ${(speed * 3.6).toFixed(1)} km/h > ${(
+            androidMaxSpeed * 3.6
+          ).toFixed(1)} km/h`
+        );
         return {
           isValid: false,
           confidence: 0,
@@ -179,7 +197,11 @@ export class LocationValidator {
       }
 
       // Skip acceleration checks on Android - GPS is too noisy
-      console.log(`✅ [ANDROID] Point accepted: distance=${distance.toFixed(1)}m, speed=${(speed * 3.6).toFixed(1)}km/h`);
+      console.log(
+        `✅ [ANDROID] Point accepted: distance=${distance.toFixed(
+          1
+        )}m, speed=${(speed * 3.6).toFixed(1)}km/h`
+      );
       this.lastValidPoint = point;
       return {
         isValid: true,
@@ -256,25 +278,48 @@ export class LocationValidator {
     // Android: 100m for running/walking, 150m for cycling (2x more lenient)
     const iosBaseThreshold = this.activityType === 'cycling' ? 75 : 50;
     const androidBaseThreshold = this.activityType === 'cycling' ? 150 : 100;
-    const baseThreshold = Platform.OS === 'android' ? androidBaseThreshold : iosBaseThreshold;
+    const baseThreshold =
+      Platform.OS === 'android' ? androidBaseThreshold : iosBaseThreshold;
 
-    console.log(`📍 [${Platform.OS.toUpperCase()}] Base accuracy threshold: ${baseThreshold}m for ${this.activityType}`);
+    console.log(
+      `📍 [${Platform.OS.toUpperCase()}] Base accuracy threshold: ${baseThreshold}m for ${
+        this.activityType
+      }`
+    );
 
     // Check if we've had no valid points recently (signal degradation)
     const timeSinceLastValid = Date.now() - this.lastValidTimestamp;
 
     // Progressive relaxation based on time without valid points
-    if (timeSinceLastValid > 60000) { // 60 seconds - very degraded signal
-      const relaxedThreshold = Math.min(baseThreshold * 2, Platform.OS === 'android' ? 200 : 100);
-      console.log(`📍 Signal degraded (60s+), relaxing threshold to ${relaxedThreshold}m`);
+    if (timeSinceLastValid > 60000) {
+      // 60 seconds - very degraded signal
+      const relaxedThreshold = Math.min(
+        baseThreshold * 2,
+        Platform.OS === 'android' ? 200 : 100
+      );
+      console.log(
+        `📍 Signal degraded (60s+), relaxing threshold to ${relaxedThreshold}m`
+      );
       return relaxedThreshold;
-    } else if (timeSinceLastValid > 30000) { // 30 seconds - degraded signal
-      const relaxedThreshold = Math.min(baseThreshold * 1.5, Platform.OS === 'android' ? 150 : 85);
-      console.log(`📍 Signal degraded (30s+), relaxing threshold to ${relaxedThreshold}m`);
+    } else if (timeSinceLastValid > 30000) {
+      // 30 seconds - degraded signal
+      const relaxedThreshold = Math.min(
+        baseThreshold * 1.5,
+        Platform.OS === 'android' ? 150 : 85
+      );
+      console.log(
+        `📍 Signal degraded (30s+), relaxing threshold to ${relaxedThreshold}m`
+      );
       return relaxedThreshold;
-    } else if (this.consecutiveInvalidPoints > 5) { // Multiple rejections
-      const relaxedThreshold = Math.min(baseThreshold * 1.3, Platform.OS === 'android' ? 130 : 75);
-      console.log(`📍 Multiple rejections (${this.consecutiveInvalidPoints}), relaxing threshold to ${relaxedThreshold}m`);
+    } else if (this.consecutiveInvalidPoints > 5) {
+      // Multiple rejections
+      const relaxedThreshold = Math.min(
+        baseThreshold * 1.3,
+        Platform.OS === 'android' ? 130 : 75
+      );
+      console.log(
+        `📍 Multiple rejections (${this.consecutiveInvalidPoints}), relaxing threshold to ${relaxedThreshold}m`
+      );
       return relaxedThreshold;
     }
 
@@ -294,15 +339,31 @@ export class LocationValidator {
     if (!isAcceptable) {
       this.consecutiveInvalidPoints++;
       if (Platform.OS === 'android') {
-        console.log(`📍 [ANDROID] GPS accuracy ${point.accuracy.toFixed(1)}m exceeds threshold ${threshold}m (consecutive invalid: ${this.consecutiveInvalidPoints})`);
+        console.log(
+          `📍 [ANDROID] GPS accuracy ${point.accuracy.toFixed(
+            1
+          )}m exceeds threshold ${threshold}m (consecutive invalid: ${
+            this.consecutiveInvalidPoints
+          })`
+        );
       } else {
-        console.log(`GPS accuracy ${point.accuracy.toFixed(1)}m exceeds threshold ${threshold}m (consecutive invalid: ${this.consecutiveInvalidPoints})`);
+        console.log(
+          `GPS accuracy ${point.accuracy.toFixed(
+            1
+          )}m exceeds threshold ${threshold}m (consecutive invalid: ${
+            this.consecutiveInvalidPoints
+          })`
+        );
       }
     } else {
       this.consecutiveInvalidPoints = 0;
       this.lastValidTimestamp = Date.now();
       if (Platform.OS === 'android') {
-        console.log(`✅ [ANDROID] GPS accuracy acceptable: ${point.accuracy.toFixed(1)}m <= ${threshold}m`);
+        console.log(
+          `✅ [ANDROID] GPS accuracy acceptable: ${point.accuracy.toFixed(
+            1
+          )}m <= ${threshold}m`
+        );
       }
     }
 
@@ -406,9 +467,10 @@ export class LocationValidator {
     return {
       latitude: start.latitude + (end.latitude - start.latitude) * ratio,
       longitude: start.longitude + (end.longitude - start.longitude) * ratio,
-      altitude: start.altitude && end.altitude
-        ? start.altitude + (end.altitude - start.altitude) * ratio
-        : undefined,
+      altitude:
+        start.altitude && end.altitude
+          ? start.altitude + (end.altitude - start.altitude) * ratio
+          : undefined,
       timestamp: start.timestamp + (end.timestamp - start.timestamp) * ratio,
       accuracy: end.accuracy,
       speed: end.speed,
@@ -418,7 +480,10 @@ export class LocationValidator {
   /**
    * Calculate distance between two points using Haversine formula
    */
-  private calculateDistance(point1: LocationPoint, point2: LocationPoint): number {
+  private calculateDistance(
+    point1: LocationPoint,
+    point2: LocationPoint
+  ): number {
     const R = 6371000; // Earth's radius in meters
     const φ1 = (point1.latitude * Math.PI) / 180;
     const φ2 = (point2.latitude * Math.PI) / 180;

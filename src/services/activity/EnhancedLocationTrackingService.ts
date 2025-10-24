@@ -141,7 +141,8 @@ export class EnhancedLocationTrackingService {
 
   static getInstance(): EnhancedLocationTrackingService {
     if (!EnhancedLocationTrackingService.instance) {
-      EnhancedLocationTrackingService.instance = new EnhancedLocationTrackingService();
+      EnhancedLocationTrackingService.instance =
+        new EnhancedLocationTrackingService();
     }
     return EnhancedLocationTrackingService.instance;
   }
@@ -150,30 +151,34 @@ export class EnhancedLocationTrackingService {
    * Initialize app state handling for background/foreground
    */
   private initializeAppStateHandling(): void {
-    this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (this.currentSession) {
-        if (nextAppState === 'background') {
-          this.stateMachine.send({ type: 'ENTER_BACKGROUND' });
-          this.currentSession.isBackgroundTracking = true;
-          // Start background sync only when app actually goes to background
-          this.startBackgroundLocationSync();
-        } else if (nextAppState === 'active') {
-          this.stateMachine.send({ type: 'ENTER_FOREGROUND' });
-          this.currentSession.isBackgroundTracking = false;
-          // Stop background sync when app returns to foreground
-          this.stopBackgroundLocationSync();
-          // Sync any remaining background locations
-          this.syncBackgroundLocations();
+    this.appStateSubscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        if (this.currentSession) {
+          if (nextAppState === 'background') {
+            this.stateMachine.send({ type: 'ENTER_BACKGROUND' });
+            this.currentSession.isBackgroundTracking = true;
+            // Start background sync only when app actually goes to background
+            this.startBackgroundLocationSync();
+          } else if (nextAppState === 'active') {
+            this.stateMachine.send({ type: 'ENTER_FOREGROUND' });
+            this.currentSession.isBackgroundTracking = false;
+            // Stop background sync when app returns to foreground
+            this.stopBackgroundLocationSync();
+            // Sync any remaining background locations
+            this.syncBackgroundLocations();
+          }
         }
       }
-    });
+    );
   }
 
   /**
    * Check for recoverable sessions on startup
    */
   private async checkForRecoverableSessions(): Promise<void> {
-    const recoverableSession = await this.recoveryService.checkForRecoverableSessions();
+    const recoverableSession =
+      await this.recoveryService.checkForRecoverableSessions();
     if (recoverableSession) {
       console.log('Found recoverable session:', recoverableSession.id);
       // App will show recovery prompt to user
@@ -188,16 +193,21 @@ export class EnhancedLocationTrackingService {
       console.log('📍 Requesting activity tracking permissions...');
 
       // Use the centralized permission service
-      const result = await locationPermissionService.requestActivityTrackingPermissions();
+      const result =
+        await locationPermissionService.requestActivityTrackingPermissions();
 
       if (result.foreground) {
         this.stateMachine.send({ type: 'PERMISSIONS_GRANTED' });
 
         // Log background permission status
         if (result.background) {
-          console.log('✅ Full location permissions granted (foreground + background)');
+          console.log(
+            '✅ Full location permissions granted (foreground + background)'
+          );
         } else {
-          console.log('⚠️ Foreground permission granted, background permission not available');
+          console.log(
+            '⚠️ Foreground permission granted, background permission not available'
+          );
           console.log('   Tracking will pause when app goes to background');
         }
 
@@ -216,9 +226,13 @@ export class EnhancedLocationTrackingService {
   /**
    * Start tracking with all enhancements
    */
-  async startTracking(activityType: 'running' | 'walking' | 'cycling'): Promise<boolean> {
+  async startTracking(
+    activityType: 'running' | 'walking' | 'cycling'
+  ): Promise<boolean> {
     try {
-      console.log(`🚀 [${Platform.OS.toUpperCase()}] Starting ${activityType} tracking...`);
+      console.log(
+        `🚀 [${Platform.OS.toUpperCase()}] Starting ${activityType} tracking...`
+      );
 
       // Check state machine and force cleanup if stuck
       const currentState = this.stateMachine.getState();
@@ -226,13 +240,22 @@ export class EnhancedLocationTrackingService {
         console.warn('Cannot start tracking in current state:', currentState);
 
         // If stuck in non-idle state for zombie session, force cleanup
-        if (currentState !== 'idle' && currentState !== 'requesting_permissions') {
-          console.log('🔧 Forcing cleanup of stuck session state:', currentState);
+        if (
+          currentState !== 'idle' &&
+          currentState !== 'requesting_permissions'
+        ) {
+          console.log(
+            '🔧 Forcing cleanup of stuck session state:',
+            currentState
+          );
           await this.forceCleanup();
 
           // Verify we're now in idle state
           if (!this.stateMachine.canStart()) {
-            console.error('❌ Failed to cleanup stuck session, still in:', this.stateMachine.getState());
+            console.error(
+              '❌ Failed to cleanup stuck session, still in:',
+              this.stateMachine.getState()
+            );
             return false;
           }
           console.log('✅ Successfully cleaned up stuck session');
@@ -245,33 +268,49 @@ export class EnhancedLocationTrackingService {
       this.stateMachine.send({ type: 'START_TRACKING', activityType });
 
       // Check if permissions are already granted first
-      console.log(`🔐 [${Platform.OS.toUpperCase()}] Checking location permissions...`);
-      const permissionStatus = await locationPermissionService.checkPermissionStatus();
+      console.log(
+        `🔐 [${Platform.OS.toUpperCase()}] Checking location permissions...`
+      );
+      const permissionStatus =
+        await locationPermissionService.checkPermissionStatus();
 
       if (permissionStatus.foreground !== 'granted') {
-        console.log(`📍 [${Platform.OS.toUpperCase()}] Location permissions not granted, requesting...`);
+        console.log(
+          `📍 [${Platform.OS.toUpperCase()}] Location permissions not granted, requesting...`
+        );
         const hasPermission = await this.requestPermissions();
         if (!hasPermission) {
-          console.error(`❌ [${Platform.OS.toUpperCase()}] Location permissions denied`);
+          console.error(
+            `❌ [${Platform.OS.toUpperCase()}] Location permissions denied`
+          );
           // Reset state machine if permissions denied
           this.stateMachine.send({ type: 'RESET' });
           return false;
         }
       } else {
-        console.log(`✅ [${Platform.OS.toUpperCase()}] Location permissions already granted`);
+        console.log(
+          `✅ [${Platform.OS.toUpperCase()}] Location permissions already granted`
+        );
         this.stateMachine.send({ type: 'PERMISSIONS_GRANTED' });
       }
 
       // Android 14+ battery optimization check
       // Request exemption to prevent Doze Mode from stopping background tracking
       if (Platform.OS === 'android' && Platform.Version >= 14) {
-        console.log('🔋 [ANDROID 14+] Checking battery optimization exemption...');
-        const hasBatteryExemption = await this.batteryService.requestBatteryOptimizationExemption();
+        console.log(
+          '🔋 [ANDROID 14+] Checking battery optimization exemption...'
+        );
+        const hasBatteryExemption =
+          await this.batteryService.requestBatteryOptimizationExemption();
         if (!hasBatteryExemption) {
-          console.warn('⚠️ Battery optimization not exempted - tracking may pause when using other apps');
+          console.warn(
+            '⚠️ Battery optimization not exempted - tracking may pause when using other apps'
+          );
           // Continue with tracking but user was warned
         } else {
-          console.log('✅ Battery optimization exemption granted or already configured');
+          console.log(
+            '✅ Battery optimization exemption granted or already configured'
+          );
         }
       }
 
@@ -307,7 +346,11 @@ export class EnhancedLocationTrackingService {
       // Start GPS warmup period
       this.isInWarmup = true;
       this.warmupStartTime = Date.now();
-      console.log(`🔥 GPS warmup started (${this.GPS_WARMUP_DURATION_MS / 1000}s) - recovery mode disabled during warmup`);
+      console.log(
+        `🔥 GPS warmup started (${
+          this.GPS_WARMUP_DURATION_MS / 1000
+        }s) - recovery mode disabled during warmup`
+      );
 
       // Initialize distance freeze detection
       this.lastDistanceValue = 0;
@@ -337,38 +380,53 @@ export class EnhancedLocationTrackingService {
       }
 
       // Get location options from battery service
-      const locationOptions = this.batteryService.getLocationOptions(activityType);
+      const locationOptions =
+        this.batteryService.getLocationOptions(activityType);
 
       // 🔧 iOS FIX: Add iOS-specific options for fitness tracking
-      const iosEnhancedOptions = Platform.OS === 'ios' ? {
-        ...locationOptions,
-        // iOS requires explicit activity type for fitness tracking
-        activityType: Location.ActivityType.Fitness,
-        // Don't pause updates automatically during workouts
-        pausesUpdatesAutomatically: false,
-        // Show blue status bar indicator (user transparency)
-        showsBackgroundLocationIndicator: true,
-      } : locationOptions;
+      const iosEnhancedOptions =
+        Platform.OS === 'ios'
+          ? {
+              ...locationOptions,
+              // iOS requires explicit activity type for fitness tracking
+              activityType: Location.ActivityType.Fitness,
+              // Don't pause updates automatically during workouts
+              pausesUpdatesAutomatically: false,
+              // Show blue status bar indicator (user transparency)
+              showsBackgroundLocationIndicator: true,
+            }
+          : locationOptions;
 
-      console.log(`📍 [${Platform.OS.toUpperCase()}] Location options:`, JSON.stringify(iosEnhancedOptions, null, 2));
+      console.log(
+        `📍 [${Platform.OS.toUpperCase()}] Location options:`,
+        JSON.stringify(iosEnhancedOptions, null, 2)
+      );
 
       // Start foreground tracking
-      console.log(`📡 [${Platform.OS.toUpperCase()}] Starting foreground location tracking...`);
+      console.log(
+        `📡 [${Platform.OS.toUpperCase()}] Starting foreground location tracking...`
+      );
       this.locationSubscription = await Location.watchPositionAsync(
         iosEnhancedOptions,
         (location) => this.handleLocationUpdate(location)
       );
-      console.log(`✅ [${Platform.OS.toUpperCase()}] Foreground location tracking started`);
+      console.log(
+        `✅ [${Platform.OS.toUpperCase()}] Foreground location tracking started`
+      );
 
       // Start background tracking
-      console.log(`🌙 [${Platform.OS.toUpperCase()}] Starting background location tracking...`);
+      console.log(
+        `🌙 [${Platform.OS.toUpperCase()}] Starting background location tracking...`
+      );
       await startBackgroundLocationTracking(activityType, sessionId);
 
       // Activate KeepAwake to prevent GPS throttling during long sessions
       // This is CRITICAL for 2+ hour runs to prevent distance tracking from freezing
       try {
         await activateKeepAwakeAsync('activity-tracking');
-        console.log('✅ KeepAwake activated - GPS will not be throttled in background');
+        console.log(
+          '✅ KeepAwake activated - GPS will not be throttled in background'
+        );
       } catch (error) {
         console.warn('Failed to activate KeepAwake:', error);
       }
@@ -376,11 +434,16 @@ export class EnhancedLocationTrackingService {
       // Update state machine
       this.stateMachine.send({ type: 'INITIALIZATION_COMPLETE', sessionId });
 
-      console.log(`🎉 [${Platform.OS.toUpperCase()}] Enhanced tracking fully initialized for ${activityType}`);
+      console.log(
+        `🎉 [${Platform.OS.toUpperCase()}] Enhanced tracking fully initialized for ${activityType}`
+      );
       return true;
     } catch (error) {
       console.error('Failed to start tracking:', error);
-      this.stateMachine.send({ type: 'INITIALIZATION_FAILED', error: String(error) });
+      this.stateMachine.send({
+        type: 'INITIALIZATION_FAILED',
+        error: String(error),
+      });
       return false;
     }
   }
@@ -388,13 +451,17 @@ export class EnhancedLocationTrackingService {
   /**
    * Handle location update with validation
    */
-  private async handleLocationUpdate(location: Location.LocationObject): Promise<void> {
+  private async handleLocationUpdate(
+    location: Location.LocationObject
+  ): Promise<void> {
     if (!this.currentSession || !this.validator || !this.storage) return;
 
     // Timestamp deduplication: Skip if we've already processed this exact timestamp
     // This prevents duplicate processing from background sync or multiple location sources
     if (location.timestamp <= this.lastProcessedTimestamp) {
-      console.log(`⚠️ Skipping duplicate location (timestamp: ${location.timestamp}, last: ${this.lastProcessedTimestamp})`);
+      console.log(
+        `⚠️ Skipping duplicate location (timestamp: ${location.timestamp}, last: ${this.lastProcessedTimestamp})`
+      );
       return;
     }
 
@@ -413,7 +480,13 @@ export class EnhancedLocationTrackingService {
 
     // Android debugging: Log location updates
     if (Platform.OS === 'android') {
-      console.log(`📍 [ANDROID] Location received: lat=${newPoint.latitude.toFixed(6)}, lon=${newPoint.longitude.toFixed(6)}, accuracy=${newPoint.accuracy?.toFixed(1)}m`);
+      console.log(
+        `📍 [ANDROID] Location received: lat=${newPoint.latitude.toFixed(
+          6
+        )}, lon=${newPoint.longitude.toFixed(
+          6
+        )}, accuracy=${newPoint.accuracy?.toFixed(1)}m`
+      );
     }
 
     // Validate point (validator expects basic LocationPoint interface)
@@ -425,19 +498,29 @@ export class EnhancedLocationTrackingService {
       accuracy: newPoint.accuracy,
       speed: newPoint.speed,
     };
-    const validationResult = this.validator.validatePoint(pointForValidation, this.lastValidLocation ? {
-      latitude: this.lastValidLocation.latitude,
-      longitude: this.lastValidLocation.longitude,
-      altitude: this.lastValidLocation.altitude,
-      timestamp: this.lastValidLocation.timestamp,
-      accuracy: this.lastValidLocation.accuracy,
-      speed: this.lastValidLocation.speed,
-    } : undefined, this.justResumedFromPause);
+    const validationResult = this.validator.validatePoint(
+      pointForValidation,
+      this.lastValidLocation
+        ? {
+            latitude: this.lastValidLocation.latitude,
+            longitude: this.lastValidLocation.longitude,
+            altitude: this.lastValidLocation.altitude,
+            timestamp: this.lastValidLocation.timestamp,
+            accuracy: this.lastValidLocation.accuracy,
+            speed: this.lastValidLocation.speed,
+          }
+        : undefined,
+      this.justResumedFromPause
+    );
 
     if (validationResult.isValid) {
       // Android debugging: Log validation success
       if (Platform.OS === 'android') {
-        console.log(`✅ [ANDROID] Point validated (confidence: ${validationResult.confidence.toFixed(2)})`);
+        console.log(
+          `✅ [ANDROID] Point validated (confidence: ${validationResult.confidence.toFixed(
+            2
+          )})`
+        );
       }
 
       // Reset pause flag after first valid point
@@ -468,7 +551,10 @@ export class EnhancedLocationTrackingService {
       // Update duration using GPS timestamp (prevents timer throttling)
       // This is critical for long sessions where JS timers can throttle in background
       this.currentSession.duration =
-        (pointToStore.timestamp - this.currentSession.startTime - this.currentSession.pausedDuration) / 1000;
+        (pointToStore.timestamp -
+          this.currentSession.startTime -
+          this.currentSession.pausedDuration) /
+        1000;
 
       // Check if we're still in warmup period
       if (this.isInWarmup && this.warmupStartTime) {
@@ -476,7 +562,11 @@ export class EnhancedLocationTrackingService {
         if (warmupElapsed >= this.GPS_WARMUP_DURATION_MS) {
           this.isInWarmup = false;
           this.warmupStartTime = null;
-          console.log(`✅ GPS warmup complete (${(warmupElapsed / 1000).toFixed(1)}s) - recovery mode now active`);
+          console.log(
+            `✅ GPS warmup complete (${(warmupElapsed / 1000).toFixed(
+              1
+            )}s) - recovery mode now active`
+          );
         }
       }
 
@@ -485,7 +575,9 @@ export class EnhancedLocationTrackingService {
       // "straight line" phantom distance through obstacles (tunnels, buildings, etc.)
       // IMPORTANT: Don't enter recovery mode during warmup period
       const previousState = this.stateMachine.getPreviousState();
-      const isRecoveringFromGpsLoss = !this.isInWarmup && (this.wasInGpsLostState || previousState === 'gps_lost');
+      const isRecoveringFromGpsLoss =
+        !this.isInWarmup &&
+        (this.wasInGpsLostState || previousState === 'gps_lost');
 
       if (isRecoveringFromGpsLoss) {
         // Start recovery timer if not already started
@@ -495,7 +587,9 @@ export class EnhancedLocationTrackingService {
           this.skippedRecoveryDistance = 0;
           this.recoveryAccuracyThreshold = this.GPS_ACCURACY_RECOVERY_THRESHOLD; // Start with lenient threshold
           this.currentSession.statistics.recoveryAttempts++;
-          console.log(`🔄 GPS Recovery #${this.currentSession.statistics.recoveryAttempts}: Starting recovery buffer (${this.GPS_RECOVERY_POINTS} points)`);
+          console.log(
+            `🔄 GPS Recovery #${this.currentSession.statistics.recoveryAttempts}: Starting recovery buffer (${this.GPS_RECOVERY_POINTS} points)`
+          );
         }
 
         // Check if recovery has timed out (10 seconds max)
@@ -503,12 +597,23 @@ export class EnhancedLocationTrackingService {
         const hasTimedOut = recoveryDuration > this.GPS_RECOVERY_TIMEOUT_MS;
 
         if (hasTimedOut) {
-          console.log(`⏰ GPS Recovery: FORCED TIMEOUT after ${(recoveryDuration / 1000).toFixed(1)}s`);
-          console.log(`   Completed ${this.pointsAfterRecovery}/${this.GPS_RECOVERY_POINTS} recovery points`);
-          console.log(`   Prevented ${this.skippedRecoveryDistance.toFixed(1)}m of phantom distance`);
+          console.log(
+            `⏰ GPS Recovery: FORCED TIMEOUT after ${(
+              recoveryDuration / 1000
+            ).toFixed(1)}s`
+          );
+          console.log(
+            `   Completed ${this.pointsAfterRecovery}/${this.GPS_RECOVERY_POINTS} recovery points`
+          );
+          console.log(
+            `   Prevented ${this.skippedRecoveryDistance.toFixed(
+              1
+            )}m of phantom distance`
+          );
 
           // Update statistics
-          this.currentSession.statistics.distanceSkippedInRecovery += this.skippedRecoveryDistance;
+          this.currentSession.statistics.distanceSkippedInRecovery +=
+            this.skippedRecoveryDistance;
 
           // Reset recovery state - ALWAYS exit on timeout regardless of point quality
           this.wasInGpsLostState = false;
@@ -521,7 +626,10 @@ export class EnhancedLocationTrackingService {
         } else if (this.pointsAfterRecovery < this.GPS_RECOVERY_POINTS) {
           // Calculate what the distance would have been (phantom distance)
           if (this.lastValidLocation) {
-            const phantomDistance = this.calculateDistance(this.lastValidLocation, pointToStore);
+            const phantomDistance = this.calculateDistance(
+              this.lastValidLocation,
+              pointToStore
+            );
             this.skippedRecoveryDistance += phantomDistance;
           }
 
@@ -530,15 +638,36 @@ export class EnhancedLocationTrackingService {
           this.pointsAfterRecovery++;
 
           // Check GPS accuracy for logging purposes
-          const currentAccuracy = pointToStore.accuracy || this.GPS_ACCURACY_RECOVERY_THRESHOLD;
-          const isReasonableQuality = currentAccuracy <= this.GPS_ACCURACY_RECOVERY_THRESHOLD;
+          const currentAccuracy =
+            pointToStore.accuracy || this.GPS_ACCURACY_RECOVERY_THRESHOLD;
+          const isReasonableQuality =
+            currentAccuracy <= this.GPS_ACCURACY_RECOVERY_THRESHOLD;
 
           if (isReasonableQuality) {
             // Update threshold only when we get good points
-            this.recoveryAccuracyThreshold = Math.min(this.recoveryAccuracyThreshold, currentAccuracy);
-            console.log(`📍 GPS Recovery: Point ${this.pointsAfterRecovery}/${this.GPS_RECOVERY_POINTS} ✓ (accuracy: ${currentAccuracy.toFixed(1)}m, skipped: ${this.skippedRecoveryDistance.toFixed(1)}m, ${(recoveryDuration / 1000).toFixed(1)}s elapsed)`);
+            this.recoveryAccuracyThreshold = Math.min(
+              this.recoveryAccuracyThreshold,
+              currentAccuracy
+            );
+            console.log(
+              `📍 GPS Recovery: Point ${this.pointsAfterRecovery}/${
+                this.GPS_RECOVERY_POINTS
+              } ✓ (accuracy: ${currentAccuracy.toFixed(
+                1
+              )}m, skipped: ${this.skippedRecoveryDistance.toFixed(1)}m, ${(
+                recoveryDuration / 1000
+              ).toFixed(1)}s elapsed)`
+            );
           } else {
-            console.log(`📍 GPS Recovery: Point ${this.pointsAfterRecovery}/${this.GPS_RECOVERY_POINTS} ~ (poor accuracy: ${currentAccuracy.toFixed(1)}m, skipped: ${this.skippedRecoveryDistance.toFixed(1)}m, ${(recoveryDuration / 1000).toFixed(1)}s elapsed)`);
+            console.log(
+              `📍 GPS Recovery: Point ${this.pointsAfterRecovery}/${
+                this.GPS_RECOVERY_POINTS
+              } ~ (poor accuracy: ${currentAccuracy.toFixed(
+                1
+              )}m, skipped: ${this.skippedRecoveryDistance.toFixed(1)}m, ${(
+                recoveryDuration / 1000
+              ).toFixed(1)}s elapsed)`
+            );
           }
 
           // Note: We intentionally freeze distance during recovery to prevent phantom distance
@@ -561,11 +690,20 @@ export class EnhancedLocationTrackingService {
 
           // After required points with good quality, we're fully recovered
           if (this.pointsAfterRecovery >= this.GPS_RECOVERY_POINTS) {
-            console.log(`✅ GPS fully recovered! Prevented ${this.skippedRecoveryDistance.toFixed(1)}m of phantom distance`);
-            console.log(`   Final accuracy: ${currentAccuracy.toFixed(1)}m, Recovery took ${(recoveryDuration / 1000).toFixed(1)}s`);
+            console.log(
+              `✅ GPS fully recovered! Prevented ${this.skippedRecoveryDistance.toFixed(
+                1
+              )}m of phantom distance`
+            );
+            console.log(
+              `   Final accuracy: ${currentAccuracy.toFixed(
+                1
+              )}m, Recovery took ${(recoveryDuration / 1000).toFixed(1)}s`
+            );
 
             // Update statistics
-            this.currentSession.statistics.distanceSkippedInRecovery += this.skippedRecoveryDistance;
+            this.currentSession.statistics.distanceSkippedInRecovery +=
+              this.skippedRecoveryDistance;
 
             // Reset recovery state
             this.wasInGpsLostState = false;
@@ -580,8 +718,12 @@ export class EnhancedLocationTrackingService {
 
       // Update metrics (normal flow when not recovering)
       if (this.lastValidLocation) {
-        const rawDistance = this.calculateDistance(this.lastValidLocation, pointToStore);
-        const timeDelta = (pointToStore.timestamp - this.lastValidLocation.timestamp) / 1000;
+        const rawDistance = this.calculateDistance(
+          this.lastValidLocation,
+          pointToStore
+        );
+        const timeDelta =
+          (pointToStore.timestamp - this.lastValidLocation.timestamp) / 1000;
 
         // Update Kalman filter with measurement
         const kalmanState = this.kalmanFilter.update({
@@ -611,11 +753,20 @@ export class EnhancedLocationTrackingService {
 
         // Debug logging for Kalman filtering
         if (Platform.OS === 'android') {
-          console.log(`📏 [ANDROID] Raw distance: +${rawDistance.toFixed(1)}m, Kalman total: ${kalmanState.distance.toFixed(1)}m (velocity: ${kalmanState.velocity.toFixed(2)}m/s, error: ${kalmanState.estimateError.toFixed(1)}m)`);
+          console.log(
+            `📏 [ANDROID] Raw distance: +${rawDistance.toFixed(
+              1
+            )}m, Kalman total: ${kalmanState.distance.toFixed(
+              1
+            )}m (velocity: ${kalmanState.velocity.toFixed(
+              2
+            )}m/s, error: ${kalmanState.estimateError.toFixed(1)}m)`
+          );
         }
 
         if (pointToStore.altitude && this.lastValidLocation.altitude) {
-          const elevationDiff = pointToStore.altitude - this.lastValidLocation.altitude;
+          const elevationDiff =
+            pointToStore.altitude - this.lastValidLocation.altitude;
           if (elevationDiff > 0) {
             this.currentSession.totalElevationGain += elevationDiff;
           }
@@ -671,7 +822,13 @@ export class EnhancedLocationTrackingService {
 
       // Enhanced logging for Android to help diagnose rejection issues
       if (Platform.OS === 'android') {
-        console.log(`❌ [ANDROID] Point rejected: ${validationResult.reason} (accuracy: ${newPoint.accuracy?.toFixed(1)}m, total rejected: ${this.totalInvalidPoints})`);
+        console.log(
+          `❌ [ANDROID] Point rejected: ${
+            validationResult.reason
+          } (accuracy: ${newPoint.accuracy?.toFixed(1)}m, total rejected: ${
+            this.totalInvalidPoints
+          })`
+        );
       } else {
         console.log(`Invalid point rejected: ${validationResult.reason}`);
       }
@@ -702,7 +859,9 @@ export class EnhancedLocationTrackingService {
     // Update state machine if signal changed significantly
     if (previousStrength === 'none' && strength !== 'none') {
       this.stateMachine.send({ type: 'GPS_RECOVERED' });
-      console.log('🔄 GPS signal recovered, will enter recovery buffer on next point');
+      console.log(
+        '🔄 GPS signal recovered, will enter recovery buffer on next point'
+      );
       // Mark that we were in GPS lost state for recovery handling
       this.wasInGpsLostState = true;
       this.pointsAfterRecovery = 0;
@@ -710,7 +869,9 @@ export class EnhancedLocationTrackingService {
 
       if (this.gpsOutageStart) {
         const outageDuration = Date.now() - this.gpsOutageStart;
-        console.log(`📡 GPS outage lasted ${(outageDuration / 1000).toFixed(1)}s`);
+        console.log(
+          `📡 GPS outage lasted ${(outageDuration / 1000).toFixed(1)}s`
+        );
         this.currentSession.statistics.gpsOutages++;
         this.gpsOutageStart = null;
       }
@@ -741,7 +902,11 @@ export class EnhancedLocationTrackingService {
       if (timeSinceLastUpdate > GPS_SIGNAL_TIMEOUT) {
         this.currentSession.gpsSignalStrength = 'none';
         this.stateMachine.send({ type: 'GPS_LOST' });
-        console.log(`⚠️ GPS timeout: No updates for ${(timeSinceLastUpdate / 1000).toFixed(1)}s`);
+        console.log(
+          `⚠️ GPS timeout: No updates for ${(
+            timeSinceLastUpdate / 1000
+          ).toFixed(1)}s`
+        );
         // Mark for recovery tracking when signal returns
         this.wasInGpsLostState = true;
       }
@@ -749,14 +914,26 @@ export class EnhancedLocationTrackingService {
       // Check for distance freeze (GPS is working but distance not updating)
       if (this.lastDistanceUpdateTime > 0) {
         const timeSinceDistanceUpdate = now - this.lastDistanceUpdateTime;
-        if (timeSinceDistanceUpdate > this.DISTANCE_FREEZE_THRESHOLD_MS &&
-            this.currentSession.gpsSignalStrength !== 'none') {
-          console.log(`⚠️ DISTANCE FREEZE DETECTED: GPS receiving updates but distance stuck at ${this.lastDistanceValue.toFixed(1)}m for ${(timeSinceDistanceUpdate / 1000).toFixed(1)}s`);
+        if (
+          timeSinceDistanceUpdate > this.DISTANCE_FREEZE_THRESHOLD_MS &&
+          this.currentSession.gpsSignalStrength !== 'none'
+        ) {
+          console.log(
+            `⚠️ DISTANCE FREEZE DETECTED: GPS receiving updates but distance stuck at ${this.lastDistanceValue.toFixed(
+              1
+            )}m for ${(timeSinceDistanceUpdate / 1000).toFixed(1)}s`
+          );
           console.log(`   Current state: ${this.stateMachine.getState()}`);
-          console.log(`   GPS signal: ${this.currentSession.gpsSignalStrength}`);
+          console.log(
+            `   GPS signal: ${this.currentSession.gpsSignalStrength}`
+          );
           console.log(`   In recovery mode: ${this.isInRecoveryMode()}`);
-          console.log(`   Points after recovery: ${this.pointsAfterRecovery}/${this.GPS_RECOVERY_POINTS}`);
-          console.log(`   Valid points: ${this.totalValidPoints}, Invalid: ${this.totalInvalidPoints}`);
+          console.log(
+            `   Points after recovery: ${this.pointsAfterRecovery}/${this.GPS_RECOVERY_POINTS}`
+          );
+          console.log(
+            `   Valid points: ${this.totalValidPoints}, Invalid: ${this.totalInvalidPoints}`
+          );
 
           // CORRECTIVE ACTION: Force exit recovery mode if stuck
           if (this.isInRecoveryMode()) {
@@ -768,13 +945,17 @@ export class EnhancedLocationTrackingService {
           }
 
           // CORRECTIVE ACTION: Reset Kalman filter if stuck
-          console.log(`🔧 FREEZE FIX: Resetting Kalman filter to recover from stuck state`);
+          console.log(
+            `🔧 FREEZE FIX: Resetting Kalman filter to recover from stuck state`
+          );
           this.kalmanFilter.reset();
 
           // Reset freeze detection timer to prevent repeated resets
           this.lastDistanceUpdateTime = now;
 
-          console.log(`✅ FREEZE FIX: Recovery actions completed, distance tracking should resume`);
+          console.log(
+            `✅ FREEZE FIX: Recovery actions completed, distance tracking should resume`
+          );
         }
       }
     }, this.GPS_CHECK_INTERVAL_MS);
@@ -823,7 +1004,9 @@ export class EnhancedLocationTrackingService {
     const backgroundLocations = await getAndClearBackgroundLocations();
     if (backgroundLocations.length === 0) return;
 
-    console.log(`📱 Syncing ${backgroundLocations.length} background locations`);
+    console.log(
+      `📱 Syncing ${backgroundLocations.length} background locations`
+    );
 
     // Process each background location through normal validation pipeline
     for (const loc of backgroundLocations) {
@@ -845,7 +1028,9 @@ export class EnhancedLocationTrackingService {
       await this.handleLocationUpdate(locationObject);
     }
 
-    console.log(`✅ Processed ${backgroundLocations.length} background locations`);
+    console.log(
+      `✅ Processed ${backgroundLocations.length} background locations`
+    );
   }
 
   /**
@@ -904,7 +1089,9 @@ export class EnhancedLocationTrackingService {
     // Deactivate KeepAwake
     try {
       deactivateKeepAwake('activity-tracking');
-      console.log('✅ KeepAwake deactivated - normal power management restored');
+      console.log(
+        '✅ KeepAwake deactivated - normal power management restored'
+      );
     } catch (error) {
       console.warn('Failed to deactivate KeepAwake:', error);
     }
@@ -916,7 +1103,10 @@ export class EnhancedLocationTrackingService {
       this.currentSession.statistics.maxSpeed = stats.maxSpeed;
       this.currentSession.endTime = Date.now();
       this.currentSession.duration =
-        (this.currentSession.endTime - this.currentSession.startTime - this.currentSession.pausedDuration) / 1000;
+        (this.currentSession.endTime -
+          this.currentSession.startTime -
+          this.currentSession.pausedDuration) /
+        1000;
 
       // Save session
       await this.saveSession(this.currentSession);
@@ -991,7 +1181,10 @@ export class EnhancedLocationTrackingService {
    * Returns horizontal (2D) distance only - industry standard for running apps
    * Elevation gain is tracked separately in totalElevationGain
    */
-  private calculateDistance(p1: EnhancedLocationPoint, p2: EnhancedLocationPoint): number {
+  private calculateDistance(
+    p1: EnhancedLocationPoint,
+    p2: EnhancedLocationPoint
+  ): number {
     // Calculate 2D horizontal distance using Haversine formula
     const R = 6371000; // Earth's radius in meters
     const φ1 = (p1.latitude * Math.PI) / 180;
@@ -999,7 +1192,8 @@ export class EnhancedLocationTrackingService {
     const Δφ = ((p2.latitude - p1.latitude) * Math.PI) / 180;
     const Δλ = ((p2.longitude - p1.longitude) * Math.PI) / 180;
 
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
       Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -1010,7 +1204,6 @@ export class EnhancedLocationTrackingService {
     // Elevation changes are tracked separately as totalElevationGain
     return horizontalDistance;
   }
-
 
   /**
    * Save session to storage
@@ -1025,7 +1218,10 @@ export class EnhancedLocationTrackingService {
         sessions.shift();
       }
 
-      await AsyncStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(sessions));
+      await AsyncStorage.setItem(
+        LOCATION_STORAGE_KEY,
+        JSON.stringify(sessions)
+      );
     } catch (error) {
       console.error('Error saving session:', error);
     }
@@ -1061,7 +1257,9 @@ export class EnhancedLocationTrackingService {
    * Used when state machine gets into invalid state
    */
   private async forceCleanup(): Promise<void> {
-    console.log('🔧 Force cleanup: stopping location updates and resetting state');
+    console.log(
+      '🔧 Force cleanup: stopping location updates and resetting state'
+    );
 
     // Stop all location tracking
     if (this.locationSubscription) {
@@ -1129,7 +1327,8 @@ export class EnhancedLocationTrackingService {
       batteryMode: this.batteryService.getCurrentMode(),
       gpsOutages: this.currentSession?.statistics.gpsOutages || 0,
       recoveryAttempts: this.currentSession?.statistics.recoveryAttempts || 0,
-      distanceSkippedInRecovery: this.currentSession?.statistics.distanceSkippedInRecovery || 0,
+      distanceSkippedInRecovery:
+        this.currentSession?.statistics.distanceSkippedInRecovery || 0,
     };
   }
 
@@ -1154,7 +1353,8 @@ export class EnhancedLocationTrackingService {
 
     // If Kalman filter is ready and has velocity estimate, use prediction for sub-second smoothing
     if (this.kalmanFilter.isReady() && this.lastValidLocation) {
-      const timeSinceLastGPS = (Date.now() - this.lastValidLocation.timestamp) / 1000;
+      const timeSinceLastGPS =
+        (Date.now() - this.lastValidLocation.timestamp) / 1000;
 
       // Only interpolate for very short durations (< 1 second)
       // Prevents oscillations from long GPS gaps
@@ -1188,9 +1388,12 @@ export class EnhancedLocationTrackingService {
       pointsCompleted: this.pointsAfterRecovery,
       pointsRequired: this.GPS_RECOVERY_POINTS,
       skippedDistance: this.skippedRecoveryDistance,
-      duration: this.recoveryStartTime ? Date.now() - this.recoveryStartTime : 0,
+      duration: this.recoveryStartTime
+        ? Date.now() - this.recoveryStartTime
+        : 0,
     };
   }
 }
 
-export const enhancedLocationTrackingService = EnhancedLocationTrackingService.getInstance();
+export const enhancedLocationTrackingService =
+  EnhancedLocationTrackingService.getInstance();

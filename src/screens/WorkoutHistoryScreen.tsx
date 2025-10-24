@@ -9,13 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../styles/theme';
@@ -24,10 +18,13 @@ import localWorkoutStorage from '../services/fitness/LocalWorkoutStorageService'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import type { NDKSigner } from '@nostr-dev-kit/ndk';
+import { nostrProfileService } from '../services/nostr/NostrProfileService';
+import type { NostrProfile } from '../services/nostr/NostrProfileService';
 
 // UI Components
 import { LoadingOverlay } from '../components/ui/LoadingStates';
 import { Ionicons } from '@expo/vector-icons';
+import { EnhancedSocialShareModal } from '../components/profile/shared/EnhancedSocialShareModal';
 
 // Two-Tab Workout Components
 import { WorkoutTabNavigator } from '../components/profile/WorkoutTabNavigator';
@@ -46,11 +43,14 @@ interface WorkoutHistoryScreenProps {
 export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
   route,
 }) => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [pubkey, setPubkey] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [signer, setSigner] = useState<NDKSigner | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [showSocialModal, setShowSocialModal] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
 
   // Services - localWorkoutStorage is already a singleton instance
   const publishingService = WorkoutPublishingService.getInstance();
@@ -71,9 +71,14 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       // Fallback to AsyncStorage if not in params
       if (!activePubkey) {
         const storedNpub = await AsyncStorage.getItem('@runstr:npub');
-        const storedHexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+        const storedHexPubkey = await AsyncStorage.getItem(
+          '@runstr:hex_pubkey'
+        );
         activePubkey = storedHexPubkey || storedNpub || '';
-        console.log('[WorkoutHistory] Loaded pubkey from storage:', activePubkey?.slice(0, 20) + '...');
+        console.log(
+          '[WorkoutHistory] Loaded pubkey from storage:',
+          activePubkey?.slice(0, 20) + '...'
+        );
       }
 
       if (!activeUserId) {
@@ -89,7 +94,20 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         setSigner(userSigner);
         console.log('[WorkoutHistory] ✅ User signer loaded');
       } else {
-        console.warn('[WorkoutHistory] No signer available - posting will not work');
+        console.warn(
+          '[WorkoutHistory] No signer available - posting will not work'
+        );
+      }
+
+      // Load user profile for social cards
+      if (activePubkey) {
+        try {
+          const profile = await nostrProfileService.getProfile(activePubkey);
+          setUserProfile(profile);
+          console.log('[WorkoutHistory] ✅ User profile loaded');
+        } catch (profileError) {
+          console.warn('[WorkoutHistory] Failed to load profile:', profileError);
+        }
       }
     } catch (error) {
       console.error('[WorkoutHistory] ❌ Failed to load user data:', error);
@@ -103,7 +121,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
    */
   const handleCompeteHealthKit = async (workout: any) => {
     try {
-      console.log(`[WorkoutHistory] Entering HealthKit workout ${workout.id} into competition...`);
+      console.log(
+        `[WorkoutHistory] Entering HealthKit workout ${workout.id} into competition...`
+      );
 
       if (!signer) {
         Alert.alert('Error', 'No signer available. Please log in again.');
@@ -135,7 +155,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       );
 
       if (result.success && result.eventId) {
-        console.log(`[WorkoutHistory] ✅ HealthKit workout entered as kind 1301: ${result.eventId}`);
+        console.log(
+          `[WorkoutHistory] ✅ HealthKit workout entered as kind 1301: ${result.eventId}`
+        );
 
         // Show reward earned notification if applicable
         if (result.rewardEarned && result.rewardAmount) {
@@ -151,7 +173,10 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       }
     } catch (error) {
       console.error('[WorkoutHistory] ❌ Competition entry failed:', error);
-      Alert.alert('Error', 'Failed to enter workout into competition. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to enter workout into competition. Please try again.'
+      );
     }
   };
 
@@ -160,7 +185,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
    */
   const handleSocialShareHealthKit = async (workout: any) => {
     try {
-      console.log(`[WorkoutHistory] Sharing HealthKit workout ${workout.id} to social feeds...`);
+      console.log(
+        `[WorkoutHistory] Sharing HealthKit workout ${workout.id} to social feeds...`
+      );
 
       if (!signer) {
         Alert.alert('Error', 'No signer available. Please log in again.');
@@ -192,7 +219,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       );
 
       if (result.success && result.eventId) {
-        console.log(`[WorkoutHistory] ✅ HealthKit workout shared as kind 1: ${result.eventId}`);
+        console.log(
+          `[WorkoutHistory] ✅ HealthKit workout shared as kind 1: ${result.eventId}`
+        );
         Alert.alert('Success', 'Workout shared to social feeds!');
       } else {
         throw new Error(result.error || 'Failed to publish workout');
@@ -205,59 +234,14 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
 
   /**
    * Handle posting a local workout to Nostr as kind 1 social event
-   * Creates social post with workout card
+   * Opens enhanced social share modal with image generation
    */
-  const handlePostToSocial = async (workout: LocalWorkout) => {
-    try {
-      console.log(`[WorkoutHistory] Posting workout ${workout.id} to Nostr...`);
-
-      if (!signer) {
-        Alert.alert('Error', 'No signer available. Please log in again.');
-        return;
-      }
-
-      // Convert LocalWorkout to PublishableWorkout format
-      const { splits, ...workoutData } = workout;
-
-      const publishableWorkout = {
-        ...workoutData,
-        id: workout.id,
-        userId: userId,
-        source: 'manual' as const, // Map local workout source to standard type
-        type: workout.type,
-        duration: workout.duration / 60, // Convert seconds to minutes for publishing service
-        distance: workout.distance,
-        calories: workout.calories,
-        startTime: workout.startTime,
-        endTime: workout.endTime,
-        syncedAt: workout.syncedAt || new Date().toISOString(),
-      };
-
-      // Publish to Nostr as kind 1 social event
-      const result = await publishingService.postWorkoutToSocial(
-        publishableWorkout,
-        signer,
-        userId
-      );
-
-      if (result.success && result.eventId) {
-        console.log(`[WorkoutHistory] ✅ Workout published as kind 1: ${result.eventId}`);
-
-        // DO NOT mark as synced - kind 1 social posts don't affect private tab
-        Alert.alert(
-          'Success',
-          'Workout posted to social feeds!'
-        );
-      } else {
-        throw new Error(result.error || 'Failed to publish workout');
-      }
-    } catch (error) {
-      console.error('[WorkoutHistory] ❌ Post to social failed:', error);
-      Alert.alert(
-        'Error',
-        'Failed to post workout to social feeds. Please try again.'
-      );
-    }
+  const handlePostToSocial = (workout: LocalWorkout) => {
+    console.log(
+      `[WorkoutHistory] Opening social share modal for workout ${workout.id}...`
+    );
+    setSelectedWorkout(workout);
+    setShowSocialModal(true);
   };
 
   /**
@@ -266,7 +250,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
    */
   const handlePostToNostr = async (workout: LocalWorkout) => {
     try {
-      console.log(`[WorkoutHistory] Posting workout ${workout.id} as kind 1301...`);
+      console.log(
+        `[WorkoutHistory] Posting workout ${workout.id} as kind 1301...`
+      );
 
       if (!signer) {
         Alert.alert('Error', 'No signer available. Please log in again.');
@@ -298,7 +284,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       );
 
       if (result.success && result.eventId) {
-        console.log(`[WorkoutHistory] ✅ Workout published as kind 1301: ${result.eventId}`);
+        console.log(
+          `[WorkoutHistory] ✅ Workout published as kind 1301: ${result.eventId}`
+        );
 
         // Mark workout as synced - IT WILL DISAPPEAR FROM PRIVATE TAB
         await localWorkoutStorage.markAsSynced(workout.id, result.eventId);
@@ -326,6 +314,10 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
     }
   };
 
+  const handleNavigateToAnalytics = () => {
+    navigation.navigate('AdvancedAnalytics' as any);
+  };
+
   if (isInitializing) {
     return (
       <SafeAreaView style={styles.container}>
@@ -338,7 +330,11 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={theme.colors.error}
+          />
           <Text style={styles.errorTitle}>No User Found</Text>
           <Text style={styles.errorMessage}>
             Please log in to view your workouts
@@ -370,6 +366,25 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         onPostToSocial={handlePostToSocial}
         onCompeteHealthKit={handleCompeteHealthKit}
         onSocialShareHealthKit={handleSocialShareHealthKit}
+        onNavigateToAnalytics={handleNavigateToAnalytics}
+      />
+
+      {/* Enhanced Social Share Modal */}
+      <EnhancedSocialShareModal
+        visible={showSocialModal}
+        workout={selectedWorkout}
+        userId={userId}
+        userAvatar={userProfile?.picture}
+        userName={userProfile?.name || userProfile?.display_name}
+        onClose={() => {
+          setShowSocialModal(false);
+          setSelectedWorkout(null);
+        }}
+        onSuccess={() => {
+          setShowSocialModal(false);
+          setSelectedWorkout(null);
+          Alert.alert('Success', 'Workout shared to social feeds!');
+        }}
       />
     </SafeAreaView>
   );

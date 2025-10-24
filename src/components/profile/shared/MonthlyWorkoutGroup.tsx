@@ -22,7 +22,10 @@ import { MonthlyStatsCalculator } from '../../../services/fitness/MonthlyStatsCa
 import type { MonthlyStats } from '../../../services/fitness/MonthlyStatsCalculator';
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -57,7 +60,10 @@ export const MonthlyWorkoutGroup: React.FC<MonthlyWorkoutGroupProps> = ({
 
   // Calculate monthly stats on mount
   useEffect(() => {
-    const stats = MonthlyStatsCalculator.calculate(group.workouts, previousMonthWorkouts);
+    const stats = MonthlyStatsCalculator.calculate(
+      group.workouts,
+      previousMonthWorkouts
+    );
     setMonthlyStats(stats);
   }, [group.workouts, previousMonthWorkouts]);
 
@@ -98,7 +104,8 @@ export const MonthlyWorkoutGroup: React.FC<MonthlyWorkoutGroupProps> = ({
           <View style={styles.titleSection}>
             <Text style={styles.title}>{group.title}</Text>
             <Text style={styles.subtitle}>
-              {group.stats.totalWorkouts} workout{group.stats.totalWorkouts !== 1 ? 's' : ''}
+              {group.stats.totalWorkouts} workout
+              {group.stats.totalWorkouts !== 1 ? 's' : ''}
             </Text>
           </View>
         </View>
@@ -130,9 +137,7 @@ export const MonthlyWorkoutGroup: React.FC<MonthlyWorkoutGroupProps> = ({
       </TouchableOpacity>
 
       {/* Monthly Stats Panel */}
-      {showStats && monthlyStats && (
-        <MonthlyStatsPanel stats={monthlyStats} />
-      )}
+      {showStats && monthlyStats && <MonthlyStatsPanel stats={monthlyStats} />}
 
       {/* Workouts */}
       {isExpanded && (
@@ -157,8 +162,13 @@ export const groupWorkoutsByMonth = (workouts: Workout[]): MonthlyGroup[] => {
   // Group workouts by month
   workouts.forEach((workout) => {
     const date = new Date(workout.startTime);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthKey = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, '0')}`;
+    const monthName = date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
 
     if (!groups.has(monthKey)) {
       groups.set(monthKey, []);
@@ -171,7 +181,10 @@ export const groupWorkoutsByMonth = (workouts: Workout[]): MonthlyGroup[] => {
   groups.forEach((workouts, monthKey) => {
     const [year, month] = monthKey.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1);
-    const title = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const title = date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
 
     // Calculate stats
     const stats = workouts.reduce(
@@ -192,8 +205,9 @@ export const groupWorkoutsByMonth = (workouts: Workout[]): MonthlyGroup[] => {
     monthlyGroups.push({
       key: monthKey,
       title,
-      workouts: workouts.sort((a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      workouts: workouts.sort(
+        (a, b) =>
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
       ),
       stats,
     });

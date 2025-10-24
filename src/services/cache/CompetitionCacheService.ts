@@ -6,7 +6,10 @@
 
 import { appCache } from '../../utils/cache';
 import { NostrCompetitionService } from '../nostr/NostrCompetitionService';
-import type { NostrLeagueDefinition, NostrEventDefinition } from '../../types/nostrCompetition';
+import type {
+  NostrLeagueDefinition,
+  NostrEventDefinition,
+} from '../../types/nostrCompetition';
 
 export interface CachedCompetitions {
   leagues: NostrLeagueDefinition[];
@@ -46,8 +49,13 @@ export class CompetitionCacheService {
    * Check if we have cached competitions
    */
   async hasCachedCompetitions(): Promise<boolean> {
-    const cached = await appCache.get<CachedCompetitions>(this.GLOBAL_CACHE_KEY);
-    return !!(cached && (cached.leagues.length > 0 || cached.events.length > 0));
+    const cached = await appCache.get<CachedCompetitions>(
+      this.GLOBAL_CACHE_KEY
+    );
+    return !!(
+      cached &&
+      (cached.leagues.length > 0 || cached.events.length > 0)
+    );
   }
 
   /**
@@ -58,10 +66,15 @@ export class CompetitionCacheService {
     console.log('📦 CompetitionCacheService: Fetching all competitions...');
 
     // Check cache first
-    const cachedData = await appCache.get<CachedCompetitions>(this.GLOBAL_CACHE_KEY);
+    const cachedData = await appCache.get<CachedCompetitions>(
+      this.GLOBAL_CACHE_KEY
+    );
     const cacheTime = await appCache.get<number>(this.TIMESTAMP_KEY);
 
-    if (cachedData && (cachedData.leagues.length > 0 || cachedData.events.length > 0)) {
+    if (
+      cachedData &&
+      (cachedData.leagues.length > 0 || cachedData.events.length > 0)
+    ) {
       console.log(
         `✅ CompetitionCacheService: Returning ${cachedData.leagues.length} leagues, ${cachedData.events.length} events from cache`
       );
@@ -75,7 +88,9 @@ export class CompetitionCacheService {
     }
 
     // No cache, fetch fresh data
-    console.log('🔄 CompetitionCacheService: Cache miss, fetching fresh competitions...');
+    console.log(
+      '🔄 CompetitionCacheService: Cache miss, fetching fresh competitions...'
+    );
     return this.fetchAndCacheCompetitions();
   }
 
@@ -83,7 +98,9 @@ export class CompetitionCacheService {
    * Get competitions filtered by team ID
    */
   async getCompetitionsForTeam(teamId: string): Promise<CachedCompetitions> {
-    console.log(`📦 CompetitionCacheService: Fetching competitions for team ${teamId}...`);
+    console.log(
+      `📦 CompetitionCacheService: Fetching competitions for team ${teamId}...`
+    );
 
     // Get all competitions from cache or fetch
     const allCompetitions = await this.getAllCompetitions();
@@ -151,12 +168,19 @@ export class CompetitionCacheService {
 
       return cachedData;
     } catch (error) {
-      console.error('❌ CompetitionCacheService: Error fetching competitions:', error);
+      console.error(
+        '❌ CompetitionCacheService: Error fetching competitions:',
+        error
+      );
 
       // Try to return stale cache if available
-      const staleCachedData = await appCache.get<CachedCompetitions>(this.GLOBAL_CACHE_KEY);
+      const staleCachedData = await appCache.get<CachedCompetitions>(
+        this.GLOBAL_CACHE_KEY
+      );
       if (staleCachedData) {
-        console.log('⚠️ CompetitionCacheService: Returning stale cache due to error');
+        console.log(
+          '⚠️ CompetitionCacheService: Returning stale cache due to error'
+        );
         return staleCachedData;
       }
 
@@ -194,7 +218,10 @@ export class CompetitionCacheService {
         `✅ CompetitionCacheService: Background refresh complete, ${freshData.leagues.length} leagues, ${freshData.events.length} events updated`
       );
     } catch (error) {
-      console.error('❌ CompetitionCacheService: Background refresh failed:', error);
+      console.error(
+        '❌ CompetitionCacheService: Background refresh failed:',
+        error
+      );
     } finally {
       this.isRefreshing = false;
     }
@@ -218,7 +245,9 @@ export class CompetitionCacheService {
     leagueCount: number;
     eventCount: number;
   }> {
-    const cachedData = await appCache.get<CachedCompetitions>(this.GLOBAL_CACHE_KEY);
+    const cachedData = await appCache.get<CachedCompetitions>(
+      this.GLOBAL_CACHE_KEY
+    );
     const cacheTime = await appCache.get<number>(this.TIMESTAMP_KEY);
 
     return {

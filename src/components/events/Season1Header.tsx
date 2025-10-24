@@ -25,7 +25,9 @@ export const Season1Header: React.FC = () => {
       }
 
       const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const hours = Math.floor(
+        (diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
 
       setDaysRemaining(days);
 
@@ -55,9 +57,7 @@ export const Season1Header: React.FC = () => {
         <Text style={styles.prizePoolAmount}>
           {SEASON_1_CONFIG.prizePool.toLocaleString()} sats
         </Text>
-        <Text style={styles.prizePoolDistribution}>
-          Top 3 in each category
-        </Text>
+        <Text style={styles.prizePoolDistribution}>Top 3 in each category</Text>
       </View>
     </View>
   );

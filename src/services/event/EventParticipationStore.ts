@@ -34,12 +34,19 @@ export class EventParticipationStore {
 
       const key = `${this.STORAGE_KEY}:${userPubkey}`;
       const existingStr = await AsyncStorage.getItem(key);
-      const existing: EventParticipation[] = existingStr ? JSON.parse(existingStr) : [];
+      const existing: EventParticipation[] = existingStr
+        ? JSON.parse(existingStr)
+        : [];
 
       // Check if already joined
-      const alreadyJoined = existing.some(p => p.eventId === participation.eventId);
+      const alreadyJoined = existing.some(
+        (p) => p.eventId === participation.eventId
+      );
       if (alreadyJoined) {
-        console.log('[EventParticipation] Already joined:', participation.eventId);
+        console.log(
+          '[EventParticipation] Already joined:',
+          participation.eventId
+        );
         return;
       }
 
@@ -78,7 +85,7 @@ export class EventParticipationStore {
     eventId: string
   ): Promise<EventParticipation | null> {
     const all = await this.getParticipations();
-    return all.find(p => p.eventId === eventId) || null;
+    return all.find((p) => p.eventId === eventId) || null;
   }
 
   /**
@@ -96,7 +103,10 @@ export class EventParticipationStore {
 
       return true;
     } catch (error) {
-      console.error('[EventParticipation] Failed to check payment status:', error);
+      console.error(
+        '[EventParticipation] Failed to check payment status:',
+        error
+      );
       return false;
     }
   }
@@ -116,7 +126,7 @@ export class EventParticipationStore {
       const str = await AsyncStorage.getItem(key);
       const participations: EventParticipation[] = str ? JSON.parse(str) : [];
 
-      const updated = participations.map(p =>
+      const updated = participations.map((p) =>
         p.eventId === eventId ? { ...p, status, localOnly: false } : p
       );
 

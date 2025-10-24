@@ -4,32 +4,35 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { NWCWalletService } from '../../services/wallet/NWCWalletService';
 
 export type PaymentStatus =
-  | 'free'           // No payment required (free event)
-  | 'claimed'        // User claims payment made (can't auto-verify)
-  | 'verifying'      // Checking NWC for payment
-  | 'verified'       // Payment confirmed via NWC
-  | 'not_found'      // Payment not found in NWC
-  | 'manual_paid';   // Captain manually marked as paid
+  | 'free' // No payment required (free event)
+  | 'claimed' // User claims payment made (can't auto-verify)
+  | 'verifying' // Checking NWC for payment
+  | 'verified' // Payment confirmed via NWC
+  | 'not_found' // Payment not found in NWC
+  | 'manual_paid'; // Captain manually marked as paid
 
 interface PaymentVerificationBadgeProps {
-  paymentProof?: string;        // Lightning invoice
-  amountPaid?: number;          // Amount in sats
+  paymentProof?: string; // Lightning invoice
+  amountPaid?: number; // Amount in sats
   paymentStatus?: PaymentStatus; // Manually set status
   onVerificationComplete?: (verified: boolean) => void;
 }
 
-export const PaymentVerificationBadge: React.FC<PaymentVerificationBadgeProps> = ({
-  paymentProof,
-  amountPaid,
-  paymentStatus,
-  onVerificationComplete,
-}) => {
+export const PaymentVerificationBadge: React.FC<
+  PaymentVerificationBadgeProps
+> = ({ paymentProof, amountPaid, paymentStatus, onVerificationComplete }) => {
   const [status, setStatus] = useState<PaymentStatus>(paymentStatus || 'free');
   const [isChecking, setIsChecking] = useState(false);
 

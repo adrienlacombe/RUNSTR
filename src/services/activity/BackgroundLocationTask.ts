@@ -48,22 +48,27 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
 
       // Process and validate locations
       const validLocations = locations
-        .map(loc => ({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          altitude: loc.coords.altitude || undefined,
-          timestamp: loc.timestamp,
-          accuracy: loc.coords.accuracy || undefined,
-          speed: loc.coords.speed || undefined,
-        } as LocationPoint))
-        .filter(loc => loc.accuracy && loc.accuracy < 50); // Only keep accurate points
+        .map(
+          (loc) =>
+            ({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              altitude: loc.coords.altitude || undefined,
+              timestamp: loc.timestamp,
+              accuracy: loc.coords.accuracy || undefined,
+              speed: loc.coords.speed || undefined,
+            } as LocationPoint)
+        )
+        .filter((loc) => loc.accuracy && loc.accuracy < 50); // Only keep accurate points
 
       if (validLocations.length === 0) {
         return;
       }
 
       // Store locations in batches for later processing
-      const existingDataStr = await AsyncStorage.getItem(BACKGROUND_LOCATION_STORAGE);
+      const existingDataStr = await AsyncStorage.getItem(
+        BACKGROUND_LOCATION_STORAGE
+      );
       const existingData = existingDataStr ? JSON.parse(existingDataStr) : [];
 
       const newBatch = {
@@ -100,12 +105,18 @@ export async function startBackgroundLocationTracking(
 ): Promise<boolean> {
   try {
     // Check if task is already registered
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(
+      BACKGROUND_LOCATION_TASK
+    );
 
     if (!isRegistered) {
       console.error('[BackgroundLocationTask] ERROR: Task not registered!');
-      console.error('[BackgroundLocationTask] This task must be imported in index.js BEFORE app initialization');
-      console.error('[BackgroundLocationTask] Add: import "./src/services/activity/BackgroundLocationTask"');
+      console.error(
+        '[BackgroundLocationTask] This task must be imported in index.js BEFORE app initialization'
+      );
+      console.error(
+        '[BackgroundLocationTask] Add: import "./src/services/activity/BackgroundLocationTask"'
+      );
       console.error(`[BackgroundLocationTask] Platform: ${Platform.OS}`);
       return false;
     }
@@ -125,12 +136,20 @@ export async function startBackgroundLocationTracking(
     const locationOptions = getBackgroundLocationOptions(activityType);
 
     // Start location updates
-    await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, locationOptions);
+    await Location.startLocationUpdatesAsync(
+      BACKGROUND_LOCATION_TASK,
+      locationOptions
+    );
 
-    console.log(`[BackgroundLocationTask] ✅ Started background tracking for ${activityType} on ${Platform.OS}`);
+    console.log(
+      `[BackgroundLocationTask] ✅ Started background tracking for ${activityType} on ${Platform.OS}`
+    );
     return true;
   } catch (error) {
-    console.error('[BackgroundLocationTask] ❌ Failed to start background location tracking:', error);
+    console.error(
+      '[BackgroundLocationTask] ❌ Failed to start background location tracking:',
+      error
+    );
     console.error(`[BackgroundLocationTask] Platform: ${Platform.OS}`);
     console.error(`[BackgroundLocationTask] Session ID: ${sessionId}`);
     console.error(`[BackgroundLocationTask] Activity: ${activityType}`);
@@ -143,7 +162,9 @@ export async function startBackgroundLocationTracking(
  */
 export async function stopBackgroundLocationTracking(): Promise<void> {
   try {
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(
+      BACKGROUND_LOCATION_TASK
+    );
 
     if (isRegistered) {
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -167,7 +188,10 @@ export async function pauseBackgroundTracking(): Promise<void> {
       const sessionState = JSON.parse(sessionStateStr);
       sessionState.isPaused = true;
       sessionState.pausedAt = Date.now();
-      await AsyncStorage.setItem(SESSION_STATE_KEY, JSON.stringify(sessionState));
+      await AsyncStorage.setItem(
+        SESSION_STATE_KEY,
+        JSON.stringify(sessionState)
+      );
     }
   } catch (error) {
     console.error('Error pausing background tracking:', error);
@@ -184,7 +208,10 @@ export async function resumeBackgroundTracking(): Promise<void> {
       const sessionState = JSON.parse(sessionStateStr);
       sessionState.isPaused = false;
       delete sessionState.pausedAt;
-      await AsyncStorage.setItem(SESSION_STATE_KEY, JSON.stringify(sessionState));
+      await AsyncStorage.setItem(
+        SESSION_STATE_KEY,
+        JSON.stringify(sessionState)
+      );
     }
   } catch (error) {
     console.error('Error resuming background tracking:', error);
@@ -194,7 +221,9 @@ export async function resumeBackgroundTracking(): Promise<void> {
 /**
  * Get stored background locations and clear storage
  */
-export async function getAndClearBackgroundLocations(): Promise<LocationPoint[]> {
+export async function getAndClearBackgroundLocations(): Promise<
+  LocationPoint[]
+> {
   try {
     const dataStr = await AsyncStorage.getItem(BACKGROUND_LOCATION_STORAGE);
     if (!dataStr) {
@@ -229,15 +258,28 @@ export async function isBackgroundTaskRegistered(): Promise<boolean> {
 /**
  * Get location options based on activity type
  */
-function getBackgroundLocationOptions(activityType: string): Location.LocationTaskOptions {
+function getBackgroundLocationOptions(
+  activityType: string
+): Location.LocationTaskOptions {
   // Activity-specific notification messages
   const activityNotifications = {
-    running: { title: 'RUNSTR - Run Tracking', body: 'Tracking your run in the background' },
-    walking: { title: 'RUNSTR - Walk Tracking', body: 'Tracking your walk in the background' },
-    cycling: { title: 'RUNSTR - Ride Tracking', body: 'Tracking your ride in the background' },
+    running: {
+      title: 'RUNSTR - Run Tracking',
+      body: 'Tracking your run in the background',
+    },
+    walking: {
+      title: 'RUNSTR - Walk Tracking',
+      body: 'Tracking your walk in the background',
+    },
+    cycling: {
+      title: 'RUNSTR - Ride Tracking',
+      body: 'Tracking your ride in the background',
+    },
   };
 
-  const notification = activityNotifications[activityType as keyof typeof activityNotifications] || {
+  const notification = activityNotifications[
+    activityType as keyof typeof activityNotifications
+  ] || {
     title: 'RUNSTR - Activity Tracking',
     body: 'Tracking your activity in the background',
   };

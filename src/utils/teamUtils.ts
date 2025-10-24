@@ -24,9 +24,14 @@ export function isTeamCaptain(
 
   // Extract captain ID from team (try multiple possible field names)
   // Priority: captain (new field with hex) > captainId > captainNpub (deprecated)
-  const captainId = 'captain' in team ? (team as any).captain :
-                    'captainId' in team ? team.captainId :
-                    'captainNpub' in team ? (team as any).captainNpub : null;
+  const captainId =
+    'captain' in team
+      ? (team as any).captain
+      : 'captainId' in team
+      ? team.captainId
+      : 'captainNpub' in team
+      ? (team as any).captainNpub
+      : null;
 
   if (!captainId) {
     return false;
@@ -80,9 +85,14 @@ export function isTeamCaptainEnhanced(
 
   // Extract captain ID from team (try multiple possible field names)
   // Priority: captain (new field with hex) > captainId > captainNpub (deprecated)
-  const captainId = 'captain' in team ? (team as any).captain :
-                    'captainId' in team ? team.captainId :
-                    'captainNpub' in team ? (team as any).captainNpub : null;
+  const captainId =
+    'captain' in team
+      ? (team as any).captain
+      : 'captainId' in team
+      ? team.captainId
+      : 'captainNpub' in team
+      ? (team as any).captainNpub
+      : null;
 
   if (!captainId) {
     return false;
@@ -151,14 +161,16 @@ export function isTeamMember(
  * @param teamEvent - Raw Nostr team event with tags
  * @returns Captain's npub or null if not found
  */
-export function getCaptainFromTeamEvent(teamEvent: { tags: string[][] }): string | null {
+export function getCaptainFromTeamEvent(teamEvent: {
+  tags: string[][];
+}): string | null {
   const captainTag = teamEvent.tags.find((tag) => tag[0] === 'captain');
   return captainTag ? captainTag[1] : null;
 }
 
 /**
  * Check if user is captain of multiple teams from a list
- * @param userNpub - User's Nostr public key  
+ * @param userNpub - User's Nostr public key
  * @param teams - Array of teams to check
  * @returns Array of teams where user is captain
  */
@@ -170,7 +182,7 @@ export function getCaptainTeams<T extends NostrTeam | DiscoveryTeam>(
     return [];
   }
 
-  return teams.filter(team => isTeamCaptain(userNpub, team));
+  return teams.filter((team) => isTeamCaptain(userNpub, team));
 }
 
 /**

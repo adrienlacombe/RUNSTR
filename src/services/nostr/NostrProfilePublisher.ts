@@ -14,14 +14,14 @@ import { npubToHex } from '../../utils/ndkConversion';
 import type { Event } from 'nostr-tools';
 
 export interface EditableProfile {
-  name?: string;          // Display name
-  display_name?: string;  // Alternative display name field
-  about?: string;         // Bio/description
-  picture?: string;       // Profile picture URL
-  banner?: string;        // Banner image URL
-  lud16?: string;         // Lightning address
-  website?: string;       // Personal website
-  nip05?: string;         // NIP-05 verification (optional)
+  name?: string; // Display name
+  display_name?: string; // Alternative display name field
+  about?: string; // Bio/description
+  picture?: string; // Profile picture URL
+  banner?: string; // Banner image URL
+  lud16?: string; // Lightning address
+  website?: string; // Personal website
+  nip05?: string; // NIP-05 verification (optional)
 }
 
 export interface ProfilePublishResult {
@@ -55,7 +55,9 @@ export class NostrProfilePublisher {
   /**
    * Publish profile update to Nostr relays
    */
-  async publishProfileUpdate(profile: EditableProfile): Promise<ProfilePublishResult> {
+  async publishProfileUpdate(
+    profile: EditableProfile
+  ): Promise<ProfilePublishResult> {
     try {
       console.log('📝 NostrProfilePublisher: Starting profile update...');
 
@@ -102,7 +104,9 @@ export class NostrProfilePublisher {
       // Clear cache to force refresh
       await this.clearProfileCache();
 
-      console.log(`✅ Profile published to ${publishResult.successful.length} relays`);
+      console.log(
+        `✅ Profile published to ${publishResult.successful.length} relays`
+      );
 
       return {
         success: true,
@@ -111,10 +115,14 @@ export class NostrProfilePublisher {
         failedRelays: publishResult.failed,
       };
     } catch (error) {
-      console.error('❌ NostrProfilePublisher: Error publishing profile:', error);
+      console.error(
+        '❌ NostrProfilePublisher: Error publishing profile:',
+        error
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to publish profile',
+        error:
+          error instanceof Error ? error.message : 'Failed to publish profile',
       };
     }
   }
@@ -139,7 +147,9 @@ export class NostrProfilePublisher {
     if (profile.lud16) {
       const lud16Pattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!lud16Pattern.test(profile.lud16)) {
-        errors.push('Invalid Lightning address format (should be like user@domain.com)');
+        errors.push(
+          'Invalid Lightning address format (should be like user@domain.com)'
+        );
       }
     }
 
@@ -147,15 +157,21 @@ export class NostrProfilePublisher {
     const urlPattern = /^https?:\/\/.+/i;
 
     if (profile.picture && !urlPattern.test(profile.picture)) {
-      errors.push('Profile picture must be a valid URL starting with http:// or https://');
+      errors.push(
+        'Profile picture must be a valid URL starting with http:// or https://'
+      );
     }
 
     if (profile.banner && !urlPattern.test(profile.banner)) {
-      errors.push('Banner must be a valid URL starting with http:// or https://');
+      errors.push(
+        'Banner must be a valid URL starting with http:// or https://'
+      );
     }
 
     if (profile.website && !urlPattern.test(profile.website)) {
-      errors.push('Website must be a valid URL starting with http:// or https://');
+      errors.push(
+        'Website must be a valid URL starting with http:// or https://'
+      );
     }
 
     // Validate NIP-05 format if provided
@@ -175,7 +191,10 @@ export class NostrProfilePublisher {
   /**
    * Create kind 0 metadata event
    */
-  private async createKind0Event(profile: EditableProfile, nsec: string): Promise<Event | null> {
+  private async createKind0Event(
+    profile: EditableProfile,
+    nsec: string
+  ): Promise<Event | null> {
     try {
       // Get user's npub for pubkey
       const npub = await getNpub();
@@ -201,7 +220,11 @@ export class NostrProfilePublisher {
       }
 
       // Add display_name separately if different from name
-      if (profile.display_name && profile.name && profile.display_name !== profile.name) {
+      if (
+        profile.display_name &&
+        profile.name &&
+        profile.display_name !== profile.name
+      ) {
         metadata.display_name = profile.display_name;
       }
 

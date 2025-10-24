@@ -14,13 +14,15 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     mockAsyncStorage[key] = value;
     return Promise.resolve();
   }),
-  getItem: jest.fn((key: string) => Promise.resolve(mockAsyncStorage[key] || null)),
+  getItem: jest.fn((key: string) =>
+    Promise.resolve(mockAsyncStorage[key] || null)
+  ),
   removeItem: jest.fn((key: string) => {
     delete mockAsyncStorage[key];
     return Promise.resolve();
   }),
   multiRemove: jest.fn((keys: string[]) => {
-    keys.forEach(key => delete mockAsyncStorage[key]);
+    keys.forEach((key) => delete mockAsyncStorage[key]);
     return Promise.resolve();
   }),
 }));
@@ -61,7 +63,7 @@ async function runPhase3Tests() {
       ];
 
       log('✓ All UI components created', 'green');
-      components.forEach(comp => {
+      components.forEach((comp) => {
         log(`  - ${comp}`, 'green');
       });
       testsPassed++;
@@ -87,7 +89,7 @@ async function runPhase3Tests() {
       ];
 
       log('✓ useNutzap hook provides all required features', 'green');
-      hookFeatures.forEach(feature => {
+      hookFeatures.forEach((feature) => {
         log(`  - ${feature}`, 'green');
       });
       testsPassed++;
@@ -109,7 +111,7 @@ async function runPhase3Tests() {
       ];
 
       log('✓ All TypeScript types defined', 'green');
-      types.forEach(type => {
+      types.forEach((type) => {
         log(`  - ${type}`, 'green');
       });
       testsPassed++;
@@ -121,17 +123,37 @@ async function runPhase3Tests() {
     // Test 4: UI Flow
     log('\nTEST 4: UI Flow Components', 'yellow');
     const uiFlows = [
-      { name: 'Profile Screen', component: 'PersonalWalletSection', status: '✓' },
-      { name: 'Captain Dashboard', component: 'CaptainPersonalWallet', status: '✓' },
-      { name: 'Lightning Deposit', component: 'LightningDepositModal', status: '✓' },
-      { name: 'Lightning Withdraw', component: 'LightningWithdrawModal', status: '✓' },
+      {
+        name: 'Profile Screen',
+        component: 'PersonalWalletSection',
+        status: '✓',
+      },
+      {
+        name: 'Captain Dashboard',
+        component: 'CaptainPersonalWallet',
+        status: '✓',
+      },
+      {
+        name: 'Lightning Deposit',
+        component: 'LightningDepositModal',
+        status: '✓',
+      },
+      {
+        name: 'Lightning Withdraw',
+        component: 'LightningWithdrawModal',
+        status: '✓',
+      },
       { name: 'Quick Rewards', component: 'RewardMemberButton', status: '✓' },
-      { name: 'Transaction History', component: 'NutzapTransactionHistory', status: '✓' },
+      {
+        name: 'Transaction History',
+        component: 'NutzapTransactionHistory',
+        status: '✓',
+      },
       { name: 'Wizard Info', component: 'PersonalWalletInfoStep', status: '✓' },
     ];
 
     log('✓ All UI flows implemented', 'green');
-    uiFlows.forEach(flow => {
+    uiFlows.forEach((flow) => {
       log(`  ${flow.status} ${flow.name} → ${flow.component}`, 'green');
     });
     testsPassed++;
@@ -149,7 +171,7 @@ async function runPhase3Tests() {
     ];
 
     log('✓ All integration points complete', 'green');
-    integrations.forEach(point => {
+    integrations.forEach((point) => {
       log(`  - ${point}`, 'green');
     });
     testsPassed++;
@@ -157,7 +179,11 @@ async function runPhase3Tests() {
     // Test 6: CoinOS Replacement
     log('\nTEST 6: CoinOS Service Replacement', 'yellow');
     const replacements = [
-      { old: 'CoinOS team wallets', new: 'Personal NutZap wallets', status: '✓' },
+      {
+        old: 'CoinOS team wallets',
+        new: 'Personal NutZap wallets',
+        status: '✓',
+      },
       { old: 'Team wallet creation', new: 'Auto wallet on login', status: '✓' },
       { old: 'Complex distribution', new: 'Direct P2P rewards', status: '✓' },
       { old: 'External Lightning', new: 'Native ecash tokens', status: '✓' },
@@ -165,11 +191,10 @@ async function runPhase3Tests() {
     ];
 
     log('✓ CoinOS fully replaced', 'green');
-    replacements.forEach(item => {
+    replacements.forEach((item) => {
       log(`  ${item.status} ${item.old} → ${item.new}`, 'green');
     });
     testsPassed++;
-
   } catch (error) {
     log('\n✗ Test suite error:', 'red');
     console.error(error);

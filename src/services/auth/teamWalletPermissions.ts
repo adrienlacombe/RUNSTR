@@ -20,12 +20,16 @@ export class TeamWalletPermissionsService {
 
   static getInstance(): TeamWalletPermissionsService {
     if (!TeamWalletPermissionsService.instance) {
-      TeamWalletPermissionsService.instance = new TeamWalletPermissionsService();
+      TeamWalletPermissionsService.instance =
+        new TeamWalletPermissionsService();
     }
     return TeamWalletPermissionsService.instance;
   }
 
-  async checkPermissions(userId: string, teamId: string): Promise<WalletPermissions> {
+  async checkPermissions(
+    userId: string,
+    teamId: string
+  ): Promise<WalletPermissions> {
     console.warn('Team wallets are deprecated - use P2P NIP-60/61 payments');
     return {
       canView: false,
@@ -39,7 +43,10 @@ export class TeamWalletPermissionsService {
     };
   }
 
-  async verifyCaptainPermission(userId: string, teamId: string): Promise<boolean> {
+  async verifyCaptainPermission(
+    userId: string,
+    teamId: string
+  ): Promise<boolean> {
     console.warn('Team wallets are deprecated - use P2P NIP-60/61 payments');
     return false;
   }

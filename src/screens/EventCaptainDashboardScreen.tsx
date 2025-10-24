@@ -28,18 +28,23 @@ import type { EventQRData } from '../services/qr/QRCodeService';
 import type { RootStackParamList } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type EventCaptainDashboardRouteProp = RouteProp<RootStackParamList, 'EventCaptainDashboard'>;
-type EventCaptainDashboardNavigationProp = StackNavigationProp<RootStackParamList, 'EventCaptainDashboard'>;
+type EventCaptainDashboardRouteProp = RouteProp<
+  RootStackParamList,
+  'EventCaptainDashboard'
+>;
+type EventCaptainDashboardNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'EventCaptainDashboard'
+>;
 
 interface EventCaptainDashboardScreenProps {
   route: EventCaptainDashboardRouteProp;
   navigation: EventCaptainDashboardNavigationProp;
 }
 
-export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenProps> = ({
-  route,
-  navigation,
-}) => {
+export const EventCaptainDashboardScreen: React.FC<
+  EventCaptainDashboardScreenProps
+> = ({ route, navigation }) => {
   const { eventId, eventData } = route.params;
 
   const [qrModalVisible, setQrModalVisible] = useState(false);
@@ -55,7 +60,9 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
     picture?: string;
     displayName: string;
   }
-  const [participantProfiles, setParticipantProfiles] = useState<ParticipantProfile[]>([]);
+  const [participantProfiles, setParticipantProfiles] = useState<
+    ParticipantProfile[]
+  >([]);
 
   useEffect(() => {
     loadParticipants();
@@ -66,17 +73,22 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
       setIsLoadingParticipants(true);
 
       // Get event-specific participants from kind 30000 list
-      const NostrListService = (await import('../services/nostr/NostrListService')).NostrListService.getInstance();
+      const NostrListService = (
+        await import('../services/nostr/NostrListService')
+      ).NostrListService.getInstance();
       const eventParticipants = await NostrListService.getListMembers(
-        eventData.captainPubkey,  // Author of the participant list
-        `event-${eventId}-participants`  // Event-specific d-tag
+        eventData.captainPubkey, // Author of the participant list
+        `event-${eventId}-participants` // Event-specific d-tag
       );
 
       setParticipants(eventParticipants);
-      console.log(`📊 Loaded ${eventParticipants.length} event participants for event ${eventId}`);
+      console.log(
+        `📊 Loaded ${eventParticipants.length} event participants for event ${eventId}`
+      );
 
       // Fetch profiles for each participant
-      const ProfileService = (await import('../services/user/profileService')).ProfileService;
+      const ProfileService = (await import('../services/user/profileService'))
+        .ProfileService;
       const profiles: ParticipantProfile[] = await Promise.all(
         eventParticipants.map(async (pubkey) => {
           try {
@@ -85,10 +97,14 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
               pubkey,
               name: profile?.name,
               picture: profile?.picture,
-              displayName: profile?.name || `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+              displayName:
+                profile?.name || `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
             };
           } catch (error) {
-            console.warn(`Failed to load profile for ${pubkey.slice(0, 16)}:`, error);
+            console.warn(
+              `Failed to load profile for ${pubkey.slice(0, 16)}:`,
+              error
+            );
             return {
               pubkey,
               displayName: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
@@ -112,7 +128,10 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
     setIsRefreshing(false);
   };
 
-  const handleRemoveParticipant = async (participantPubkey: string, participantName: string) => {
+  const handleRemoveParticipant = async (
+    participantPubkey: string,
+    participantName: string
+  ) => {
     Alert.alert(
       'Remove Participant',
       `Are you sure you want to remove ${participantName} from this event?`,
@@ -123,25 +142,36 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('🗑️ Removing participant:', participantPubkey.slice(0, 20));
+              console.log(
+                '🗑️ Removing participant:',
+                participantPubkey.slice(0, 20)
+              );
 
               // Remove from kind 30000 participant list
-              const NostrListService = (await import('../services/nostr/NostrListService')).NostrListService.getInstance();
+              const NostrListService = (
+                await import('../services/nostr/NostrListService')
+              ).NostrListService.getInstance();
               await NostrListService.removeMember(
-                `event-${eventId}-participants`,  // d-tag
-                participantPubkey                  // member to remove
+                `event-${eventId}-participants`, // d-tag
+                participantPubkey // member to remove
               );
 
               // Refresh participant list
               await loadParticipants();
 
-              Alert.alert('Success', `${participantName} has been removed from the event`);
+              Alert.alert(
+                'Success',
+                `${participantName} has been removed from the event`
+              );
             } catch (error) {
               console.error('❌ Failed to remove participant:', error);
-              Alert.alert('Error', 'Failed to remove participant. Please try again.');
+              Alert.alert(
+                'Error',
+                'Failed to remove participant. Please try again.'
+              );
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -194,7 +224,7 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
       weekday: 'long',
       month: 'long',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -237,7 +267,9 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
               <Text style={styles.statLabel}>Participants</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{eventData.activityType || 'Any'}</Text>
+              <Text style={styles.statValue}>
+                {eventData.activityType || 'Any'}
+              </Text>
               <Text style={styles.statLabel}>Activity</Text>
             </View>
           </View>
@@ -254,7 +286,11 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
             onPress={handleGenerateQR}
             activeOpacity={0.8}
           >
-            <Ionicons name="qr-code" size={20} color={theme.colors.background} />
+            <Ionicons
+              name="qr-code"
+              size={20}
+              color={theme.colors.background}
+            />
             <Text style={styles.qrButtonText}>Generate QR Code</Text>
           </TouchableOpacity>
         </View>
@@ -270,7 +306,11 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
             </View>
           ) : participants.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={48} color={theme.colors.textMuted} />
+              <Ionicons
+                name="people-outline"
+                size={48}
+                color={theme.colors.textMuted}
+              />
               <Text style={styles.emptyStateText}>No participants yet</Text>
               <Text style={styles.emptyStateSubtext}>
                 Share the QR code to invite people to join
@@ -296,7 +336,9 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
                     )}
 
                     <View style={styles.participantDetails}>
-                      <Text style={styles.participantName}>{profile.displayName}</Text>
+                      <Text style={styles.participantName}>
+                        {profile.displayName}
+                      </Text>
                       <Text style={styles.participantRole}>
                         {index === 0 ? 'Captain' : 'Participant'}
                       </Text>
@@ -307,10 +349,19 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
                   {index !== 0 && (
                     <TouchableOpacity
                       style={styles.removeButton}
-                      onPress={() => handleRemoveParticipant(profile.pubkey, profile.displayName)}
+                      onPress={() =>
+                        handleRemoveParticipant(
+                          profile.pubkey,
+                          profile.displayName
+                        )
+                      }
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="trash-outline" size={18} color={theme.colors.error} />
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={theme.colors.error}
+                      />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -325,7 +376,9 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
           teamId={eventData.teamId}
           onMemberApproved={async () => {
             // Refresh participant list when request is approved
-            console.log('✅ Join request approved - refreshing participant list');
+            console.log(
+              '✅ Join request approved - refreshing participant list'
+            );
             await loadParticipants();
           }}
           style={styles.joinRequestsSection}
@@ -336,7 +389,9 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
           <EventTransactionHistory
             eventId={eventId}
             eventName={eventData.name}
-            eventStartDate={Math.floor(new Date(eventData.eventDate).getTime() / 1000)}
+            eventStartDate={Math.floor(
+              new Date(eventData.eventDate).getTime() / 1000
+            )}
             entryFee={eventData.entryFeesSats}
             style={styles.transactionHistory}
           />
@@ -347,10 +402,16 @@ export const EventCaptainDashboardScreen: React.FC<EventCaptainDashboardScreenPr
           <Text style={styles.sectionTitle}>Event Controls</Text>
           <TouchableOpacity
             style={styles.controlButton}
-            onPress={() => Alert.alert('Coming Soon', 'Event editing will be available soon')}
+            onPress={() =>
+              Alert.alert('Coming Soon', 'Event editing will be available soon')
+            }
             activeOpacity={0.8}
           >
-            <Ionicons name="create-outline" size={20} color={theme.colors.text} />
+            <Ionicons
+              name="create-outline"
+              size={20}
+              color={theme.colors.text}
+            />
             <Text style={styles.controlButtonText}>Edit Event Details</Text>
           </TouchableOpacity>
         </View>

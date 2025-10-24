@@ -59,9 +59,14 @@ export const OpenChallengeWizard: React.FC<OpenChallengeWizardProps> = ({
   onComplete,
   onCancel,
 }) => {
-  const [currentStep, setCurrentStep] = useState<OpenChallengeStep>('activity_config');
-  const [configuration, setConfiguration] = useState<Partial<ActivityConfiguration>>({});
-  const [challengeData, setChallengeData] = useState<QRChallengeData | null>(null);
+  const [currentStep, setCurrentStep] =
+    useState<OpenChallengeStep>('activity_config');
+  const [configuration, setConfiguration] = useState<
+    Partial<ActivityConfiguration>
+  >({});
+  const [challengeData, setChallengeData] = useState<QRChallengeData | null>(
+    null
+  );
   const [qrString, setQrString] = useState<string>('');
   const [deepLink, setDeepLink] = useState<string>('');
 
@@ -108,8 +113,12 @@ export const OpenChallengeWizard: React.FC<OpenChallengeWizardProps> = ({
    * Generate QR code for open challenge
    */
   const handleGenerateQR = useCallback(async () => {
-    if (!configuration.activityType || !configuration.metric ||
-        configuration.duration === undefined || configuration.wagerAmount === undefined) {
+    if (
+      !configuration.activityType ||
+      !configuration.metric ||
+      configuration.duration === undefined ||
+      configuration.wagerAmount === undefined
+    ) {
       Alert.alert('Error', 'Please complete all required fields');
       return;
     }
@@ -231,10 +240,7 @@ export const OpenChallengeWizard: React.FC<OpenChallengeWizardProps> = ({
       {currentStep === 'activity_config' && (
         <View style={styles.actionSection}>
           <TouchableOpacity
-            style={[
-              styles.nextButton,
-              !isValid && styles.nextButtonDisabled,
-            ]}
+            style={[styles.nextButton, !isValid && styles.nextButtonDisabled]}
             onPress={handleNext}
             disabled={!isValid}
           >

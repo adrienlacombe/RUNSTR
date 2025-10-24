@@ -13,7 +13,10 @@ import {
 } from '../../../utils/nostr';
 import { storeAuthenticationData } from '../../../utils/nostrAuth';
 import type { AuthResult, CreateUserData, User } from '../../../types';
-import { DirectNostrProfileService, type DirectNostrUser } from '../../user/directNostrProfileService';
+import {
+  DirectNostrProfileService,
+  type DirectNostrUser,
+} from '../../user/directNostrProfileService';
 import nutzapService from '../../nutzap/nutzapService';
 import { NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
 
@@ -25,11 +28,13 @@ export class NostrAuthProvider {
    */
   async signInPureNostr(nsecInput: string): Promise<AuthResult> {
     try {
-      console.log('🔐 NostrAuthProvider: Starting pure Nostr authentication...');
+      console.log(
+        '🔐 NostrAuthProvider: Starting pure Nostr authentication...'
+      );
 
       // Validate and normalize nsec input
       const nsec = normalizeNsecInput(nsecInput);
-      
+
       if (!validateNsec(nsec)) {
         return {
           success: false,
@@ -46,13 +51,18 @@ export class NostrAuthProvider {
         };
       }
 
-      console.log('✅ NostrAuthProvider: Valid nsec provided, npub:', npub.slice(0, 20) + '...');
+      console.log(
+        '✅ NostrAuthProvider: Valid nsec provided, npub:',
+        npub.slice(0, 20) + '...'
+      );
 
       // Store keys using unified auth system with verification
       // Use npub as userId for consistent key generation
       const stored = await storeAuthenticationData(nsec, npub);
       if (!stored) {
-        console.error('❌ NostrAuthProvider: Failed to store authentication data');
+        console.error(
+          '❌ NostrAuthProvider: Failed to store authentication data'
+        );
         return {
           success: false,
           error: 'Failed to save authentication. Please try again.',
@@ -61,20 +71,29 @@ export class NostrAuthProvider {
       console.log('✅ NostrAuthProvider: Authentication stored and verified');
 
       // Import AsyncStorage and store current user pubkey for wallet verification
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const AsyncStorage = (
+        await import('@react-native-async-storage/async-storage')
+      ).default;
       const { npubToHex } = await import('../../../utils/ndkConversion');
       const hexPubkey = npubToHex(npub);
 
       if (hexPubkey) {
         // CRITICAL: Store pubkey BEFORE wallet initialization to ensure correct user isolation
         await AsyncStorage.setItem('@runstr:hex_pubkey', hexPubkey);
-        console.log('✅ NostrAuthProvider: Current user pubkey stored for wallet verification');
-        console.log('🔑 NostrAuthProvider: User pubkey (hex):', hexPubkey.slice(0, 16) + '...');
+        console.log(
+          '✅ NostrAuthProvider: Current user pubkey stored for wallet verification'
+        );
+        console.log(
+          '🔑 NostrAuthProvider: User pubkey (hex):',
+          hexPubkey.slice(0, 16) + '...'
+        );
 
         // Verify stored pubkey matches what we just set
         const verifyPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
         if (verifyPubkey !== hexPubkey) {
-          console.error('❌ NostrAuthProvider: CRITICAL - Stored pubkey mismatch!');
+          console.error(
+            '❌ NostrAuthProvider: CRITICAL - Stored pubkey mismatch!'
+          );
           console.error('❌ Expected:', hexPubkey.slice(0, 16) + '...');
           console.error('❌ Got:', verifyPubkey?.slice(0, 16) + '...');
         } else {
@@ -85,16 +104,25 @@ export class NostrAuthProvider {
       // Initialize NutZap wallet for user (auto-creates if doesn't exist)
       try {
         console.log('💰 NostrAuthProvider: Initializing NutZap wallet...');
-        console.log('💰 NostrAuthProvider: Wallet will be isolated to pubkey:', hexPubkey?.slice(0, 16) + '...');
+        console.log(
+          '💰 NostrAuthProvider: Wallet will be isolated to pubkey:',
+          hexPubkey?.slice(0, 16) + '...'
+        );
 
         const walletState = await nutzapService.initialize(nsec);
 
         if (walletState.created) {
-          console.log('✅ NostrAuthProvider: New NutZap wallet created for user');
+          console.log(
+            '✅ NostrAuthProvider: New NutZap wallet created for user'
+          );
           console.log('💰 Initial wallet balance: 0 sats');
         } else {
           console.log('✅ NostrAuthProvider: Existing NutZap wallet loaded');
-          console.log('💰 Current wallet balance:', walletState.balance, 'sats');
+          console.log(
+            '💰 Current wallet balance:',
+            walletState.balance,
+            'sats'
+          );
           console.log('💰 Wallet has', walletState.proofCount || 0, 'proofs');
         }
 
@@ -105,12 +133,16 @@ export class NostrAuthProvider {
         console.log('💰 Wallet has stored proofs:', !!storedProofs);
       } catch (walletError) {
         // Don't fail auth if wallet creation fails - wallet can be created later
-        console.warn('⚠️ NostrAuthProvider: NutZap wallet initialization failed (non-fatal):', walletError);
+        console.warn(
+          '⚠️ NostrAuthProvider: NutZap wallet initialization failed (non-fatal):',
+          walletError
+        );
       }
 
       // Get profile using DirectNostrProfileService (pure Nostr)
-      const directUser = await DirectNostrProfileService.getCurrentUserProfile();
-      
+      const directUser =
+        await DirectNostrProfileService.getCurrentUserProfile();
+
       if (!directUser) {
         return {
           success: false,
@@ -140,14 +172,17 @@ export class NostrAuthProvider {
         isSupabaseSynced: false, // Pure Nostr users start unsynced
       };
 
-      console.log('✅ NostrAuthProvider: Pure Nostr authentication successful:', {
-        id: user.id,
-        name: user.name,
-        npub: user.npub.slice(0, 20) + '...',
-        hasPicture: !!user.picture,
-        hasLightning: !!user.lud16,
-        isSupabaseSynced: user.isSupabaseSynced,
-      });
+      console.log(
+        '✅ NostrAuthProvider: Pure Nostr authentication successful:',
+        {
+          id: user.id,
+          name: user.name,
+          npub: user.npub.slice(0, 20) + '...',
+          hasPicture: !!user.picture,
+          hasLightning: !!user.lud16,
+          isSupabaseSynced: user.isSupabaseSynced,
+        }
+      );
 
       return {
         success: true,
@@ -156,10 +191,16 @@ export class NostrAuthProvider {
         needsRoleSelection: false, // Default to member role
       };
     } catch (error) {
-      console.error('❌ NostrAuthProvider: Pure Nostr authentication failed:', error);
+      console.error(
+        '❌ NostrAuthProvider: Pure Nostr authentication failed:',
+        error
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Pure Nostr authentication failed',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Pure Nostr authentication failed',
       };
     }
   }
@@ -170,7 +211,9 @@ export class NostrAuthProvider {
    */
   async signUpPureNostr(): Promise<AuthResult> {
     try {
-      console.log('🔐 NostrAuthProvider: Starting Nostr signup (generating new identity)...');
+      console.log(
+        '🔐 NostrAuthProvider: Starting Nostr signup (generating new identity)...'
+      );
 
       // Generate new Nostr keypair using NDK (per CLAUDE.md requirements)
       console.log('🔑 Generating new Nostr keypair with NDK...');
@@ -191,20 +234,27 @@ export class NostrAuthProvider {
 
         // If privateKey is undefined, try alternate method
         if (!privateKeyHex) {
-          console.log('🔑 Standard generation returned no key, trying alternate method...');
+          console.log(
+            '🔑 Standard generation returned no key, trying alternate method...'
+          );
           // Import the global crypto that was polyfilled in index.js
           // @ts-ignore - crypto is polyfilled globally
-          if (typeof global.crypto !== 'undefined' && global.crypto.getRandomValues) {
-            const randomBytes = global.crypto.getRandomValues(new Uint8Array(32));
+          if (
+            typeof global.crypto !== 'undefined' &&
+            global.crypto.getRandomValues
+          ) {
+            const randomBytes = global.crypto.getRandomValues(
+              new Uint8Array(32)
+            );
             privateKeyHex = Array.from(randomBytes)
-              .map(b => b.toString(16).padStart(2, '0'))
+              .map((b) => b.toString(16).padStart(2, '0'))
               .join('');
           } else {
             // Final fallback: use NDK's internal utilities
             const { randomBytes } = await import('@noble/hashes/utils');
             const privateKeyBytes = randomBytes(32);
             privateKeyHex = Array.from(privateKeyBytes)
-              .map(b => b.toString(16).padStart(2, '0'))
+              .map((b) => b.toString(16).padStart(2, '0'))
               .join('');
           }
 
@@ -217,17 +267,20 @@ export class NostrAuthProvider {
 
         // Fallback: Try multiple methods to generate random bytes
         // @ts-ignore - crypto might be polyfilled globally
-        if (typeof global.crypto !== 'undefined' && global.crypto.getRandomValues) {
+        if (
+          typeof global.crypto !== 'undefined' &&
+          global.crypto.getRandomValues
+        ) {
           const randomBytes = global.crypto.getRandomValues(new Uint8Array(32));
           privateKeyHex = Array.from(randomBytes)
-            .map(b => b.toString(16).padStart(2, '0'))
+            .map((b) => b.toString(16).padStart(2, '0'))
             .join('');
         } else {
           // Use noble/hashes as final fallback
           const { randomBytes } = await import('@noble/hashes/utils');
           const privateKeyBytes = randomBytes(32);
           privateKeyHex = Array.from(privateKeyBytes)
-            .map(b => b.toString(16).padStart(2, '0'))
+            .map((b) => b.toString(16).padStart(2, '0'))
             .join('');
         }
 
@@ -236,7 +289,10 @@ export class NostrAuthProvider {
         ndkUser = await signer.user();
       }
 
-      console.log('🔑 Generated private key (hex):', privateKeyHex ? privateKeyHex.slice(0, 16) + '...' : 'null');
+      console.log(
+        '🔑 Generated private key (hex):',
+        privateKeyHex ? privateKeyHex.slice(0, 16) + '...' : 'null'
+      );
 
       if (!privateKeyHex || privateKeyHex.length !== 64) {
         throw new Error('Failed to generate valid 32-byte private key');
@@ -248,65 +304,111 @@ export class NostrAuthProvider {
       const npub = ndkUser.npub;
       const hexPubkey = ndkUser.pubkey;
 
-      console.log('🔑 Generated nsec using custom encoder:', nsec ? nsec.slice(0, 10) + '...' : 'null');
-      console.log('🔑 NDK provided npub:', npub ? npub.slice(0, 20) + '...' : 'null');
+      console.log(
+        '🔑 Generated nsec using custom encoder:',
+        nsec ? nsec.slice(0, 10) + '...' : 'null'
+      );
+      console.log(
+        '🔑 NDK provided npub:',
+        npub ? npub.slice(0, 20) + '...' : 'null'
+      );
 
       // Validate all generated values
       if (!nsec || !nsec.startsWith('nsec1')) {
-        console.error('❌ NostrAuthProvider: Invalid nsec generated:', nsec?.slice(0, 10) || 'null');
-        console.error('❌ NostrAuthProvider: hex private key was:', privateKeyHex?.slice(0, 16) || 'null');
+        console.error(
+          '❌ NostrAuthProvider: Invalid nsec generated:',
+          nsec?.slice(0, 10) || 'null'
+        );
+        console.error(
+          '❌ NostrAuthProvider: hex private key was:',
+          privateKeyHex?.slice(0, 16) || 'null'
+        );
         throw new Error('Failed to generate valid nsec format');
       }
 
       if (!npub || !npub.startsWith('npub1')) {
-        console.error('❌ NostrAuthProvider: Invalid npub generated:', npub?.slice(0, 10) || 'null');
+        console.error(
+          '❌ NostrAuthProvider: Invalid npub generated:',
+          npub?.slice(0, 10) || 'null'
+        );
         throw new Error('Failed to generate valid npub format');
       }
 
       if (!hexPubkey || hexPubkey.length !== 64) {
-        console.error('❌ NostrAuthProvider: Invalid hex pubkey generated:', hexPubkey?.slice(0, 16) || 'null');
+        console.error(
+          '❌ NostrAuthProvider: Invalid hex pubkey generated:',
+          hexPubkey?.slice(0, 16) || 'null'
+        );
         throw new Error('Failed to generate valid hex pubkey');
       }
 
       console.log('✅ NostrAuthProvider: Generated new Nostr identity:', {
         nsec: nsec.slice(0, 10) + '...',
         npub: npub.slice(0, 20) + '...',
-        hexPubkey: hexPubkey.slice(0, 16) + '...'
+        hexPubkey: hexPubkey.slice(0, 16) + '...',
       });
 
       // Store keys using unified auth system with verification
       console.log('💾 NostrAuthProvider: Storing generated identity...');
       const stored = await storeAuthenticationData(nsec, npub);
       if (!stored) {
-        console.error('❌ NostrAuthProvider: Failed to store generated authentication data');
-        console.error('❌ NostrAuthProvider: Storage failed for nsec:', nsec.slice(0, 10) + '...');
-        console.error('❌ NostrAuthProvider: Storage failed for npub:', npub.slice(0, 20) + '...');
+        console.error(
+          '❌ NostrAuthProvider: Failed to store generated authentication data'
+        );
+        console.error(
+          '❌ NostrAuthProvider: Storage failed for nsec:',
+          nsec.slice(0, 10) + '...'
+        );
+        console.error(
+          '❌ NostrAuthProvider: Storage failed for npub:',
+          npub.slice(0, 20) + '...'
+        );
         return {
           success: false,
-          error: 'Failed to save generated identity. Please check device storage and try again.',
+          error:
+            'Failed to save generated identity. Please check device storage and try again.',
         };
       }
-      console.log('✅ NostrAuthProvider: Generated identity stored and verified');
+      console.log(
+        '✅ NostrAuthProvider: Generated identity stored and verified'
+      );
 
       // Import AsyncStorage and store current user pubkey for wallet verification
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const AsyncStorage = (
+        await import('@react-native-async-storage/async-storage')
+      ).default;
       await AsyncStorage.setItem('@runstr:hex_pubkey', hexPubkey);
-      console.log('✅ NostrAuthProvider: Current user pubkey stored for wallet verification');
+      console.log(
+        '✅ NostrAuthProvider: Current user pubkey stored for wallet verification'
+      );
 
       // Initialize NutZap wallet for new user (auto-creates wallet)
       try {
-        console.log('💰 NostrAuthProvider: Creating NutZap wallet for new user...');
+        console.log(
+          '💰 NostrAuthProvider: Creating NutZap wallet for new user...'
+        );
         const walletState = await nutzapService.initialize(nsec);
         if (walletState.created) {
-          console.log('✅ NostrAuthProvider: NutZap wallet created for new user');
+          console.log(
+            '✅ NostrAuthProvider: NutZap wallet created for new user'
+          );
         } else {
-          console.log('✅ NostrAuthProvider: NutZap wallet already exists for user');
+          console.log(
+            '✅ NostrAuthProvider: NutZap wallet already exists for user'
+          );
         }
-        console.log('💰 NostrAuthProvider: Wallet initialization completed successfully');
+        console.log(
+          '💰 NostrAuthProvider: Wallet initialization completed successfully'
+        );
       } catch (walletError) {
         // Don't fail signup if wallet creation fails - wallet can be created later
-        console.warn('⚠️ NostrAuthProvider: NutZap wallet initialization failed (non-fatal):', walletError);
-        console.warn('⚠️ NostrAuthProvider: User can still proceed without wallet - wallet creation will be retried later');
+        console.warn(
+          '⚠️ NostrAuthProvider: NutZap wallet initialization failed (non-fatal):',
+          walletError
+        );
+        console.warn(
+          '⚠️ NostrAuthProvider: User can still proceed without wallet - wallet creation will be retried later'
+        );
       }
 
       // Create a basic user profile for the new identity
@@ -336,14 +438,17 @@ export class NostrAuthProvider {
         isSupabaseSynced: false,
       };
 
-      console.log('✅ NostrAuthProvider: Nostr signup successful - new identity created:', {
-        id: user.id,
-        name: user.name,
-        displayName: user.displayName,
-        npub: user.npub.slice(0, 20) + '...',
-        role: user.role,
-        createdAt: user.createdAt,
-      });
+      console.log(
+        '✅ NostrAuthProvider: Nostr signup successful - new identity created:',
+        {
+          id: user.id,
+          name: user.name,
+          displayName: user.displayName,
+          npub: user.npub.slice(0, 20) + '...',
+          role: user.role,
+          createdAt: user.createdAt,
+        }
+      );
 
       return {
         success: true,
@@ -364,11 +469,14 @@ export class NostrAuthProvider {
       let errorMessage = 'Failed to generate Nostr identity';
       if (error instanceof Error) {
         if (error.message.includes('nsec format')) {
-          errorMessage = 'Failed to generate valid private key. Please try again.';
+          errorMessage =
+            'Failed to generate valid private key. Please try again.';
         } else if (error.message.includes('npub format')) {
-          errorMessage = 'Failed to generate valid public key. Please try again.';
+          errorMessage =
+            'Failed to generate valid public key. Please try again.';
         } else if (error.message.includes('storage')) {
-          errorMessage = 'Failed to save identity to device storage. Please check available storage space.';
+          errorMessage =
+            'Failed to save identity to device storage. Please check available storage space.';
         } else {
           errorMessage = error.message;
         }
@@ -384,7 +492,7 @@ export class NostrAuthProvider {
   /*
    * FUTURE SUPABASE INTEGRATION METHODS
    * These will be re-enabled when user opts in via Profile → Account → "Enable Enhanced Features"
-   * 
+   *
    * TODO: Add these methods for optional Supabase sync:
    * - signInWithSupabaseSync(nsecInput: string) - Creates Supabase user record
    * - updateUserWithProfileData(user: User, nostrProfile: NostrProfile) - Updates existing Supabase record

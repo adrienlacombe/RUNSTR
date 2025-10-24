@@ -75,7 +75,11 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Share Your Workout</Text>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+                  <Ionicons
+                    name="close"
+                    size={24}
+                    color={theme.colors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -103,7 +107,11 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
                       <Ionicons
                         name={platform.icon}
                         size={28}
-                        color={platform.available ? theme.colors.text : theme.colors.textMuted}
+                        color={
+                          platform.available
+                            ? theme.colors.text
+                            : theme.colors.textMuted
+                        }
                       />
                     </View>
                     <Text style={styles.platformName}>{platform.name}</Text>
@@ -115,7 +123,8 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
               </View>
 
               <Text style={styles.infoText}>
-                Share your achievements with your community and inspire others to stay active!
+                Share your achievements with your community and inspire others
+                to stay active!
               </Text>
             </View>
           </TouchableWithoutFeedback>

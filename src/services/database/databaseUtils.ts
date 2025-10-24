@@ -41,7 +41,7 @@ export interface LeaderboardCache {
  * Parse workout row from database
  */
 export function parseWorkoutRows(rows: any[]): WorkoutRecord[] {
-  return rows.map(row => ({
+  return rows.map((row) => ({
     id: row.id,
     npub: row.npub,
     nostrEventId: row.nostr_event_id,

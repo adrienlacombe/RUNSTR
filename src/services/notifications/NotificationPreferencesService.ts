@@ -28,7 +28,9 @@ export class NotificationPreferencesService {
   /**
    * Save notification preferences - no-op (kept for compatibility)
    */
-  static async saveNotificationSettings(settings: NotificationSettings): Promise<void> {
+  static async saveNotificationSettings(
+    settings: NotificationSettings
+  ): Promise<void> {
     // No-op - we don't save preferences anymore
     console.log('📱 Notification preferences are always enabled');
   }
@@ -47,7 +49,9 @@ export class NotificationPreferencesService {
   /**
    * Check if a specific notification type is enabled - always returns true
    */
-  static async isNotificationEnabled(key: keyof NotificationSettings): Promise<boolean> {
+  static async isNotificationEnabled(
+    key: keyof NotificationSettings
+  ): Promise<boolean> {
     return true;
   }
 
@@ -113,7 +117,9 @@ export class NotificationPreferencesService {
   /**
    * Import settings - no-op (kept for compatibility)
    */
-  static async importSettings(settingsJson: string): Promise<NotificationSettings> {
+  static async importSettings(
+    settingsJson: string
+  ): Promise<NotificationSettings> {
     return DEFAULT_NOTIFICATION_SETTINGS;
   }
 }

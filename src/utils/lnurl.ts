@@ -41,7 +41,9 @@ export async function fetchLNURLPayDetails(
   const [name, domain] = lightningAddress.split('@');
 
   if (!name || !domain) {
-    throw new Error('Invalid Lightning address format. Expected: user@domain.com');
+    throw new Error(
+      'Invalid Lightning address format. Expected: user@domain.com'
+    );
   }
 
   // Construct LNURL endpoint (LUD-16)
@@ -79,7 +81,9 @@ export async function fetchLNURLPayDetails(
     return data as LNURLPayDetails;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timeout: Lightning address service not responding');
+      throw new Error(
+        'Request timeout: Lightning address service not responding'
+      );
     }
 
     console.error('[LNURL] ❌ Failed to fetch details:', error);
@@ -186,7 +190,13 @@ export async function getInvoiceFromLightningAddress(
   description?: string,
   zapRequest?: string
 ): Promise<{ invoice: string; successMessage?: string }> {
-  console.log('[LNURL] Getting invoice from', lightningAddress, 'for', amountSats, 'sats');
+  console.log(
+    '[LNURL] Getting invoice from',
+    lightningAddress,
+    'for',
+    amountSats,
+    'sats'
+  );
 
   try {
     // Step 1: Fetch LNURL-pay details

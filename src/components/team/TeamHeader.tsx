@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ImageBackground,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../styles/theme';
@@ -25,7 +25,6 @@ export const TeamHeader: React.FC<TeamHeaderProps> = ({
   team,
   onBack,
 }) => {
-
   // Helper function to extract banner URL with fallback
   const getBannerUrl = (): string | null => {
     // Primary source: directly passed bannerImage prop
@@ -36,13 +35,18 @@ export const TeamHeader: React.FC<TeamHeaderProps> = ({
 
     // Fallback 1: check team.bannerImage
     if (team?.bannerImage) {
-      console.log('🖼️ TeamHeader: Using banner from team.bannerImage:', team.bannerImage);
+      console.log(
+        '🖼️ TeamHeader: Using banner from team.bannerImage:',
+        team.bannerImage
+      );
       return team.bannerImage;
     }
 
     // Fallback 2: check Nostr event tags
     if (team?.nostrEvent?.tags) {
-      const bannerTag = team.nostrEvent.tags.find((tag: any) => tag[0] === 'banner' || tag[0] === 'image');
+      const bannerTag = team.nostrEvent.tags.find(
+        (tag: any) => tag[0] === 'banner' || tag[0] === 'image'
+      );
       if (bannerTag?.[1]) {
         console.log('🖼️ TeamHeader: Banner extracted from tags:', bannerTag[1]);
         return bannerTag[1];
@@ -64,11 +68,7 @@ export const TeamHeader: React.FC<TeamHeaderProps> = ({
       >
         <Text style={styles.backIcon}>←</Text>
       </TouchableOpacity>
-      {!effectiveBannerImage && (
-        <Text style={styles.teamName}>
-          {teamName}
-        </Text>
-      )}
+      {!effectiveBannerImage && <Text style={styles.teamName}>{teamName}</Text>}
     </>
   );
 
@@ -83,19 +83,13 @@ export const TeamHeader: React.FC<TeamHeaderProps> = ({
           colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
           style={styles.gradientOverlay}
         >
-          <View style={styles.headerWithBanner}>
-            {headerContent}
-          </View>
+          <View style={styles.headerWithBanner}>{headerContent}</View>
         </LinearGradient>
       </ImageBackground>
     );
   }
 
-  return (
-    <View style={styles.header}>
-      {headerContent}
-    </View>
-  );
+  return <View style={styles.header}>{headerContent}</View>;
 };
 
 const styles = StyleSheet.create({

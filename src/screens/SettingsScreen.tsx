@@ -122,7 +122,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
-  const [alertButtons, setAlertButtons] = useState<Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>>([]);
+  const [alertButtons, setAlertButtons] = useState<
+    Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>
+  >([]);
 
   useEffect(() => {
     loadSettings();
@@ -263,7 +269,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
     // First warning dialog
     setAlertTitle('Delete Account');
-    setAlertMessage('Are you sure you want to permanently delete your account?');
+    setAlertMessage(
+      'Are you sure you want to permanently delete your account?'
+    );
     setAlertButtons([
       { text: 'Cancel', style: 'cancel' },
       {
@@ -316,7 +324,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     } catch (error) {
       console.error('Account deletion failed:', error);
       setAlertTitle('Deletion Failed');
-      setAlertMessage('Failed to delete your account. Please try again or contact support.');
+      setAlertMessage(
+        'Failed to delete your account. Please try again or contact support.'
+      );
       setAlertButtons([{ text: 'OK' }]);
       setAlertVisible(true);
     } finally {
@@ -347,7 +357,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const handleDisconnectWallet = async () => {
     setAlertTitle('Disconnect Wallet?');
-    setAlertMessage('This will remove your wallet connection. You can reconnect anytime.');
+    setAlertMessage(
+      'This will remove your wallet connection. You can reconnect anytime.'
+    );
     setAlertButtons([
       { text: 'Cancel', style: 'cancel' },
       {
@@ -388,14 +400,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setAlertTitle('🔐 Backup Your Password');
     setAlertMessage(
       'Your password is the master key to your account.\n\n' +
-      '⚠️ IMPORTANT:\n' +
-      '• We do not keep backups of passwords\n' +
-      '• Your password is only stored locally on your phone\n' +
-      '• If you lose your password, you lose access to your account\n' +
-      '• Keep your password safe - write it down or use a password manager\n' +
-      '• NEVER share it with anyone\n' +
-      '• This is the ONLY way to recover your account\n\n' +
-      'Would you like to copy your password?'
+        '⚠️ IMPORTANT:\n' +
+        '• We do not keep backups of passwords\n' +
+        '• Your password is only stored locally on your phone\n' +
+        '• If you lose your password, you lose access to your account\n' +
+        '• Keep your password safe - write it down or use a password manager\n' +
+        '• NEVER share it with anyone\n' +
+        '• This is the ONLY way to recover your account\n\n' +
+        'Would you like to copy your password?'
     );
     setAlertButtons([
       { text: 'Cancel', style: 'cancel' },
@@ -411,11 +423,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               setAlertTitle('✅ Password Copied');
               setAlertMessage(
                 'Your password has been copied to your clipboard.\n\n' +
-                '🔒 Security Tips:\n' +
-                '1. Paste it in a secure password manager NOW\n' +
-                '2. Clear your clipboard after saving it\n' +
-                '3. Never paste it in untrusted apps\n' +
-                '4. Remember: We do not keep backups - if you lose it, your account is gone forever'
+                  '🔒 Security Tips:\n' +
+                  '1. Paste it in a secure password manager NOW\n' +
+                  '2. Clear your clipboard after saving it\n' +
+                  '3. Never paste it in untrusted apps\n' +
+                  '4. Remember: We do not keep backups - if you lose it, your account is gone forever'
               );
               setAlertButtons([{ text: 'I Understand', style: 'default' }]);
               setAlertVisible(true);
@@ -519,7 +531,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     style={styles.refreshButton}
                     onPress={refreshBalance}
                   >
-                    <Ionicons name="refresh" size={20} color={theme.colors.text} />
+                    <Ionicons
+                      name="refresh"
+                      size={20}
+                      color={theme.colors.text}
+                    />
                   </TouchableOpacity>
                 </View>
 
@@ -529,7 +545,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     style={styles.walletActionButton}
                     onPress={() => setShowSendModal(true)}
                   >
-                    <Ionicons name="arrow-up-outline" size={20} color={theme.colors.text} />
+                    <Ionicons
+                      name="arrow-up-outline"
+                      size={20}
+                      color={theme.colors.text}
+                    />
                     <Text style={styles.walletActionText}>Send</Text>
                   </TouchableOpacity>
 
@@ -537,7 +557,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     style={styles.walletActionButton}
                     onPress={() => setShowReceiveModal(true)}
                   >
-                    <Ionicons name="arrow-down-outline" size={20} color={theme.colors.text} />
+                    <Ionicons
+                      name="arrow-down-outline"
+                      size={20}
+                      color={theme.colors.text}
+                    />
                     <Text style={styles.walletActionText}>Receive</Text>
                   </TouchableOpacity>
 
@@ -545,7 +569,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     style={styles.walletActionButton}
                     onPress={() => setShowHistoryModal(true)}
                   >
-                    <Ionicons name="time-outline" size={20} color={theme.colors.text} />
+                    <Ionicons
+                      name="time-outline"
+                      size={20}
+                      color={theme.colors.text}
+                    />
                     <Text style={styles.walletActionText}>History</Text>
                   </TouchableOpacity>
                 </View>
@@ -555,22 +583,33 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   style={styles.disconnectWalletButton}
                   onPress={handleDisconnectWallet}
                 >
-                  <Text style={styles.disconnectWalletText}>Disconnect Wallet</Text>
+                  <Text style={styles.disconnectWalletText}>
+                    Disconnect Wallet
+                  </Text>
                 </TouchableOpacity>
               </>
             ) : (
               /* Connect Wallet Prompt */
               <View style={styles.connectWalletContainer}>
-                <Ionicons name="wallet-outline" size={48} color={theme.colors.textMuted} />
-                <Text style={styles.connectWalletTitle}>Connect Your Wallet</Text>
+                <Ionicons
+                  name="wallet-outline"
+                  size={48}
+                  color={theme.colors.textMuted}
+                />
+                <Text style={styles.connectWalletTitle}>
+                  Connect Your Wallet
+                </Text>
                 <Text style={styles.connectWalletDescription}>
-                  Connect a Lightning wallet to send and receive Bitcoin payments directly from the app
+                  Connect a Lightning wallet to send and receive Bitcoin
+                  payments directly from the app
                 </Text>
                 <TouchableOpacity
                   style={styles.connectWalletButton}
                   onPress={() => setShowWalletConfig(true)}
                 >
-                  <Text style={styles.connectWalletButtonText}>Connect Wallet</Text>
+                  <Text style={styles.connectWalletButtonText}>
+                    Connect Wallet
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -605,7 +644,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   handleTTSSettingChange('enabled', value)
                 }
                 trackColor={{ false: '#000000', true: theme.colors.accent }}
-                thumbColor='#000000'
+                thumbColor="#000000"
               />
             </View>
 
@@ -623,7 +662,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   handleTTSSettingChange('announceOnSummary', value)
                 }
                 trackColor={{ false: '#000000', true: theme.colors.accent }}
-                thumbColor='#000000'
+                thumbColor="#000000"
                 disabled={!ttsSettings.enabled}
               />
             </View>
@@ -642,7 +681,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   handleTTSSettingChange('includeSplits', value)
                 }
                 trackColor={{ false: '#000000', true: theme.colors.accent }}
-                thumbColor='#000000'
+                thumbColor="#000000"
                 disabled={!ttsSettings.enabled}
               />
             </View>
@@ -650,7 +689,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             {/* Live Split Announcements */}
             <View style={styles.settingItem}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Live Split Announcements</Text>
+                <Text style={styles.settingTitle}>
+                  Live Split Announcements
+                </Text>
                 <Text style={styles.settingSubtitle}>
                   Announce each kilometer as you run
                 </Text>
@@ -661,7 +702,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   handleTTSSettingChange('announceLiveSplits', value)
                 }
                 trackColor={{ false: '#000000', true: theme.colors.accent }}
-                thumbColor='#000000'
+                thumbColor="#000000"
                 disabled={!ttsSettings.enabled}
               />
             </View>

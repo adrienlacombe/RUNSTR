@@ -55,7 +55,9 @@ export class TeamCacheService {
     const cacheTime = await appCache.get<number>(this.TIMESTAMP_KEY);
 
     if (cachedTeams && cachedTeams.length > 0) {
-      console.log(`✅ TeamCacheService: Returning ${cachedTeams.length} cached teams`);
+      console.log(
+        `✅ TeamCacheService: Returning ${cachedTeams.length} cached teams`
+      );
 
       // Check if background refresh is needed (after 5 minutes)
       if (cacheTime && Date.now() - cacheTime > this.BACKGROUND_REFRESH_TIME) {
@@ -145,7 +147,9 @@ export class TeamCacheService {
       if (teams && teams.length > 0) {
         await appCache.set(this.CACHE_KEY, teams, this.CACHE_TTL);
         await appCache.set(this.TIMESTAMP_KEY, Date.now(), this.CACHE_TTL);
-        console.log(`✅ TeamCacheService: Background refresh complete, ${teams.length} teams updated`);
+        console.log(
+          `✅ TeamCacheService: Background refresh complete, ${teams.length} teams updated`
+        );
       }
     } catch (error) {
       console.error('❌ TeamCacheService: Background refresh failed:', error);
@@ -174,7 +178,9 @@ export class TeamCacheService {
         charityId: team.charityId, // Include charity ID from NostrTeam
 
         // DiscoveryTeam specific properties
-        about: team.description || `Join ${team.name} for fitness challenges and Bitcoin rewards!`,
+        about:
+          team.description ||
+          `Join ${team.name} for fitness challenges and Bitcoin rewards!`,
         difficulty: 'intermediate' as const,
         stats: {
           memberCount: team.memberCount || 0,
@@ -182,21 +188,20 @@ export class TeamCacheService {
           activeEvents: 0, // Real data only
           activeChallenges: 0, // Real data only
         },
-      recentActivities: [], // Will be populated from workout queries
-      isFeatured: false, // Default to false
+        recentActivities: [], // Will be populated from workout queries
+        isFeatured: false, // Default to false
 
-      // Additional properties from original NostrTeam
-      location: team.location,
-      activityType: team.activityType || 'General Fitness',
-      tags: team.tags || [],
-      isPublic: team.isPublic,
-      captain: team.captain,
-      captainNpub: team.captainNpub,
-      nostrEvent: team.nostrEvent,
-    };
+        // Additional properties from original NostrTeam
+        location: team.location,
+        activityType: team.activityType || 'General Fitness',
+        tags: team.tags || [],
+        isPublic: team.isPublic,
+        captain: team.captain,
+        captainNpub: team.captainNpub,
+        nostrEvent: team.nostrEvent,
+      };
     });
   }
-
 
   /**
    * Get cache status for debugging

@@ -4,12 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../../styles/theme';
 import { SyncSource, Workout } from '../../types';
 import { PublicWorkoutsTab } from './tabs/PublicWorkoutsTab';
@@ -42,10 +37,7 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
   const renderTabButton = (tab: TabType, label: string) => (
     <TouchableOpacity
       key={tab}
-      style={[
-        styles.tabButton,
-        activeTab === tab && styles.tabButtonActive,
-      ]}
+      style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
       onPress={() => setActiveTab(tab)}
     >
       <Text
@@ -101,9 +93,7 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
       </View>
 
       {/* Active Tab Content */}
-      <View style={styles.tabContent}>
-        {renderActiveTab()}
-      </View>
+      <View style={styles.tabContent}>{renderActiveTab()}</View>
     </View>
   );
 };

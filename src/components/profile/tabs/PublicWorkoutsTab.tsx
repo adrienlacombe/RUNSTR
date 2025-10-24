@@ -4,19 +4,16 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  FlatList,
-  RefreshControl,
-  Text,
-  StyleSheet,
-} from 'react-native';
+import { View, FlatList, RefreshControl, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
 import { LoadingOverlay } from '../../ui/LoadingStates';
 import { EnhancedWorkoutCard } from '../shared/EnhancedWorkoutCard';
-import { MonthlyWorkoutGroup, groupWorkoutsByMonth } from '../shared/MonthlyWorkoutGroup';
+import {
+  MonthlyWorkoutGroup,
+  groupWorkoutsByMonth,
+} from '../shared/MonthlyWorkoutGroup';
 import { WorkoutLevelRing } from '../WorkoutLevelRing';
 import { Nuclear1301Service } from '../../../services/fitness/Nuclear1301Service';
 import unifiedCache from '../../../services/cache/UnifiedNostrCache';
@@ -55,13 +52,17 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
       if (!pubkey) return;
 
       // Check if we have cached workouts
-      const cached = unifiedCache.getCached<NostrWorkout[]>(CacheKeys.USER_WORKOUTS(pubkey));
+      const cached = unifiedCache.getCached<NostrWorkout[]>(
+        CacheKeys.USER_WORKOUTS(pubkey)
+      );
       if (cached && cached.length > 0) {
         console.log('✅ Cache is fresh, using cached workouts');
         // Note: Cache age checking would require cacheMetadata which isn't exposed
         // For now, rely on user's manual pull-to-refresh if they want fresh data
       } else {
-        console.log('📡 No cache found, loading workouts on navigation focus...');
+        console.log(
+          '📡 No cache found, loading workouts on navigation focus...'
+        );
         loadNostrWorkouts(false);
       }
     });
@@ -86,9 +87,13 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
 
       // Cache-first approach (unless force refresh)
       if (!forceRefresh) {
-        const cached = unifiedCache.getCached<NostrWorkout[]>(CacheKeys.USER_WORKOUTS(pubkey));
+        const cached = unifiedCache.getCached<NostrWorkout[]>(
+          CacheKeys.USER_WORKOUTS(pubkey)
+        );
         if (cached && cached.length > 0) {
-          console.log(`📦 Cache hit: ${cached.length} workouts (instant display from prefetch)`);
+          console.log(
+            `📦 Cache hit: ${cached.length} workouts (instant display from prefetch)`
+          );
           nostrWorkouts = cached;
           cacheHit = true;
           setFromCache(true);
@@ -99,7 +104,9 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
       if (!cacheHit || forceRefresh) {
         console.log('📡 Fetching from Nostr relays...');
         nostrWorkouts = await nuclear1301Service.getUserWorkouts(pubkey);
-        console.log(`✅ Received ${nostrWorkouts?.length || 0} workouts from Nostr`);
+        console.log(
+          `✅ Received ${nostrWorkouts?.length || 0} workouts from Nostr`
+        );
 
         // Update cache (ttl is 30 minutes via CacheTTL constant)
         await unifiedCache.set(
@@ -125,10 +132,15 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
           }
           return isValid;
         })
-        .sort((a: NostrWorkout, b: NostrWorkout) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+        .sort(
+          (a: NostrWorkout, b: NostrWorkout) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        );
 
       setWorkouts(validWorkouts);
-      console.log(`✅ Loaded ${validWorkouts.length} valid public Nostr workouts`);
+      console.log(
+        `✅ Loaded ${validWorkouts.length} valid public Nostr workouts`
+      );
     } catch (error) {
       console.error('❌ Failed to load Nostr workouts:', error);
       setWorkouts([]);
@@ -154,7 +166,7 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
   };
 
   // Convert NostrWorkout to UnifiedWorkout for compatibility
-  const unifiedWorkouts: UnifiedWorkout[] = workouts.map(w => ({
+  const unifiedWorkouts: UnifiedWorkout[] = workouts.map((w) => ({
     ...w,
     syncedToNostr: true,
     postedToSocial: false,
@@ -165,12 +177,15 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
   // Group workouts by month
   const monthlyGroups = groupWorkoutsByMonth(unifiedWorkouts);
 
-  const renderWorkout = useCallback((workout: Workout) => (
-    <EnhancedWorkoutCard
-      workout={workout}
-      hideActions={true} // No actions for already published workouts
-    />
-  ), []);
+  const renderWorkout = useCallback(
+    (workout: Workout) => (
+      <EnhancedWorkoutCard
+        workout={workout}
+        hideActions={true} // No actions for already published workouts
+      />
+    ),
+    []
+  );
 
   const renderMonthlyGroup = ({ item }: { item: any }) => (
     <MonthlyWorkoutGroup
@@ -207,9 +222,9 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
         <Card style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No public workouts yet</Text>
           <Text style={styles.emptyStateText}>
-            Your workouts will appear here after you post them to Nostr
-            or enter them into competitions. Use the "All" tab to see
-            your local workouts and share them.
+            Your workouts will appear here after you post them to Nostr or enter
+            them into competitions. Use the "All" tab to see your local workouts
+            and share them.
           </Text>
         </Card>
       </View>

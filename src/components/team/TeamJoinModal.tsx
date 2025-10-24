@@ -223,7 +223,9 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
               <View style={styles.statsGrid}>
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>MEMBERS</Text>
-                  <Text style={styles.statValue}>{team.stats?.memberCount ?? 0}</Text>
+                  <Text style={styles.statValue}>
+                    {team.stats?.memberCount ?? 0}
+                  </Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>ACTIVE EVENTS</Text>

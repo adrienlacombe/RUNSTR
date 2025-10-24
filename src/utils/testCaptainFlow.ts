@@ -19,7 +19,10 @@ export class CaptainFlowTester {
       const storedNpub = await AsyncStorage.getItem('npub');
       const storedNsec = await AsyncStorage.getItem('nsec');
 
-      console.log('📱 Stored npub:', storedNpub ? storedNpub.slice(0, 20) + '...' : 'NOT FOUND');
+      console.log(
+        '📱 Stored npub:',
+        storedNpub ? storedNpub.slice(0, 20) + '...' : 'NOT FOUND'
+      );
       console.log('🔑 Stored nsec:', storedNsec ? 'EXISTS' : 'NOT FOUND');
 
       if (storedNpub) {
@@ -55,7 +58,10 @@ export class CaptainFlowTester {
 
         if (team) {
           console.log('📋 Team found:', team.name);
-          console.log('👑 Captain ID:', team.captainId ? team.captainId.slice(0, 20) + '...' : 'NOT SET');
+          console.log(
+            '👑 Captain ID:',
+            team.captainId ? team.captainId.slice(0, 20) + '...' : 'NOT SET'
+          );
           console.log('📝 Captain field exists:', 'captain' in team);
           console.log('📝 CaptainId field exists:', 'captainId' in team);
           console.log('📝 CaptainNpub field exists:', 'captainNpub' in team);
@@ -112,7 +118,11 @@ export class CaptainFlowTester {
     console.log('👑 Team captain:', teamCaptainId.slice(0, 20) + '...');
 
     const isMatch = userHex === teamCaptainId;
-    console.log(isMatch ? '✅ IDs MATCH - User IS captain!' : '❌ IDs DO NOT MATCH - User is NOT captain');
+    console.log(
+      isMatch
+        ? '✅ IDs MATCH - User IS captain!'
+        : '❌ IDs DO NOT MATCH - User is NOT captain'
+    );
 
     if (!isMatch) {
       // Check if one might be npub format
@@ -122,7 +132,10 @@ export class CaptainFlowTester {
           const decoded = nip19.decode(teamCaptainId);
           const captainHex = decoded.data as string;
           const convertedMatch = userHex === captainHex;
-          console.log('🔄 After conversion:', convertedMatch ? 'MATCH!' : 'Still no match');
+          console.log(
+            '🔄 After conversion:',
+            convertedMatch ? 'MATCH!' : 'Still no match'
+          );
           return convertedMatch;
         } catch (e) {
           console.log('❌ Failed to convert npub');
@@ -165,18 +178,27 @@ export class CaptainFlowTester {
       return false;
     }
 
-    const actualIsCaptain = await this.testCaptainComparison(userIdentity.hex, captainId);
+    const actualIsCaptain = await this.testCaptainComparison(
+      userIdentity.hex,
+      captainId
+    );
 
     // Final verdict
     console.log('\n📊 FINAL RESULTS');
     console.log('================');
     console.log('🔍 Cached says captain:', cachedIsCaptain);
     console.log('🔍 Actual comparison:', actualIsCaptain);
-    console.log('⚠️  Cache matches reality:', cachedIsCaptain === actualIsCaptain);
+    console.log(
+      '⚠️  Cache matches reality:',
+      cachedIsCaptain === actualIsCaptain
+    );
 
     if (cachedIsCaptain !== actualIsCaptain) {
       console.log('🔧 FIXING: Updating cache to correct value...');
-      await AsyncStorage.setItem(`captain_${teamId}`, actualIsCaptain.toString());
+      await AsyncStorage.setItem(
+        `captain_${teamId}`,
+        actualIsCaptain.toString()
+      );
     }
 
     return actualIsCaptain;
@@ -189,7 +211,7 @@ export class CaptainFlowTester {
     console.log('\n🧹 Clearing captain cache...');
 
     const keys = await AsyncStorage.getAllKeys();
-    const captainKeys = keys.filter(k => k.startsWith('captain_'));
+    const captainKeys = keys.filter((k) => k.startsWith('captain_'));
 
     if (captainKeys.length > 0) {
       await AsyncStorage.multiRemove(captainKeys);

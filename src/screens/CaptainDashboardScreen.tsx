@@ -20,7 +20,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { CHARITIES, getCharityById } from '../constants/charities';
-import { validateShopUrl, getShopDisplayName, validateFlashUrl } from '../utils/validation';
+import {
+  validateShopUrl,
+  getShopDisplayName,
+  validateFlashUrl,
+} from '../utils/validation';
 import { theme } from '../styles/theme';
 // BottomNavigation removed - Captain Dashboard has back button
 // import { ZappableUserRow } from '../components/ui/ZappableUserRow'; // REMOVED: No longer needed without member list
@@ -43,7 +47,10 @@ import { TeamMemberCache } from '../services/team/TeamMemberCache';
 import { TeamCacheService } from '../services/cache/TeamCacheService';
 import { getTeamListDetector } from '../utils/teamListDetector';
 import NostrTeamCreationService from '../services/nostr/NostrTeamCreationService';
-import { getAuthenticationData, migrateAuthenticationStorage } from '../utils/nostrAuth';
+import {
+  getAuthenticationData,
+  migrateAuthenticationStorage,
+} from '../utils/nostrAuth';
 import { NDKPrivateKeySigner, NDKEvent } from '@nostr-dev-kit/ndk';
 import { npubToHex } from '../utils/ndkConversion';
 import unifiedCache from '../services/cache/UnifiedNostrCache';
@@ -114,12 +121,15 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
   // QR Event Display state
   const [showEventQRModal, setShowEventQRModal] = useState(false);
-  const [selectedEventForQR, setSelectedEventForQR] = useState<QREventData | null>(null);
+  const [selectedEventForQR, setSelectedEventForQR] =
+    useState<QREventData | null>(null);
   const [selectedEventQRString, setSelectedEventQRString] = useState('');
   const [selectedEventDeepLink, setSelectedEventDeepLink] = useState('');
 
   // Charity state for team charity management
-  const [selectedCharityId, setSelectedCharityId] = useState<string | undefined>(undefined);
+  const [selectedCharityId, setSelectedCharityId] = useState<
+    string | undefined
+  >(undefined);
   const [showCharityModal, setShowCharityModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [shopUrl, setShopUrl] = useState<string>(data.team.shopUrl || '');
@@ -142,7 +152,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   const [editedActivityTypes, setEditedActivityTypes] = useState('');
   const [editedBannerUrl, setEditedBannerUrl] = useState('');
   const [bannerUrlError, setBannerUrlError] = useState('');
-  const [editedCharityId, setEditedCharityId] = useState<string | undefined>(undefined);
+  const [editedCharityId, setEditedCharityId] = useState<string | undefined>(
+    undefined
+  );
   const [bannerPreviewLoading, setBannerPreviewLoading] = useState(false);
 
   // Initialize team data on mount
@@ -161,7 +173,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       const allCompetitions = competitionService.getAllCompetitions();
 
       // Filter for this team's active competitions
-      const teamCompetitions = allCompetitions.filter(comp => {
+      const teamCompetitions = allCompetitions.filter((comp) => {
         const now = Date.now() / 1000;
         return comp.teamId === teamId && comp.endTime > now;
       });
@@ -190,12 +202,29 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
     try {
       console.log(`🔍 [CaptainDashboard] Checking for kind 30000 list...`);
       console.log(`  Team ID: ${teamId}`);
-      console.log(`  Captain ID (received): ${captainId?.slice(0, 20)}... (${captainId?.length} chars)`);
-      console.log(`  Captain ID format: ${captainId?.startsWith('npub') ? 'npub' : captainId?.length === 64 ? 'hex' : 'other'}`);
+      console.log(
+        `  Captain ID (received): ${captainId?.slice(0, 20)}... (${
+          captainId?.length
+        } chars)`
+      );
+      console.log(
+        `  Captain ID format: ${
+          captainId?.startsWith('npub')
+            ? 'npub'
+            : captainId?.length === 64
+            ? 'hex'
+            : 'other'
+        }`
+      );
 
       // Get the authenticated user's data to use as fallback
       const authData = await getAuthenticationData();
-      console.log(`  Authenticated user's hex pubkey: ${authData?.hexPubkey?.slice(0, 20)}...`);
+      console.log(
+        `  Authenticated user's hex pubkey: ${authData?.hexPubkey?.slice(
+          0,
+          20
+        )}...`
+      );
 
       // Determine the correct captain ID to use
       // If we have a hex captain ID, use it. Otherwise, fall back to authenticated user's hex pubkey
@@ -207,11 +236,15 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
           captainIdToUse = converted;
           console.log(`  Converted to hex: ${captainIdToUse.slice(0, 20)}...`);
         } else {
-          console.log('  Conversion failed, using authenticated user hex pubkey');
+          console.log(
+            '  Conversion failed, using authenticated user hex pubkey'
+          );
           captainIdToUse = authData?.hexPubkey || captainId;
         }
       } else if (!captainId && authData?.hexPubkey) {
-        console.log('  No captain ID provided, using authenticated user hex pubkey');
+        console.log(
+          '  No captain ID provided, using authenticated user hex pubkey'
+        );
         captainIdToUse = authData.hexPubkey;
       }
 
@@ -222,7 +255,11 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         return;
       }
 
-      console.log(`  Final captain ID to use: ${captainIdToUse.slice(0, 20)}... (${captainIdToUse.length === 64 ? 'hex' : 'other'})`);
+      console.log(
+        `  Final captain ID to use: ${captainIdToUse.slice(0, 20)}... (${
+          captainIdToUse.length === 64 ? 'hex' : 'other'
+        })`
+      );
 
       const detector = getTeamListDetector();
       const haslist = await detector.hasKind30000List(teamId, captainIdToUse);
@@ -232,9 +269,14 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         // Also check if there's a cached list locally
         console.log(`  No list found via detector, checking cache...`);
         const memberCache = TeamMemberCache.getInstance();
-        const cachedMembers = await memberCache.getTeamMembers(teamId, captainIdToUse);
+        const cachedMembers = await memberCache.getTeamMembers(
+          teamId,
+          captainIdToUse
+        );
         if (cachedMembers && cachedMembers.length > 0) {
-          console.log(`  ✅ Found ${cachedMembers.length} cached members for team ${teamId}`);
+          console.log(
+            `  ✅ Found ${cachedMembers.length} cached members for team ${teamId}`
+          );
           setHasKind30000List(true);
           setTeamMembers(cachedMembers);
           return;
@@ -243,9 +285,14 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       }
 
       setHasKind30000List(haslist);
-      console.log(`📊 [CaptainDashboard] Final result: Team ${teamId} has kind 30000 list: ${haslist}`);
+      console.log(
+        `📊 [CaptainDashboard] Final result: Team ${teamId} has kind 30000 list: ${haslist}`
+      );
     } catch (error) {
-      console.error('❌ [CaptainDashboard] Error checking for kind 30000 list:', error);
+      console.error(
+        '❌ [CaptainDashboard] Error checking for kind 30000 list:',
+        error
+      );
       setHasKind30000List(false);
     }
   };
@@ -254,7 +301,11 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
     try {
       console.log(`👥 [CaptainDashboard] Loading team members...`);
       console.log(`  Team ID: ${teamId}`);
-      console.log(`  Captain ID (received): ${captainId?.slice(0, 20)}... (${captainId?.startsWith('npub') ? 'npub' : 'hex'})`);
+      console.log(
+        `  Captain ID (received): ${captainId?.slice(0, 20)}... (${
+          captainId?.startsWith('npub') ? 'npub' : 'hex'
+        })`
+      );
 
       // Get the correct captain ID (same logic as checkForKind30000List)
       const authData = await getAuthenticationData();
@@ -266,7 +317,11 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         captainIdToUse = authData.hexPubkey;
       }
 
-      console.log(`  Using captain ID: ${captainIdToUse?.slice(0, 20)}... (${captainIdToUse?.length === 64 ? 'hex' : 'other'})`);
+      console.log(
+        `  Using captain ID: ${captainIdToUse?.slice(0, 20)}... (${
+          captainIdToUse?.length === 64 ? 'hex' : 'other'
+        })`
+      );
 
       setIsLoadingMembers(true);
       const memberCache = TeamMemberCache.getInstance();
@@ -274,7 +329,11 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
       console.log(`  ✅ Loaded ${members.length} members for team ${teamId}`);
       if (members.length > 0) {
-        console.log(`  First member: ${members[0].slice(0, 20)}... (${members[0].startsWith('npub') ? 'npub' : 'hex'})`);
+        console.log(
+          `  First member: ${members[0].slice(0, 20)}... (${
+            members[0].startsWith('npub') ? 'npub' : 'hex'
+          })`
+        );
       }
 
       setTeamMembers(members);
@@ -290,8 +349,11 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
     // ✅ FIXED: Teams are now bookmarks - no member list required
     // Check for existing active events only
     try {
-      const { NostrCompetitionService } = await import('../services/nostr/NostrCompetitionService');
-      const activeCompetitions = await NostrCompetitionService.checkActiveCompetitions(teamId);
+      const { NostrCompetitionService } = await import(
+        '../services/nostr/NostrCompetitionService'
+      );
+      const activeCompetitions =
+        await NostrCompetitionService.checkActiveCompetitions(teamId);
       if (activeCompetitions.activeEvents > 0) {
         Alert.alert(
           'Active Event Exists',
@@ -311,8 +373,11 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
     // ✅ FIXED: Teams are now bookmarks - no member list required
     // Check for existing active leagues only
     try {
-      const { NostrCompetitionService } = await import('../services/nostr/NostrCompetitionService');
-      const activeCompetitions = await NostrCompetitionService.checkActiveCompetitions(teamId);
+      const { NostrCompetitionService } = await import(
+        '../services/nostr/NostrCompetitionService'
+      );
+      const activeCompetitions =
+        await NostrCompetitionService.checkActiveCompetitions(teamId);
       if (activeCompetitions.activeLeagues > 0) {
         Alert.alert(
           'Active League Exists',
@@ -329,7 +394,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   };
 
   const handleEventCreated = async (eventData: any) => {
-    console.log('[CaptainDashboard] 📅 Event created, refreshing competitions list...');
+    console.log(
+      '[CaptainDashboard] 📅 Event created, refreshing competitions list...'
+    );
     setEventWizardVisible(false);
 
     // Reload active competitions to show the new event
@@ -339,7 +406,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   };
 
   const handleLeagueCreated = async (leagueData: any) => {
-    console.log('[CaptainDashboard] 🏆 League created, refreshing competitions list...');
+    console.log(
+      '[CaptainDashboard] 🏆 League created, refreshing competitions list...'
+    );
     setLeagueWizardVisible(false);
 
     // Reload active competitions to show the new league
@@ -352,7 +421,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   const handleShowEventQR = async (event: any) => {
     try {
       // Create QR event data from the event
-      const qrEventData = await qrEventService.createQREvent(event, data.team.name);
+      const qrEventData = await qrEventService.createQREvent(
+        event,
+        data.team.name
+      );
       const qrString = qrEventService.toQRString(qrEventData);
       const deepLink = qrEventService.toDeepLink(qrEventData);
 
@@ -383,10 +455,12 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       // Fallback: fetch from Nostr if not in cache
       if (!currentTeam) {
         console.log('⚠️ Team not in cache, fetching from Nostr...');
-        const { getNostrTeamService } = await import('../services/nostr/NostrTeamService');
+        const { getNostrTeamService } = await import(
+          '../services/nostr/NostrTeamService'
+        );
         const teamService = getNostrTeamService();
         teams = await teamService.discoverFitnessTeams();
-        currentTeam = teams.find(t => t.id === teamId);
+        currentTeam = teams.find((t) => t.id === teamId);
       } else {
         console.log('✅ Using cached team data for:', teamId);
       }
@@ -398,7 +472,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
           name: currentTeam.name,
           bannerFromTeam: currentTeam.bannerImage,
           hasNostrEvent: !!currentTeam.nostrEvent,
-          tags: currentTeam.nostrEvent?.tags?.filter((tag: any) => tag[0] === 'banner' || tag[0] === 'image')
+          tags: currentTeam.nostrEvent?.tags?.filter(
+            (tag: any) => tag[0] === 'banner' || tag[0] === 'image'
+          ),
         });
 
         // Store full team data for editing
@@ -422,7 +498,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         // Extract banner URL with fallback to Nostr event tags
         let bannerUrl = currentTeam.bannerImage;
         if (!bannerUrl && currentTeam.nostrEvent?.tags) {
-          const bannerTag = currentTeam.nostrEvent.tags.find((tag: any) => tag[0] === 'banner' || tag[0] === 'image');
+          const bannerTag = currentTeam.nostrEvent.tags.find(
+            (tag: any) => tag[0] === 'banner' || tag[0] === 'image'
+          );
           bannerUrl = bannerTag?.[1] || '';
           console.log('🖼️ Banner extracted from tags:', bannerUrl);
         }
@@ -484,7 +562,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
       // Parse and add activity type tags
       if (editedActivityTypes.trim()) {
-        const activities = editedActivityTypes.split(',').map(a => a.trim()).filter(a => a);
+        const activities = editedActivityTypes
+          .split(',')
+          .map((a) => a.trim())
+          .filter((a) => a);
         activities.forEach((activity) => {
           tags.push(['t', activity.toLowerCase()]);
         });
@@ -545,7 +626,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
         // Clear cache after a delay to allow relay propagation
         setTimeout(async () => {
-          console.log('🔄 Clearing cache after 3-second relay propagation delay...');
+          console.log(
+            '🔄 Clearing cache after 3-second relay propagation delay...'
+          );
           const teamCache = TeamCacheService.getInstance();
           await teamCache.clearCache();
 
@@ -554,41 +637,40 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
           console.log('✅ Team data reloaded with fresh cache');
         }, 3000);
 
-        Alert.alert(
-          'Success',
-          'Team information updated successfully!',
-          [
-            {
-              text: 'View Team',
-              onPress: async () => {
-                // Reload team data
-                await loadTeamCharity();
+        Alert.alert('Success', 'Team information updated successfully!', [
+          {
+            text: 'View Team',
+            onPress: async () => {
+              // Reload team data
+              await loadTeamCharity();
 
-                // Navigate to the team page with updated data
-                if (currentTeamData && navigation) {
-                  // Ensure we have the latest banner URL
-                  const updatedBannerUrl = editedBannerUrl.trim();
-                  console.log('🎯 Navigating with banner URL:', updatedBannerUrl || 'none');
+              // Navigate to the team page with updated data
+              if (currentTeamData && navigation) {
+                // Ensure we have the latest banner URL
+                const updatedBannerUrl = editedBannerUrl.trim();
+                console.log(
+                  '🎯 Navigating with banner URL:',
+                  updatedBannerUrl || 'none'
+                );
 
-                  navigation.navigate('EnhancedTeamScreen', {
-                    team: {
-                      ...currentTeamData,
-                      name: editedTeamName.trim(),
-                      description: editedTeamDescription.trim(),
-                      location: editedTeamLocation.trim(),
-                      bannerImage: updatedBannerUrl,
-                      // Include nostrEvent for fallback banner extraction
-                      nostrEvent: currentTeamData.nostrEvent,
-                    },
-                    userIsMember: true,
-                    userIsCaptain: true,
-                    currentUserNpub: userNpub,
-                  });
-                }
+                navigation.navigate('EnhancedTeamScreen', {
+                  team: {
+                    ...currentTeamData,
+                    name: editedTeamName.trim(),
+                    description: editedTeamDescription.trim(),
+                    location: editedTeamLocation.trim(),
+                    bannerImage: updatedBannerUrl,
+                    // Include nostrEvent for fallback banner extraction
+                    nostrEvent: currentTeamData.nostrEvent,
+                  },
+                  userIsMember: true,
+                  userIsCaptain: true,
+                  currentUserNpub: userNpub,
+                });
               }
-            }
-          ]
-        );
+            },
+          },
+        ]);
 
         // Also reload team data in background
         setTimeout(() => {
@@ -597,10 +679,12 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       } else {
         throw new Error('Failed to publish update');
       }
-
     } catch (error) {
       console.error('Error updating team information:', error);
-      Alert.alert('Error', 'Failed to update team information. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to update team information. Please try again.'
+      );
     } finally {
       setIsSavingTeam(false);
     }
@@ -650,8 +734,8 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       // Preserve activity tags (filter out base tags to avoid duplication)
       const baseTagsShop = ['team', 'fitness', 'runstr'];
       if (currentTeamData?.tags && currentTeamData.tags.length > 0) {
-        const activityTags = currentTeamData.tags.filter((tag: string) =>
-          !baseTagsShop.includes(tag.toLowerCase())
+        const activityTags = currentTeamData.tags.filter(
+          (tag: string) => !baseTagsShop.includes(tag.toLowerCase())
         );
         activityTags.forEach((tag: string) => {
           tags.push(['t', tag.toLowerCase()]);
@@ -716,14 +800,19 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         captainIdToUse = authData.hexPubkey;
       }
 
-      console.log('[Captain] Using captain ID:', captainIdToUse?.slice(0, 20) + '...');
+      console.log(
+        '[Captain] Using captain ID:',
+        captainIdToUse?.slice(0, 20) + '...'
+      );
 
       // Clear any stale cache first
       const memberCache = TeamMemberCache.getInstance();
       await memberCache.invalidateTeam(teamId, captainIdToUse);
 
       // Debug authentication storage first
-      const { debugAuthStorage, recoverAuthentication } = await import('../utils/authDebug');
+      const { debugAuthStorage, recoverAuthentication } = await import(
+        '../utils/authDebug'
+      );
       await debugAuthStorage();
 
       // Get authentication data using the new unified system (reuse authData from above)
@@ -738,18 +827,27 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
         if (recovered.nsec && recovered.npub) {
           // Re-store the recovered authentication properly
-          const { storeAuthenticationData } = await import('../utils/nostrAuth');
-          const stored = await storeAuthenticationData(recovered.nsec, recovered.npub);
+          const { storeAuthenticationData } = await import(
+            '../utils/nostrAuth'
+          );
+          const stored = await storeAuthenticationData(
+            recovered.nsec,
+            recovered.npub
+          );
 
           if (stored) {
-            console.log('[Captain] Recovery successful, retrying auth retrieval...');
+            console.log(
+              '[Captain] Recovery successful, retrying auth retrieval...'
+            );
             authData = await getAuthenticationData();
           }
         } else if (userNpub || captainId) {
           console.log('[Captain] Recovery failed, attempting migration...');
 
           // Determine the userId for migration
-          const userId = captainId?.startsWith('npub') ? captainId : userNpub || captainId;
+          const userId = captainId?.startsWith('npub')
+            ? captainId
+            : userNpub || captainId;
 
           // Try to migrate with available data
           const migrated = await migrateAuthenticationStorage(
@@ -758,7 +856,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
           );
 
           if (migrated) {
-            console.log('[Captain] Migration successful, retrying auth retrieval...');
+            console.log(
+              '[Captain] Migration successful, retrying auth retrieval...'
+            );
             authData = await getAuthenticationData();
           }
         }
@@ -795,8 +895,14 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       }
 
       console.log('[Captain] ✅ Authentication retrieved successfully');
-      console.log('[Captain] Using user npub:', authData.npub.slice(0, 20) + '...');
-      console.log('[Captain] Using user hex pubkey:', authData.hexPubkey.slice(0, 20) + '...');
+      console.log(
+        '[Captain] Using user npub:',
+        authData.npub.slice(0, 20) + '...'
+      );
+      console.log(
+        '[Captain] Using user hex pubkey:',
+        authData.hexPubkey.slice(0, 20) + '...'
+      );
 
       // Check if user is actually the captain
       if (authData.hexPubkey !== captainId) {
@@ -808,7 +914,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         return;
       }
 
-      console.log('[Captain] User confirmed as captain, proceeding with list creation...');
+      console.log(
+        '[Captain] User confirmed as captain, proceeding with list creation...'
+      );
 
       // Convert nsec to hex private key
       const signer = new NDKPrivateKeySigner(authData.nsec);
@@ -820,12 +928,13 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
       // Create kind 30000 list for this team
       // Use the user's hex pubkey (which should match captain ID)
-      const result = await NostrTeamCreationService.createMemberListForExistingTeam(
-        teamId,
-        data.team.name,
-        authData.hexPubkey, // Use the user's hex pubkey for the list author
-        privateKeyHex // Pass hex private key
-      );
+      const result =
+        await NostrTeamCreationService.createMemberListForExistingTeam(
+          teamId,
+          data.team.name,
+          authData.hexPubkey, // Use the user's hex pubkey for the list author
+          privateKeyHex // Pass hex private key
+        );
 
       if (result.success) {
         setHasKind30000List(true);
@@ -861,7 +970,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
               // Get current member list
               const listService = NostrListService.getInstance();
               const memberListDTag = `${teamId}-members`;
-              const currentList = await listService.getList(captainId, memberListDTag);
+              const currentList = await listService.getList(
+                captainId,
+                memberListDTag
+              );
 
               if (!currentList) {
                 throw new Error('Team member list not found');
@@ -884,8 +996,12 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
               const authData = await getAuthenticationData();
 
               if (!authData) {
-                console.error('[Captain] No authentication data for member removal');
-                throw new Error('Captain credentials not found. Please log in again.');
+                console.error(
+                  '[Captain] No authentication data for member removal'
+                );
+                throw new Error(
+                  'Captain credentials not found. Please log in again.'
+                );
               }
 
               console.log('[Captain] Using nsec directly for member removal');
@@ -900,7 +1016,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
               // Sign and publish the updated list
               const protocolHandler = new NostrProtocolHandler();
-              const signedEvent = await protocolHandler.signEvent(eventTemplate, privateKeyHex);
+              const signedEvent = await protocolHandler.signEvent(
+                eventTemplate,
+                privateKeyHex
+              );
 
               // Publish using GlobalNDK
               const ndk = await GlobalNDKService.getInstance();
@@ -911,11 +1030,15 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
               // Update cache
               const listId = `${captainId}:${memberListDTag}`;
-              const updatedMembers = currentList.members.filter(m => m !== memberPubkey);
+              const updatedMembers = currentList.members.filter(
+                (m) => m !== memberPubkey
+              );
               listService.updateCachedList(listId, updatedMembers);
 
               // Update local state
-              setTeamMembers(prevMembers => prevMembers.filter(m => m !== memberPubkey));
+              setTeamMembers((prevMembers) =>
+                prevMembers.filter((m) => m !== memberPubkey)
+              );
 
               // Invalidate team member cache to force refresh
               const memberCache = TeamMemberCache.getInstance();
@@ -924,7 +1047,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
               Alert.alert('Success', 'Member has been removed from the team');
             } catch (error) {
               console.error('Failed to remove member:', error);
-              Alert.alert('Error', 'Failed to remove member. Please try again.');
+              Alert.alert(
+                'Error',
+                'Failed to remove member. Please try again.'
+              );
             }
           },
         },
@@ -943,7 +1069,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       // Get authentication data
       const authData = await getAuthenticationData();
       if (!authData) {
-        Alert.alert('Authentication Required', 'Please re-authenticate to add members.');
+        Alert.alert(
+          'Authentication Required',
+          'Please re-authenticate to add members.'
+        );
         return;
       }
 
@@ -953,7 +1082,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       const currentList = await listService.getList(captainId, memberListDTag);
 
       if (!currentList) {
-        Alert.alert('Error', 'Member list not found. Please create a member list first.');
+        Alert.alert(
+          'Error',
+          'Member list not found. Please create a member list first.'
+        );
         return;
       }
 
@@ -986,7 +1118,10 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
       // Sign and publish the updated list
       const protocolHandler = new NostrProtocolHandler();
-      const signedEvent = await protocolHandler.signEvent(eventTemplate, privateKeyHex);
+      const signedEvent = await protocolHandler.signEvent(
+        eventTemplate,
+        privateKeyHex
+      );
 
       // Publish using GlobalNDK
       const ndk = await GlobalNDKService.getInstance();
@@ -1058,21 +1193,27 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
           captainPubkey={captainId}
           teamId={data.team.id}
           onMemberApproved={(eventId, requesterPubkey) => {
-            console.log('Event participant approved:', eventId, requesterPubkey);
+            console.log(
+              'Event participant approved:',
+              eventId,
+              requesterPubkey
+            );
             // Could refresh event participants if needed
           }}
         />
 
         {/* Competition Participants Management */}
-        {activeCompetitions.filter(comp => comp.requireApproval).map(competition => (
-          <CompetitionParticipantsSection
-            key={competition.id}
-            competitionId={competition.id}
-            competitionName={competition.name}
-            requireApproval={competition.requireApproval}
-            onParticipantUpdate={loadActiveCompetitions}
-          />
-        ))}
+        {activeCompetitions
+          .filter((comp) => comp.requireApproval)
+          .map((competition) => (
+            <CompetitionParticipantsSection
+              key={competition.id}
+              competitionId={competition.id}
+              competitionName={competition.name}
+              requireApproval={competition.requireApproval}
+              onParticipantUpdate={loadActiveCompetitions}
+            />
+          ))}
 
         {/* Recent Activity */}
         <ActivityFeedSection
@@ -1134,7 +1275,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
               onChangeText={setEditedActivityTypes}
               autoCapitalize="none"
             />
-            <Text style={styles.helperText}>Separate multiple activities with commas</Text>
+            <Text style={styles.helperText}>
+              Separate multiple activities with commas
+            </Text>
 
             <Text style={styles.inputLabel}>Banner Image URL (Optional)</Text>
             <TextInput
@@ -1152,14 +1295,19 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
             {bannerUrlError ? (
               <Text style={styles.errorText}>{bannerUrlError}</Text>
             ) : editedBannerUrl ? (
-              <Text style={styles.helperText}>Enter image URL (JPEG, PNG, WebP)</Text>
+              <Text style={styles.helperText}>
+                Enter image URL (JPEG, PNG, WebP)
+              </Text>
             ) : null}
 
             {/* Banner Image Preview */}
             {editedBannerUrl && !bannerUrlError && (
               <View style={styles.imagePreviewContainer}>
                 {bannerPreviewLoading && (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.primary}
+                  />
                 )}
                 <Image
                   source={{ uri: editedBannerUrl }}
@@ -1180,11 +1328,13 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={editedCharityId || 'none'}
-                onValueChange={(value) => setEditedCharityId(value === 'none' ? undefined : value)}
+                onValueChange={(value) =>
+                  setEditedCharityId(value === 'none' ? undefined : value)
+                }
                 style={styles.picker}
               >
                 <Picker.Item label="No charity selected" value="none" />
-                {CHARITIES.map(charity => (
+                {CHARITIES.map((charity) => (
                   <Picker.Item
                     key={charity.id}
                     label={charity.name}
@@ -1209,7 +1359,9 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                     setEditedTeamName(currentTeamData.name || '');
                     setEditedTeamDescription(currentTeamData.description || '');
                     setEditedTeamLocation(currentTeamData.location || '');
-                    setEditedActivityTypes(currentTeamData.tags?.join(', ') || '');
+                    setEditedActivityTypes(
+                      currentTeamData.tags?.join(', ') || ''
+                    );
                     setEditedBannerUrl(currentTeamData.bannerImage || '');
                     setEditedCharityId(currentTeamData.charityId || undefined);
                     setBannerUrlError('');
@@ -1326,7 +1478,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     color: theme.colors.text,
   },
-
 
   // Content styles
   content: {

@@ -21,6 +21,7 @@ import { theme } from '../../styles/theme';
 import type { PendingChallenge } from '../../services/challenge/ChallengeRequestService';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
 import { challengePaymentService } from '../../services/challenge/ChallengePaymentService';
+import { challengeArbitrationService } from '../../services/challenge/ChallengeArbitrationService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 import { ChallengePaymentModal } from './ChallengePaymentModal';
@@ -91,22 +92,39 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
       // Validate Lightning address for paid challenges
       if (challenge.wagerAmount > 0) {
         if (!accepterAddress || !accepterAddress.includes('@')) {
-          throw new Error('Please provide a valid Lightning address (e.g., you@getalby.com)');
+          throw new Error(
+            'Please provide a valid Lightning address (e.g., you@getalby.com)'
+          );
         }
 
         // Validate creator has Lightning address
         if (!challenge.creatorLightningAddress) {
-          throw new Error('Challenge creator has not provided a Lightning address');
+          throw new Error(
+            'Challenge creator has not provided a Lightning address'
+          );
         }
 
-        // Generate invoice from creator's Lightning address
-        console.log(`⚡ Generating invoice from creator's address: ${challenge.creatorLightningAddress}`);
-        const invoiceResult = await challengePaymentService.generateWagerInvoice(
-          challenge.creatorLightningAddress,
-          challenge.wagerAmount,
-          challenge.challengeId,
-          'accepter'
+        // Check if challenge has arbitrator - if so, pay captain instead of creator
+        const hasArbitrator = !!challenge.arbitratorLightningAddress;
+        const recipientAddress = hasArbitrator
+          ? challenge.arbitratorLightningAddress
+          : challenge.creatorLightningAddress;
+        const recipientName = hasArbitrator
+          ? challenge.arbitratorCaptainName || 'Team Captain'
+          : 'Challenge Creator';
+
+        console.log(
+          `⚡ Generating invoice from ${
+            hasArbitrator ? 'arbitrator' : 'creator'
+          }'s address: ${recipientAddress}`
         );
+        const invoiceResult =
+          await challengePaymentService.generateWagerInvoice(
+            recipientAddress,
+            challenge.wagerAmount,
+            challenge.challengeId,
+            'accepter'
+          );
 
         if (!invoiceResult.success || !invoiceResult.invoice) {
           throw new Error(invoiceResult.error || 'Failed to generate invoice');
@@ -146,7 +164,15 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
       const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
-        throw new Error('Cannot access signing capability. Please ensure you are logged in.');
+        throw new Error(
+          'Cannot access signing capability. Please ensure you are logged in.'
+        );
+      }
+
+      // Get user identifiers for arbitration payment tracking
+      const userIdentifiers = await getUserNostrIdentifiers();
+      if (!userIdentifiers?.hexPubkey) {
+        throw new Error('User not authenticated');
       }
 
       // Accept challenge (signs and publishes kind 1106 + kind 30000)
@@ -159,6 +185,21 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to accept challenge');
+      }
+
+      // If this is an arbitrated challenge, record accepter's payment
+      if (challenge.arbitratorLightningAddress && paymentInvoice) {
+        try {
+          await challengeArbitrationService.recordParticipantPayment(
+            challenge.challengeId,
+            userIdentifiers.hexPubkey,
+            paymentInvoice
+          );
+          console.log('✅ Accepter payment recorded in arbitration service');
+        } catch (error) {
+          console.error('Failed to record arbitration payment:', error);
+          // Don't fail the entire acceptance if arbitration tracking fails
+        }
       }
 
       // Show success
@@ -198,7 +239,9 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
       const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
-        throw new Error('Cannot access signing capability. Please ensure you are logged in.');
+        throw new Error(
+          'Cannot access signing capability. Please ensure you are logged in.'
+        );
       }
 
       // Decline challenge (signs and publishes kind 1107)
@@ -298,24 +341,36 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={[styles.declineButton, isDeclining && styles.buttonDisabled]}
+              style={[
+                styles.declineButton,
+                isDeclining && styles.buttonDisabled,
+              ]}
               onPress={handleDecline}
               disabled={isAccepting || isDeclining}
             >
               {isDeclining ? (
-                <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.textMuted}
+                />
               ) : (
                 <Text style={styles.declineButtonText}>Decline</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.acceptButton, isAccepting && styles.buttonDisabled]}
+              style={[
+                styles.acceptButton,
+                isAccepting && styles.buttonDisabled,
+              ]}
               onPress={handleAccept}
               disabled={isAccepting || isDeclining}
             >
               {isAccepting ? (
-                <ActivityIndicator size="small" color={theme.colors.accentText} />
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.accentText}
+                />
               ) : (
                 <Text style={styles.acceptButtonText}>Accept ✓</Text>
               )}
@@ -351,11 +406,18 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
 
             <View style={styles.lightningInputSection}>
               <Text style={styles.lightningLabel}>
-                If you win this challenge, you'll receive {(challenge.wagerAmount * 2).toLocaleString()} sats at this address:
+                If you win this challenge, you'll receive{' '}
+                {(challenge.wagerAmount * 2).toLocaleString()} sats at this
+                address:
               </Text>
 
               <View style={styles.lightningInputContainer}>
-                <Ionicons name="flash" size={20} color={theme.colors.accent} style={styles.lightningIcon} />
+                <Ionicons
+                  name="flash"
+                  size={20}
+                  color={theme.colors.accent}
+                  style={styles.lightningIcon}
+                />
                 <TextInput
                   style={styles.lightningInput}
                   value={lightningAddress}

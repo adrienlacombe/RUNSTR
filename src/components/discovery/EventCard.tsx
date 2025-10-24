@@ -6,7 +6,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../../styles/theme';
-import type { NostrLeagueDefinition, NostrEventDefinition } from '../../types/nostrCompetition';
+import type {
+  NostrLeagueDefinition,
+  NostrEventDefinition,
+} from '../../types/nostrCompetition';
 
 interface EventCardProps {
   event: NostrLeagueDefinition | NostrEventDefinition;
@@ -25,10 +28,10 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
       const endDate = new Date(league.endDate);
       return `${startDate.toLocaleDateString('en-US', {
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       })} - ${endDate.toLocaleDateString('en-US', {
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       })}`;
     } else {
       const singleEvent = event as NostrEventDefinition;
@@ -36,7 +39,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
       return eventDate.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
       });
     }
   };
@@ -104,7 +107,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
             <Text style={styles.competitionType}>{event.competitionType}</Text>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
+        <View
+          style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}
+        >
           <Text style={styles.statusText}>{getStatusText()}</Text>
         </View>
       </View>
@@ -118,28 +123,35 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
         {event.teamId && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>👥</Text>
-            <Text style={styles.detailValue}>Team: {event.teamId.slice(0, 20)}...</Text>
+            <Text style={styles.detailValue}>
+              Team: {event.teamId.slice(0, 20)}...
+            </Text>
           </View>
         )}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>🎟️</Text>
           <Text style={styles.detailValue}>
-            Entry: {event.entryFeesSats > 0 ? `${event.entryFeesSats} sats` : 'Free'}
+            Entry:{' '}
+            {event.entryFeesSats > 0 ? `${event.entryFeesSats} sats` : 'Free'}
           </Text>
         </View>
 
         {event.prizePoolSats && event.prizePoolSats > 0 && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>🏆</Text>
-            <Text style={styles.prizeValue}>{event.prizePoolSats.toLocaleString()} sats</Text>
+            <Text style={styles.prizeValue}>
+              {event.prizePoolSats.toLocaleString()} sats
+            </Text>
           </View>
         )}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>👤</Text>
           <Text style={styles.detailValue}>
-            Max: {event.maxParticipants === 0 ? 'Unlimited' : event.maxParticipants} participants
+            Max:{' '}
+            {event.maxParticipants === 0 ? 'Unlimited' : event.maxParticipants}{' '}
+            participants
           </Text>
         </View>
       </View>

@@ -34,7 +34,9 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
   const route = useRoute<RouteProp<RouteParams, 'ChallengeLeaderboard'>>();
   const { challengeId } = route.params;
 
-  const [leaderboard, setLeaderboard] = useState<ChallengeLeaderboard | null>(null);
+  const [leaderboard, setLeaderboard] = useState<ChallengeLeaderboard | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +128,11 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
     }
   };
 
-  const renderParticipant = (participant: any, isLeader: boolean, index: number) => {
+  const renderParticipant = (
+    participant: any,
+    isLeader: boolean,
+    index: number
+  ) => {
     const progressPercentage = leaderboard?.target
       ? (participant.currentProgress / leaderboard.target) * 100
       : 0;
@@ -136,7 +142,10 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
         <View style={styles.participantHeader}>
           <View style={styles.participantInfo}>
             {participant.avatar ? (
-              <Image source={{ uri: participant.avatar }} style={styles.avatar} />
+              <Image
+                source={{ uri: participant.avatar }}
+                style={styles.avatar}
+              />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
                 <Text style={styles.avatarText}>
@@ -146,7 +155,9 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
             )}
             <View>
               <Text style={styles.participantName}>{participant.name}</Text>
-              <Text style={styles.workoutCount}>{participant.workoutCount} workouts</Text>
+              <Text style={styles.workoutCount}>
+                {participant.workoutCount} workouts
+              </Text>
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -174,7 +185,9 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
                 ]}
               />
             </View>
-            <Text style={styles.progressText}>{progressPercentage.toFixed(0)}%</Text>
+            <Text style={styles.progressText}>
+              {progressPercentage.toFixed(0)}%
+            </Text>
           </View>
         )}
 
@@ -182,13 +195,17 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
         <View style={styles.statsRow}>
           <Text style={styles.statLabel}>Current:</Text>
           <Text style={[styles.statValue, isLeader && styles.statValueLeader]}>
-            {formatMetric(leaderboard?.metric || '', participant.currentProgress)}
+            {formatMetric(
+              leaderboard?.metric || '',
+              participant.currentProgress
+            )}
           </Text>
         </View>
 
         {participant.lastWorkoutAt && (
           <Text style={styles.lastActivity}>
-            Last activity: {new Date(participant.lastWorkoutAt * 1000).toLocaleDateString()}
+            Last activity:{' '}
+            {new Date(participant.lastWorkoutAt * 1000).toLocaleDateString()}
           </Text>
         )}
       </View>
@@ -199,7 +216,10 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Challenge</Text>
@@ -217,16 +237,26 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Challenge</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={theme.colors.textMuted} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={theme.colors.textMuted}
+          />
           <Text style={styles.errorText}>{error || 'Challenge not found'}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => loadLeaderboard()}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => loadLeaderboard()}
+          >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -234,15 +264,22 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
     );
   }
 
-  const leader = leaderboard.participants.find((p) => p.pubkey === leaderboard.leader);
+  const leader = leaderboard.participants.find(
+    (p) => p.pubkey === leaderboard.leader
+  );
   const isCompleted = leaderboard.status === 'completed';
-  const daysRemaining = Math.ceil((leaderboard.expiresAt - Date.now() / 1000) / 86400);
+  const daysRemaining = Math.ceil(
+    (leaderboard.expiresAt - Date.now() / 1000) / 86400
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Challenge</Text>
@@ -261,8 +298,15 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
       >
         {/* Status Badge */}
         <View style={styles.statusBadge}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(leaderboard.status) }]} />
-          <Text style={styles.statusText}>{getStatusText(leaderboard.status)}</Text>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(leaderboard.status) },
+            ]}
+          />
+          <Text style={styles.statusText}>
+            {getStatusText(leaderboard.status)}
+          </Text>
         </View>
 
         {/* Challenge Info */}
@@ -293,7 +337,11 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
 
         {isCompleted && leaderboard.tied && (
           <View style={styles.winnerBanner}>
-            <Ionicons name="people" size={32} color={theme.colors.textSecondary} />
+            <Ionicons
+              name="people"
+              size={32}
+              color={theme.colors.textSecondary}
+            />
             <Text style={styles.winnerText}>It's a Tie!</Text>
           </View>
         )}
@@ -303,7 +351,11 @@ export const ChallengeLeaderboardScreen: React.FC = () => {
           {leaderboard.participants
             .sort((a, b) => b.currentProgress - a.currentProgress)
             .map((participant, index) =>
-              renderParticipant(participant, participant.pubkey === leaderboard.leader, index)
+              renderParticipant(
+                participant,
+                participant.pubkey === leaderboard.leader,
+                index
+              )
             )}
         </View>
       </ScrollView>

@@ -66,7 +66,10 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
   const recipientHex = React.useMemo(() => {
     const normalized = npubToHex(recipientNpub);
     if (!normalized) {
-      console.warn('[NutzapLightningButton] Invalid recipient pubkey:', recipientNpub.slice(0, 20));
+      console.warn(
+        '[NutzapLightningButton] Invalid recipient pubkey:',
+        recipientNpub.slice(0, 20)
+      );
       return null; // Return null instead of invalid value
     }
     return normalized;
@@ -99,7 +102,7 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
       isInitialized,
       balance,
       disabled,
-      recipientName
+      recipientName,
     });
   }, [isInitialized, balance, disabled, recipientName]);
 
@@ -172,20 +175,12 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
       return;
     }
 
-    if (!isInitialized) {
-      console.log('[NutzapButton] Wallet not initialized, showing alert');
-      Alert.alert(
-        'Wallet Not Ready',
-        'Your wallet is still initializing. Please pull down to refresh in Settings, or wait a moment and try again.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    // Start long press timer (no balance refresh to avoid re-renders)
+    // Always start long press timer - wallet check happens on tap vs hold
     console.log('[NutzapButton] Starting long press timer...');
     longPressTimer.current = setTimeout(() => {
-      console.log('[NutzapButton] ⏰ TIMER FIRED - Long press detected, opening modal');
+      console.log(
+        '[NutzapButton] ⏰ TIMER FIRED - Long press detected, opening modal'
+      );
       setShowModal(true);
       longPressTimer.current = null;
     }, LONG_PRESS_DURATION);
@@ -195,11 +190,16 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
   };
 
   const handlePressOut = async () => {
-    console.log('[NutzapButton] 🖐️ PRESS OUT - Timer active:', longPressTimer.current !== null);
+    console.log(
+      '[NutzapButton] 🖐️ PRESS OUT - Timer active:',
+      longPressTimer.current !== null
+    );
 
     if (longPressTimer.current) {
       // Timer still active = quick tap (not long press)
-      console.log('[NutzapButton] Quick tap detected, clearing timer and performing zap');
+      console.log(
+        '[NutzapButton] Quick tap detected, clearing timer and performing zap'
+      );
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
 
@@ -213,11 +213,21 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
   const performQuickZap = async () => {
     if (isZapping) return;
 
+    // Check if wallet is initialized
+    if (!isInitialized) {
+      Alert.alert(
+        'Wallet Not Ready',
+        'Quick zap requires wallet initialization. Hold the button to pay with an external wallet (Cash App, Strike, etc.)',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // Check balance
     if (balance < defaultAmount) {
       Alert.alert(
         'Insufficient Balance',
-        `You need ${defaultAmount} sats but only have ${balance} sats`,
+        `You need ${defaultAmount} sats but only have ${balance} sats. Hold the button to pay with an external wallet.`,
         [{ text: 'OK' }]
       );
       return;
@@ -261,7 +271,9 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
         success = true;
       } else {
         // Fallback to nutzap
-        console.log('[NutzapButton] Lightning failed, falling back to nutzap...');
+        console.log(
+          '[NutzapButton] Lightning failed, falling back to nutzap...'
+        );
         success = await sendNutzap(recipientHex, defaultAmount, memo);
         if (success) {
           console.log('[NutzapButton] ✅ Nutzap successful');
@@ -304,7 +316,11 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
   };
 
   const handleShowExternalWallet = (amount: number, memo: string) => {
-    console.log('[NutzapButton] Showing external wallet modal for', amount, 'sats');
+    console.log(
+      '[NutzapButton] Showing external wallet modal for',
+      amount,
+      'sats'
+    );
     setExternalZapAmount(amount);
     setExternalZapMemo(memo);
     setShowModal(false);
@@ -342,15 +358,13 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
   const config = sizeConfig[size] || sizeConfig.medium; // Fallback to medium if undefined
   const isRectangular = size === 'rectangular';
 
-  // Always show button, but disable if not initialized
-  const isDisabled = disabled || !isInitialized;
+  // Button is never truly disabled - always allow interaction
+  // (wallet check happens during quick tap, long press always works)
+  const isButtonDisabled = disabled || isZapping;
 
   return (
     <>
-      <View
-        onStartShouldSetResponder={() => true}
-        onResponderGrant={() => {}}
-      >
+      <View onStartShouldSetResponder={() => true} onResponderGrant={() => {}}>
         <Animated.View
           style={[
             {
@@ -361,52 +375,66 @@ export const NutzapLightningButton: React.FC<NutzapLightningButtonProps> = ({
           <TouchableOpacity
             style={[
               styles.button,
-              isRectangular ? {
-                width: 'width' in config ? config.width : 70,
-                height: config.button,
-                borderRadius: 4,
-                flexDirection: 'row',
-                paddingHorizontal: 8,
-              } : {
-                width: config.button,
-                height: config.button,
-                borderRadius: config.button / 2,
-              },
+              isRectangular
+                ? {
+                    width: 'width' in config ? config.width : 70,
+                    height: config.button,
+                    borderRadius: 4,
+                    flexDirection: 'row',
+                    paddingHorizontal: 8,
+                  }
+                : {
+                    width: config.button,
+                    height: config.button,
+                    borderRadius: config.button / 2,
+                  },
               isZapped && styles.buttonZapped,
-              isDisabled && styles.buttonDisabled,
+              isButtonDisabled && styles.buttonDisabled,
               style,
             ]}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
-            disabled={isDisabled || isZapping}
+            disabled={isButtonDisabled}
             activeOpacity={0.7}
           >
-          {isZapping ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          ) : (
-            <View style={[styles.buttonContent, isRectangular && styles.rectangularContent]}>
-              <Animated.View style={!isInitialized && styles.uninitializedIcon}>
-                <Ionicons
-                  name="flash-outline"
-                  size={config.icon}
-                  color={
-                    !isInitialized
-                      ? theme.colors.textMuted
-                      : isZapped
+            {isZapping ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <View
+                style={[
+                  styles.buttonContent,
+                  isRectangular && styles.rectangularContent,
+                ]}
+              >
+                <Animated.View
+                  style={!isInitialized && styles.uninitializedIcon}
+                >
+                  <Ionicons
+                    name="flash-outline"
+                    size={config.icon}
+                    color={
+                      !isInitialized
+                        ? theme.colors.textMuted
+                        : isZapped
                         ? theme.colors.background
                         : theme.colors.orangeBright
-                  }
-                />
-              </Animated.View>
-              {isRectangular && (
-                <Text style={[styles.zapText, isDisabled && styles.zapTextDisabled]}>
-                  {customLabel || 'Zap'}
-                </Text>
-              )}
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+                    }
+                  />
+                </Animated.View>
+                {isRectangular && (
+                  <Text
+                    style={[
+                      styles.zapText,
+                      isButtonDisabled && styles.zapTextDisabled,
+                    ]}
+                  >
+                    {customLabel || 'Zap'}
+                  </Text>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       <EnhancedZapModal

@@ -53,7 +53,8 @@ function parseProfileContent(contentString: string): CachedProfile | null {
     }
 
     return {
-      name: profileData.name || profileData.display_name || profileData.displayName,
+      name:
+        profileData.name || profileData.display_name || profileData.displayName,
       picture: profileData.picture,
       about: profileData.about,
       banner: profileData.banner,
@@ -79,7 +80,9 @@ export class ProfileCache {
    * @param pubkeys - Array of pubkeys to fetch
    * @returns Map of pubkey -> profile data
    */
-  static async fetchProfiles(pubkeys: string[]): Promise<Map<string, CachedProfile>> {
+  static async fetchProfiles(
+    pubkeys: string[]
+  ): Promise<Map<string, CachedProfile>> {
     // Ensure NDK is ready
     const ndk = await GlobalNDKService.getInstance();
     if (!ndk) {
@@ -88,30 +91,36 @@ export class ProfileCache {
     }
 
     // Filter unique pubkeys
-    const uniquePubkeys = [...new Set(
-      pubkeys.filter(pk => typeof pk === 'string' && pk.trim() !== '')
-    )];
+    const uniquePubkeys = [
+      ...new Set(
+        pubkeys.filter((pk) => typeof pk === 'string' && pk.trim() !== '')
+      ),
+    ];
 
     if (uniquePubkeys.length === 0) {
       return new Map();
     }
 
     // Identify which pubkeys need fetching
-    const pubkeysToFetch = uniquePubkeys.filter(pk => {
+    const pubkeysToFetch = uniquePubkeys.filter((pk) => {
       const status = fetchingStatus.get(pk);
-      return !profileCache.has(pk) &&
-             (status === undefined || status === 'idle' || status === 'error');
+      return (
+        !profileCache.has(pk) &&
+        (status === undefined || status === 'idle' || status === 'error')
+      );
     });
 
     // Fetch missing profiles
     if (pubkeysToFetch.length > 0) {
-      console.log(`[ProfileCache] Fetching ${pubkeysToFetch.length} profiles from Nostr`);
-      pubkeysToFetch.forEach(pk => fetchingStatus.set(pk, 'fetching'));
+      console.log(
+        `[ProfileCache] Fetching ${pubkeysToFetch.length} profiles from Nostr`
+      );
+      pubkeysToFetch.forEach((pk) => fetchingStatus.set(pk, 'fetching'));
 
       try {
         const events = await ndk.fetchEvents({
           kinds: [0],
-          authors: pubkeysToFetch
+          authors: pubkeysToFetch,
         });
 
         const fetchedProfilesMap = new Map<string, CachedProfile>();
@@ -134,22 +143,27 @@ export class ProfileCache {
         }
 
         // Mark unfound profiles as error to prevent refetching
-        pubkeysToFetch.forEach(pk => {
-          if (!fetchedProfilesMap.has(pk) && fetchingStatus.get(pk) === 'fetching') {
+        pubkeysToFetch.forEach((pk) => {
+          if (
+            !fetchedProfilesMap.has(pk) &&
+            fetchingStatus.get(pk) === 'fetching'
+          ) {
             fetchingStatus.set(pk, 'error');
           }
         });
 
-        console.log(`[ProfileCache] Cached ${fetchedProfilesMap.size} new profiles`);
+        console.log(
+          `[ProfileCache] Cached ${fetchedProfilesMap.size} new profiles`
+        );
       } catch (error) {
         console.error('[ProfileCache] Error fetching profiles:', error);
-        pubkeysToFetch.forEach(pk => fetchingStatus.set(pk, 'error'));
+        pubkeysToFetch.forEach((pk) => fetchingStatus.set(pk, 'error'));
       }
     }
 
     // Build result map from cache
     const resultMap = new Map<string, CachedProfile>();
-    uniquePubkeys.forEach(pk => {
+    uniquePubkeys.forEach((pk) => {
       if (profileCache.has(pk)) {
         resultMap.set(pk, profileCache.get(pk)!);
       }
@@ -209,7 +223,7 @@ export class ProfileCache {
     let fetchingCount = 0;
     let errorCount = 0;
 
-    fetchingStatus.forEach(status => {
+    fetchingStatus.forEach((status) => {
       if (status === 'fetching') fetchingCount++;
       if (status === 'error') errorCount++;
     });

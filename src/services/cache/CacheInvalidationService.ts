@@ -33,8 +33,14 @@ export class CacheInvalidationService {
    * - All leaderboards user participates in (so scores update)
    * - Team activity feeds (so team sees new workout)
    */
-  static async invalidateWorkout(pubkey: string, teamIds?: string[]): Promise<void> {
-    console.log('[CacheInvalidation] 🔄 Invalidating workout caches for user:', pubkey);
+  static async invalidateWorkout(
+    pubkey: string,
+    teamIds?: string[]
+  ): Promise<void> {
+    console.log(
+      '[CacheInvalidation] 🔄 Invalidating workout caches for user:',
+      pubkey
+    );
 
     // Invalidate user's workout history
     await unifiedCache.invalidate(CacheKeys.USER_WORKOUTS(pubkey));
@@ -52,7 +58,9 @@ export class CacheInvalidationService {
         // Invalidate team activity feed
         await unifiedCache.invalidate(CacheKeys.TEAM_ACTIVITY(teamId));
       }
-      console.log(`[CacheInvalidation] ✅ Invalidated leaderboards for ${teamIds.length} teams`);
+      console.log(
+        `[CacheInvalidation] ✅ Invalidated leaderboards for ${teamIds.length} teams`
+      );
     }
 
     // Invalidate global discovered teams (member counts may have changed)
@@ -70,7 +78,10 @@ export class CacheInvalidationService {
    * - User's profile cache (so new name/picture appears immediately)
    */
   static async invalidateProfile(pubkey: string): Promise<void> {
-    console.log('[CacheInvalidation] 🔄 Invalidating profile cache for user:', pubkey);
+    console.log(
+      '[CacheInvalidation] 🔄 Invalidating profile cache for user:',
+      pubkey
+    );
 
     await unifiedCache.invalidate(CacheKeys.USER_PROFILE(pubkey));
     console.log('[CacheInvalidation] ✅ Invalidated user profile');
@@ -91,8 +102,16 @@ export class CacheInvalidationService {
    * - Team metadata (member count changed)
    * - Join requests (request was processed)
    */
-  static async invalidateTeamMembership(pubkey: string, teamId: string): Promise<void> {
-    console.log('[CacheInvalidation] 🔄 Invalidating team membership for user:', pubkey, 'team:', teamId);
+  static async invalidateTeamMembership(
+    pubkey: string,
+    teamId: string
+  ): Promise<void> {
+    console.log(
+      '[CacheInvalidation] 🔄 Invalidating team membership for user:',
+      pubkey,
+      'team:',
+      teamId
+    );
 
     // Invalidate user's team list
     await unifiedCache.invalidate(CacheKeys.USER_TEAMS(pubkey));
@@ -124,7 +143,10 @@ export class CacheInvalidationService {
    * - Team's competitions (so team sees new competition)
    */
   static async invalidateCompetition(teamId: string): Promise<void> {
-    console.log('[CacheInvalidation] 🔄 Invalidating competition caches for team:', teamId);
+    console.log(
+      '[CacheInvalidation] 🔄 Invalidating competition caches for team:',
+      teamId
+    );
 
     // Invalidate global competitions list
     await unifiedCache.invalidate(CacheKeys.COMPETITIONS);

@@ -12,7 +12,10 @@ import { TeamMemberCache } from '../services/team/TeamMemberCache';
 import { Competition1301QueryService } from '../services/competition/Competition1301QueryService';
 import { LeagueRankingService } from '../services/competition/leagueRankingService';
 import { NostrRelayManager } from '../services/nostr/NostrRelayManager';
-import type { NostrActivityType, NostrLeagueCompetitionType } from '../types/nostrCompetition';
+import type {
+  NostrActivityType,
+  NostrLeagueCompetitionType,
+} from '../types/nostrCompetition';
 
 export interface IntegrationTestResult {
   testName: string;
@@ -52,7 +55,7 @@ export class CompetitionIntegrationTestSuite {
       competitionType: 'Total Distance',
       memberCount: 5,
       workoutCount: 10,
-      durationDays: 7
+      durationDays: 7,
     },
     {
       name: 'Cycling Speed Challenge',
@@ -61,7 +64,7 @@ export class CompetitionIntegrationTestSuite {
       competitionType: 'Average Speed',
       memberCount: 3,
       workoutCount: 5,
-      durationDays: 3
+      durationDays: 3,
     },
     {
       name: 'Walking Consistency',
@@ -70,7 +73,7 @@ export class CompetitionIntegrationTestSuite {
       competitionType: 'Most Consistent',
       memberCount: 4,
       workoutCount: 7,
-      durationDays: 7
+      durationDays: 7,
     },
     {
       name: 'Strength Training Sessions',
@@ -79,7 +82,7 @@ export class CompetitionIntegrationTestSuite {
       competitionType: 'Total Workouts',
       memberCount: 3,
       workoutCount: 12,
-      durationDays: 14
+      durationDays: 14,
     },
     {
       name: 'Yoga Duration Challenge',
@@ -88,7 +91,7 @@ export class CompetitionIntegrationTestSuite {
       competitionType: 'Total Duration',
       memberCount: 4,
       workoutCount: 8,
-      durationDays: 10
+      durationDays: 10,
     },
     {
       name: 'Meditation Streak',
@@ -97,7 +100,7 @@ export class CompetitionIntegrationTestSuite {
       competitionType: 'Daily Average',
       memberCount: 2,
       workoutCount: 14,
-      durationDays: 14
+      durationDays: 14,
     },
     {
       name: '5K Running Race',
@@ -106,8 +109,8 @@ export class CompetitionIntegrationTestSuite {
       competitionType: '5K Race',
       memberCount: 10,
       workoutCount: 3,
-      durationDays: 1
-    }
+      durationDays: 1,
+    },
   ];
 
   /**
@@ -115,7 +118,9 @@ export class CompetitionIntegrationTestSuite {
    */
   async runFullSuite(): Promise<IntegrationTestResult[]> {
     console.log('🚀 Starting Competition Integration Test Suite');
-    console.log(`📊 Testing ${this.testScenarios.length} scenarios across all activity types\n`);
+    console.log(
+      `📊 Testing ${this.testScenarios.length} scenarios across all activity types\n`
+    );
 
     this.startTime = Date.now();
 
@@ -169,7 +174,7 @@ export class CompetitionIntegrationTestSuite {
           phase,
           success: false,
           message: 'No authentication data found - user must be logged in',
-          duration: Date.now() - startTime
+          duration: Date.now() - startTime,
         });
         throw new Error('Authentication required to run tests');
       }
@@ -185,14 +190,16 @@ export class CompetitionIntegrationTestSuite {
         testName: 'Authentication & Relay Connection',
         phase,
         success: isConnected,
-        message: `Authenticated as ${authData.npub.slice(0, 20)}... and connected to relays`,
+        message: `Authenticated as ${authData.npub.slice(
+          0,
+          20
+        )}... and connected to relays`,
         duration: Date.now() - startTime,
         data: {
           npub: authData.npub,
-          relaysConnected: isConnected
-        }
+          relaysConnected: isConnected,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Authentication Check',
@@ -200,7 +207,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Authentication failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -223,14 +230,18 @@ export class CompetitionIntegrationTestSuite {
 
       const teamData = {
         name: `Integration Test Team ${timestamp}`,
-        about: 'Automated integration test team for competition system validation',
+        about:
+          'Automated integration test team for competition system validation',
         captainNpub: authData.npub,
         captainHexPubkey: authData.hexPubkey,
         activityType: 'Running',
-        isPublic: true
+        isPublic: true,
       };
 
-      const result = await NostrTeamCreationService.createTeam(teamData, privateKey);
+      const result = await NostrTeamCreationService.createTeam(
+        teamData,
+        privateKey
+      );
 
       if (!result.success) {
         throw new Error(result.error || 'Team creation failed');
@@ -254,10 +265,9 @@ export class CompetitionIntegrationTestSuite {
           teamId: result.teamId,
           teamEventId: result.teamEvent?.id,
           memberListEventId: result.memberListEvent?.id,
-          initialMemberCount: members.length
-        }
+          initialMemberCount: members.length,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Team Creation',
@@ -265,7 +275,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Failed to create team',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -273,7 +283,9 @@ export class CompetitionIntegrationTestSuite {
   /**
    * Phase 3: Test competition creation for a scenario
    */
-  private async testPhase3_CompetitionCreation(scenario: TestScenario): Promise<void> {
+  private async testPhase3_CompetitionCreation(
+    scenario: TestScenario
+  ): Promise<void> {
     const phase = 'Competition Creation';
     const startTime = Date.now();
 
@@ -289,7 +301,9 @@ export class CompetitionIntegrationTestSuite {
 
       const privateKey = nsecToPrivateKey(authData.nsec);
       const startDate = new Date();
-      const endDate = new Date(Date.now() + scenario.durationDays * 24 * 60 * 60 * 1000);
+      const endDate = new Date(
+        Date.now() + scenario.durationDays * 24 * 60 * 60 * 1000
+      );
 
       // Create league for this scenario
       const leagueData = {
@@ -305,10 +319,13 @@ export class CompetitionIntegrationTestSuite {
         maxParticipants: scenario.memberCount * 2,
         requireApproval: false,
         allowLateJoining: true,
-        scoringFrequency: 'daily' as const
+        scoringFrequency: 'daily' as const,
       };
 
-      const result = await NostrCompetitionService.createLeague(leagueData, privateKey);
+      const result = await NostrCompetitionService.createLeague(
+        leagueData,
+        privateKey
+      );
 
       if (!result.success) {
         throw new Error(result.message || 'League creation failed');
@@ -329,15 +346,14 @@ export class CompetitionIntegrationTestSuite {
           competitionId: result.competitionId,
           activityType: scenario.activityType,
           competitionType: scenario.competitionType,
-          duration: scenario.durationDays
-        }
+          duration: scenario.durationDays,
+        },
       });
 
       // Also test event creation for race scenarios
       if (scenario.competitionType.includes('Race')) {
         await this.createTestEvent(scenario);
       }
-
     } catch (error) {
       this.recordResult({
         testName: `${scenario.name} Creation`,
@@ -345,7 +361,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: `Failed to create ${scenario.activityType} competition`,
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -374,10 +390,13 @@ export class CompetitionIntegrationTestSuite {
         maxParticipants: scenario.memberCount,
         requireApproval: false,
         targetValue: scenario.competitionType === '5K Race' ? 5 : 10,
-        targetUnit: 'km'
+        targetUnit: 'km',
       };
 
-      const result = await NostrCompetitionService.createEvent(eventData, privateKey);
+      const result = await NostrCompetitionService.createEvent(
+        eventData,
+        privateKey
+      );
 
       if (!this.testEventId && result.success) {
         this.testEventId = result.competitionId;
@@ -387,11 +406,12 @@ export class CompetitionIntegrationTestSuite {
         testName: `${scenario.name} Event`,
         phase: 'Event Creation',
         success: result.success,
-        message: result.success ? 'Event created successfully' : 'Event creation failed',
+        message: result.success
+          ? 'Event created successfully'
+          : 'Event creation failed',
         duration: Date.now() - startTime,
-        data: result.success ? { eventId: result.competitionId } : undefined
+        data: result.success ? { eventId: result.competitionId } : undefined,
       });
-
     } catch (error) {
       this.recordResult({
         testName: `${scenario.name} Event`,
@@ -399,7 +419,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Event creation failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -431,12 +451,14 @@ export class CompetitionIntegrationTestSuite {
         testName: 'Member List Query',
         phase,
         success: captainInList,
-        message: `Member list has ${members.length} member(s), captain ${captainInList ? 'included' : 'missing'}`,
+        message: `Member list has ${members.length} member(s), captain ${
+          captainInList ? 'included' : 'missing'
+        }`,
         duration: Date.now() - startTime,
         data: {
           memberCount: members.length,
-          captainIncluded: captainInList
-        }
+          captainIncluded: captainInList,
+        },
       });
 
       // Test cache performance
@@ -455,10 +477,9 @@ export class CompetitionIntegrationTestSuite {
         duration: cacheTime,
         data: {
           fromCache: true,
-          retrievalTime: cacheTime
-        }
+          retrievalTime: cacheTime,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Member Management',
@@ -466,7 +487,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Member management test failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -488,7 +509,7 @@ export class CompetitionIntegrationTestSuite {
         duration: 28, // minutes
         calories: 320,
         averageHeartRate: 145,
-        maxHeartRate: 165
+        maxHeartRate: 165,
       };
 
       this.recordResult({
@@ -497,12 +518,11 @@ export class CompetitionIntegrationTestSuite {
         success: true,
         message: 'Simulated workout data prepared for testing',
         duration: Date.now() - startTime,
-        data: testWorkout
+        data: testWorkout,
       });
 
       // Note: Actual kind 1301 event publishing would require NDK setup
       // This is a simulation for testing the data flow
-
     } catch (error) {
       this.recordResult({
         testName: 'Workout Publishing',
@@ -510,7 +530,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Workout publishing test failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -535,22 +555,26 @@ export class CompetitionIntegrationTestSuite {
         captainPubkey: this.captainHex,
         activityType: 'Running' as NostrActivityType,
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       };
 
-      const queryResult = await Competition1301QueryService.queryMemberWorkouts(query);
+      const queryResult = await Competition1301QueryService.queryMemberWorkouts(
+        query
+      );
 
       this.recordResult({
         testName: 'Workout Query for Leaderboard',
         phase,
         success: !queryResult.error,
-        message: queryResult.error || `Queried ${queryResult.totalWorkouts} workouts in ${queryResult.queryTime}ms`,
+        message:
+          queryResult.error ||
+          `Queried ${queryResult.totalWorkouts} workouts in ${queryResult.queryTime}ms`,
         duration: queryResult.queryTime,
         data: {
           totalWorkouts: queryResult.totalWorkouts,
           participantCount: queryResult.metrics.size,
-          fromCache: queryResult.fromCache
-        }
+          fromCache: queryResult.fromCache,
+        },
       });
 
       // Test leaderboard ranking calculation
@@ -559,15 +583,17 @@ export class CompetitionIntegrationTestSuite {
         competitionType: 'Total Distance' as NostrLeagueCompetitionType,
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date().toISOString(),
-        scoringFrequency: 'daily' as const
+        scoringFrequency: 'daily' as const,
       };
 
-      const participants = [{
-        npub: this.captainNpub!,
-        name: 'Test Captain',
-        avatar: '',
-        isActive: true
-      }];
+      const participants = [
+        {
+          npub: this.captainNpub!,
+          name: 'Test Captain',
+          avatar: '',
+          isActive: true,
+        },
+      ];
 
       const rankingResult = await LeagueRankingService.calculateLeagueRankings(
         this.testLeagueId,
@@ -584,10 +610,9 @@ export class CompetitionIntegrationTestSuite {
         data: {
           rankedParticipants: rankingResult.rankings.length,
           totalParticipants: rankingResult.totalParticipants,
-          isActive: rankingResult.isActive
-        }
+          isActive: rankingResult.isActive,
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Leaderboard Calculations',
@@ -595,7 +620,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Leaderboard calculation failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -628,10 +653,9 @@ export class CompetitionIntegrationTestSuite {
         duration: Date.now() - startTime,
         data: {
           competitionId: this.testLeagueId,
-          userNpub: this.captainNpub.slice(0, 20) + '...'
-        }
+          userNpub: this.captainNpub.slice(0, 20) + '...',
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Real-time Updates',
@@ -639,7 +663,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Real-time update test failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -663,7 +687,7 @@ export class CompetitionIntegrationTestSuite {
         success: true,
         message: `Cache contains ${cacheStats.teamsCount} teams with ${cacheStats.totalMembers} total members`,
         duration: Date.now() - startTime,
-        data: cacheStats
+        data: cacheStats,
       });
 
       // Test cache expiry (would need to wait or mock time)
@@ -671,14 +695,14 @@ export class CompetitionIntegrationTestSuite {
         testName: 'Cache Expiry Configuration',
         phase,
         success: true,
-        message: 'Cache configured with 5-minute member cache, 1-minute competition cache',
+        message:
+          'Cache configured with 5-minute member cache, 1-minute competition cache',
         duration: Date.now() - startTime,
         data: {
           memberCacheExpiry: '5 minutes',
-          competitionCacheExpiry: '1 minute'
-        }
+          competitionCacheExpiry: '1 minute',
+        },
       });
-
     } catch (error) {
       this.recordResult({
         testName: 'Cache Performance',
@@ -686,7 +710,7 @@ export class CompetitionIntegrationTestSuite {
         success: false,
         message: 'Cache performance test failed',
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -714,9 +738,11 @@ export class CompetitionIntegrationTestSuite {
    */
   private generateSummaryReport(): void {
     const totalDuration = Date.now() - this.startTime;
-    const passed = this.results.filter(r => r.success).length;
-    const failed = this.results.filter(r => !r.success).length;
-    const avgDuration = this.results.reduce((sum, r) => sum + r.duration, 0) / this.results.length;
+    const passed = this.results.filter((r) => r.success).length;
+    const failed = this.results.filter((r) => !r.success).length;
+    const avgDuration =
+      this.results.reduce((sum, r) => sum + r.duration, 0) /
+      this.results.length;
 
     console.log('\n' + '='.repeat(60));
     console.log('📈 INTEGRATION TEST SUMMARY');
@@ -730,15 +756,17 @@ export class CompetitionIntegrationTestSuite {
     if (failed > 0) {
       console.log('\n❌ Failed Tests:');
       this.results
-        .filter(r => !r.success)
-        .forEach(r => {
-          console.log(`  - ${r.testName} (${r.phase}): ${r.error || r.message}`);
+        .filter((r) => !r.success)
+        .forEach((r) => {
+          console.log(
+            `  - ${r.testName} (${r.phase}): ${r.error || r.message}`
+          );
         });
     }
 
     // Phase summary
     const phaseResults = new Map<string, { passed: number; failed: number }>();
-    this.results.forEach(r => {
+    this.results.forEach((r) => {
       const current = phaseResults.get(r.phase) || { passed: 0, failed: 0 };
       if (r.success) {
         current.passed++;
@@ -752,7 +780,9 @@ export class CompetitionIntegrationTestSuite {
     phaseResults.forEach((stats, phase) => {
       const total = stats.passed + stats.failed;
       const percentage = ((stats.passed / total) * 100).toFixed(0);
-      console.log(`  ${phase}: ${stats.passed}/${total} passed (${percentage}%)`);
+      console.log(
+        `  ${phase}: ${stats.passed}/${total} passed (${percentage}%)`
+      );
     });
 
     console.log('\n' + '='.repeat(60));
@@ -781,8 +811,8 @@ export class CompetitionIntegrationTestSuite {
     successRate: number;
     totalDuration: number;
   } {
-    const passed = this.results.filter(r => r.success).length;
-    const failed = this.results.filter(r => !r.success).length;
+    const passed = this.results.filter((r) => r.success).length;
+    const failed = this.results.filter((r) => !r.success).length;
     const totalDuration = Date.now() - this.startTime;
 
     return {
@@ -790,7 +820,7 @@ export class CompetitionIntegrationTestSuite {
       passed,
       failed,
       successRate: (passed / this.results.length) * 100,
-      totalDuration
+      totalDuration,
     };
   }
 }

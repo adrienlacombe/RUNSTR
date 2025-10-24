@@ -58,7 +58,12 @@ export interface TrackingSession {
   positions: LocationPoint[];
 }
 
-export type GPSSignalStrength = 'none' | 'weak' | 'medium' | 'strong' | 'searching';
+export type GPSSignalStrength =
+  | 'none'
+  | 'weak'
+  | 'medium'
+  | 'strong'
+  | 'searching';
 
 // Simple location tracking service
 export class SimpleLocationTrackingService {
@@ -93,6 +98,9 @@ export class SimpleLocationTrackingService {
   private locationSubscription: Location.LocationSubscription | null = null;
   private lastPosition: LocationPoint | null = null;
 
+  // Background sync timer (for real-time background updates)
+  private backgroundSyncTimer: NodeJS.Timeout | null = null;
+
   // GPS signal tracking
   private lastGPSUpdate: number = 0;
   private currentAccuracy: number | undefined;
@@ -107,12 +115,14 @@ export class SimpleLocationTrackingService {
 
   private constructor() {
     console.log('[SimpleLocationTrackingService] Initialized');
-    this.kalmanFilter = new KalmanFilter();
+    // Use warm start for better first-run accuracy
+    this.kalmanFilter = new KalmanFilter(true);
   }
 
   static getInstance(): SimpleLocationTrackingService {
     if (!SimpleLocationTrackingService.instance) {
-      SimpleLocationTrackingService.instance = new SimpleLocationTrackingService();
+      SimpleLocationTrackingService.instance =
+        new SimpleLocationTrackingService();
     }
     return SimpleLocationTrackingService.instance;
   }
@@ -120,13 +130,19 @@ export class SimpleLocationTrackingService {
   /**
    * Start GPS tracking
    */
-  async startTracking(activityType: 'running' | 'walking' | 'cycling'): Promise<boolean> {
+  async startTracking(
+    activityType: 'running' | 'walking' | 'cycling'
+  ): Promise<boolean> {
     try {
-      console.log(`[SimpleLocationTrackingService] Starting ${activityType} tracking`);
+      console.log(
+        `[SimpleLocationTrackingService] Starting ${activityType} tracking`
+      );
 
       // Don't allow starting if already tracking
       if (this.isTracking) {
-        console.warn('[SimpleLocationTrackingService] Already tracking, call stopTracking() first');
+        console.warn(
+          '[SimpleLocationTrackingService] Already tracking, call stopTracking() first'
+        );
         return false;
       }
 
@@ -134,10 +150,12 @@ export class SimpleLocationTrackingService {
       const permissionStatus = await appPermissionService.checkAllPermissions();
 
       if (!permissionStatus.location) {
-        console.error('[SimpleLocationTrackingService] Location permissions missing');
+        console.error(
+          '[SimpleLocationTrackingService] Location permissions missing'
+        );
         throw new Error(
           'Location permission required.\n\n' +
-          'Please restart the app to grant location permissions.'
+            'Please restart the app to grant location permissions.'
         );
       }
 
@@ -147,12 +165,14 @@ export class SimpleLocationTrackingService {
           console.error('[ANDROID] Notification permission missing');
           throw new Error(
             'Notification permission required for background tracking.\n\n' +
-            'Please restart the app to grant notification permission.'
+              'Please restart the app to grant notification permission.'
           );
         }
 
         if (!permissionStatus.batteryOptimization) {
-          console.warn('[ANDROID] Battery optimization not configured - background tracking may be limited');
+          console.warn(
+            '[ANDROID] Battery optimization not configured - background tracking may be limited'
+          );
           // Don't block - this is non-critical
         }
       }
@@ -180,11 +200,15 @@ export class SimpleLocationTrackingService {
       // Reset Kalman filter for new session
       if (this.USE_KALMAN_FILTER) {
         this.kalmanFilter.reset();
-        console.log('[SimpleLocationTrackingService] Kalman filter reset for new session');
+        console.log(
+          '[SimpleLocationTrackingService] Kalman filter reset for new session'
+        );
       }
 
       // 3. Start location tracking
-      console.log('[SimpleLocationTrackingService] Starting GPS location updates...');
+      console.log(
+        '[SimpleLocationTrackingService] Starting GPS location updates...'
+      );
       this.locationSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
@@ -207,9 +231,13 @@ export class SimpleLocationTrackingService {
       );
 
       if (backgroundStarted) {
-        console.log(`[${Platform.OS.toUpperCase()}] Background location task started`);
+        console.log(
+          `[${Platform.OS.toUpperCase()}] Background location task started`
+        );
       } else {
-        console.warn(`[${Platform.OS.toUpperCase()}] Failed to start background task - continuing with foreground only`);
+        console.warn(
+          `[${Platform.OS.toUpperCase()}] Failed to start background task - continuing with foreground only`
+        );
       }
 
       // 4. Activate KeepAwake to prevent GPS throttling
@@ -217,19 +245,31 @@ export class SimpleLocationTrackingService {
         await activateKeepAwakeAsync('activity-tracking');
         console.log('[SimpleLocationTrackingService] KeepAwake activated');
       } catch (error) {
-        console.warn('[SimpleLocationTrackingService] Failed to activate KeepAwake:', error);
+        console.warn(
+          '[SimpleLocationTrackingService] Failed to activate KeepAwake:',
+          error
+        );
       }
 
-      // 5. Set tracking flag
+      // 5. Start background sync polling for real-time updates
+      this.startBackgroundSyncPolling();
+
+      // 6. Set tracking flag
       this.isTracking = true;
       this.isPaused = false;
 
-      console.log(`[SimpleLocationTrackingService] ✅ ${activityType} tracking started successfully`);
+      console.log(
+        `[SimpleLocationTrackingService] ✅ ${activityType} tracking started successfully`
+      );
       return true;
     } catch (error) {
       // Detailed error logging for debugging
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[SimpleLocationTrackingService] Failed to start tracking:', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        '[SimpleLocationTrackingService] Failed to start tracking:',
+        errorMessage
+      );
       console.error('[SimpleLocationTrackingService] Full error:', error);
 
       // Provide Android-specific guidance based on error type
@@ -239,14 +279,14 @@ export class SimpleLocationTrackingService {
         if (errorMessage.includes('notification')) {
           throw new Error(
             'Background tracking requires notification permission on Android 13+.\n\n' +
-            'Please go to Settings → Apps → RUNSTR → Permissions and enable Notifications.'
+              'Please go to Settings → Apps → RUNSTR → Permissions and enable Notifications.'
           );
         }
 
         if (errorMessage.includes('location')) {
           throw new Error(
             'Location permission required for tracking.\n\n' +
-            'Please ensure location is set to "Allow all the time" in Settings → Apps → RUNSTR → Permissions.'
+              'Please ensure location is set to "Allow all the time" in Settings → Apps → RUNSTR → Permissions.'
           );
         }
 
@@ -299,19 +339,27 @@ export class SimpleLocationTrackingService {
 
       // Log filtering effect on Android
       if (Platform.OS === 'android') {
-        const rawDist = Math.sqrt(
-          Math.pow(location.coords.latitude - filtered.lat, 2) +
-          Math.pow(location.coords.longitude - filtered.lng, 2)
-        ) * 111111; // Rough meters
+        const rawDist =
+          Math.sqrt(
+            Math.pow(location.coords.latitude - filtered.lat, 2) +
+              Math.pow(location.coords.longitude - filtered.lng, 2)
+          ) * 111111; // Rough meters
         if (rawDist > 1) {
-          console.log(`[ANDROID] Kalman filtered: ${rawDist.toFixed(1)}m adjustment`);
+          console.log(
+            `[ANDROID] Kalman filtered: ${rawDist.toFixed(1)}m adjustment`
+          );
         }
       }
     }
 
     // Phase 2: Validate position (rejects bad points)
     if (this.USE_POSITION_VALIDATION) {
-      const isValid = filterLocation(processedPoint, this.lastPosition);
+      // Pass session start time for grace period during GPS warmup
+      const isValid = filterLocation(
+        processedPoint,
+        this.lastPosition,
+        this.startTime
+      );
       if (!isValid) {
         // Point rejected by validation - don't process it
         return;
@@ -325,14 +373,21 @@ export class SimpleLocationTrackingService {
     // Platform-specific logging
     if (Platform.OS === 'android') {
       console.log(
-        `[ANDROID] GPS ${this.USE_KALMAN_FILTER ? 'filtered' : 'raw'}: lat=${processedPoint.latitude.toFixed(6)}, ` +
-        `lon=${processedPoint.longitude.toFixed(6)}, accuracy=${processedPoint.accuracy?.toFixed(1)}m`
+        `[ANDROID] GPS ${
+          this.USE_KALMAN_FILTER ? 'filtered' : 'raw'
+        }: lat=${processedPoint.latitude.toFixed(6)}, ` +
+          `lon=${processedPoint.longitude.toFixed(
+            6
+          )}, accuracy=${processedPoint.accuracy?.toFixed(1)}m`
       );
     }
 
     // Calculate distance if we have a previous position
     if (this.lastPosition) {
-      const segmentDistance = this.calculateDistance(this.lastPosition, processedPoint);
+      const segmentDistance = this.calculateDistance(
+        this.lastPosition,
+        processedPoint
+      );
 
       // Filter out micro-movements (GPS jitter) - note: validation already handles minimum distance
       if (segmentDistance >= this.MIN_MOVEMENT_THRESHOLD_METERS) {
@@ -340,7 +395,11 @@ export class SimpleLocationTrackingService {
 
         // Platform-specific logging
         if (Platform.OS === 'android') {
-          console.log(`[ANDROID] Distance update: +${segmentDistance.toFixed(1)}m, total=${this.distance.toFixed(1)}m`);
+          console.log(
+            `[ANDROID] Distance update: +${segmentDistance.toFixed(
+              1
+            )}m, total=${this.distance.toFixed(1)}m`
+          );
         }
 
         // Check for split milestone
@@ -372,6 +431,69 @@ export class SimpleLocationTrackingService {
     }
 
     return totalDistance;
+  }
+
+  /**
+   * Start background sync polling to process locations in real-time
+   * This ensures distance updates even when app is backgrounded
+   */
+  private startBackgroundSyncPolling(): void {
+    // Poll every 3 seconds to match Android GPS interval
+    const SYNC_INTERVAL_MS = 3000;
+
+    this.backgroundSyncTimer = setInterval(async () => {
+      if (this.isTracking && !this.isPaused) {
+        try {
+          // Get any background locations that have been collected
+          const backgroundLocations = await getAndClearBackgroundLocations();
+
+          if (backgroundLocations.length > 0) {
+            console.log(
+              `[BackgroundSync] Processing ${backgroundLocations.length} background locations`
+            );
+
+            // Process each location through the normal update pipeline
+            for (const loc of backgroundLocations) {
+              // Convert to LocationObject format expected by handleLocationUpdate
+              const locationObject: Location.LocationObject = {
+                coords: {
+                  latitude: loc.latitude,
+                  longitude: loc.longitude,
+                  altitude: loc.altitude || null,
+                  accuracy: loc.accuracy || null,
+                  altitudeAccuracy: null,
+                  heading: null,
+                  speed: loc.speed || null,
+                },
+                timestamp: loc.timestamp,
+              };
+
+              // Process through normal pipeline for filtering and distance calculation
+              this.handleLocationUpdate(locationObject);
+            }
+
+            console.log(
+              `[BackgroundSync] Distance updated: ${this.distance.toFixed(1)}m`
+            );
+          }
+        } catch (error) {
+          console.warn('[BackgroundSync] Error processing background locations:', error);
+        }
+      }
+    }, SYNC_INTERVAL_MS);
+
+    console.log('[SimpleLocationTrackingService] Background sync polling started');
+  }
+
+  /**
+   * Stop background sync polling
+   */
+  private stopBackgroundSyncPolling(): void {
+    if (this.backgroundSyncTimer) {
+      clearInterval(this.backgroundSyncTimer);
+      this.backgroundSyncTimer = null;
+      console.log('[SimpleLocationTrackingService] Background sync polling stopped');
+    }
   }
 
   /**
@@ -420,12 +542,20 @@ export class SimpleLocationTrackingService {
     }
 
     // Check if we've completed another kilometer
-    if (Math.floor(this.distance / this.SPLIT_DISTANCE_METERS) > Math.floor(this.lastSplitDistance / this.SPLIT_DISTANCE_METERS)) {
-      const splitNumber = Math.floor(this.distance / this.SPLIT_DISTANCE_METERS);
+    if (
+      Math.floor(this.distance / this.SPLIT_DISTANCE_METERS) >
+      Math.floor(this.lastSplitDistance / this.SPLIT_DISTANCE_METERS)
+    ) {
+      const splitNumber = Math.floor(
+        this.distance / this.SPLIT_DISTANCE_METERS
+      );
       const currentDuration = this.getElapsedTime(); // seconds
 
       // Calculate split pace (seconds per km)
-      const previousSplitTime = this.splits.length > 0 ? this.splits[this.splits.length - 1].duration : 0;
+      const previousSplitTime =
+        this.splits.length > 0
+          ? this.splits[this.splits.length - 1].duration
+          : 0;
       const splitDuration = currentDuration - previousSplitTime;
       const splitPace = splitDuration; // seconds per km (since split is 1 km)
 
@@ -439,7 +569,11 @@ export class SimpleLocationTrackingService {
       this.splits.push(split);
       this.lastSplitDistance = this.distance;
 
-      console.log(`[SimpleLocationTrackingService] Split ${splitNumber}: ${splitPace.toFixed(0)}s/km`);
+      console.log(
+        `[SimpleLocationTrackingService] Split ${splitNumber}: ${splitPace.toFixed(
+          0
+        )}s/km`
+      );
     }
   }
 
@@ -448,13 +582,18 @@ export class SimpleLocationTrackingService {
    */
   async pauseTracking(): Promise<void> {
     if (!this.isTracking || this.isPaused) {
-      console.warn('[SimpleLocationTrackingService] Cannot pause - not tracking or already paused');
+      console.warn(
+        '[SimpleLocationTrackingService] Cannot pause - not tracking or already paused'
+      );
       return;
     }
 
     this.isPaused = true;
     this.pauseStartTime = Date.now();
     this.pauseCount++; // Track number of pauses
+
+    // Stop background sync polling during pause
+    this.stopBackgroundSyncPolling();
 
     // Pause background tracking (iOS and Android)
     await pauseBackgroundTracking();
@@ -467,7 +606,9 @@ export class SimpleLocationTrackingService {
    */
   async resumeTracking(): Promise<void> {
     if (!this.isTracking || !this.isPaused) {
-      console.warn('[SimpleLocationTrackingService] Cannot resume - not tracking or not paused');
+      console.warn(
+        '[SimpleLocationTrackingService] Cannot resume - not tracking or not paused'
+      );
       return;
     }
 
@@ -479,10 +620,17 @@ export class SimpleLocationTrackingService {
     this.pauseStartTime = 0;
     this.lastPosition = null; // Reset to avoid jumps after pause
 
+    // Restart background sync polling
+    this.startBackgroundSyncPolling();
+
     // Resume background tracking (iOS and Android)
     await resumeBackgroundTracking();
 
-    console.log(`[SimpleLocationTrackingService] Tracking resumed (paused for ${(pauseDuration / 1000).toFixed(0)}s)`);
+    console.log(
+      `[SimpleLocationTrackingService] Tracking resumed (paused for ${(
+        pauseDuration / 1000
+      ).toFixed(0)}s)`
+    );
   }
 
   /**
@@ -490,7 +638,9 @@ export class SimpleLocationTrackingService {
    */
   async stopTracking(): Promise<TrackingSession | null> {
     if (!this.isTracking) {
-      console.warn('[SimpleLocationTrackingService] Not tracking, nothing to stop');
+      console.warn(
+        '[SimpleLocationTrackingService] Not tracking, nothing to stop'
+      );
       return null;
     }
 
@@ -502,13 +652,20 @@ export class SimpleLocationTrackingService {
       this.locationSubscription = null;
     }
 
+    // Stop background sync polling
+    this.stopBackgroundSyncPolling();
+
     // Stop background task and merge locations (iOS and Android)
     await stopBackgroundLocationTracking();
 
     // Get and merge background locations
     const backgroundLocations = await getAndClearBackgroundLocations();
     if (backgroundLocations.length > 0) {
-      console.log(`[${Platform.OS.toUpperCase()}] Merging ${backgroundLocations.length} background locations`);
+      console.log(
+        `[${Platform.OS.toUpperCase()}] Merging ${
+          backgroundLocations.length
+        } background locations`
+      );
 
       // Add background locations to session
       this.positions.push(...backgroundLocations);
@@ -522,12 +679,17 @@ export class SimpleLocationTrackingService {
       deactivateKeepAwake('activity-tracking');
       console.log('[SimpleLocationTrackingService] KeepAwake deactivated');
     } catch (error) {
-      console.warn('[SimpleLocationTrackingService] Failed to deactivate KeepAwake:', error);
+      console.warn(
+        '[SimpleLocationTrackingService] Failed to deactivate KeepAwake:',
+        error
+      );
     }
 
     // Calculate final metrics
     const endTime = Date.now();
-    const totalDuration = Math.floor((endTime - this.startTime - this.totalPausedTime) / 1000); // seconds
+    const totalDuration = Math.floor(
+      (endTime - this.startTime - this.totalPausedTime) / 1000
+    ); // seconds
 
     // Create session object
     const session: TrackingSession = {
@@ -552,7 +714,9 @@ export class SimpleLocationTrackingService {
 
     console.log(
       `[SimpleLocationTrackingService] ✅ Session completed: ` +
-      `${this.distance.toFixed(0)}m in ${totalDuration}s (${this.positions.length} GPS points)`
+        `${this.distance.toFixed(0)}m in ${totalDuration}s (${
+          this.positions.length
+        } GPS points)`
     );
 
     return session;
@@ -593,7 +757,10 @@ export class SimpleLocationTrackingService {
 
     const now = Date.now();
     const currentPauseDuration = this.isPaused ? now - this.pauseStartTime : 0;
-    return Math.floor((now - this.startTime - this.totalPausedTime - currentPauseDuration) / 1000);
+    return Math.floor(
+      (now - this.startTime - this.totalPausedTime - currentPauseDuration) /
+        1000
+    );
   }
 
   /**
@@ -666,4 +833,5 @@ export class SimpleLocationTrackingService {
 }
 
 // Export singleton instance
-export const simpleLocationTrackingService = SimpleLocationTrackingService.getInstance();
+export const simpleLocationTrackingService =
+  SimpleLocationTrackingService.getInstance();

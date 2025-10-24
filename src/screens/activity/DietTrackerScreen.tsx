@@ -4,7 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,7 +21,11 @@ import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStora
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
-const MEAL_TYPES: { value: MealType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const MEAL_TYPES: {
+  value: MealType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { value: 'breakfast', label: 'Breakfast', icon: 'sunny' },
   { value: 'lunch', label: 'Lunch', icon: 'partly-sunny' },
   { value: 'dinner', label: 'Dinner', icon: 'moon' },
@@ -23,7 +35,8 @@ const MEAL_TYPES: { value: MealType; label: string; icon: keyof typeof Ionicons.
 const LAST_MEAL_KEY = '@runstr:last_meal_timestamp';
 
 export const DietTrackerScreen: React.FC = () => {
-  const [selectedMealType, setSelectedMealType] = useState<MealType>('breakfast');
+  const [selectedMealType, setSelectedMealType] =
+    useState<MealType>('breakfast');
   const [mealNotes, setMealNotes] = useState('');
   const [mealTime, setMealTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -40,7 +53,9 @@ export const DietTrackerScreen: React.FC = () => {
     if (!lastMealTime) return;
 
     const interval = setInterval(() => {
-      const duration = Math.floor((mealTime.getTime() - lastMealTime.getTime()) / 1000);
+      const duration = Math.floor(
+        (mealTime.getTime() - lastMealTime.getTime()) / 1000
+      );
       setFastingDuration(Math.max(0, duration));
     }, 1000);
 
@@ -76,11 +91,15 @@ export const DietTrackerScreen: React.FC = () => {
 
   const saveMeal = async () => {
     try {
-      const mealTypeLabel = MEAL_TYPES.find(m => m.value === selectedMealType)?.label || 'Meal';
-      const timeString = mealTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const mealTypeLabel =
+        MEAL_TYPES.find((m) => m.value === selectedMealType)?.label || 'Meal';
+      const timeString = mealTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
       await LocalWorkoutStorageService.saveManualWorkout({
-        type: 'other', // Will be handled as 'diet' in kind 1301
+        type: 'diet', // Proper type for diet/meal workouts
         duration: 0, // Meals don't have duration
         notes: mealNotes || `${mealTypeLabel} at ${timeString}`,
         // @ts-ignore - We'll add these fields to LocalWorkout interface in Phase 5
@@ -112,7 +131,7 @@ export const DietTrackerScreen: React.FC = () => {
       const minutes = Math.floor((fastingDuration % 3600) / 60);
 
       await LocalWorkoutStorageService.saveManualWorkout({
-        type: 'other', // Will be handled as 'fasting' in kind 1301
+        type: 'fasting', // Proper type for fasting workouts
         duration: fastingDuration / 60, // Convert to minutes for storage
         notes: mealNotes || `Completed ${hours}h ${minutes}m fast`,
         // @ts-ignore - We'll add these fields to LocalWorkout interface in Phase 5
@@ -147,7 +166,10 @@ export const DietTrackerScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+    >
       <View style={styles.iconContainer}>
         <Ionicons name="restaurant" size={64} color={theme.colors.text} />
       </View>
@@ -162,9 +184,12 @@ export const DietTrackerScreen: React.FC = () => {
             <Ionicons name="time" size={24} color={theme.colors.orangeBright} />
             <Text style={styles.fastingTitle}>Time Since Last Meal</Text>
           </View>
-          <Text style={styles.fastingDuration}>{formatDuration(fastingDuration)}</Text>
+          <Text style={styles.fastingDuration}>
+            {formatDuration(fastingDuration)}
+          </Text>
           <Text style={styles.fastingSubtitle}>
-            Last meal: {lastMealTime.toLocaleString('en-US', {
+            Last meal:{' '}
+            {lastMealTime.toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',
@@ -183,19 +208,25 @@ export const DietTrackerScreen: React.FC = () => {
               key={mealType.value}
               style={[
                 styles.mealTypeOption,
-                selectedMealType === mealType.value && styles.mealTypeOptionActive,
+                selectedMealType === mealType.value &&
+                  styles.mealTypeOptionActive,
               ]}
               onPress={() => setSelectedMealType(mealType.value)}
             >
               <Ionicons
                 name={mealType.icon}
                 size={24}
-                color={selectedMealType === mealType.value ? theme.colors.text : theme.colors.textMuted}
+                color={
+                  selectedMealType === mealType.value
+                    ? theme.colors.text
+                    : theme.colors.textMuted
+                }
               />
               <Text
                 style={[
                   styles.mealTypeLabel,
-                  selectedMealType === mealType.value && styles.mealTypeLabelActive,
+                  selectedMealType === mealType.value &&
+                    styles.mealTypeLabelActive,
                 ]}
               >
                 {mealType.label}
@@ -214,7 +245,10 @@ export const DietTrackerScreen: React.FC = () => {
         >
           <Ionicons name="time-outline" size={20} color={theme.colors.text} />
           <Text style={styles.timeButtonText}>
-            {mealTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            {mealTime.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </Text>
         </TouchableOpacity>
 
@@ -246,7 +280,11 @@ export const DietTrackerScreen: React.FC = () => {
       {/* Action Buttons */}
       <View style={styles.buttonGroup}>
         <TouchableOpacity style={styles.saveMealButton} onPress={saveMeal}>
-          <Ionicons name="restaurant" size={20} color={theme.colors.background} />
+          <Ionicons
+            name="restaurant"
+            size={20}
+            color={theme.colors.background}
+          />
           <Text style={styles.saveMealButtonText}>Log Meal</Text>
         </TouchableOpacity>
 
@@ -259,9 +297,14 @@ export const DietTrackerScreen: React.FC = () => {
       </View>
 
       <View style={styles.hintBox}>
-        <Ionicons name="information-circle-outline" size={20} color={theme.colors.textMuted} />
+        <Ionicons
+          name="information-circle-outline"
+          size={20}
+          color={theme.colors.textMuted}
+        />
         <Text style={styles.hintText}>
-          "Log Meal" records what you ate. "Log as Fast" records the time since your last meal.
+          "Log Meal" records what you ate. "Log as Fast" records the time since
+          your last meal.
         </Text>
       </View>
     </ScrollView>

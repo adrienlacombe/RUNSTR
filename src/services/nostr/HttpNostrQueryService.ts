@@ -1,9 +1,9 @@
 /**
  * HttpNostrQueryService - HTTP-First Nostr Query Strategy
- * 
+ *
  * PROBLEM: React Native WebSocket drops 85% of events vs Node.js
  * SOLUTION: HTTP-first queries with WebSocket fallback for reliability
- * 
+ *
  * Benefits:
  * - HTTP more reliable than WebSocket on mobile platforms
  * - No connection handshake overhead
@@ -30,13 +30,13 @@ const NETWORK_CONFIG = Platform.select({
     timeout: 5000,
     maxRetries: 1,
     retryDelay: 1000,
-  }
+  },
 });
 
 // HTTP endpoint mappings for major relays
 const HTTP_RELAY_ENDPOINTS = {
   'wss://relay.damus.io': 'https://relay.damus.io/api/v1/req',
-  'wss://relay.primal.net': 'https://relay.primal.net/api/query', 
+  'wss://relay.primal.net': 'https://relay.primal.net/api/query',
   'wss://nos.lol': 'https://nos.lol/api/req',
   'wss://nostr.wine': 'https://nostr.wine/api/req',
   'wss://relay.nostr.band': 'https://relay.nostr.band/api/req',
@@ -77,7 +77,10 @@ export interface HttpQueryOptions {
 export class HttpNostrQueryService {
   private static instance: HttpNostrQueryService;
   private metrics: Map<string, HttpQueryMetrics[]> = new Map();
-  private endpointVerificationCache = new Map<string, { verified: boolean; timestamp: number }>();
+  private endpointVerificationCache = new Map<
+    string,
+    { verified: boolean; timestamp: number }
+  >();
 
   private constructor() {}
 
@@ -97,24 +100,43 @@ export class HttpNostrQueryService {
     options: HttpQueryOptions = {}
   ): Promise<HttpQueryResult> {
     const startTime = Date.now();
-    
-    console.log(`🌐 HttpNostrQueryService: Querying ${relayUrl.replace('wss://', '')} with HTTP-first strategy`);
-    
+
+    console.log(
+      `🌐 HttpNostrQueryService: Querying ${relayUrl.replace(
+        'wss://',
+        ''
+      )} with HTTP-first strategy`
+    );
+
     // Try HTTP first if endpoint exists
-    const httpEndpoint = HTTP_RELAY_ENDPOINTS[relayUrl as keyof typeof HTTP_RELAY_ENDPOINTS];
-    
+    const httpEndpoint =
+      HTTP_RELAY_ENDPOINTS[relayUrl as keyof typeof HTTP_RELAY_ENDPOINTS];
+
     if (httpEndpoint) {
-      const httpResult = await this.tryHttpQuery(relayUrl, httpEndpoint, filter, options, startTime);
+      const httpResult = await this.tryHttpQuery(
+        relayUrl,
+        httpEndpoint,
+        filter,
+        options,
+        startTime
+      );
       if (httpResult.success) {
         this.recordMetrics(httpResult);
         return httpResult;
       }
-      console.log(`⚠️ HTTP failed for ${relayUrl}, falling back to WebSocket...`);
+      console.log(
+        `⚠️ HTTP failed for ${relayUrl}, falling back to WebSocket...`
+      );
     }
 
     // Fallback to WebSocket
     console.log(`🔌 Falling back to WebSocket for ${relayUrl}`);
-    const wsResult = await this.tryWebSocketQuery(relayUrl, filter, options, startTime);
+    const wsResult = await this.tryWebSocketQuery(
+      relayUrl,
+      filter,
+      options,
+      startTime
+    );
     this.recordMetrics(wsResult);
     return wsResult;
   }
@@ -139,15 +161,20 @@ export class HttpNostrQueryService {
           method: 'http',
           relay: relayUrl,
           responseTime: Date.now() - startTime,
-          error: 'HTTP endpoint verification failed'
+          error: 'HTTP endpoint verification failed',
         };
       }
 
       // Build NIP-01 compatible request
-      const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const requestBody = ["REQ", requestId, filter];
+      const requestId = `req_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      const requestBody = ['REQ', requestId, filter];
 
-      console.log(`📤 HTTP POST to ${httpEndpoint}:`, JSON.stringify(filter, null, 2));
+      console.log(
+        `📤 HTTP POST to ${httpEndpoint}:`,
+        JSON.stringify(filter, null, 2)
+      );
 
       // React Native fetch with timeout and error handling
       const response = await this.fetchWithTimeout(
@@ -156,12 +183,12 @@ export class HttpNostrQueryService {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            Accept: 'application/json',
             // Some relays need these headers
-            'Origin': 'https://runstr.app',
-            'User-Agent': 'RUNSTR/1.0'
+            Origin: 'https://runstr.app',
+            'User-Agent': 'RUNSTR/1.0',
           },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
         },
         options.timeoutMs || NETWORK_CONFIG!.timeout
       );
@@ -171,33 +198,37 @@ export class HttpNostrQueryService {
       }
 
       const responseText = await response.text();
-      console.log(`📥 HTTP response (${responseText.length} chars):`, responseText.substring(0, 200));
+      console.log(
+        `📥 HTTP response (${responseText.length} chars):`,
+        responseText.substring(0, 200)
+      );
 
       // Parse NDJSON or JSON response
       const events = this.parseHttpResponse(responseText, requestId);
-      
+
       const responseTime = Date.now() - startTime;
-      console.log(`✅ HTTP query success: ${events.length} events in ${responseTime}ms`);
+      console.log(
+        `✅ HTTP query success: ${events.length} events in ${responseTime}ms`
+      );
 
       return {
         success: true,
         events,
         method: 'http',
         relay: relayUrl,
-        responseTime
+        responseTime,
       };
-
     } catch (error) {
       const responseTime = Date.now() - startTime;
       console.warn(`❌ HTTP query failed for ${relayUrl}:`, error);
-      
+
       return {
         success: false,
         events: [],
         method: 'http',
         relay: relayUrl,
         responseTime,
-        error: `HTTP query failed: ${error}`
+        error: `HTTP query failed: ${error}`,
       };
     }
   }
@@ -217,7 +248,7 @@ export class HttpNostrQueryService {
       const { Relay } = NostrTools;
 
       console.log(`🔌 Connecting to WebSocket: ${relayUrl}`);
-      
+
       const relay = await Relay.connect(relayUrl);
       const events: Event[] = [];
 
@@ -225,20 +256,24 @@ export class HttpNostrQueryService {
         const sub = relay.subscribe([filter], {
           onevent: (event: Event) => {
             events.push(event);
-            console.log(`📥 WebSocket event from ${relayUrl}: ${event.id?.slice(0, 8)}`);
+            console.log(
+              `📥 WebSocket event from ${relayUrl}: ${event.id?.slice(0, 8)}`
+            );
           },
           oneose: () => {
-            console.log(`✅ WebSocket EOSE from ${relayUrl}: ${events.length} events`);
+            console.log(
+              `✅ WebSocket EOSE from ${relayUrl}: ${events.length} events`
+            );
             sub.close();
             relay.close();
-            
+
             const responseTime = Date.now() - startTime;
             resolve({
               success: events.length > 0,
               events,
               method: 'websocket_fallback',
               relay: relayUrl,
-              responseTime
+              responseTime,
             });
           },
           onclose: () => {
@@ -249,39 +284,42 @@ export class HttpNostrQueryService {
               events,
               method: 'websocket_fallback',
               relay: relayUrl,
-              responseTime
+              responseTime,
             });
-          }
+          },
         });
 
         // Timeout for WebSocket
         setTimeout(() => {
-          console.log(`⏰ WebSocket timeout for ${relayUrl} after ${NETWORK_CONFIG!.timeout}ms`);
+          console.log(
+            `⏰ WebSocket timeout for ${relayUrl} after ${
+              NETWORK_CONFIG!.timeout
+            }ms`
+          );
           sub.close();
           relay.close();
-          
+
           const responseTime = Date.now() - startTime;
           resolve({
             success: events.length > 0,
             events,
             method: 'websocket_fallback',
             relay: relayUrl,
-            responseTime
+            responseTime,
           });
         }, NETWORK_CONFIG!.timeout);
       });
-
     } catch (error) {
       const responseTime = Date.now() - startTime;
       console.warn(`❌ WebSocket fallback failed for ${relayUrl}:`, error);
-      
+
       return {
         success: false,
         events: [],
         method: 'websocket_fallback',
         relay: relayUrl,
         responseTime,
-        error: `WebSocket fallback failed: ${error}`
+        error: `WebSocket fallback failed: ${error}`,
       };
     }
   }
@@ -292,47 +330,54 @@ export class HttpNostrQueryService {
   private async verifyHttpEndpoint(endpoint: string): Promise<boolean> {
     // Check cache first
     const cached = this.endpointVerificationCache.get(endpoint);
-    if (cached && Date.now() - cached.timestamp < ENDPOINT_VERIFICATION_CACHE_TTL) {
+    if (
+      cached &&
+      Date.now() - cached.timestamp < ENDPOINT_VERIFICATION_CACHE_TTL
+    ) {
       return cached.verified;
     }
 
     try {
       console.log(`🔍 Verifying HTTP endpoint: ${endpoint}`);
-      
+
       // Simple ping with minimal filter
       const testFilter = { kinds: [1], limit: 1 };
-      const requestBody = ["REQ", "verify", testFilter];
+      const requestBody = ['REQ', 'verify', testFilter];
 
       const response = await this.fetchWithTimeout(
         endpoint,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
         },
         3000 // Short timeout for verification
       );
 
       const verified = response.ok;
-      
+
       // Cache result
       this.endpointVerificationCache.set(endpoint, {
         verified,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
-      console.log(`${verified ? '✅' : '❌'} HTTP endpoint verification: ${endpoint}`);
+      console.log(
+        `${verified ? '✅' : '❌'} HTTP endpoint verification: ${endpoint}`
+      );
       return verified;
-
     } catch (error) {
-      console.warn(`❌ HTTP endpoint verification failed for ${endpoint}:`, error);
-      
+      console.warn(
+        `❌ HTTP endpoint verification failed for ${endpoint}:`,
+        error
+      );
+
       // Cache negative result too
       this.endpointVerificationCache.set(endpoint, {
         verified: false,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      
+
       return false;
     }
   }
@@ -346,7 +391,10 @@ export class HttpNostrQueryService {
     timeoutMs: number
   ): Promise<Response> {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Request timeout after ${timeoutMs}ms`)), timeoutMs);
+      setTimeout(
+        () => reject(new Error(`Request timeout after ${timeoutMs}ms`)),
+        timeoutMs
+      );
     });
 
     const fetchPromise = fetch(url, {
@@ -368,15 +416,19 @@ export class HttpNostrQueryService {
     try {
       // Handle NDJSON format (newline-delimited JSON)
       const lines = responseText.trim().split('\n');
-      
+
       for (const line of lines) {
         if (!line.trim()) continue;
-        
+
         try {
           const parsed = JSON.parse(line);
-          
+
           // Handle different response formats
-          if (Array.isArray(parsed) && parsed[0] === 'EVENT' && parsed[1] === requestId) {
+          if (
+            Array.isArray(parsed) &&
+            parsed[0] === 'EVENT' &&
+            parsed[1] === requestId
+          ) {
             // Standard ["EVENT", requestId, event] format
             events.push(parsed[2]);
           } else if (parsed.kind && parsed.id && parsed.pubkey) {
@@ -384,7 +436,10 @@ export class HttpNostrQueryService {
             events.push(parsed);
           }
         } catch (lineError) {
-          console.warn('Failed to parse response line:', line.substring(0, 100));
+          console.warn(
+            'Failed to parse response line:',
+            line.substring(0, 100)
+          );
         }
       }
 
@@ -399,7 +454,6 @@ export class HttpNostrQueryService {
           }
         }
       }
-
     } catch (error) {
       console.warn('Failed to parse HTTP response:', error);
     }
@@ -418,17 +472,17 @@ export class HttpNostrQueryService {
       eventsReceived: result.events.length,
       responseTime: result.responseTime,
       success: result.success,
-      error: result.error
+      error: result.error,
     };
 
     const relayMetrics = this.metrics.get(result.relay) || [];
     relayMetrics.push(metric);
-    
+
     // Keep only last 10 metrics per relay
     if (relayMetrics.length > 10) {
       relayMetrics.shift();
     }
-    
+
     this.metrics.set(result.relay, relayMetrics);
   }
 
@@ -447,16 +501,22 @@ export class HttpNostrQueryService {
 
     for (const [relay, metrics] of this.metrics.entries()) {
       const recentMetrics = metrics.slice(-5); // Last 5 queries
-      
+
       if (recentMetrics.length === 0) continue;
 
-      const successRate = recentMetrics.filter(m => m.success).length / recentMetrics.length;
-      const avgResponseTime = recentMetrics.reduce((sum, m) => sum + m.responseTime, 0) / recentMetrics.length;
-      const avgEvents = recentMetrics.reduce((sum, m) => sum + m.eventsReceived, 0) / recentMetrics.length;
-      
+      const successRate =
+        recentMetrics.filter((m) => m.success).length / recentMetrics.length;
+      const avgResponseTime =
+        recentMetrics.reduce((sum, m) => sum + m.responseTime, 0) /
+        recentMetrics.length;
+      const avgEvents =
+        recentMetrics.reduce((sum, m) => sum + m.eventsReceived, 0) /
+        recentMetrics.length;
+
       // Score: success rate (0-1) + event count boost + speed bonus
-      const score = successRate + (avgEvents / 10) + (1000 / Math.max(avgResponseTime, 100));
-      
+      const score =
+        successRate + avgEvents / 10 + 1000 / Math.max(avgResponseTime, 100);
+
       relayScores.set(relay, score);
     }
 

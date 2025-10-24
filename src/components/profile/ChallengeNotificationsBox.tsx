@@ -14,13 +14,18 @@ import {
   Image,
 } from 'react-native';
 import { theme } from '../../styles/theme';
-import { challengeNotificationHandler, type ChallengeNotification } from '../../services/notifications/ChallengeNotificationHandler';
+import {
+  challengeNotificationHandler,
+  type ChallengeNotification,
+} from '../../services/notifications/ChallengeNotificationHandler';
 import { challengeEscrowService } from '../../services/challenge/ChallengeEscrowService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import { ChallengePaymentModal } from '../challenge/ChallengePaymentModal';
 
 export const ChallengeNotificationsBox: React.FC = () => {
-  const [notifications, setNotifications] = useState<ChallengeNotification[]>([]);
+  const [notifications, setNotifications] = useState<ChallengeNotification[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -37,9 +42,11 @@ export const ChallengeNotificationsBox: React.FC = () => {
     loadNotifications();
 
     // Subscribe to new notifications
-    const unsubscribe = challengeNotificationHandler.onNotification((notification) => {
-      setNotifications((prev) => [notification, ...prev]);
-    });
+    const unsubscribe = challengeNotificationHandler.onNotification(
+      (notification) => {
+        setNotifications((prev) => [notification, ...prev]);
+      }
+    );
 
     // Start listening for incoming challenges
     challengeNotificationHandler.startListening().catch((error) => {
@@ -57,7 +64,8 @@ export const ChallengeNotificationsBox: React.FC = () => {
       const allNotifications = challengeNotificationHandler.getNotifications();
       // Show both request-type and payment_required notifications that haven't been read
       const pendingNotifications = allNotifications.filter(
-        (n) => (n.type === 'request' || n.type === 'payment_required') && !n.read
+        (n) =>
+          (n.type === 'request' || n.type === 'payment_required') && !n.read
       );
       setNotifications(pendingNotifications);
     } catch (error) {
@@ -70,7 +78,9 @@ export const ChallengeNotificationsBox: React.FC = () => {
   const handleAccept = async (notificationId: string) => {
     setProcessingId(notificationId);
     try {
-      const result = await challengeNotificationHandler.acceptChallenge(notificationId);
+      const result = await challengeNotificationHandler.acceptChallenge(
+        notificationId
+      );
 
       if (result.success) {
         // Remove from pending list
@@ -102,13 +112,21 @@ export const ChallengeNotificationsBox: React.FC = () => {
           onPress: async () => {
             setProcessingId(notificationId);
             try {
-              const result = await challengeNotificationHandler.declineChallenge(notificationId);
+              const result =
+                await challengeNotificationHandler.declineChallenge(
+                  notificationId
+                );
 
               if (result.success) {
                 // Remove from pending list
-                setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+                setNotifications((prev) =>
+                  prev.filter((n) => n.id !== notificationId)
+                );
               } else {
-                Alert.alert('Error', result.error || 'Failed to decline challenge');
+                Alert.alert(
+                  'Error',
+                  result.error || 'Failed to decline challenge'
+                );
               }
             } catch (error) {
               console.error('Error declining challenge:', error);
@@ -138,14 +156,19 @@ export const ChallengeNotificationsBox: React.FC = () => {
       setCurrentUserPubkey(userIdentifiers.hexPubkey);
 
       // Generate Lightning invoice for creator
-      const invoiceResult = await challengeEscrowService.generateChallengeInvoice(
-        notification.challengeId,
-        notification.wagerAmount,
-        userIdentifiers.hexPubkey,
-        'creator'
-      );
+      const invoiceResult =
+        await challengeEscrowService.generateChallengeInvoice(
+          notification.challengeId,
+          notification.wagerAmount,
+          userIdentifiers.hexPubkey,
+          'creator'
+        );
 
-      if (!invoiceResult.success || !invoiceResult.invoice || !invoiceResult.paymentHash) {
+      if (
+        !invoiceResult.success ||
+        !invoiceResult.invoice ||
+        !invoiceResult.paymentHash
+      ) {
         throw new Error(invoiceResult.error || 'Failed to generate invoice');
       }
 
@@ -199,7 +222,10 @@ export const ChallengeNotificationsBox: React.FC = () => {
    */
   const handlePaymentTimeout = () => {
     setShowPaymentModal(false);
-    Alert.alert('Payment Timeout', 'Challenge was not activated due to payment timeout.');
+    Alert.alert(
+      'Payment Timeout',
+      'Challenge was not activated due to payment timeout.'
+    );
   };
 
   // Don't show the box if there are no pending challenges
@@ -235,7 +261,8 @@ export const ChallengeNotificationsBox: React.FC = () => {
                     />
                   ) : (
                     <Text style={styles.avatarText}>
-                      {notification.challengerName?.charAt(0).toUpperCase() || '?'}
+                      {notification.challengerName?.charAt(0).toUpperCase() ||
+                        '?'}
                     </Text>
                   )}
                 </View>
@@ -244,7 +271,8 @@ export const ChallengeNotificationsBox: React.FC = () => {
                     {notification.challengerName || 'Unknown User'}
                   </Text>
                   <Text style={styles.challengeDetails}>
-                    {notification.activityType} • {notification.metric} • {notification.duration} days
+                    {notification.activityType} • {notification.metric} •{' '}
+                    {notification.duration} days
                   </Text>
                   <Text style={styles.wagerText}>
                     Wager: {notification.wagerAmount.toLocaleString()} sats
@@ -266,7 +294,10 @@ export const ChallengeNotificationsBox: React.FC = () => {
                     disabled={processingId === notification.id}
                   >
                     {processingId === notification.id ? (
-                      <ActivityIndicator size="small" color={theme.colors.accentText} />
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.accentText}
+                      />
                     ) : (
                       <Text style={styles.payToActivateButtonText}>
                         Pay {notification.wagerAmount} sats to Activate
@@ -280,13 +311,17 @@ export const ChallengeNotificationsBox: React.FC = () => {
                       style={[
                         styles.actionButton,
                         styles.declineButton,
-                        processingId === notification.id && styles.disabledButton,
+                        processingId === notification.id &&
+                          styles.disabledButton,
                       ]}
                       onPress={() => handleDecline(notification.id)}
                       disabled={processingId === notification.id}
                     >
                       {processingId === notification.id ? (
-                        <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.textMuted}
+                        />
                       ) : (
                         <Text style={styles.declineButtonText}>Decline</Text>
                       )}
@@ -296,13 +331,17 @@ export const ChallengeNotificationsBox: React.FC = () => {
                       style={[
                         styles.actionButton,
                         styles.acceptButton,
-                        processingId === notification.id && styles.disabledButton,
+                        processingId === notification.id &&
+                          styles.disabledButton,
                       ]}
                       onPress={() => handleAccept(notification.id)}
                       disabled={processingId === notification.id}
                     >
                       {processingId === notification.id ? (
-                        <ActivityIndicator size="small" color={theme.colors.accentText} />
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.accentText}
+                        />
                       ) : (
                         <Text style={styles.acceptButtonText}>Accept</Text>
                       )}
@@ -316,20 +355,23 @@ export const ChallengeNotificationsBox: React.FC = () => {
       )}
 
       {/* Payment Modal */}
-      {showPaymentModal && paymentInvoice && paymentHash && currentUserPubkey && (
-        <ChallengePaymentModal
-          visible={showPaymentModal}
-          challengeId={paymentChallengeId}
-          wagerAmount={paymentWagerAmount}
-          invoice={paymentInvoice}
-          paymentHash={paymentHash}
-          userPubkey={currentUserPubkey}
-          role="creator"
-          onPaymentConfirmed={handlePaymentConfirmed}
-          onCancel={handlePaymentCancelled}
-          onTimeout={handlePaymentTimeout}
-        />
-      )}
+      {showPaymentModal &&
+        paymentInvoice &&
+        paymentHash &&
+        currentUserPubkey && (
+          <ChallengePaymentModal
+            visible={showPaymentModal}
+            challengeId={paymentChallengeId}
+            wagerAmount={paymentWagerAmount}
+            invoice={paymentInvoice}
+            paymentHash={paymentHash}
+            userPubkey={currentUserPubkey}
+            role="creator"
+            onPaymentConfirmed={handlePaymentConfirmed}
+            onCancel={handlePaymentCancelled}
+            onTimeout={handlePaymentTimeout}
+          />
+        )}
     </View>
   );
 };

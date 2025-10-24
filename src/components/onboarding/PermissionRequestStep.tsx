@@ -30,7 +30,8 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
   onSkip,
 }) => {
   const insets = useSafeAreaInsets();
-  const [permissionState, setPermissionState] = useState<PermissionState>('pending');
+  const [permissionState, setPermissionState] =
+    useState<PermissionState>('pending');
   const [isLoading, setIsLoading] = useState(false);
 
   // Check if permissions are already granted on mount
@@ -57,7 +58,8 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
       console.log('📍 Requesting location permissions from onboarding...');
 
       // Request foreground permission first
-      const foregroundGranted = await locationPermissionService.requestForegroundPermission();
+      const foregroundGranted =
+        await locationPermissionService.requestForegroundPermission();
 
       if (foregroundGranted) {
         setPermissionState('granted');
@@ -95,11 +97,29 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
   const getIcon = () => {
     switch (permissionState) {
       case 'granted':
-        return <Ionicons name="checkmark-circle" size={80} color={theme.colors.orangeBright} />;
+        return (
+          <Ionicons
+            name="checkmark-circle"
+            size={80}
+            color={theme.colors.orangeBright}
+          />
+        );
       case 'denied':
-        return <Ionicons name="location-outline" size={80} color={theme.colors.textSecondary} />;
+        return (
+          <Ionicons
+            name="location-outline"
+            size={80}
+            color={theme.colors.textSecondary}
+          />
+        );
       default:
-        return <Ionicons name="location" size={80} color={theme.colors.orangeBright} />;
+        return (
+          <Ionicons
+            name="location"
+            size={80}
+            color={theme.colors.orangeBright}
+          />
+        );
     }
   };
 
@@ -117,13 +137,13 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
   const getSubtitle = () => {
     switch (permissionState) {
       case 'granted':
-        return "Your workouts will count toward competitions";
+        return 'Your workouts will count toward competitions';
       case 'denied':
         return Platform.OS === 'ios'
-          ? "Go to Settings → RUNSTR → Location to enable"
-          : "Enable location to track distance and pace";
+          ? 'Go to Settings → RUNSTR → Location to enable'
+          : 'Enable location to track distance and pace';
       default:
-        return "Track distance, pace, and compete with your team";
+        return 'Track distance, pace, and compete with your team';
     }
   };
 
@@ -134,15 +154,15 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
     return 'ENABLE LOCATION';
   };
 
-  const shouldShowSkipButton = permissionState === 'pending' || permissionState === 'requesting';
-  const shouldShowSettingsNote = permissionState === 'denied' && Platform.OS === 'ios';
+  const shouldShowSkipButton =
+    permissionState === 'pending' || permissionState === 'requesting';
+  const shouldShowSettingsNote =
+    permissionState === 'denied' && Platform.OS === 'ios';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 40 }]}>
       {/* Icon */}
-      <View style={styles.iconContainer}>
-        {getIcon()}
-      </View>
+      <View style={styles.iconContainer}>{getIcon()}</View>
 
       {/* Title */}
       <Text style={styles.title}>{getTitle()}</Text>
@@ -154,18 +174,30 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
       {permissionState !== 'granted' && (
         <View style={styles.featuresContainer}>
           <View style={styles.featureCard}>
-            <Ionicons name="navigate" size={24} color={theme.colors.orangeBright} />
+            <Ionicons
+              name="navigate"
+              size={24}
+              color={theme.colors.orangeBright}
+            />
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureTitle}>PRECISE TRACKING</Text>
-              <Text style={styles.featureDescription}>Distance, pace & routes</Text>
+              <Text style={styles.featureDescription}>
+                Distance, pace & routes
+              </Text>
             </View>
           </View>
 
           <View style={styles.featureCard}>
-            <Ionicons name="trophy" size={24} color={theme.colors.orangeBright} />
+            <Ionicons
+              name="trophy"
+              size={24}
+              color={theme.colors.orangeBright}
+            />
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureTitle}>TEAM COMPETITIONS</Text>
-              <Text style={styles.featureDescription}>Earn Bitcoin rewards</Text>
+              <Text style={styles.featureDescription}>
+                Earn Bitcoin rewards
+              </Text>
             </View>
           </View>
         </View>
@@ -174,7 +206,11 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
       {/* Success Card */}
       {permissionState === 'granted' && (
         <View style={styles.successCard}>
-          <Ionicons name="checkmark-circle" size={32} color={theme.colors.orangeBright} />
+          <Ionicons
+            name="checkmark-circle"
+            size={32}
+            color={theme.colors.orangeBright}
+          />
           <Text style={styles.successText}>
             Location enabled. Ready to compete!
           </Text>
@@ -184,7 +220,11 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
       {/* Settings note for iOS denied state */}
       {shouldShowSettingsNote && (
         <View style={styles.settingsCard}>
-          <Ionicons name="settings-outline" size={20} color={theme.colors.orangeBright} />
+          <Ionicons
+            name="settings-outline"
+            size={20}
+            color={theme.colors.orangeBright}
+          />
           <Text style={styles.settingsText}>
             Enable in Settings → Privacy → Location → RUNSTR
           </Text>
@@ -195,13 +235,11 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         {/* Main Action Button */}
         <TouchableOpacity
-          style={[
-            styles.actionButton,
-            isLoading && styles.actionButtonLoading,
-          ]}
-          onPress={permissionState === 'pending' || permissionState === 'requesting'
-            ? handleRequestPermissions
-            : handleContinue
+          style={[styles.actionButton, isLoading && styles.actionButtonLoading]}
+          onPress={
+            permissionState === 'pending' || permissionState === 'requesting'
+              ? handleRequestPermissions
+              : handleContinue
           }
           disabled={isLoading}
           activeOpacity={0.7}
@@ -211,7 +249,9 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
           ) : (
             <>
               <Ionicons
-                name={permissionState === 'granted' ? 'arrow-forward' : 'location'}
+                name={
+                  permissionState === 'granted' ? 'arrow-forward' : 'location'
+                }
                 size={20}
                 color={theme.colors.background}
                 style={styles.buttonIcon}
@@ -229,9 +269,7 @@ export const PermissionRequestStep: React.FC<PermissionRequestStepProps> = ({
             disabled={isLoading}
             activeOpacity={0.7}
           >
-            <Text style={styles.skipButtonText}>
-              SKIP FOR NOW
-            </Text>
+            <Text style={styles.skipButtonText}>SKIP FOR NOW</Text>
           </TouchableOpacity>
         )}
       </View>

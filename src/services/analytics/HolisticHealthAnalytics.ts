@@ -50,15 +50,15 @@ export class HolisticHealthAnalytics {
     const weights = {
       cardio: 0.35,
       strength: 0.25,
-      wellness: 0.20,
-      nutrition: 0.20,
+      wellness: 0.2,
+      nutrition: 0.2,
     };
 
     const overall = Math.round(
       cardioScore * weights.cardio +
-      strengthScore * weights.strength +
-      wellnessScore * weights.wellness +
-      nutritionScore * weights.nutrition
+        strengthScore * weights.strength +
+        wellnessScore * weights.wellness +
+        nutritionScore * weights.nutrition
     );
 
     // Determine category
@@ -119,16 +119,20 @@ export class HolisticHealthAnalytics {
     const minHealthyBMI = 18.5;
     const maxHealthyBMI = 24.9;
     const healthyWeightRange = {
-      min: Math.round(minHealthyBMI * heightInMeters * heightInMeters * 10) / 10,
-      max: Math.round(maxHealthyBMI * heightInMeters * heightInMeters * 10) / 10,
+      min:
+        Math.round(minHealthyBMI * heightInMeters * heightInMeters * 10) / 10,
+      max:
+        Math.round(maxHealthyBMI * heightInMeters * heightInMeters * 10) / 10,
     };
 
     // For weight trend, we'd need historical weight data
     // For now, just current weight (could be enhanced with weight tracking workouts)
-    const weightTrend = [{
-      date: healthProfile.updatedAt,
-      weight: healthProfile.weight,
-    }];
+    const weightTrend = [
+      {
+        date: healthProfile.updatedAt,
+        weight: healthProfile.weight,
+      },
+    ];
 
     // Calculate correlation between weight and pace
     const weightVsPaceCorrelation = this.calculateWeightPaceCorrelation(
@@ -155,22 +159,29 @@ export class HolisticHealthAnalytics {
     // This method combines them into a single object
 
     const cardioMetrics = CardioPerformanceAnalytics.calculateMetrics(workouts);
-    const strengthMetrics = StrengthTrainingAnalytics.calculateMetrics(workouts);
+    const strengthMetrics =
+      StrengthTrainingAnalytics.calculateMetrics(workouts);
     const wellnessMetrics = WellnessAnalytics.calculateMetrics(workouts);
     const nutritionMetrics = NutritionAnalytics.calculateMetrics(workouts);
 
     return {
       meditationVsRecovery: wellnessMetrics?.recoveryCorrelation,
       mealTimingVsAdherence: nutritionMetrics?.dietPerformanceCorrelation,
-      strengthVsCardio: this.calculateStrengthCardioCorrelation(strengthMetrics, cardioMetrics),
-      consistencyVsPerformance: this.calculateConsistencyPerformanceCorrelation(workouts),
+      strengthVsCardio: this.calculateStrengthCardioCorrelation(
+        strengthMetrics,
+        cardioMetrics
+      ),
+      consistencyVsPerformance:
+        this.calculateConsistencyPerformanceCorrelation(workouts),
     };
   }
 
   /**
    * Calculate cardio category score (0-100)
    */
-  private static calculateCardioScore(metrics?: CardioPerformanceMetrics): number {
+  private static calculateCardioScore(
+    metrics?: CardioPerformanceMetrics
+  ): number {
     if (!metrics) return 0;
 
     let score = 50; // Base score
@@ -186,7 +197,10 @@ export class HolisticHealthAnalytics {
     if (metrics.distanceProgression.trend === 'increasing') {
       score += Math.min(15, metrics.distanceProgression.percentChange / 2);
     } else if (metrics.distanceProgression.trend === 'decreasing') {
-      score -= Math.min(15, Math.abs(metrics.distanceProgression.percentChange) / 2);
+      score -= Math.min(
+        15,
+        Math.abs(metrics.distanceProgression.percentChange) / 2
+      );
     }
 
     // Factor 3: Heart rate efficiency (+/- 15 points)
@@ -212,7 +226,9 @@ export class HolisticHealthAnalytics {
   /**
    * Calculate strength category score (0-100)
    */
-  private static calculateStrengthScore(metrics?: StrengthTrainingMetrics): number {
+  private static calculateStrengthScore(
+    metrics?: StrengthTrainingMetrics
+  ): number {
     if (!metrics) return 0;
 
     let score = 50; // Base score
@@ -221,12 +237,17 @@ export class HolisticHealthAnalytics {
     if (metrics.volumeProgression.trend === 'increasing') {
       score += Math.min(25, metrics.volumeProgression.percentChange / 2);
     } else if (metrics.volumeProgression.trend === 'decreasing') {
-      score -= Math.min(25, Math.abs(metrics.volumeProgression.percentChange) / 2);
+      score -= Math.min(
+        25,
+        Math.abs(metrics.volumeProgression.percentChange) / 2
+      );
     }
 
     // Factor 2: Exercise balance (0-25 points)
     // Balanced workouts = higher score
-    const balanceScore = this.calculateExerciseBalanceScore(metrics.exerciseBalance);
+    const balanceScore = this.calculateExerciseBalanceScore(
+      metrics.exerciseBalance
+    );
     score += balanceScore * 0.25;
 
     // Factor 3: Workout density (+/- 15 points)
@@ -275,7 +296,10 @@ export class HolisticHealthAnalytics {
 
     // Factor 4: Session duration adequacy (0-15 points)
     // Ideal: 15-30 minutes
-    if (metrics.sessionDuration.avgDuration >= 900 && metrics.sessionDuration.avgDuration <= 1800) {
+    if (
+      metrics.sessionDuration.avgDuration >= 900 &&
+      metrics.sessionDuration.avgDuration <= 1800
+    ) {
       score += 15;
     } else if (metrics.sessionDuration.avgDuration >= 600) {
       score += 10;
@@ -284,9 +308,15 @@ export class HolisticHealthAnalytics {
     }
 
     // Factor 5: Recovery correlation bonus (0-10 points)
-    if (metrics.recoveryCorrelation?.strength === 'strong' && metrics.recoveryCorrelation.direction === 'positive') {
+    if (
+      metrics.recoveryCorrelation?.strength === 'strong' &&
+      metrics.recoveryCorrelation.direction === 'positive'
+    ) {
       score += 10;
-    } else if (metrics.recoveryCorrelation?.strength === 'moderate' && metrics.recoveryCorrelation.direction === 'positive') {
+    } else if (
+      metrics.recoveryCorrelation?.strength === 'moderate' &&
+      metrics.recoveryCorrelation.direction === 'positive'
+    ) {
       score += 5;
     }
 
@@ -308,7 +338,10 @@ export class HolisticHealthAnalytics {
     score += (metrics.mealTimingPatterns.consistency / 100) * 20;
 
     // Factor 3: Fasting trend bonus (0-15 points)
-    if (metrics.fastingTrends.avgFastingDuration >= 14 && metrics.fastingTrends.avgFastingDuration <= 18) {
+    if (
+      metrics.fastingTrends.avgFastingDuration >= 14 &&
+      metrics.fastingTrends.avgFastingDuration <= 18
+    ) {
       score += 15; // Ideal fasting window
     } else if (metrics.fastingTrends.avgFastingDuration >= 12) {
       score += 10;
@@ -317,18 +350,30 @@ export class HolisticHealthAnalytics {
     }
 
     // Factor 4: Meal frequency appropriateness (0-10 points)
-    if (metrics.mealFrequency.avgMealsPerDay >= 2.5 && metrics.mealFrequency.avgMealsPerDay <= 4) {
+    if (
+      metrics.mealFrequency.avgMealsPerDay >= 2.5 &&
+      metrics.mealFrequency.avgMealsPerDay <= 4
+    ) {
       score += 10;
     } else if (metrics.mealFrequency.avgMealsPerDay >= 2) {
       score += 5;
     }
 
     // Factor 5: Diet-performance correlation (0-15 points)
-    if (metrics.dietPerformanceCorrelation?.strength === 'strong' && metrics.dietPerformanceCorrelation.direction === 'positive') {
+    if (
+      metrics.dietPerformanceCorrelation?.strength === 'strong' &&
+      metrics.dietPerformanceCorrelation.direction === 'positive'
+    ) {
       score += 15;
-    } else if (metrics.dietPerformanceCorrelation?.strength === 'moderate' && metrics.dietPerformanceCorrelation.direction === 'positive') {
+    } else if (
+      metrics.dietPerformanceCorrelation?.strength === 'moderate' &&
+      metrics.dietPerformanceCorrelation.direction === 'positive'
+    ) {
       score += 10;
-    } else if (metrics.dietPerformanceCorrelation?.strength === 'weak' && metrics.dietPerformanceCorrelation.direction === 'positive') {
+    } else if (
+      metrics.dietPerformanceCorrelation?.strength === 'weak' &&
+      metrics.dietPerformanceCorrelation.direction === 'positive'
+    ) {
       score += 5;
     }
 
@@ -350,12 +395,15 @@ export class HolisticHealthAnalytics {
     ];
 
     // Calculate standard deviation (lower = more balanced)
-    const avg = percentages.reduce((sum, val) => sum + val, 0) / percentages.length;
-    const variance = percentages.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / percentages.length;
+    const avg =
+      percentages.reduce((sum, val) => sum + val, 0) / percentages.length;
+    const variance =
+      percentages.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) /
+      percentages.length;
     const stdDev = Math.sqrt(variance);
 
     // Convert to score (0 stdDev = 100, 50 stdDev = 0)
-    const score = Math.max(0, 100 - (stdDev * 2));
+    const score = Math.max(0, 100 - stdDev * 2);
 
     return score;
   }
@@ -364,7 +412,7 @@ export class HolisticHealthAnalytics {
    * Calculate balance score across categories
    */
   private static calculateBalanceScore(scores: number[]): number {
-    const activeScores = scores.filter(s => s > 0);
+    const activeScores = scores.filter((s) => s > 0);
 
     if (activeScores.length === 0) return 0;
 
@@ -372,12 +420,15 @@ export class HolisticHealthAnalytics {
     const categoryBonus = (activeScores.length / 4) * 30;
 
     // Calculate variance (lower = more balanced)
-    const avg = activeScores.reduce((sum, val) => sum + val, 0) / activeScores.length;
-    const variance = activeScores.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / activeScores.length;
+    const avg =
+      activeScores.reduce((sum, val) => sum + val, 0) / activeScores.length;
+    const variance =
+      activeScores.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) /
+      activeScores.length;
     const stdDev = Math.sqrt(variance);
 
     // Convert to score (0 stdDev = 70 points, 50 stdDev = 0 points)
-    const varianceScore = Math.max(0, 70 - (stdDev * 1.4));
+    const varianceScore = Math.max(0, 70 - stdDev * 1.4);
 
     return Math.round(categoryBonus + varianceScore);
   }
@@ -385,33 +436,36 @@ export class HolisticHealthAnalytics {
   /**
    * Calculate health trend
    */
-  private static calculateHealthTrend(workouts: LocalWorkout[]): HolisticHealthScore['trend'] {
+  private static calculateHealthTrend(
+    workouts: LocalWorkout[]
+  ): HolisticHealthScore['trend'] {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const recentWorkouts = workouts.filter(w =>
-      new Date(w.startTime) >= thirtyDaysAgo
+    const recentWorkouts = workouts.filter(
+      (w) => new Date(w.startTime) >= thirtyDaysAgo
     ).length;
 
-    const previousWorkouts = workouts.filter(w => {
+    const previousWorkouts = workouts.filter((w) => {
       const date = new Date(w.startTime);
       return date >= sixtyDaysAgo && date < thirtyDaysAgo;
     }).length;
 
-    const change = previousWorkouts > 0
-      ? ((recentWorkouts - previousWorkouts) / previousWorkouts) * 100
-      : 0;
+    const change =
+      previousWorkouts > 0
+        ? ((recentWorkouts - previousWorkouts) / previousWorkouts) * 100
+        : 0;
 
-    return change > 10 ? 'improving' :
-           change < -10 ? 'declining' :
-           'stable';
+    return change > 10 ? 'improving' : change < -10 ? 'declining' : 'stable';
   }
 
   /**
    * Determine health category from score
    */
-  private static determineHealthCategory(score: number): HolisticHealthScore['category'] {
+  private static determineHealthCategory(
+    score: number
+  ): HolisticHealthScore['category'] {
     if (score >= 90) return 'elite';
     if (score >= 75) return 'excellent';
     if (score >= 60) return 'good';
@@ -446,49 +500,72 @@ export class HolisticHealthAnalytics {
     if (weakest.score < 50) {
       switch (weakest.name) {
         case 'cardio':
-          recommendations.push('Increase cardio workouts to improve cardiovascular health');
+          recommendations.push(
+            'Increase cardio workouts to improve cardiovascular health'
+          );
           break;
         case 'strength':
-          recommendations.push('Add more strength training sessions for balanced fitness');
+          recommendations.push(
+            'Add more strength training sessions for balanced fitness'
+          );
           break;
         case 'wellness':
-          recommendations.push('Start a daily meditation practice for recovery and mental health');
+          recommendations.push(
+            'Start a daily meditation practice for recovery and mental health'
+          );
           break;
         case 'nutrition':
-          recommendations.push('Track meal timing more consistently for better insights');
+          recommendations.push(
+            'Track meal timing more consistently for better insights'
+          );
           break;
       }
     }
 
     // Balance recommendation
     if (balance < 50) {
-      recommendations.push('Focus on balancing different fitness activities for holistic health');
+      recommendations.push(
+        'Focus on balancing different fitness activities for holistic health'
+      );
     }
 
     // Compliment on strongest area
     if (strongest.score >= 75) {
       switch (strongest.name) {
         case 'cardio':
-          recommendations.push('Great cardio performance! Maintain this level of aerobic fitness');
+          recommendations.push(
+            'Great cardio performance! Maintain this level of aerobic fitness'
+          );
           break;
         case 'strength':
-          recommendations.push('Excellent strength training consistency! Keep it up');
+          recommendations.push(
+            'Excellent strength training consistency! Keep it up'
+          );
           break;
         case 'wellness':
-          recommendations.push('Outstanding meditation practice! Your mental health routine is solid');
+          recommendations.push(
+            'Outstanding meditation practice! Your mental health routine is solid'
+          );
           break;
         case 'nutrition':
-          recommendations.push('Excellent nutrition tracking! Your meal consistency is impressive');
+          recommendations.push(
+            'Excellent nutrition tracking! Your meal consistency is impressive'
+          );
           break;
       }
     }
 
     // General recommendations based on overall
-    const overall = (cardioScore + strengthScore + wellnessScore + nutritionScore) / 4;
+    const overall =
+      (cardioScore + strengthScore + wellnessScore + nutritionScore) / 4;
     if (overall >= 75) {
-      recommendations.push('Maintain your current routine - you\'re in excellent shape!');
+      recommendations.push(
+        "Maintain your current routine - you're in excellent shape!"
+      );
     } else if (overall < 40) {
-      recommendations.push('Start with small, consistent habits across all fitness areas');
+      recommendations.push(
+        'Start with small, consistent habits across all fitness areas'
+      );
     }
 
     return recommendations.slice(0, 4); // Max 4 recommendations
@@ -542,21 +619,26 @@ export class HolisticHealthAnalytics {
     const weeks: Array<{ workoutCount: number; avgPace: number }> = [];
 
     for (let i = 0; i < 8; i++) {
-      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekStart = new Date(
+        now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000
+      );
       const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
 
-      const weekWorkouts = workouts.filter(w => {
+      const weekWorkouts = workouts.filter((w) => {
         const date = new Date(w.startTime);
         return date >= weekStart && date < weekEnd;
       });
 
-      const runningWorkouts = weekWorkouts.filter(w => w.type === 'running' && w.distance && w.duration > 0);
+      const runningWorkouts = weekWorkouts.filter(
+        (w) => w.type === 'running' && w.distance && w.duration > 0
+      );
 
       if (runningWorkouts.length > 0) {
-        const avgPace = runningWorkouts.reduce((sum, w) => {
-          const pace = (w.duration / 60) / w.distance!;
-          return sum + pace;
-        }, 0) / runningWorkouts.length;
+        const avgPace =
+          runningWorkouts.reduce((sum, w) => {
+            const pace = w.duration / 60 / w.distance!;
+            return sum + pace;
+          }, 0) / runningWorkouts.length;
 
         weeks.push({
           workoutCount: weekWorkouts.length,
@@ -568,25 +650,37 @@ export class HolisticHealthAnalytics {
     if (weeks.length < 4) return undefined;
 
     // Simple correlation: more workouts = better pace (lower number)
-    const avgWorkoutCount = weeks.reduce((sum, w) => sum + w.workoutCount, 0) / weeks.length;
+    const avgWorkoutCount =
+      weeks.reduce((sum, w) => sum + w.workoutCount, 0) / weeks.length;
     const avgPace = weeks.reduce((sum, w) => sum + w.avgPace, 0) / weeks.length;
 
-    const highWorkoutWeeks = weeks.filter(w => w.workoutCount > avgWorkoutCount);
-    const lowWorkoutWeeks = weeks.filter(w => w.workoutCount <= avgWorkoutCount);
+    const highWorkoutWeeks = weeks.filter(
+      (w) => w.workoutCount > avgWorkoutCount
+    );
+    const lowWorkoutWeeks = weeks.filter(
+      (w) => w.workoutCount <= avgWorkoutCount
+    );
 
-    if (highWorkoutWeeks.length < 2 || lowWorkoutWeeks.length < 2) return undefined;
+    if (highWorkoutWeeks.length < 2 || lowWorkoutWeeks.length < 2)
+      return undefined;
 
-    const highWorkoutPace = highWorkoutWeeks.reduce((sum, w) => sum + w.avgPace, 0) / highWorkoutWeeks.length;
-    const lowWorkoutPace = lowWorkoutWeeks.reduce((sum, w) => sum + w.avgPace, 0) / lowWorkoutWeeks.length;
+    const highWorkoutPace =
+      highWorkoutWeeks.reduce((sum, w) => sum + w.avgPace, 0) /
+      highWorkoutWeeks.length;
+    const lowWorkoutPace =
+      lowWorkoutWeeks.reduce((sum, w) => sum + w.avgPace, 0) /
+      lowWorkoutWeeks.length;
 
-    const percentDiff = ((lowWorkoutPace - highWorkoutPace) / lowWorkoutPace) * 100;
+    const percentDiff =
+      ((lowWorkoutPace - highWorkoutPace) / lowWorkoutPace) * 100;
 
     if (Math.abs(percentDiff) < 3) {
       return {
         coefficient: 0,
         strength: 'none',
         direction: 'none',
-        insight: 'No clear correlation between workout frequency and performance',
+        insight:
+          'No clear correlation between workout frequency and performance',
       };
     } else if (percentDiff > 0) {
       return {

@@ -69,8 +69,7 @@ export const ActiveEventsSection: React.FC<ActiveEventsSectionProps> = ({
                 <Text style={styles.eventMeta}>
                   {formatEventDate(event.eventDate)}
                   {event.entryFeesSats > 0 &&
-                    ` • ⚡ ${event.entryFeesSats.toLocaleString()} sats`
-                  }
+                    ` • ⚡ ${event.entryFeesSats.toLocaleString()} sats`}
                 </Text>
               </View>
             </View>
@@ -81,7 +80,11 @@ export const ActiveEventsSection: React.FC<ActiveEventsSectionProps> = ({
             onPress={() => onShowQR(event)}
             activeOpacity={0.7}
           >
-            <Ionicons name="qr-code-outline" size={18} color={theme.colors.text} />
+            <Ionicons
+              name="qr-code-outline"
+              size={18}
+              color={theme.colors.text}
+            />
             <Text style={styles.qrButtonText}>QR</Text>
           </TouchableOpacity>
         </View>

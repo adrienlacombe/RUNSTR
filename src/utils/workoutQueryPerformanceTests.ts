@@ -6,7 +6,11 @@
 
 import Competition1301QueryService from '../services/competition/Competition1301QueryService';
 import TeamMemberCache from '../services/team/TeamMemberCache';
-import type { CompetitionQuery, QueryResult, WorkoutMetrics } from '../services/competition/Competition1301QueryService';
+import type {
+  CompetitionQuery,
+  QueryResult,
+  WorkoutMetrics,
+} from '../services/competition/Competition1301QueryService';
 import type { NostrActivityType } from '../types/nostrCompetition';
 import type { NostrWorkout } from '../types/nostrWorkout';
 
@@ -53,7 +57,7 @@ export class WorkoutQueryPerformanceTests {
     missCount: 0,
     hitRate: 0,
     avgCacheRetrievalTime: 0,
-    avgNetworkRetrievalTime: 0
+    avgNetworkRetrievalTime: 0,
   };
 
   // Performance test scenarios
@@ -65,7 +69,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 10,
       dateRange: 7,
       activityType: 'Running',
-      expectedMaxTime: 500
+      expectedMaxTime: 500,
     },
     {
       name: 'Medium Team - Recent Data',
@@ -74,7 +78,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 15,
       dateRange: 7,
       activityType: 'Any',
-      expectedMaxTime: 1000
+      expectedMaxTime: 1000,
     },
     {
       name: 'Large Team - Recent Data',
@@ -83,7 +87,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 10,
       dateRange: 7,
       activityType: 'Running',
-      expectedMaxTime: 2000
+      expectedMaxTime: 2000,
     },
     {
       name: 'Small Team - Long History',
@@ -92,7 +96,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 50,
       dateRange: 30,
       activityType: 'Cycling',
-      expectedMaxTime: 750
+      expectedMaxTime: 750,
     },
     {
       name: 'Medium Team - Long History',
@@ -101,7 +105,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 40,
       dateRange: 30,
       activityType: 'Any',
-      expectedMaxTime: 1500
+      expectedMaxTime: 1500,
     },
     {
       name: 'Large Team - Long History',
@@ -110,7 +114,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 30,
       dateRange: 30,
       activityType: 'Running',
-      expectedMaxTime: 3000
+      expectedMaxTime: 3000,
     },
     {
       name: 'Extra Large Team',
@@ -119,7 +123,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 5,
       dateRange: 7,
       activityType: 'Any',
-      expectedMaxTime: 5000
+      expectedMaxTime: 5000,
     },
     {
       name: 'High Volume Individual',
@@ -128,7 +132,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 100,
       dateRange: 30,
       activityType: 'Running',
-      expectedMaxTime: 1000
+      expectedMaxTime: 1000,
     },
     {
       name: 'Activity Filter Performance',
@@ -137,7 +141,7 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 20,
       dateRange: 14,
       activityType: 'Strength Training',
-      expectedMaxTime: 1500
+      expectedMaxTime: 1500,
     },
     {
       name: 'Cache Warm-up Test',
@@ -146,8 +150,8 @@ export class WorkoutQueryPerformanceTests {
       workoutsPerMember: 20,
       dateRange: 7,
       activityType: 'Any',
-      expectedMaxTime: 100 // Should be instant from cache
-    }
+      expectedMaxTime: 100, // Should be instant from cache
+    },
   ];
 
   constructor() {
@@ -160,7 +164,9 @@ export class WorkoutQueryPerformanceTests {
    */
   async runAllTests(): Promise<PerformanceResult[]> {
     console.log('⚡ Starting Workout Query Performance Tests');
-    console.log(`📊 Testing ${this.performanceTests.length} performance scenarios\n`);
+    console.log(
+      `📊 Testing ${this.performanceTests.length} performance scenarios\n`
+    );
 
     const startTime = Date.now();
 
@@ -202,7 +208,9 @@ export class WorkoutQueryPerformanceTests {
     try {
       // Generate test data
       const memberNpubs = this.generateTestMembers(test.teamSize);
-      const startDate = new Date(Date.now() - test.dateRange * 24 * 60 * 60 * 1000);
+      const startDate = new Date(
+        Date.now() - test.dateRange * 24 * 60 * 60 * 1000
+      );
       const endDate = new Date();
 
       // Create query
@@ -210,7 +218,7 @@ export class WorkoutQueryPerformanceTests {
         memberNpubs,
         activityType: test.activityType,
         startDate,
-        endDate
+        endDate,
       };
 
       // Simulate workout data for expected calculations
@@ -226,18 +234,23 @@ export class WorkoutQueryPerformanceTests {
 
       // Calculate performance metrics
       const avgTimePerMember = queryTime / test.teamSize;
-      const avgTimePerWorkout = expectedWorkouts > 0 ? queryTime / expectedWorkouts : 0;
+      const avgTimePerWorkout =
+        expectedWorkouts > 0 ? queryTime / expectedWorkouts : 0;
 
       // Update cache metrics
       if (result.fromCache) {
         this.cacheMetrics.hitCount++;
         this.cacheMetrics.avgCacheRetrievalTime =
-          (this.cacheMetrics.avgCacheRetrievalTime * (this.cacheMetrics.hitCount - 1) + queryTime) /
+          (this.cacheMetrics.avgCacheRetrievalTime *
+            (this.cacheMetrics.hitCount - 1) +
+            queryTime) /
           this.cacheMetrics.hitCount;
       } else {
         this.cacheMetrics.missCount++;
         this.cacheMetrics.avgNetworkRetrievalTime =
-          (this.cacheMetrics.avgNetworkRetrievalTime * (this.cacheMetrics.missCount - 1) + queryTime) /
+          (this.cacheMetrics.avgNetworkRetrievalTime *
+            (this.cacheMetrics.missCount - 1) +
+            queryTime) /
           this.cacheMetrics.missCount;
       }
 
@@ -255,14 +268,17 @@ export class WorkoutQueryPerformanceTests {
         performanceMetrics: {
           avgTimePerMember,
           avgTimePerWorkout,
-          cacheHitRate: this.calculateCacheHitRate()
-        }
+          cacheHitRate: this.calculateCacheHitRate(),
+        },
       };
 
       this.results.push(performanceResult);
       console.log(`   ${performanceResult.message}`);
-      console.log(`   📊 Metrics: ${avgTimePerMember.toFixed(1)}ms/member, ${avgTimePerWorkout.toFixed(2)}ms/workout`);
-
+      console.log(
+        `   📊 Metrics: ${avgTimePerMember.toFixed(
+          1
+        )}ms/member, ${avgTimePerWorkout.toFixed(2)}ms/workout`
+      );
     } catch (error) {
       const errorResult: PerformanceResult = {
         testName: test.name,
@@ -271,11 +287,13 @@ export class WorkoutQueryPerformanceTests {
         queryTime: 0,
         fromCache: false,
         success: false,
-        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Error: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
         performanceMetrics: {
           avgTimePerMember: 0,
-          avgTimePerWorkout: 0
-        }
+          avgTimePerWorkout: 0,
+        },
       };
       this.results.push(errorResult);
       console.log(`   ❌ ${errorResult.message}`);
@@ -294,11 +312,14 @@ export class WorkoutQueryPerformanceTests {
       memberNpubs,
       activityType: test.activityType,
       startDate: new Date(Date.now() - test.dateRange * 24 * 60 * 60 * 1000),
-      endDate: new Date()
+      endDate: new Date(),
     };
 
     const queryStart = Date.now();
-    const result = await this.simulateQuery(query, test.teamSize * test.workoutsPerMember);
+    const result = await this.simulateQuery(
+      query,
+      test.teamSize * test.workoutsPerMember
+    );
     const queryTime = Date.now() - queryStart;
 
     const cacheTest: PerformanceResult = {
@@ -312,8 +333,8 @@ export class WorkoutQueryPerformanceTests {
       performanceMetrics: {
         avgTimePerMember: queryTime / test.teamSize,
         avgTimePerWorkout: queryTime / (test.teamSize * test.workoutsPerMember),
-        cacheHitRate: this.calculateCacheHitRate()
-      }
+        cacheHitRate: this.calculateCacheHitRate(),
+      },
     };
 
     this.results.push(cacheTest);
@@ -330,7 +351,7 @@ export class WorkoutQueryPerformanceTests {
       memberNpubs: this.generateTestMembers(10),
       activityType: 'Running',
       startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      endDate: new Date()
+      endDate: new Date(),
     };
 
     // First query (cache miss)
@@ -355,7 +376,9 @@ export class WorkoutQueryPerformanceTests {
     console.log(`   Second query: ${secondTime}ms (cache hit)`);
     console.log(`   Third query: ${thirdTime}ms (cache hit)`);
     console.log(`   Cache speedup: ${cacheSpeedup.toFixed(1)}x`);
-    console.log(`   Cache consistency: ${consistency ? '✅ Stable' : '⚠️ Unstable'}`);
+    console.log(
+      `   Cache consistency: ${consistency ? '✅ Stable' : '⚠️ Unstable'}`
+    );
   }
 
   /**
@@ -369,20 +392,20 @@ export class WorkoutQueryPerformanceTests {
         memberNpubs: this.generateTestMembers(10),
         activityType: 'Running',
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       },
       {
         memberNpubs: this.generateTestMembers(15),
         activityType: 'Cycling',
         startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       },
       {
         memberNpubs: this.generateTestMembers(20),
         activityType: 'Any',
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
-      }
+        endDate: new Date(),
+      },
     ];
 
     // Sequential execution
@@ -394,7 +417,7 @@ export class WorkoutQueryPerformanceTests {
 
     // Parallel execution
     const parallelStart = Date.now();
-    await Promise.all(queries.map(q => this.simulateQuery(q, 50)));
+    await Promise.all(queries.map((q) => this.simulateQuery(q, 50)));
     const parallelTime = Date.now() - parallelStart;
 
     const parallelSpeedup = sequentialTime / parallelTime;
@@ -402,7 +425,13 @@ export class WorkoutQueryPerformanceTests {
     console.log(`   Sequential: ${sequentialTime}ms`);
     console.log(`   Parallel: ${parallelTime}ms`);
     console.log(`   Speedup: ${parallelSpeedup.toFixed(1)}x`);
-    console.log(`   ${parallelSpeedup > 1.5 ? '✅ Good parallelization' : '⚠️ Limited parallelization'}`);
+    console.log(
+      `   ${
+        parallelSpeedup > 1.5
+          ? '✅ Good parallelization'
+          : '⚠️ Limited parallelization'
+      }`
+    );
   }
 
   /**
@@ -419,7 +448,7 @@ export class WorkoutQueryPerformanceTests {
       memberNpubs: this.generateTestMembers(200),
       activityType: 'Any',
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      endDate: new Date()
+      endDate: new Date(),
     };
 
     await this.simulateQuery(largeQuery, 6000); // 200 members * 30 workouts
@@ -438,11 +467,27 @@ export class WorkoutQueryPerformanceTests {
       const queryMemoryIncrease = afterQueryMemory - initialMemory;
       const cleanupEffectiveness = afterQueryMemory - afterCleanupMemory;
 
-      console.log(`   Initial memory: ${(initialMemory / 1024 / 1024).toFixed(1)} MB`);
-      console.log(`   After large query: ${(afterQueryMemory / 1024 / 1024).toFixed(1)} MB`);
-      console.log(`   After cleanup: ${(afterCleanupMemory / 1024 / 1024).toFixed(1)} MB`);
-      console.log(`   Memory increase: ${(queryMemoryIncrease / 1024 / 1024).toFixed(1)} MB`);
-      console.log(`   Cleanup recovered: ${(cleanupEffectiveness / 1024 / 1024).toFixed(1)} MB`);
+      console.log(
+        `   Initial memory: ${(initialMemory / 1024 / 1024).toFixed(1)} MB`
+      );
+      console.log(
+        `   After large query: ${(afterQueryMemory / 1024 / 1024).toFixed(
+          1
+        )} MB`
+      );
+      console.log(
+        `   After cleanup: ${(afterCleanupMemory / 1024 / 1024).toFixed(1)} MB`
+      );
+      console.log(
+        `   Memory increase: ${(queryMemoryIncrease / 1024 / 1024).toFixed(
+          1
+        )} MB`
+      );
+      console.log(
+        `   Cleanup recovered: ${(cleanupEffectiveness / 1024 / 1024).toFixed(
+          1
+        )} MB`
+      );
     } else {
       console.log(`   Memory metrics not available in this environment`);
     }
@@ -451,7 +496,10 @@ export class WorkoutQueryPerformanceTests {
   /**
    * Simulate a query (mock implementation for testing)
    */
-  private async simulateQuery(query: CompetitionQuery, expectedWorkouts: number): Promise<QueryResult> {
+  private async simulateQuery(
+    query: CompetitionQuery,
+    expectedWorkouts: number
+  ): Promise<QueryResult> {
     // In a real test, this would call the actual Competition1301QueryService
     // For testing purposes, we simulate the behavior
 
@@ -468,22 +516,24 @@ export class WorkoutQueryPerformanceTests {
     const totalTime = baseTime + memberTime + workoutTime + networkLatency;
 
     // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, totalTime));
+    await new Promise((resolve) => setTimeout(resolve, totalTime));
 
     // Generate mock metrics
     const metrics = new Map<string, WorkoutMetrics>();
-    query.memberNpubs?.forEach(npub => {
+    query.memberNpubs?.forEach((npub) => {
       metrics.set(npub, {
         npub,
         totalDistance: Math.random() * 100,
         totalDuration: Math.random() * 1000,
         totalCalories: Math.random() * 5000,
-        workoutCount: Math.floor(expectedWorkouts / (query.memberNpubs?.length || 1)),
+        workoutCount: Math.floor(
+          expectedWorkouts / (query.memberNpubs?.length || 1)
+        ),
         activeDays: Math.floor(Math.random() * 30),
         longestDistance: Math.random() * 42,
         longestDuration: Math.random() * 180,
         streakDays: Math.floor(Math.random() * 14),
-        workouts: []
+        workouts: [],
       });
     });
 
@@ -491,7 +541,7 @@ export class WorkoutQueryPerformanceTests {
       metrics,
       totalWorkouts: expectedWorkouts,
       queryTime: totalTime,
-      fromCache: isCached
+      fromCache: isCached,
     };
   }
 
@@ -499,8 +549,9 @@ export class WorkoutQueryPerformanceTests {
    * Generate test member npubs
    */
   private generateTestMembers(count: number): string[] {
-    return Array.from({ length: count }, (_, i) =>
-      `npub1test${i.toString().padStart(6, '0')}`
+    return Array.from(
+      { length: count },
+      (_, i) => `npub1test${i.toString().padStart(6, '0')}`
     );
   }
 
@@ -508,7 +559,9 @@ export class WorkoutQueryPerformanceTests {
    * Generate cache key for query
    */
   private generateCacheKey(query: CompetitionQuery): string {
-    return `${query.memberNpubs?.join(',')}_${query.activityType}_${query.startDate.getTime()}_${query.endDate.getTime()}`;
+    return `${query.memberNpubs?.join(',')}_${
+      query.activityType
+    }_${query.startDate.getTime()}_${query.endDate.getTime()}`;
   }
 
   /**
@@ -538,8 +591,8 @@ export class WorkoutQueryPerformanceTests {
    * Generate performance summary
    */
   private generatePerformanceSummary(totalDuration: number): void {
-    const passed = this.results.filter(r => r.success).length;
-    const failed = this.results.filter(r => !r.success).length;
+    const passed = this.results.filter((r) => r.success).length;
+    const failed = this.results.filter((r) => !r.success).length;
 
     console.log('\n' + '='.repeat(60));
     console.log('📊 PERFORMANCE TEST SUMMARY');
@@ -547,22 +600,35 @@ export class WorkoutQueryPerformanceTests {
 
     console.log(`\n✅ Passed: ${passed}/${this.results.length}`);
     console.log(`❌ Failed: ${failed}/${this.results.length}`);
-    console.log(`⏱️ Total Test Duration: ${(totalDuration / 1000).toFixed(2)}s`);
+    console.log(
+      `⏱️ Total Test Duration: ${(totalDuration / 1000).toFixed(2)}s`
+    );
 
     // Cache performance
     this.cacheMetrics.hitRate = this.calculateCacheHitRate();
     console.log('\n💾 Cache Performance:');
     console.log(`   Hit Rate: ${this.cacheMetrics.hitRate.toFixed(1)}%`);
-    console.log(`   Hits: ${this.cacheMetrics.hitCount}, Misses: ${this.cacheMetrics.missCount}`);
-    console.log(`   Avg Cache Time: ${this.cacheMetrics.avgCacheRetrievalTime.toFixed(1)}ms`);
-    console.log(`   Avg Network Time: ${this.cacheMetrics.avgNetworkRetrievalTime.toFixed(1)}ms`);
+    console.log(
+      `   Hits: ${this.cacheMetrics.hitCount}, Misses: ${this.cacheMetrics.missCount}`
+    );
+    console.log(
+      `   Avg Cache Time: ${this.cacheMetrics.avgCacheRetrievalTime.toFixed(
+        1
+      )}ms`
+    );
+    console.log(
+      `   Avg Network Time: ${this.cacheMetrics.avgNetworkRetrievalTime.toFixed(
+        1
+      )}ms`
+    );
 
     // Performance by team size
     const byTeamSize = new Map<number, { total: number; avgTime: number }>();
-    this.results.forEach(r => {
+    this.results.forEach((r) => {
       const current = byTeamSize.get(r.teamSize) || { total: 0, avgTime: 0 };
       current.total++;
-      current.avgTime = (current.avgTime * (current.total - 1) + r.queryTime) / current.total;
+      current.avgTime =
+        (current.avgTime * (current.total - 1) + r.queryTime) / current.total;
       byTeamSize.set(r.teamSize, current);
     });
 
@@ -574,11 +640,15 @@ export class WorkoutQueryPerformanceTests {
       });
 
     // Identify performance issues
-    const slowQueries = this.results.filter(r => !r.success);
+    const slowQueries = this.results.filter((r) => !r.success);
     if (slowQueries.length > 0) {
       console.log('\n⚠️ Performance Issues:');
-      slowQueries.forEach(r => {
-        console.log(`   - ${r.testName}: ${r.queryTime}ms (limit: ${r.performanceMetrics.avgTimePerMember * r.teamSize}ms)`);
+      slowQueries.forEach((r) => {
+        console.log(
+          `   - ${r.testName}: ${r.queryTime}ms (limit: ${
+            r.performanceMetrics.avgTimePerMember * r.teamSize
+          }ms)`
+        );
       });
     }
 

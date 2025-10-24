@@ -4,7 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, RefreshControl, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
 import { LoadingOverlay } from '../../ui/LoadingStates';
@@ -38,7 +46,7 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
   const checkPermissionAndLoadWorkouts = async () => {
     try {
       const status = healthKitService.getStatus();
-      
+
       if (!status.available) {
         console.log('HealthKit not available on this device');
         setIsLoading(false);
@@ -62,20 +70,23 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
     try {
       setPermissionRequested(true);
       console.log('🍎 Requesting HealthKit permission...');
-      
+
       // Use timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Permission request timed out')), 15000)
+        setTimeout(
+          () => reject(new Error('Permission request timed out')),
+          15000
+        )
       );
-      
+
       const permissionResult = await Promise.race([
         healthKitService.requestPermissions(),
-        timeoutPromise
+        timeoutPromise,
       ]);
-      
+
       if (permissionResult.success) {
         const status = healthKitService.getStatus();
-        
+
         if (status.authorized) {
           setHasPermission(true);
           await loadAppleHealthWorkouts();
@@ -88,14 +99,18 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
         }
       } else {
         setHasPermission(false);
-        const errorMessage = permissionResult.error || 'Permission request failed';
-        
+        const errorMessage =
+          permissionResult.error || 'Permission request failed';
+
         if (errorMessage.includes('not available')) {
           Alert.alert(
             'HealthKit Unavailable',
             'Apple Health is not available on this device or in the simulator.'
           );
-        } else if (errorMessage.includes('timeout') || errorMessage.includes('taking too long')) {
+        } else if (
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('taking too long')
+        ) {
           Alert.alert(
             'Request Timed Out',
             'The permission request is taking too long. Please try again or check that HealthKit is properly configured.'
@@ -110,10 +125,14 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
     } catch (error) {
       console.error('Permission request failed:', error);
       setHasPermission(false);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      if (
+        errorMessage.includes('timed out') ||
+        errorMessage.includes('timeout')
+      ) {
         Alert.alert(
           'Request Timed Out',
           'The permission request is taking too long. Please try again.'
@@ -121,7 +140,7 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
       } else if (errorMessage.includes('native module')) {
         Alert.alert(
           'HealthKit Unavailable',
-          'Apple Health integration is not available in this build. Please ensure you\'re running on a physical iOS device.'
+          "Apple Health integration is not available in this build. Please ensure you're running on a physical iOS device."
         );
       } else {
         Alert.alert(
@@ -138,35 +157,52 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
     try {
       setIsLoading(true);
       console.log('🍎 Loading Apple Health workouts (last 30 days)...');
-      
+
       // Add timeout protection to prevent hanging
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Workout loading timed out')), 30000) // 30 seconds
+      const timeoutPromise = new Promise(
+        (_, reject) =>
+          setTimeout(
+            () => reject(new Error('Workout loading timed out')),
+            30000
+          ) // 30 seconds
       );
-      
+
       const healthKitWorkouts = await Promise.race([
         healthKitService.getRecentWorkouts(userId, 30),
-        timeoutPromise
+        timeoutPromise,
       ]);
-      
+
       setWorkouts(healthKitWorkouts || []);
-      console.log(`✅ Loaded ${healthKitWorkouts?.length || 0} Apple Health workouts`);
+      console.log(
+        `✅ Loaded ${healthKitWorkouts?.length || 0} Apple Health workouts`
+      );
     } catch (error) {
       console.error('❌ Failed to load Apple Health workouts:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
       // Don't show error dialogs for common issues, just log them
-      if (errorMessage.includes('not available') || errorMessage.includes('not authorized')) {
-        console.log('HealthKit not available or not authorized - showing empty state');
-      } else if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
-        console.log('HealthKit workout loading timed out - showing empty state');
+      if (
+        errorMessage.includes('not available') ||
+        errorMessage.includes('not authorized')
+      ) {
+        console.log(
+          'HealthKit not available or not authorized - showing empty state'
+        );
+      } else if (
+        errorMessage.includes('timed out') ||
+        errorMessage.includes('timeout')
+      ) {
+        console.log(
+          'HealthKit workout loading timed out - showing empty state'
+        );
         // Optionally show a toast or brief message instead of a blocking alert
         // Toast.show({ text: 'Loading is taking longer than expected', duration: 'short' });
       } else {
         console.log('HealthKit workout loading failed:', errorMessage);
       }
-      
+
       // Always set empty array to prevent UI crashes
       setWorkouts([]);
     } finally {
@@ -176,7 +212,7 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
 
   const handleRefresh = async () => {
     if (!hasPermission) return;
-    
+
     setIsRefreshing(true);
     try {
       await loadAppleHealthWorkouts();
@@ -225,7 +261,11 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
           style={[styles.actionButton, styles.postButton]}
           onPress={() => handleSocialShare(item)}
         >
-          <Ionicons name="chatbubble-outline" size={16} color={theme.colors.accentText} />
+          <Ionicons
+            name="chatbubble-outline"
+            size={16}
+            color={theme.colors.accentText}
+          />
           <Text style={styles.postButtonText}>Post</Text>
         </TouchableOpacity>
 
@@ -234,7 +274,11 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
           style={[styles.actionButton, styles.publicButton]}
           onPress={() => handleCompete(item)}
         >
-          <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.accentText} />
+          <Ionicons
+            name="cloud-upload-outline"
+            size={16}
+            color={theme.colors.accentText}
+          />
           <Text style={styles.publicButtonText}>Public</Text>
         </TouchableOpacity>
       </View>
@@ -244,7 +288,10 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <LoadingOverlay message="Loading Apple Health workouts..." visible={true} />
+        <LoadingOverlay
+          message="Loading Apple Health workouts..."
+          visible={true}
+        />
       </View>
     );
   }
@@ -268,8 +315,8 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
         <Card style={styles.permissionCard}>
           <Text style={styles.permissionTitle}>Connect Apple Health</Text>
           <Text style={styles.permissionText}>
-            View your workouts from the Apple Health app.
-            We'll show your last 30 days of workout data.
+            View your workouts from the Apple Health app. We'll show your last
+            30 days of workout data.
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
@@ -277,7 +324,9 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
             disabled={permissionRequested}
           >
             <Text style={styles.permissionButtonText}>
-              {permissionRequested ? 'Requesting Permission...' : 'Connect Apple Health'}
+              {permissionRequested
+                ? 'Requesting Permission...'
+                : 'Connect Apple Health'}
             </Text>
           </TouchableOpacity>
         </Card>

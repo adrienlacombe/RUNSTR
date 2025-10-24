@@ -76,7 +76,7 @@ export class FeedCache {
       feedCache = posts;
       feedMetadata = {
         timestamp: now,
-        expiry: now + (ttlMinutes * 60 * 1000),
+        expiry: now + ttlMinutes * 60 * 1000,
         count: posts.length,
         version: CACHE_VERSION,
         filterSource,
@@ -84,7 +84,9 @@ export class FeedCache {
 
       console.log(
         `[FeedCache] Cached ${posts.length} posts in memory ` +
-        `(expires in ${ttlMinutes} minutes, filter: ${filterSource || 'none'})`
+          `(expires in ${ttlMinutes} minutes, filter: ${
+            filterSource || 'none'
+          })`
       );
       return true;
     } catch (error) {
@@ -118,10 +120,13 @@ export class FeedCache {
       }
 
       // Check if filter source matches (if provided)
-      if (filterSource !== undefined && feedMetadata.filterSource !== filterSource) {
+      if (
+        filterSource !== undefined &&
+        feedMetadata.filterSource !== filterSource
+      ) {
         console.log(
           `[FeedCache] Filter source mismatch (cached: ${feedMetadata.filterSource}, ` +
-          `requested: ${filterSource}), clearing cache`
+            `requested: ${filterSource}), clearing cache`
         );
         this.clearAll();
         return null;
@@ -140,7 +145,7 @@ export class FeedCache {
       if (feedCache.length > 0) {
         console.log(
           `[FeedCache] Using ${feedCache.length} cached posts from memory ` +
-          `(age: ${Math.round(age / 1000 / 60)}min)`
+            `(age: ${Math.round(age / 1000 / 60)}min)`
         );
         return feedCache;
       }
@@ -165,7 +170,7 @@ export class FeedCache {
       const now = Date.now();
       const age = now - feedMetadata.timestamp;
 
-      return age < (freshnessMinutes * 60 * 1000);
+      return age < freshnessMinutes * 60 * 1000;
     } catch (error) {
       console.error('[FeedCache] Freshness check error:', error);
       return false;
@@ -228,7 +233,10 @@ export class FeedCache {
    * @param newPosts - New posts to prepend
    * @param maxPosts - Maximum total posts to keep (default: 100)
    */
-  static prependPosts(newPosts: CachedFeedPost[], maxPosts: number = 100): void {
+  static prependPosts(
+    newPosts: CachedFeedPost[],
+    maxPosts: number = 100
+  ): void {
     if (!feedMetadata) {
       // No existing cache, store as new
       this.storeFeed(newPosts);
@@ -236,8 +244,8 @@ export class FeedCache {
     }
 
     // Remove duplicates
-    const existingIds = new Set(feedCache.map(p => p.id));
-    const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id));
+    const existingIds = new Set(feedCache.map((p) => p.id));
+    const uniqueNewPosts = newPosts.filter((p) => !existingIds.has(p.id));
 
     if (uniqueNewPosts.length === 0) {
       console.log('[FeedCache] No new posts to prepend');
@@ -250,7 +258,7 @@ export class FeedCache {
 
     console.log(
       `[FeedCache] Prepended ${uniqueNewPosts.length} new posts ` +
-      `(total: ${feedCache.length})`
+        `(total: ${feedCache.length})`
     );
   }
 
@@ -261,7 +269,10 @@ export class FeedCache {
    * @param morePosts - Posts to append
    * @param maxPosts - Maximum total posts to keep (default: 200)
    */
-  static appendPosts(morePosts: CachedFeedPost[], maxPosts: number = 200): void {
+  static appendPosts(
+    morePosts: CachedFeedPost[],
+    maxPosts: number = 200
+  ): void {
     if (!feedMetadata) {
       // No existing cache, store as new
       this.storeFeed(morePosts);
@@ -269,8 +280,8 @@ export class FeedCache {
     }
 
     // Remove duplicates
-    const existingIds = new Set(feedCache.map(p => p.id));
-    const uniqueMorePosts = morePosts.filter(p => !existingIds.has(p.id));
+    const existingIds = new Set(feedCache.map((p) => p.id));
+    const uniqueMorePosts = morePosts.filter((p) => !existingIds.has(p.id));
 
     if (uniqueMorePosts.length === 0) {
       console.log('[FeedCache] No new posts to append');
@@ -283,7 +294,7 @@ export class FeedCache {
 
     console.log(
       `[FeedCache] Appended ${uniqueMorePosts.length} posts ` +
-      `(total: ${feedCache.length})`
+        `(total: ${feedCache.length})`
     );
   }
 
@@ -291,8 +302,11 @@ export class FeedCache {
    * Update a single post in cache
    * Useful for reaction updates
    */
-  static updatePost(postId: string, updater: (post: CachedFeedPost) => CachedFeedPost): void {
-    const index = feedCache.findIndex(p => p.id === postId);
+  static updatePost(
+    postId: string,
+    updater: (post: CachedFeedPost) => CachedFeedPost
+  ): void {
+    const index = feedCache.findIndex((p) => p.id === postId);
 
     if (index !== -1) {
       feedCache[index] = updater(feedCache[index]);

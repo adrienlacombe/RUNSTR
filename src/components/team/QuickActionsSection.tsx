@@ -72,7 +72,11 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.actionIcon}>
-            <Ionicons name={action.icon as any} size={20} color={theme.colors.text} />
+            <Ionicons
+              name={action.icon as any}
+              size={20}
+              color={theme.colors.text}
+            />
           </View>
           <Text style={styles.actionTitle}>{action.title}</Text>
           <Text style={styles.actionDescription}>{action.description}</Text>

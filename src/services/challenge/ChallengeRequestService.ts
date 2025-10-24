@@ -6,7 +6,12 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
-import type { NDKFilter, NDKEvent, NDKSubscription, NDKSigner } from '@nostr-dev-kit/ndk';
+import type {
+  NDKFilter,
+  NDKEvent,
+  NDKSubscription,
+  NDKSigner,
+} from '@nostr-dev-kit/ndk';
 import { NostrListService } from '../nostr/NostrListService';
 import { NostrProtocolHandler } from '../nostr/NostrProtocolHandler';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
@@ -20,6 +25,7 @@ import {
   type MetricType,
   type DurationOption,
 } from '../../types/challenge';
+import { challengeArbitrationService } from './ChallengeArbitrationService';
 
 export interface ChallengeRequestData {
   challengedPubkey: string;
@@ -30,6 +36,11 @@ export interface ChallengeRequestData {
   startDate?: number;
   endDate?: number;
   creatorLightningAddress?: string; // Creator's Lightning address for receiving payment
+  // Arbitrator fields (for paid challenges with team arbitration)
+  arbitratorTeamId?: string;
+  arbitratorCaptainPubkey?: string;
+  arbitratorCaptainName?: string;
+  arbitratorLightningAddress?: string;
 }
 
 export interface PendingChallenge {
@@ -48,6 +59,11 @@ export interface PendingChallenge {
   status: 'pending' | 'accepted' | 'declined' | 'expired';
   creatorLightningAddress?: string; // Creator's Lightning address
   accepterLightningAddress?: string; // Accepter's Lightning address (added when accepting)
+  // Arbitrator fields (for paid challenges with team arbitration)
+  arbitratorTeamId?: string;
+  arbitratorCaptainPubkey?: string;
+  arbitratorCaptainName?: string;
+  arbitratorLightningAddress?: string;
 }
 
 export interface ChallengeEventListener {
@@ -75,7 +91,9 @@ export class ChallengeRequestService {
   /**
    * Helper: Publish event using GlobalNDK
    */
-  private async publishEventToNDK(event: Event): Promise<{ success: boolean; error?: string }> {
+  private async publishEventToNDK(
+    event: Event
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const ndk = await GlobalNDKService.getInstance();
       const ndkEvent: NDKEvent = new (ndk.constructor as any).Event(ndk, event);
@@ -164,21 +182,56 @@ export class ChallengeRequestService {
   private parseChallengeRequest(event: Event): PendingChallenge | null {
     try {
       const challengedPubkey = event.tags.find((t) => t[0] === 'p')?.[1];
-      const activityType = event.tags.find((t) => t[0] === 'challenge-type')?.[1] as ActivityType;
-      const metric = event.tags.find((t) => t[0] === 'metric')?.[1] as MetricType;
-      const duration = parseInt(event.tags.find((t) => t[0] === 'duration')?.[1] || '7', 10);
-      const wagerAmount = parseInt(event.tags.find((t) => t[0] === 'wager')?.[1] || '0', 10);
-      const startDate = parseInt(event.tags.find((t) => t[0] === 'start-date')?.[1] || '0', 10);
-      const endDate = parseInt(event.tags.find((t) => t[0] === 'end-date')?.[1] || '0', 10);
-      const creatorLightningAddress = event.tags.find((t) => t[0] === 'lightning-address')?.[1];
+      const activityType = event.tags.find(
+        (t) => t[0] === 'challenge-type'
+      )?.[1] as ActivityType;
+      const metric = event.tags.find(
+        (t) => t[0] === 'metric'
+      )?.[1] as MetricType;
+      const duration = parseInt(
+        event.tags.find((t) => t[0] === 'duration')?.[1] || '7',
+        10
+      );
+      const wagerAmount = parseInt(
+        event.tags.find((t) => t[0] === 'wager')?.[1] || '0',
+        10
+      );
+      const startDate = parseInt(
+        event.tags.find((t) => t[0] === 'start-date')?.[1] || '0',
+        10
+      );
+      const endDate = parseInt(
+        event.tags.find((t) => t[0] === 'end-date')?.[1] || '0',
+        10
+      );
+      const creatorLightningAddress = event.tags.find(
+        (t) => t[0] === 'lightning-address'
+      )?.[1];
+
+      // Parse arbitrator tags (for paid challenges with team arbitration)
+      const arbitratorTeamId = event.tags.find(
+        (t) => t[0] === 'arbitrator-team-id'
+      )?.[1];
+      const arbitratorCaptainPubkey = event.tags.find(
+        (t) => t[0] === 'arbitrator-captain'
+      )?.[1];
+      const arbitratorLightningAddress = event.tags.find(
+        (t) => t[0] === 'arbitrator-lightning'
+      )?.[1];
+      const arbitratorCaptainName = event.tags.find(
+        (t) => t[0] === 'arbitrator-name'
+      )?.[1];
 
       if (!challengedPubkey || !activityType || !metric) {
-        console.warn('Invalid challenge request event - missing required fields');
+        console.warn(
+          'Invalid challenge request event - missing required fields'
+        );
         return null;
       }
 
       const challengeId = event.id || this.generateChallengeId();
-      const expiresAt = (event.created_at || Math.floor(Date.now() / 1000)) + 7 * 24 * 60 * 60; // 7 days
+      const expiresAt =
+        (event.created_at || Math.floor(Date.now() / 1000)) + 7 * 24 * 60 * 60; // 7 days
 
       return {
         challengeId,
@@ -188,12 +241,25 @@ export class ChallengeRequestService {
         metric,
         duration,
         wagerAmount,
-        startDate: startDate || event.created_at || Math.floor(Date.now() / 1000),
-        endDate: endDate || ((event.created_at || Math.floor(Date.now() / 1000)) + duration * 24 * 60 * 60),
+        startDate:
+          startDate || event.created_at || Math.floor(Date.now() / 1000),
+        endDate:
+          endDate ||
+          (event.created_at || Math.floor(Date.now() / 1000)) +
+            duration * 24 * 60 * 60,
         requestedAt: event.created_at || Math.floor(Date.now() / 1000),
         expiresAt: expiresAt * 1000,
         status: 'pending',
         creatorLightningAddress,
+        // Include arbitrator fields if present
+        ...(arbitratorTeamId &&
+          arbitratorCaptainPubkey &&
+          arbitratorLightningAddress && {
+            arbitratorTeamId,
+            arbitratorCaptainPubkey,
+            arbitratorLightningAddress,
+            arbitratorCaptainName,
+          }),
       };
     } catch (error) {
       console.error('Failed to parse challenge request:', error);
@@ -218,7 +284,8 @@ export class ChallengeRequestService {
       const challengeId = this.generateChallengeId();
       const now = Math.floor(Date.now() / 1000);
       const startDate = requestData.startDate || now;
-      const endDate = requestData.endDate || (now + requestData.duration * 24 * 60 * 60);
+      const endDate =
+        requestData.endDate || now + requestData.duration * 24 * 60 * 60;
       const challengedPubkeyHex = this.npubToHex(requestData.challengedPubkey);
 
       const tags: string[][] = [
@@ -239,6 +306,28 @@ export class ChallengeRequestService {
         tags.push(['lightning-address', requestData.creatorLightningAddress]);
       }
 
+      // Add arbitrator tags if provided (for paid challenges with team arbitration)
+      if (
+        requestData.arbitratorTeamId &&
+        requestData.arbitratorCaptainPubkey &&
+        requestData.arbitratorLightningAddress
+      ) {
+        tags.push(['arbitrator-team-id', requestData.arbitratorTeamId]);
+        tags.push(['arbitrator-captain', requestData.arbitratorCaptainPubkey]);
+        tags.push([
+          'arbitrator-lightning',
+          requestData.arbitratorLightningAddress,
+        ]);
+        if (requestData.arbitratorCaptainName) {
+          tags.push(['arbitrator-name', requestData.arbitratorCaptainName]);
+        }
+        console.log(
+          `💰 Challenge with arbitration: Team ${
+            requestData.arbitratorTeamId
+          }, Captain ${requestData.arbitratorCaptainPubkey.slice(0, 16)}...`
+        );
+      }
+
       const content = `Challenge: ${requestData.activityType} - ${requestData.metric} for ${requestData.duration} days. Wager: ${requestData.wagerAmount} sats.`;
 
       const eventTemplate = {
@@ -251,9 +340,16 @@ export class ChallengeRequestService {
       console.log('🔄 Publishing kind 1105 challenge request event...');
 
       // Sign event with NostrProtocolHandler (handles both string and NDKSigner)
-      const signedEvent = typeof privateKeyOrSigner === 'string'
-        ? await this.protocolHandler.signEvent(eventTemplate, privateKeyOrSigner)
-        : await this.protocolHandler.signEventWithSigner(eventTemplate, privateKeyOrSigner);
+      const signedEvent =
+        typeof privateKeyOrSigner === 'string'
+          ? await this.protocolHandler.signEvent(
+              eventTemplate,
+              privateKeyOrSigner
+            )
+          : await this.protocolHandler.signEventWithSigner(
+              eventTemplate,
+              privateKeyOrSigner
+            );
 
       // Publish to Nostr relays
       const publishResult = await this.publishEventToNDK(signedEvent);
@@ -282,6 +378,32 @@ export class ChallengeRequestService {
       await this.savePendingChallenges();
 
       console.log(`✅ Challenge request published: ${signedEvent.id}`);
+
+      // Initialize arbitration if arbitrator provided (paid challenge)
+      if (
+        requestData.arbitratorTeamId &&
+        requestData.arbitratorCaptainPubkey &&
+        requestData.arbitratorLightningAddress &&
+        requestData.wagerAmount > 0
+      ) {
+        try {
+          await challengeArbitrationService.initializeArbitration(
+            signedEvent.id,
+            requestData.wagerAmount,
+            userIdentifiers.hexPubkey,
+            challengedPubkeyHex,
+            requestData.arbitratorTeamId,
+            requestData.arbitratorCaptainPubkey,
+            requestData.arbitratorLightningAddress
+          );
+          console.log(
+            `✅ Arbitration initialized for challenge: ${signedEvent.id}`
+          );
+        } catch (error) {
+          console.error('Failed to initialize arbitration:', error);
+          // Don't fail the entire challenge creation if arbitration init fails
+        }
+      }
 
       return {
         success: true,
@@ -317,7 +439,10 @@ export class ChallengeRequestService {
       }
 
       if (challenge.challengedPubkey !== userIdentifiers.hexPubkey) {
-        return { success: false, error: 'Not authorized to accept this challenge' };
+        return {
+          success: false,
+          error: 'Not authorized to accept this challenge',
+        };
       }
 
       const now = Math.floor(Date.now() / 1000);
@@ -331,7 +456,10 @@ export class ChallengeRequestService {
 
       // Add accepter's Lightning address if provided
       if (accepterLightningAddress) {
-        acceptTags.push(['accepter-lightning-address', accepterLightningAddress]);
+        acceptTags.push([
+          'accepter-lightning-address',
+          accepterLightningAddress,
+        ]);
       }
 
       const acceptContent = `Challenge accepted: ${challenge.activityType} - ${challenge.metric}`;
@@ -345,11 +473,20 @@ export class ChallengeRequestService {
 
       console.log('🔄 Publishing kind 1106 acceptance event...');
 
-      const signedAcceptEvent = typeof privateKeyOrSigner === 'string'
-        ? await this.protocolHandler.signEvent(acceptEventTemplate, privateKeyOrSigner)
-        : await this.protocolHandler.signEventWithSigner(acceptEventTemplate, privateKeyOrSigner);
+      const signedAcceptEvent =
+        typeof privateKeyOrSigner === 'string'
+          ? await this.protocolHandler.signEvent(
+              acceptEventTemplate,
+              privateKeyOrSigner
+            )
+          : await this.protocolHandler.signEventWithSigner(
+              acceptEventTemplate,
+              privateKeyOrSigner
+            );
 
-      const acceptPublishResult = await this.publishEventToNDK(signedAcceptEvent);
+      const acceptPublishResult = await this.publishEventToNDK(
+        signedAcceptEvent
+      );
 
       if (!acceptPublishResult.success) {
         throw new Error('Failed to publish acceptance event');
@@ -367,7 +504,10 @@ export class ChallengeRequestService {
         listType: 'people' as const,
       };
 
-      const listEvent = this.listService.prepareListCreation(listData, userIdentifiers.hexPubkey);
+      const listEvent = this.listService.prepareListCreation(
+        listData,
+        userIdentifiers.hexPubkey
+      );
 
       // Add challenge-specific metadata tags to the list
       if (listEvent) {
@@ -389,18 +529,28 @@ export class ChallengeRequestService {
 
         // Add Lightning addresses for payout
         if (challenge.creatorLightningAddress) {
-          listEvent.tags.push(['creator-lightning-address', challenge.creatorLightningAddress]);
+          listEvent.tags.push([
+            'creator-lightning-address',
+            challenge.creatorLightningAddress,
+          ]);
         }
         if (accepterLightningAddress) {
-          listEvent.tags.push(['accepter-lightning-address', accepterLightningAddress]);
+          listEvent.tags.push([
+            'accepter-lightning-address',
+            accepterLightningAddress,
+          ]);
         }
       }
 
       console.log('🔄 Publishing kind 30000 participant list...');
 
-      const signedListEvent = typeof privateKeyOrSigner === 'string'
-        ? await this.protocolHandler.signEvent(listEvent, privateKeyOrSigner)
-        : await this.protocolHandler.signEventWithSigner(listEvent, privateKeyOrSigner);
+      const signedListEvent =
+        typeof privateKeyOrSigner === 'string'
+          ? await this.protocolHandler.signEvent(listEvent, privateKeyOrSigner)
+          : await this.protocolHandler.signEventWithSigner(
+              listEvent,
+              privateKeyOrSigner
+            );
 
       const listPublishResult = await this.publishEventToNDK(signedListEvent);
 
@@ -451,7 +601,10 @@ export class ChallengeRequestService {
       }
 
       if (challenge.challengedPubkey !== userIdentifiers.hexPubkey) {
-        return { success: false, error: 'Not authorized to decline this challenge' };
+        return {
+          success: false,
+          error: 'Not authorized to decline this challenge',
+        };
       }
 
       const now = Math.floor(Date.now() / 1000);
@@ -474,9 +627,16 @@ export class ChallengeRequestService {
       console.log('🔄 Publishing kind 1107 decline event...');
 
       // Sign and publish decline event
-      const signedDeclineEvent = typeof privateKeyOrSigner === 'string'
-        ? await this.protocolHandler.signEvent(declineEventTemplate, privateKeyOrSigner)
-        : await this.protocolHandler.signEventWithSigner(declineEventTemplate, privateKeyOrSigner);
+      const signedDeclineEvent =
+        typeof privateKeyOrSigner === 'string'
+          ? await this.protocolHandler.signEvent(
+              declineEventTemplate,
+              privateKeyOrSigner
+            )
+          : await this.protocolHandler.signEventWithSigner(
+              declineEventTemplate,
+              privateKeyOrSigner
+            );
 
       const publishResult = await this.publishEventToNDK(signedDeclineEvent);
 
@@ -639,15 +799,26 @@ export class ChallengeRequestService {
         content: `Accepted QR challenge: ${qrChallengeData.activity} (${qrChallengeData.metric})`,
       };
 
-      console.log('🔄 Publishing kind 1106 acceptance event for QR challenge...');
+      console.log(
+        '🔄 Publishing kind 1106 acceptance event for QR challenge...'
+      );
 
       // Sign acceptance event
-      const signedAcceptEvent = typeof privateKeyOrSigner === 'string'
-        ? await this.protocolHandler.signEvent(acceptEventTemplate, privateKeyOrSigner)
-        : await this.protocolHandler.signEventWithSigner(acceptEventTemplate, privateKeyOrSigner);
+      const signedAcceptEvent =
+        typeof privateKeyOrSigner === 'string'
+          ? await this.protocolHandler.signEvent(
+              acceptEventTemplate,
+              privateKeyOrSigner
+            )
+          : await this.protocolHandler.signEventWithSigner(
+              acceptEventTemplate,
+              privateKeyOrSigner
+            );
 
       // Publish acceptance event
-      const acceptPublishResult = await this.publishEventToNDK(signedAcceptEvent);
+      const acceptPublishResult = await this.publishEventToNDK(
+        signedAcceptEvent
+      );
 
       if (!acceptPublishResult.success) {
         throw new Error('Failed to publish acceptance event to Nostr relays');
@@ -664,7 +835,10 @@ export class ChallengeRequestService {
         tags: [
           ['d', listDTag],
           ['title', `Challenge: ${qrChallengeData.activity}`],
-          ['description', `${qrChallengeData.metric} challenge for ${qrChallengeData.duration} days`],
+          [
+            'description',
+            `${qrChallengeData.metric} challenge for ${qrChallengeData.duration} days`,
+          ],
           ['p', creatorPubkey, '', 'challenger'],
           ['p', accepterPubkey, '', 'challenged'],
           ['activity', qrChallengeData.activity],
@@ -678,12 +852,18 @@ export class ChallengeRequestService {
         content: '',
       };
 
-      console.log('🔄 Publishing kind 30000 participant list for QR challenge...');
+      console.log(
+        '🔄 Publishing kind 30000 participant list for QR challenge...'
+      );
 
       // Sign list event
-      const signedListEvent = typeof privateKeyOrSigner === 'string'
-        ? await this.protocolHandler.signEvent(listEvent, privateKeyOrSigner)
-        : await this.protocolHandler.signEventWithSigner(listEvent, privateKeyOrSigner);
+      const signedListEvent =
+        typeof privateKeyOrSigner === 'string'
+          ? await this.protocolHandler.signEvent(listEvent, privateKeyOrSigner)
+          : await this.protocolHandler.signEventWithSigner(
+              listEvent,
+              privateKeyOrSigner
+            );
 
       // Publish list event
       const listPublishResult = await this.publishEventToNDK(signedListEvent);
@@ -693,7 +873,9 @@ export class ChallengeRequestService {
       }
 
       console.log(`✅ Participant list published: ${signedListEvent.id}`);
-      console.log(`✅ QR Challenge ${qrChallengeData.challenge_id} fully accepted`);
+      console.log(
+        `✅ QR Challenge ${qrChallengeData.challenge_id} fully accepted`
+      );
 
       return {
         success: true,
@@ -703,7 +885,8 @@ export class ChallengeRequestService {
       console.error('Failed to accept QR challenge:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }

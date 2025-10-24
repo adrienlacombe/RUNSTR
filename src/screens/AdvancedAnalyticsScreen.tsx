@@ -14,12 +14,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { PrivacyNoticeModal } from '../components/ui/PrivacyNoticeModal';
 import localWorkoutStorage from '../services/fitness/LocalWorkoutStorageService';
 import type { LocalWorkout } from '../services/fitness/LocalWorkoutStorageService';
+import unifiedCache from '../services/cache/UnifiedNostrCache';
+import { CacheKeys, CacheTTL } from '../constants/cacheTTL';
+import { Nuclear1301Service } from '../services/fitness/Nuclear1301Service';
+import type { NostrWorkout } from '../types/nostrWorkout';
 import type { AnalyticsSummary } from '../types/analytics';
 import { CardioPerformanceAnalytics } from '../services/analytics/CardioPerformanceAnalytics';
 import { StrengthTrainingAnalytics } from '../services/analytics/StrengthTrainingAnalytics';
@@ -29,13 +34,8 @@ import { HolisticHealthAnalytics } from '../services/analytics/HolisticHealthAna
 
 const PRIVACY_NOTICE_KEY = '@runstr:analytics_privacy_accepted';
 
-interface AdvancedAnalyticsScreenProps {
-  onNavigateBack: () => void;
-}
-
-export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = ({
-  onNavigateBack,
-}) => {
+export const AdvancedAnalyticsScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
@@ -67,14 +67,75 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
   const loadAnalytics = async () => {
     try {
       setLoading(true);
+      console.log(
+        '[AdvancedAnalytics] Loading analytics with complete workout dataset...'
+      );
 
-      // Load all workouts from local storage
-      const allWorkouts = await localWorkoutStorage.getAllWorkouts();
-      setWorkouts(allWorkouts);
+      // Get user's pubkey from storage
+      const userPubkey = await AsyncStorage.getItem('@runstr:npub');
+      const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+      const pubkey = hexPubkey || userPubkey;
 
-      // Calculate all analytics
-      const cardioMetrics = CardioPerformanceAnalytics.calculateMetrics(allWorkouts);
-      const strengthMetrics = StrengthTrainingAnalytics.calculateMetrics(allWorkouts);
+      // Array to hold all workouts (local + Nostr)
+      let allWorkouts: (LocalWorkout | NostrWorkout)[] = [];
+
+      // 1. Get LOCAL unsynced workouts
+      const localWorkouts = await localWorkoutStorage.getUnsyncedWorkouts();
+      console.log(
+        `[AdvancedAnalytics] Loaded ${localWorkouts.length} local unsynced workouts`
+      );
+      allWorkouts.push(...localWorkouts);
+
+      // 2. Get CACHED or FETCH Nostr workouts
+      if (pubkey) {
+        // Try cache first (instant if PublicWorkoutsTab already loaded it)
+        let cachedNostrWorkouts = await unifiedCache.getCachedAsync<
+          NostrWorkout[]
+        >(CacheKeys.USER_WORKOUTS(pubkey));
+
+        if (cachedNostrWorkouts && cachedNostrWorkouts.length > 0) {
+          console.log(
+            `[AdvancedAnalytics] 📦 Cache hit: ${cachedNostrWorkouts.length} Nostr workouts`
+          );
+          allWorkouts.push(...cachedNostrWorkouts);
+        } else {
+          // No cache - fetch from Nostr
+          console.log(
+            '[AdvancedAnalytics] 📡 Cache miss - fetching from Nostr...'
+          );
+          const nuclear1301Service = Nuclear1301Service.getInstance();
+          const nostrWorkouts = await nuclear1301Service.getUserWorkouts(
+            pubkey
+          );
+          console.log(
+            `[AdvancedAnalytics] ✅ Fetched ${nostrWorkouts.length} workouts from Nostr`
+          );
+
+          // Cache for future use
+          await unifiedCache.set(
+            CacheKeys.USER_WORKOUTS(pubkey),
+            nostrWorkouts,
+            CacheTTL.USER_WORKOUTS
+          );
+
+          allWorkouts.push(...nostrWorkouts);
+        }
+      } else {
+        console.warn(
+          '[AdvancedAnalytics] No pubkey available - analytics will only show local workouts'
+        );
+      }
+
+      console.log(
+        `[AdvancedAnalytics] Total workouts for analytics: ${allWorkouts.length}`
+      );
+      setWorkouts(allWorkouts as LocalWorkout[]);
+
+      // Calculate all analytics on COMPLETE dataset
+      const cardioMetrics =
+        CardioPerformanceAnalytics.calculateMetrics(allWorkouts);
+      const strengthMetrics =
+        StrengthTrainingAnalytics.calculateMetrics(allWorkouts);
       const wellnessMetrics = WellnessAnalytics.calculateMetrics(allWorkouts);
       const nutritionMetrics = NutritionAnalytics.calculateMetrics(allWorkouts);
 
@@ -88,7 +149,8 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
       );
 
       // Calculate cross-activity correlations
-      const correlations = HolisticHealthAnalytics.calculateCrossActivityCorrelations(allWorkouts);
+      const correlations =
+        HolisticHealthAnalytics.calculateCrossActivityCorrelations(allWorkouts);
 
       // Combine into summary
       const summary: AnalyticsSummary = {
@@ -103,8 +165,9 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
 
       setAnalytics(summary);
       setLoading(false);
+      console.log('[AdvancedAnalytics] ✅ Analytics calculation complete');
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      console.error('[AdvancedAnalytics] ❌ Failed to load analytics:', error);
       setLoading(false);
     }
   };
@@ -121,7 +184,7 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
 
   const handlePrivacyClose = () => {
     setShowPrivacyModal(false);
-    onNavigateBack(); // Go back if user declines
+    navigation.goBack(); // Go back if user declines
   };
 
   const handlePrivacyBannerPress = () => {
@@ -143,7 +206,10 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onNavigateBack} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Advanced Analytics</Text>
@@ -151,15 +217,22 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+      >
         {/* Privacy Notice Banner */}
-        <TouchableOpacity style={styles.privacyNotice} onPress={handlePrivacyBannerPress}>
+        <TouchableOpacity
+          style={styles.privacyNotice}
+          onPress={handlePrivacyBannerPress}
+        >
           <View style={styles.privacyHeader}>
             <Ionicons name="lock-closed" size={20} color="#FF9D42" />
             <Text style={styles.privacyTitle}>Your Data Stays Private</Text>
           </View>
           <Text style={styles.privacyText}>
-            All analytics calculated locally on your device. Your data never leaves your phone.
+            All analytics calculated locally on your device. Your data never
+            leaves your phone.
           </Text>
           <Text style={styles.privacyLink}>Tap to learn more →</Text>
         </TouchableOpacity>
@@ -167,10 +240,15 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
         {/* Check for data */}
         {!analytics || workouts.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="fitness-outline" size={64} color={theme.colors.textMuted} />
+            <Ionicons
+              name="fitness-outline"
+              size={64}
+              color={theme.colors.textMuted}
+            />
             <Text style={styles.emptyStateTitle}>No Data Yet</Text>
             <Text style={styles.emptyStateText}>
-              Start recording workouts to see your advanced analytics and insights.
+              Start recording workouts to see your advanced analytics and
+              insights.
             </Text>
           </View>
         ) : (
@@ -181,7 +259,9 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
                 <Text style={styles.sectionTitle}>Overall Health Score</Text>
                 <View style={styles.scoreCard}>
                   <View style={styles.scoreCircle}>
-                    <Text style={styles.scoreValue}>{analytics.holisticScore.overall}</Text>
+                    <Text style={styles.scoreValue}>
+                      {analytics.holisticScore.overall}
+                    </Text>
                     <Text style={styles.scoreLabel}>/ 100</Text>
                   </View>
                   <View style={styles.scoreDetails}>
@@ -189,7 +269,13 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
                       {analytics.holisticScore.category.toUpperCase()}
                     </Text>
                     <Text style={styles.trendLabel}>
-                      Trend: {analytics.holisticScore.trend === 'improving' ? '📈' : analytics.holisticScore.trend === 'declining' ? '📉' : '➡️'} {analytics.holisticScore.trend}
+                      Trend:{' '}
+                      {analytics.holisticScore.trend === 'improving'
+                        ? '📈'
+                        : analytics.holisticScore.trend === 'declining'
+                        ? '📉'
+                        : '➡️'}{' '}
+                      {analytics.holisticScore.trend}
                     </Text>
                   </View>
                 </View>
@@ -200,48 +286,84 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
                     <View style={styles.categoryRow}>
                       <Text style={styles.categoryName}>Cardio</Text>
                       <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${analytics.holisticScore.cardio}%` }]} />
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${analytics.holisticScore.cardio}%` },
+                          ]}
+                        />
                       </View>
-                      <Text style={styles.categoryScore}>{analytics.holisticScore.cardio}</Text>
+                      <Text style={styles.categoryScore}>
+                        {analytics.holisticScore.cardio}
+                      </Text>
                     </View>
                   )}
                   {analytics.holisticScore.strength > 0 && (
                     <View style={styles.categoryRow}>
                       <Text style={styles.categoryName}>Strength</Text>
                       <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${analytics.holisticScore.strength}%` }]} />
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${analytics.holisticScore.strength}%` },
+                          ]}
+                        />
                       </View>
-                      <Text style={styles.categoryScore}>{analytics.holisticScore.strength}</Text>
+                      <Text style={styles.categoryScore}>
+                        {analytics.holisticScore.strength}
+                      </Text>
                     </View>
                   )}
                   {analytics.holisticScore.wellness > 0 && (
                     <View style={styles.categoryRow}>
                       <Text style={styles.categoryName}>Wellness</Text>
                       <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${analytics.holisticScore.wellness}%` }]} />
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${analytics.holisticScore.wellness}%` },
+                          ]}
+                        />
                       </View>
-                      <Text style={styles.categoryScore}>{analytics.holisticScore.wellness}</Text>
+                      <Text style={styles.categoryScore}>
+                        {analytics.holisticScore.wellness}
+                      </Text>
                     </View>
                   )}
                   <View style={styles.categoryRow}>
                     <Text style={styles.categoryName}>Balance</Text>
                     <View style={styles.progressBar}>
-                      <View style={[styles.progressFill, { width: `${analytics.holisticScore.balance}%` }]} />
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { width: `${analytics.holisticScore.balance}%` },
+                        ]}
+                      />
                     </View>
-                    <Text style={styles.categoryScore}>{analytics.holisticScore.balance}</Text>
+                    <Text style={styles.categoryScore}>
+                      {analytics.holisticScore.balance}
+                    </Text>
                   </View>
                 </View>
 
                 {/* Recommendations */}
                 {analytics.holisticScore.recommendations.length > 0 && (
                   <View style={styles.recommendations}>
-                    <Text style={styles.recommendationsTitle}>Recommendations</Text>
-                    {analytics.holisticScore.recommendations.map((rec, index) => (
-                      <View key={index} style={styles.recommendationRow}>
-                        <Ionicons name="bulb-outline" size={16} color="#FF9D42" />
-                        <Text style={styles.recommendationText}>{rec}</Text>
-                      </View>
-                    ))}
+                    <Text style={styles.recommendationsTitle}>
+                      Recommendations
+                    </Text>
+                    {analytics.holisticScore.recommendations.map(
+                      (rec, index) => (
+                        <View key={index} style={styles.recommendationRow}>
+                          <Ionicons
+                            name="bulb-outline"
+                            size={16}
+                            color="#FF9D42"
+                          />
+                          <Text style={styles.recommendationText}>{rec}</Text>
+                        </View>
+                      )
+                    )}
                   </View>
                 )}
               </View>
@@ -255,26 +377,63 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Average Pace</Text>
                     <Text style={styles.metricValue}>
-                      {Math.floor(analytics.cardio.paceImprovement.currentAvgPace / 60)}:{String(Math.round(analytics.cardio.paceImprovement.currentAvgPace % 60)).padStart(2, '0')} /km
+                      {Math.floor(
+                        analytics.cardio.paceImprovement.currentAvgPace / 60
+                      )}
+                      :
+                      {String(
+                        Math.round(
+                          analytics.cardio.paceImprovement.currentAvgPace % 60
+                        )
+                      ).padStart(2, '0')}{' '}
+                      /km
                     </Text>
-                    <Text style={[styles.metricTrend, analytics.cardio.paceImprovement.trend === 'improving' && styles.metricTrendPositive]}>
-                      {analytics.cardio.paceImprovement.percentChange > 0 ? '+' : ''}{analytics.cardio.paceImprovement.percentChange.toFixed(1)}%
+                    <Text
+                      style={[
+                        styles.metricTrend,
+                        analytics.cardio.paceImprovement.trend ===
+                          'improving' && styles.metricTrendPositive,
+                      ]}
+                    >
+                      {analytics.cardio.paceImprovement.percentChange > 0
+                        ? '+'
+                        : ''}
+                      {analytics.cardio.paceImprovement.percentChange.toFixed(
+                        1
+                      )}
+                      %
                     </Text>
                   </View>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Weekly Distance</Text>
                     <Text style={styles.metricValue}>
-                      {analytics.cardio.distanceProgression.currentWeeklyAvg.toFixed(1)} km
+                      {analytics.cardio.distanceProgression.currentWeeklyAvg.toFixed(
+                        1
+                      )}{' '}
+                      km
                     </Text>
-                    <Text style={[styles.metricTrend, analytics.cardio.distanceProgression.trend === 'increasing' && styles.metricTrendPositive]}>
-                      {analytics.cardio.distanceProgression.percentChange > 0 ? '+' : ''}{analytics.cardio.distanceProgression.percentChange.toFixed(1)}%
+                    <Text
+                      style={[
+                        styles.metricTrend,
+                        analytics.cardio.distanceProgression.trend ===
+                          'increasing' && styles.metricTrendPositive,
+                      ]}
+                    >
+                      {analytics.cardio.distanceProgression.percentChange > 0
+                        ? '+'
+                        : ''}
+                      {analytics.cardio.distanceProgression.percentChange.toFixed(
+                        1
+                      )}
+                      %
                     </Text>
                   </View>
                   {analytics.cardio.vo2MaxEstimate && (
                     <View style={styles.metricRow}>
                       <Text style={styles.metricLabel}>VO₂ Max Estimate</Text>
                       <Text style={styles.metricValue}>
-                        {analytics.cardio.vo2MaxEstimate.estimate.toFixed(1)} ml/kg/min
+                        {analytics.cardio.vo2MaxEstimate.estimate.toFixed(1)}{' '}
+                        ml/kg/min
                       </Text>
                       <Text style={styles.metricSubtext}>
                         {analytics.cardio.vo2MaxEstimate.category}
@@ -293,16 +452,35 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Monthly Volume</Text>
                     <Text style={styles.metricValue}>
-                      {analytics.strength.volumeProgression.currentMonthlyVolume} reps
+                      {
+                        analytics.strength.volumeProgression
+                          .currentMonthlyVolume
+                      }{' '}
+                      reps
                     </Text>
-                    <Text style={[styles.metricTrend, analytics.strength.volumeProgression.trend === 'increasing' && styles.metricTrendPositive]}>
-                      {analytics.strength.volumeProgression.percentChange > 0 ? '+' : ''}{analytics.strength.volumeProgression.percentChange.toFixed(1)}%
+                    <Text
+                      style={[
+                        styles.metricTrend,
+                        analytics.strength.volumeProgression.trend ===
+                          'increasing' && styles.metricTrendPositive,
+                      ]}
+                    >
+                      {analytics.strength.volumeProgression.percentChange > 0
+                        ? '+'
+                        : ''}
+                      {analytics.strength.volumeProgression.percentChange.toFixed(
+                        1
+                      )}
+                      %
                     </Text>
                   </View>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Workout Density</Text>
                     <Text style={styles.metricValue}>
-                      {analytics.strength.workoutDensity.avgRepsPerMinute.toFixed(1)} reps/min
+                      {analytics.strength.workoutDensity.avgRepsPerMinute.toFixed(
+                        1
+                      )}{' '}
+                      reps/min
                     </Text>
                   </View>
                 </View>
@@ -320,13 +498,22 @@ export const AdvancedAnalyticsScreen: React.FC<AdvancedAnalyticsScreenProps> = (
                       {analytics.wellness.meditationConsistency.streak} days
                     </Text>
                     <Text style={styles.metricSubtext}>
-                      Best: {analytics.wellness.meditationConsistency.longestStreak} days
+                      Best:{' '}
+                      {analytics.wellness.meditationConsistency.longestStreak}{' '}
+                      days
                     </Text>
                   </View>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Average Session</Text>
                     <Text style={styles.metricValue}>
-                      {Math.floor(analytics.wellness.sessionDuration.avgDuration / 60)} min {Math.round(analytics.wellness.sessionDuration.avgDuration % 60)} sec
+                      {Math.floor(
+                        analytics.wellness.sessionDuration.avgDuration / 60
+                      )}{' '}
+                      min{' '}
+                      {Math.round(
+                        analytics.wellness.sessionDuration.avgDuration % 60
+                      )}{' '}
+                      sec
                     </Text>
                   </View>
                 </View>

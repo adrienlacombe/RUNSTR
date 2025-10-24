@@ -59,7 +59,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     const loadDataPromise = async () => {
       try {
         // Debug: Check auth storage before starting prefetch
-        console.log('🔍 [SplashScreen] Checking auth storage before prefetch...');
+        console.log(
+          '🔍 [SplashScreen] Checking auth storage before prefetch...'
+        );
         await checkAuthStorageStatus();
 
         const initService = NostrInitializationService.getInstance();
@@ -69,37 +71,37 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
               setStatusMessage('Connecting to Nostr relays...');
               await initService.connectToRelays();
             },
-            duration: 800
+            duration: 800,
           },
           {
             action: async () => {
               setStatusMessage('Loading your teams...');
               await initService.prefetchTeams();
             },
-            duration: 1000
+            duration: 1000,
           },
           {
             action: async () => {
               setStatusMessage('Syncing your workouts...');
               await initService.prefetchWorkouts();
             },
-            duration: 800
+            duration: 800,
           },
           {
             action: async () => {
               setStatusMessage('Loading Season 1 data...');
               await initService.prefetchSeason1();
             },
-            duration: 1000
+            duration: 1000,
           },
           {
             action: async () => {
               setStatusMessage('Almost ready...');
               // Final preparation
-              await new Promise(resolve => setTimeout(resolve, 400));
+              await new Promise((resolve) => setTimeout(resolve, 400));
             },
-            duration: 400
-          }
+            duration: 400,
+          },
         ];
 
         // Execute loading steps
@@ -120,8 +122,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     const remainingTime = Math.max(0, 3000 - elapsedTime);
 
     if (remainingTime > 0) {
-      console.log(`⏰ SplashScreen: Waiting ${remainingTime}ms to meet minimum display time`);
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
+      console.log(
+        `⏰ SplashScreen: Waiting ${remainingTime}ms to meet minimum display time`
+      );
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
     }
 
     console.log('✅ SplashScreen: Completed, transitioning to app...');

@@ -20,7 +20,13 @@ import nutzapService from '../../services/nutzap/nutzapService';
 
 interface Transaction {
   id: string;
-  type: 'nutzap_sent' | 'nutzap_received' | 'lightning_received' | 'lightning_sent' | 'cashu_sent' | 'cashu_received';
+  type:
+    | 'nutzap_sent'
+    | 'nutzap_received'
+    | 'lightning_received'
+    | 'lightning_sent'
+    | 'cashu_sent'
+    | 'cashu_received';
   amount: number;
   timestamp: number;
   memo?: string;
@@ -131,24 +137,18 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
             {item.memo}
           </Text>
         )}
-        <Text style={styles.transactionTime}>
-          {formatTime(item.timestamp)}
-        </Text>
+        <Text style={styles.transactionTime}>{formatTime(item.timestamp)}</Text>
       </View>
 
       <View style={styles.transactionAmount}>
         <Text
-          style={[
-            styles.amountText,
-            { color: getTransactionColor(item.type) }
-          ]}
+          style={[styles.amountText, { color: getTransactionColor(item.type) }]}
         >
-          {item.type.includes('sent') ? '-' : '+'}{item.amount}
+          {item.type.includes('sent') ? '-' : '+'}
+          {item.amount}
         </Text>
         <Text style={styles.amountUnit}>sats</Text>
-        {item.fee && (
-          <Text style={styles.feeText}>fee: {item.fee}</Text>
-        )}
+        {item.fee && <Text style={styles.feeText}>fee: {item.fee}</Text>}
       </View>
     </View>
   );

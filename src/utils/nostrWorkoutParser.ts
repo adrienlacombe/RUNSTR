@@ -55,7 +55,7 @@ export class NostrWorkoutParser {
         kind: event.kind,
         contentLength: event.content?.length,
         tagCount: event.tags?.length,
-        created_at: event.created_at
+        created_at: event.created_at,
       });
 
       // Parse workout content (JSON + tags)
@@ -82,7 +82,7 @@ export class NostrWorkoutParser {
       console.log('✅ Successfully parsed workout event:', {
         id: workoutEvent.id.substring(0, 16) + '...',
         type: workoutEvent.parsedContent.type,
-        duration: workoutEvent.parsedContent.duration
+        duration: workoutEvent.parsedContent.duration,
       });
 
       return workoutEvent;
@@ -91,7 +91,7 @@ export class NostrWorkoutParser {
       console.error('❌ Event causing error:', {
         id: event?.id,
         kind: event?.kind,
-        content: event?.content?.substring(0, 100)
+        content: event?.content?.substring(0, 100),
       });
       return null;
     }
@@ -118,7 +118,10 @@ export class NostrWorkoutParser {
     }
 
     if (typeof event.created_at !== 'number') {
-      console.error('❌ Event created_at is not a number:', typeof event.created_at);
+      console.error(
+        '❌ Event created_at is not a number:',
+        typeof event.created_at
+      );
       return false;
     }
 
@@ -195,7 +198,7 @@ export class NostrWorkoutParser {
         contentType: contentData.type || tagData.type,
         distance: tagData.distance,
         duration: tagData.duration,
-        source: tagData.distance ? 'RUNSTR' : 'NIP-1301'
+        source: tagData.distance ? 'RUNSTR' : 'NIP-1301',
       });
 
       return {
@@ -205,9 +208,12 @@ export class NostrWorkoutParser {
         pace: contentData.pace,
         calories: contentData.calories,
         elevationGain: tagData.elevationGain || contentData.elevationGain,
-        averageHeartRate: tagData.averageHeartRate || contentData.averageHeartRate,
+        averageHeartRate:
+          tagData.averageHeartRate || contentData.averageHeartRate,
         maxHeartRate: contentData.maxHeartRate,
-        route: contentData.route ? this.parseRouteData(contentData.route) : undefined,
+        route: contentData.route
+          ? this.parseRouteData(contentData.route)
+          : undefined,
         startTime: tagData.start,
         endTime: tagData.end,
         title: tagData.title,
@@ -223,13 +229,13 @@ export class NostrWorkoutParser {
    */
   private static isNip1301WorkoutEvent(event: NostrEvent): boolean {
     // Must have exercise tag for any workout format
-    const hasExerciseTag = event.tags.some(tag => tag[0] === 'exercise');
+    const hasExerciseTag = event.tags.some((tag) => tag[0] === 'exercise');
     if (!hasExerciseTag) return false;
-    
+
     // Check for pure NIP-1301 format (JSON content + start/type tags)
-    const hasStartTag = event.tags.some(tag => tag[0] === 'start');
-    const hasTypeTag = event.tags.some(tag => tag[0] === 'type');
-    
+    const hasStartTag = event.tags.some((tag) => tag[0] === 'start');
+    const hasTypeTag = event.tags.some((tag) => tag[0] === 'type');
+
     let isJsonContent = false;
     try {
       JSON.parse(event.content);
@@ -237,19 +243,21 @@ export class NostrWorkoutParser {
     } catch {
       isJsonContent = false;
     }
-    
+
     // Pure NIP-1301: JSON content + required tags
     if (isJsonContent && (hasStartTag || hasTypeTag)) {
       return true;
     }
-    
+
     // RUNSTR format: plain text content + workout tags
-    const hasDistanceTag = event.tags.some(tag => tag[0] === 'distance');
-    const hasDurationTag = event.tags.some(tag => tag[0] === 'duration');
-    const hasWorkoutTag = event.tags.some(tag => tag[0] === 'workout');
-    
+    const hasDistanceTag = event.tags.some((tag) => tag[0] === 'distance');
+    const hasDurationTag = event.tags.some((tag) => tag[0] === 'duration');
+    const hasWorkoutTag = event.tags.some((tag) => tag[0] === 'workout');
+
     // Accept RUNSTR format if it has exercise + (distance OR duration OR workout)
-    return hasExerciseTag && (hasDistanceTag || hasDurationTag || hasWorkoutTag);
+    return (
+      hasExerciseTag && (hasDistanceTag || hasDurationTag || hasWorkoutTag)
+    );
   }
 
   /**
@@ -257,10 +265,10 @@ export class NostrWorkoutParser {
    */
   private static extractNip1301TagData(tags: string[][]) {
     const data: any = {};
-    
+
     for (const tag of tags) {
       if (tag.length < 2) continue;
-      
+
       switch (tag[0]) {
         case 'd':
           data.id = tag[1];
@@ -327,7 +335,9 @@ export class NostrWorkoutParser {
         case 'end':
           data.end = new Date(parseInt(tag[1]) * 1000).toISOString();
           if (!data.duration) {
-            data.duration = parseInt(tag[1]) - parseInt(tags.find(t => t[0] === 'start')?.[1] || '0');
+            data.duration =
+              parseInt(tag[1]) -
+              parseInt(tags.find((t) => t[0] === 'start')?.[1] || '0');
           }
           break;
         case 'heart_rate_avg':
@@ -335,7 +345,7 @@ export class NostrWorkoutParser {
           break;
       }
     }
-    
+
     return data;
   }
 
@@ -343,7 +353,7 @@ export class NostrWorkoutParser {
    * Parse time string like "01:15:55" to seconds
    */
   private static parseTimeStringToSeconds(timeStr: string): number {
-    const parts = timeStr.split(':').map(p => parseInt(p));
+    const parts = timeStr.split(':').map((p) => parseInt(p));
     if (parts.length === 3) {
       return parts[0] * 3600 + parts[1] * 60 + parts[2]; // H:M:S
     } else if (parts.length === 2) {

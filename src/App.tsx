@@ -14,7 +14,16 @@ import './services/activity/BackgroundLocationTask';
 import { BACKGROUND_LOCATION_TASK } from './services/activity/BackgroundLocationTask';
 
 import React from 'react';
-import { StatusBar, View, Text, StyleSheet, TouchableOpacity, AppState, AppStateStatus, Platform } from 'react-native';
+import {
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  AppState,
+  AppStateStatus,
+  Platform,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Error Boundary Component to catch runtime errors during initialization
@@ -72,7 +81,7 @@ import { ChallengeDetailScreen } from './screens/ChallengeDetailScreen';
 // Use SimpleTeamScreen instead of EnhancedTeamScreen to avoid freeze issues
 const SimpleTeamScreen = React.lazy(() => {
   console.log('[App.tsx] 🔄 Starting lazy import of SimpleTeamScreen');
-  return import('./screens/SimpleTeamScreen').then(module => {
+  return import('./screens/SimpleTeamScreen').then((module) => {
     console.log('[App.tsx] ✅ SimpleTeamScreen module loaded');
     return module;
   });
@@ -88,6 +97,8 @@ import { CompetitionsListScreen } from './screens/CompetitionsListScreen';
 import { WorkoutHistoryScreen } from './screens/WorkoutHistoryScreen';
 import { MyTeamsScreen } from './screens/MyTeamsScreen';
 import { ProfileEditScreen } from './screens/ProfileEditScreen';
+import { SavedRoutesScreen } from './screens/routes/SavedRoutesScreen';
+import { AdvancedAnalyticsScreen } from './screens/AdvancedAnalyticsScreen';
 import { User } from './types';
 import { useWalletStore } from './store/walletStore';
 import { appInitializationService } from './services/initialization/AppInitializationService';
@@ -106,12 +117,23 @@ type AuthenticatedStackParamList = {
   MainTabs: undefined;
   Onboarding: { nsec?: string };
   TeamCreation: undefined;
-  EnhancedTeamScreen: { team: any; userIsMember?: boolean; currentUserNpub?: string; userIsCaptain?: boolean };
+  EnhancedTeamScreen: {
+    team: any;
+    userIsMember?: boolean;
+    currentUserNpub?: string;
+    userIsCaptain?: boolean;
+  };
   EventDetail: { eventId: string; eventData?: any }; // Fixed: Added optional eventData parameter
   EventCaptainDashboard: { eventId: string; eventData: any };
   LeagueDetail: { leagueId: string; leagueData?: any };
   ChallengeDetail: { challengeId: string };
-  CaptainDashboard: { teamId?: string; teamName?: string; teamCaptainId?: string; isCaptain?: boolean; userNpub?: string };
+  CaptainDashboard: {
+    teamId?: string;
+    teamName?: string;
+    teamCaptainId?: string;
+    isCaptain?: boolean;
+    userNpub?: string;
+  };
   Settings: any;
   HelpSupport: undefined;
   ContactSupport: undefined;
@@ -122,6 +144,8 @@ type AuthenticatedStackParamList = {
   WorkoutHistory: { userId: string; pubkey: string };
   MyTeams: undefined;
   ProfileEdit: undefined;
+  SavedRoutes: { activityType?: 'running' | 'cycling' | 'walking' };
+  AdvancedAnalytics: undefined;
 };
 
 const AuthenticatedStack = createStackNavigator<AuthenticatedStackParamList>();
@@ -135,10 +159,12 @@ const AppContent: React.FC = () => {
     connectionStatus,
     isConnected,
     initError,
-    signOut
+    signOut,
   } = useAuth();
 
-  const [onboardingCompleted, setOnboardingCompleted] = React.useState<boolean | null>(null);
+  const [onboardingCompleted, setOnboardingCompleted] = React.useState<
+    boolean | null
+  >(null);
   const [prefetchCompleted, setPrefetchCompleted] = React.useState(false);
   const [showPermissionModal, setShowPermissionModal] = React.useState(false);
 
@@ -149,9 +175,15 @@ const AppContent: React.FC = () => {
         // ✅ FIX: Check AsyncStorage synchronously for cached keys instead of waiting for hydration
         // This prevents race conditions where cache hydration hasn't finished yet
         const keys = await AsyncStorage.getAllKeys();
-        const hasCachedData = keys.some(key => key.startsWith('@runstr:unified_cache:'));
+        const hasCachedData = keys.some((key) =>
+          key.startsWith('@runstr:unified_cache:')
+        );
 
-        console.log('📊 App: Cache-first check - found', keys.filter(k => k.startsWith('@runstr:unified_cache:')).length, 'cached entries');
+        console.log(
+          '📊 App: Cache-first check - found',
+          keys.filter((k) => k.startsWith('@runstr:unified_cache:')).length,
+          'cached entries'
+        );
 
         // Show app immediately if we have ANY cached data
         // First-time users (no cache) will see SplashInit
@@ -159,9 +191,13 @@ const AppContent: React.FC = () => {
         setPrefetchCompleted(hasCachedData);
 
         if (hasCachedData) {
-          console.log('✅ App: Cached data found - skipping SplashInit for instant load');
+          console.log(
+            '✅ App: Cached data found - skipping SplashInit for instant load'
+          );
         } else {
-          console.log('⚡ App: No cached data - showing SplashInit for first-time initialization');
+          console.log(
+            '⚡ App: No cached data - showing SplashInit for first-time initialization'
+          );
         }
       } else {
         setPrefetchCompleted(false);
@@ -174,10 +210,14 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     const checkOnboarding = async () => {
       if (isAuthenticated && currentUser) {
-        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const AsyncStorage = (
+          await import('@react-native-async-storage/async-storage')
+        ).default;
 
         // Check if onboarding was already completed
-        const completed = await AsyncStorage.getItem('@runstr:onboarding_completed');
+        const completed = await AsyncStorage.getItem(
+          '@runstr:onboarding_completed'
+        );
 
         // Check if this is a new signup (from "Start" button)
         const isNewSignup = await AsyncStorage.getItem('@runstr:is_new_signup');
@@ -188,7 +228,14 @@ const AppContent: React.FC = () => {
         const needsOnboarding = isNewSignup === 'true' && completed !== 'true';
 
         setOnboardingCompleted(!needsOnboarding);
-        console.log('🎯 App: Onboarding check - isNewSignup:', isNewSignup === 'true', 'completed:', completed === 'true', 'needsOnboarding:', needsOnboarding);
+        console.log(
+          '🎯 App: Onboarding check - isNewSignup:',
+          isNewSignup === 'true',
+          'completed:',
+          completed === 'true',
+          'needsOnboarding:',
+          needsOnboarding
+        );
       } else {
         setOnboardingCompleted(null);
       }
@@ -220,41 +267,52 @@ const AppContent: React.FC = () => {
   const backgroundTime = React.useRef<number>(0);
 
   React.useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      const previousState = appState.current;
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        const previousState = appState.current;
 
-      // App going to background
-      if (previousState === 'active' && nextAppState.match(/inactive|background/)) {
-        backgroundTime.current = Date.now();
-        console.log('[AppState] App going to background');
-      }
+        // App going to background
+        if (
+          previousState === 'active' &&
+          nextAppState.match(/inactive|background/)
+        ) {
+          backgroundTime.current = Date.now();
+          console.log('[AppState] App going to background');
+        }
 
-      // App returning to foreground
-      if (previousState.match(/inactive|background/) && nextAppState === 'active') {
-        const timeInBackground = Date.now() - backgroundTime.current;
-        const secondsInBackground = Math.round(timeInBackground / 1000);
+        // App returning to foreground
+        if (
+          previousState.match(/inactive|background/) &&
+          nextAppState === 'active'
+        ) {
+          const timeInBackground = Date.now() - backgroundTime.current;
+          const secondsInBackground = Math.round(timeInBackground / 1000);
 
-        console.log(`[AppState] App returning to foreground (${secondsInBackground}s in background)`);
+          console.log(
+            `[AppState] App returning to foreground (${secondsInBackground}s in background)`
+          );
 
-        // Smart refresh strategy based on time in background
-        if (isAuthenticated && walletStore.isInitialized) {
-          if (timeInBackground < 60 * 1000) {
-            // < 1 minute: No refresh needed
-            console.log('[AppState] Quick return - no refresh needed');
-          } else if (timeInBackground < 5 * 60 * 1000) {
-            // 1-5 minutes: Quick resume with background sync
-            console.log('[AppState] Medium return - using quick resume');
-            walletStore.initialize(undefined, true); // Quick resume mode
-          } else {
-            // > 5 minutes: Full refresh
-            console.log('[AppState] Long return - triggering full refresh');
-            walletStore.refreshBalance();
+          // Smart refresh strategy based on time in background
+          if (isAuthenticated && walletStore.isInitialized) {
+            if (timeInBackground < 60 * 1000) {
+              // < 1 minute: No refresh needed
+              console.log('[AppState] Quick return - no refresh needed');
+            } else if (timeInBackground < 5 * 60 * 1000) {
+              // 1-5 minutes: Quick resume with background sync
+              console.log('[AppState] Medium return - using quick resume');
+              walletStore.initialize(undefined, true); // Quick resume mode
+            } else {
+              // > 5 minutes: Full refresh
+              console.log('[AppState] Long return - triggering full refresh');
+              walletStore.refreshBalance();
+            }
           }
         }
-      }
 
-      appState.current = nextAppState;
-    });
+        appState.current = nextAppState;
+      }
+    );
 
     return () => {
       subscription.remove();
@@ -274,11 +332,15 @@ const AppContent: React.FC = () => {
           const pubkey = hexPubkey || npub;
 
           if (!pubkey) {
-            console.warn('[App] Cannot initialize app data: no pubkey available');
+            console.warn(
+              '[App] Cannot initialize app data: no pubkey available'
+            );
             return;
           }
 
-          console.log('[App] 🚀 Triggering app data initialization for authenticated user...');
+          console.log(
+            '[App] 🚀 Triggering app data initialization for authenticated user...'
+          );
 
           // Non-blocking background initialization
           await appInitializationService.initializeAppData(pubkey);
@@ -371,7 +433,12 @@ const AppContent: React.FC = () => {
         >
           {({ navigation, route }) => {
             console.log('[App.tsx] 🚀 EnhancedTeamScreen route rendering');
-            const { team, userIsMember = false, currentUserNpub, userIsCaptain = false } = route.params || {};
+            const {
+              team,
+              userIsMember = false,
+              currentUserNpub,
+              userIsCaptain = false,
+            } = route.params || {};
             console.log('[App.tsx] 📦 Route params:', {
               hasRouteParams: !!route.params,
               hasTeam: !!team,
@@ -381,18 +448,31 @@ const AppContent: React.FC = () => {
               allTeamKeys: team ? Object.keys(team) : [],
               userIsMember,
               userIsCaptain,
-              currentUserNpub: currentUserNpub?.slice(0, 20) + '...'
+              currentUserNpub: currentUserNpub?.slice(0, 20) + '...',
             });
 
             // Safety check: if no team data, show error
             if (!team || !team.id) {
               console.error('[App.tsx] ❌ No valid team data in route params');
               return (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-                  <Text style={{ color: theme.colors.text, marginBottom: 20 }}>Team data not available</Text>
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: theme.colors.background,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.text, marginBottom: 20 }}>
+                    Team data not available
+                  </Text>
                   <TouchableOpacity
                     onPress={() => navigation.goBack()}
-                    style={{ padding: 12, backgroundColor: theme.colors.cardBackground, borderRadius: 8 }}
+                    style={{
+                      padding: 12,
+                      backgroundColor: theme.colors.cardBackground,
+                      borderRadius: 8,
+                    }}
                   >
                     <Text style={{ color: theme.colors.text }}>Go Back</Text>
                   </TouchableOpacity>
@@ -400,11 +480,20 @@ const AppContent: React.FC = () => {
               );
             }
 
-            console.log('[App.tsx] ⏳ SUSPENSE FALLBACK RENDERING - Waiting for lazy component');
+            console.log(
+              '[App.tsx] ⏳ SUSPENSE FALLBACK RENDERING - Waiting for lazy component'
+            );
             return (
               <React.Suspense
                 fallback={
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: theme.colors.background,
+                    }}
+                  >
                     <ActivityIndicator size="large" color={theme.colors.text} />
                   </View>
                 }
@@ -419,36 +508,64 @@ const AppContent: React.FC = () => {
                   onBack={() => navigation.goBack()}
                   onCaptainDashboard={() => {
                     console.log('Captain dashboard from EnhancedTeamScreen');
-                    console.log('Navigating to CaptainDashboard with team:', team?.id);
-                    console.log('Team object has captainId field:', 'captainId' in (team || {}));
+                    console.log(
+                      'Navigating to CaptainDashboard with team:',
+                      team?.id
+                    );
+                    console.log(
+                      'Team object has captainId field:',
+                      'captainId' in (team || {})
+                    );
                     console.log('Team captainId value:', team?.captainId);
-                    console.log('Team captainId length:', team?.captainId?.length);
-                    console.log('Team captainId format:', team?.captainId?.startsWith('npub') ? 'npub' : team?.captainId?.length === 64 ? 'hex' : 'other');
-                    console.log('Passing userNpub:', currentUserNpub?.slice(0, 20) + '...');
+                    console.log(
+                      'Team captainId length:',
+                      team?.captainId?.length
+                    );
+                    console.log(
+                      'Team captainId format:',
+                      team?.captainId?.startsWith('npub')
+                        ? 'npub'
+                        : team?.captainId?.length === 64
+                        ? 'hex'
+                        : 'other'
+                    );
+                    console.log(
+                      'Passing userNpub:',
+                      currentUserNpub?.slice(0, 20) + '...'
+                    );
 
                     // Ensure we pass the captain ID in hex format
                     const teamCaptainIdToPass = team?.captainId || '';
-                    console.log('Final teamCaptainId being passed:', teamCaptainIdToPass?.slice(0, 20) + '...');
+                    console.log(
+                      'Final teamCaptainId being passed:',
+                      teamCaptainIdToPass?.slice(0, 20) + '...'
+                    );
 
                     navigation.navigate('CaptainDashboard', {
                       teamId: team?.id,
                       teamName: team?.name,
-                      teamCaptainId: teamCaptainIdToPass,  // Pass the team's captain ID
+                      teamCaptainId: teamCaptainIdToPass, // Pass the team's captain ID
                       isCaptain: true,
-                      userNpub: currentUserNpub
+                      userNpub: currentUserNpub,
                     });
                   }}
                   onAddChallenge={() => console.log('Add challenge')}
                   onEventPress={(eventId, eventData) => {
                     console.log('📍 Navigation: Team → Event Detail');
                     console.log('  eventId:', eventId);
-                    console.log('  eventData:', eventData ? 'provided' : 'not provided');
+                    console.log(
+                      '  eventData:',
+                      eventData ? 'provided' : 'not provided'
+                    );
                     navigation.navigate('EventDetail', { eventId, eventData });
                   }}
                   onLeaguePress={(leagueId, leagueData) => {
                     console.log('📍 Navigation: Team → League Detail');
                     console.log('  leagueId:', leagueId);
-                    navigation.navigate('LeagueDetail', { leagueId, leagueData });
+                    navigation.navigate('LeagueDetail', {
+                      leagueId,
+                      leagueData,
+                    });
                   }}
                   onChallengePress={(challengeId) => {
                     console.log('📍 Navigation: Team → Challenge Detail');
@@ -473,10 +590,7 @@ const AppContent: React.FC = () => {
           }}
         >
           {({ navigation, route }) => (
-            <EventDetailScreen
-              route={route}
-              navigation={navigation}
-            />
+            <EventDetailScreen route={route} navigation={navigation} />
           )}
         </AuthenticatedStack.Screen>
 
@@ -503,10 +617,7 @@ const AppContent: React.FC = () => {
           }}
         >
           {({ navigation, route }) => (
-            <LeagueDetailScreen
-              route={route}
-              navigation={navigation}
-            />
+            <LeagueDetailScreen route={route} navigation={navigation} />
           )}
         </AuthenticatedStack.Screen>
 
@@ -518,10 +629,7 @@ const AppContent: React.FC = () => {
           }}
         >
           {({ navigation, route }) => (
-            <ChallengeDetailScreen
-              route={route}
-              navigation={navigation}
-            />
+            <ChallengeDetailScreen route={route} navigation={navigation} />
           )}
         </AuthenticatedStack.Screen>
 
@@ -533,7 +641,8 @@ const AppContent: React.FC = () => {
           }}
         >
           {({ navigation, route }) => {
-            const { teamId, teamName, teamCaptainId, isCaptain, userNpub } = route.params || {};
+            const { teamId, teamName, teamCaptainId, isCaptain, userNpub } =
+              route.params || {};
             return (
               <CaptainDashboardScreen
                 data={{
@@ -554,7 +663,9 @@ const AppContent: React.FC = () => {
                 onNavigateToTeam={() => navigation.goBack()}
                 onNavigateToProfile={() => navigation.goBack()}
                 onSettingsPress={() => console.log('Settings')}
-                onKickMember={(memberId) => console.log('Kick member:', memberId)}
+                onKickMember={(memberId) =>
+                  console.log('Kick member:', memberId)
+                }
                 onViewAllActivity={() => console.log('View all activity')}
               />
             );
@@ -571,7 +682,9 @@ const AppContent: React.FC = () => {
           {({ navigation, route }) => (
             <SettingsScreen
               currentTeam={route.params?.currentTeam}
-              onNavigateToTeamDiscovery={route.params?.onNavigateToTeamDiscovery}
+              onNavigateToTeamDiscovery={
+                route.params?.onNavigateToTeamDiscovery
+              }
               onViewCurrentTeam={route.params?.onViewCurrentTeam}
               onCaptainDashboard={route.params?.onCaptainDashboard}
               onHelp={() => navigation.navigate('HelpSupport')}
@@ -651,6 +764,26 @@ const AppContent: React.FC = () => {
           component={ProfileEditScreen}
         />
 
+        {/* Saved Routes Screen - Manage GPS routes */}
+        <AuthenticatedStack.Screen
+          name="SavedRoutes"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+          }}
+          component={SavedRoutesScreen}
+        />
+
+        {/* Advanced Analytics Screen - Workout analytics dashboard */}
+        <AuthenticatedStack.Screen
+          name="AdvancedAnalytics"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+          }}
+          component={AdvancedAnalyticsScreen}
+        />
+
         {/* Challenge Wizard Screen */}
         <AuthenticatedStack.Screen
           name="ChallengeWizard"
@@ -678,12 +811,42 @@ const AppContent: React.FC = () => {
           }}
         >
           {({ navigation, route }) => (
-            <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: theme.colors.textBright, fontSize: 18, marginBottom: 20 }}>Challenge Leaderboard</Text>
-              <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>Challenge ID: {route.params?.challengeId}</Text>
-              <Text style={{ color: theme.colors.textMuted, fontSize: 14, marginTop: 10 }}>Coming Soon</Text>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: '#000',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.textBright,
+                  fontSize: 18,
+                  marginBottom: 20,
+                }}
+              >
+                Challenge Leaderboard
+              </Text>
+              <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+                Challenge ID: {route.params?.challengeId}
+              </Text>
+              <Text
+                style={{
+                  color: theme.colors.textMuted,
+                  fontSize: 14,
+                  marginTop: 10,
+                }}
+              >
+                Coming Soon
+              </Text>
               <TouchableOpacity
-                style={{ marginTop: 30, padding: 12, backgroundColor: theme.colors.orangeDeep, borderRadius: 8 }}
+                style={{
+                  marginTop: 30,
+                  padding: 12,
+                  backgroundColor: theme.colors.orangeDeep,
+                  borderRadius: 8,
+                }}
                 onPress={() => navigation.goBack()}
               >
                 <Text style={{ color: '#000' }}>Go Back</Text>
@@ -715,8 +878,12 @@ const AppContent: React.FC = () => {
   // Refresh onboarding status when app gains focus
   const handleNavigationStateChange = React.useCallback(async () => {
     if (isAuthenticated && currentUser) {
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      const completed = await AsyncStorage.getItem('@runstr:onboarding_completed');
+      const AsyncStorage = (
+        await import('@react-native-async-storage/async-storage')
+      ).default;
+      const completed = await AsyncStorage.getItem(
+        '@runstr:onboarding_completed'
+      );
       const isNewSignup = await AsyncStorage.getItem('@runstr:is_new_signup');
 
       // Onboarding is complete if either:
@@ -735,9 +902,7 @@ const AppContent: React.FC = () => {
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
-      <NavigationContainer
-        onStateChange={handleNavigationStateChange}
-      >
+      <NavigationContainer onStateChange={handleNavigationStateChange}>
         {(() => {
           console.log(
             '🚀 AppContent: Navigation decision - isAuthenticated:',
@@ -758,7 +923,9 @@ const AppContent: React.FC = () => {
           // ✅ PERFORMANCE: Only show SplashInit for first-time users (no cache at all)
           // Returning users see app immediately with cached data, refresh happens in background
           if (isAuthenticated && !prefetchCompleted) {
-            console.log('🚀 App: First-time user - showing SplashInit for initial data load');
+            console.log(
+              '🚀 App: First-time user - showing SplashInit for initial data load'
+            );
             return (
               <SplashInitScreen
                 onComplete={() => {
@@ -774,7 +941,9 @@ const AppContent: React.FC = () => {
             return (
               <View style={errorStyles.container}>
                 <ActivityIndicator size="large" color="#ffffff" />
-                <Text style={errorStyles.instruction}>Loading your profile...</Text>
+                <Text style={errorStyles.instruction}>
+                  Loading your profile...
+                </Text>
               </View>
             );
           }
@@ -786,7 +955,9 @@ const AppContent: React.FC = () => {
               return (
                 <View style={errorStyles.container}>
                   <ActivityIndicator size="large" color="#ffffff" />
-                  <Text style={errorStyles.instruction}>Setting up your account...</Text>
+                  <Text style={errorStyles.instruction}>
+                    Setting up your account...
+                  </Text>
                 </View>
               );
             }
@@ -795,8 +966,13 @@ const AppContent: React.FC = () => {
             if (onboardingCompleted === false) {
               console.log('🎯 App: Showing onboarding for new user');
               return (
-                <AuthenticatedStack.Navigator screenOptions={{ headerShown: false }}>
-                  <AuthenticatedStack.Screen name="Onboarding" component={OnboardingScreen} />
+                <AuthenticatedStack.Navigator
+                  screenOptions={{ headerShown: false }}
+                >
+                  <AuthenticatedStack.Screen
+                    name="Onboarding"
+                    component={OnboardingScreen}
+                  />
                 </AuthenticatedStack.Navigator>
               );
             }
@@ -841,16 +1017,28 @@ export default function App() {
 
         // 🔧 iOS FIX: Verify background location task is defined for distance tracking
         try {
-          const isTaskDefined = await TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK);
-          const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+          const isTaskDefined = await TaskManager.isTaskDefined(
+            BACKGROUND_LOCATION_TASK
+          );
+          const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(
+            BACKGROUND_LOCATION_TASK
+          );
 
-          console.log(`📍 Background task status - Defined: ${isTaskDefined}, Registered: ${isTaskRegistered}`);
+          console.log(
+            `📍 Background task status - Defined: ${isTaskDefined}, Registered: ${isTaskRegistered}`
+          );
 
           if (!isTaskDefined) {
-            console.error('❌ Background location task NOT defined - distance tracking will fail');
-            console.error('   This should not happen - check BackgroundLocationTask import');
+            console.error(
+              '❌ Background location task NOT defined - distance tracking will fail'
+            );
+            console.error(
+              '   This should not happen - check BackgroundLocationTask import'
+            );
           } else {
-            console.log('✅ Background location task defined and ready for distance tracking');
+            console.log(
+              '✅ Background location task defined and ready for distance tracking'
+            );
           }
         } catch (error) {
           console.error('❌ Failed to check background task status:', error);
@@ -858,11 +1046,10 @@ export default function App() {
         }
 
         // Give app a moment to ensure black background is set
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Pre-load any critical resources here if needed
         console.log('🚀 App initialization complete');
-
       } catch (e) {
         console.warn('App initialization warning:', e);
       } finally {

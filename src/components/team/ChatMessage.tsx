@@ -4,16 +4,14 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
 import { theme } from '../../styles/theme';
 import { Avatar } from '../ui/Avatar';
-import { NostrProfile, nostrProfileService } from '../../services/nostr/NostrProfileService';
+import {
+  NostrProfile,
+  nostrProfileService,
+} from '../../services/nostr/NostrProfileService';
 
 interface ChatMessageProps {
   event: NDKEvent;
@@ -42,14 +40,14 @@ const formatTimestamp = (timestamp: number): string => {
   if (date.toDateString() === now.toDateString()) {
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   }
 
   // Show date if different day
   return date.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
   });
 };
 
@@ -57,7 +55,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   event,
   isOwnMessage,
   onZap,
-  onChallenge
+  onChallenge,
 }) => {
   const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
 
@@ -76,15 +74,20 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     }
   };
 
-  const displayName = userProfile?.display_name ||
-                      userProfile?.name ||
-                      truncatePubkey(event.pubkey);
+  const displayName =
+    userProfile?.display_name ||
+    userProfile?.name ||
+    truncatePubkey(event.pubkey);
 
   return (
-    <View style={[
-      styles.container,
-      isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer
-    ]}>
+    <View
+      style={[
+        styles.container,
+        isOwnMessage
+          ? styles.ownMessageContainer
+          : styles.otherMessageContainer,
+      ]}
+    >
       {!isOwnMessage && (
         <View style={styles.messageHeader}>
           <Avatar
@@ -92,20 +95,22 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             size={32}
             imageUrl={userProfile?.picture}
           />
-          <Text style={styles.authorName}>
-            {displayName}
-          </Text>
+          <Text style={styles.authorName}>{displayName}</Text>
         </View>
       )}
 
-      <View style={[
-        styles.bubble,
-        isOwnMessage ? styles.ownBubble : styles.otherBubble
-      ]}>
-        <Text style={[
-          styles.messageText,
-          isOwnMessage ? styles.ownMessageText : styles.otherMessageText
-        ]}>
+      <View
+        style={[
+          styles.bubble,
+          isOwnMessage ? styles.ownBubble : styles.otherBubble,
+        ]}
+      >
+        <Text
+          style={[
+            styles.messageText,
+            isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
+          ]}
+        >
           {event.content}
         </Text>
 

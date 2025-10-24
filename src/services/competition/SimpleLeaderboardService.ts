@@ -97,7 +97,9 @@ export class SimpleLeaderboardService {
       entry.rank = index + 1;
     });
 
-    console.log(`✅ Leaderboard calculated: ${entries.length} entries (${teamMembers.length} team members)`);
+    console.log(
+      `✅ Leaderboard calculated: ${entries.length} entries (${teamMembers.length} team members)`
+    );
     return entries;
   }
 
@@ -130,8 +132,10 @@ export class SimpleLeaderboardService {
     let relevantWorkouts = workouts;
     if (event.targetDistance) {
       const minDistance = event.targetDistance * 0.95; // Allow 5% margin
-      relevantWorkouts = workouts.filter(w => w.distance >= minDistance);
-      console.log(`   ${relevantWorkouts.length} workouts meet distance requirement`);
+      relevantWorkouts = workouts.filter((w) => w.distance >= minDistance);
+      console.log(
+        `   ${relevantWorkouts.length} workouts meet distance requirement`
+      );
     }
 
     // Calculate scores
@@ -177,7 +181,9 @@ export class SimpleLeaderboardService {
       entry.rank = index + 1;
     });
 
-    console.log(`✅ Event leaderboard calculated: ${entries.length} entries (${teamMembers.length} team members)`);
+    console.log(
+      `✅ Event leaderboard calculated: ${entries.length} entries (${teamMembers.length} team members)`
+    );
     return entries;
   }
 
@@ -216,9 +222,14 @@ export class SimpleLeaderboardService {
 
     try {
       // Progressive: Accept 2/4 relays for faster leaderboard loading
-      const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000);
+      const connected = await GlobalNDKService.waitForMinimumConnection(
+        2,
+        4000
+      );
       if (!connected) {
-        console.warn('⚠️ Proceeding with minimal relay connectivity for workout query');
+        console.warn(
+          '⚠️ Proceeding with minimal relay connectivity for workout query'
+        );
       }
 
       const ndk = await GlobalNDKService.getInstance();
@@ -232,7 +243,9 @@ export class SimpleLeaderboardService {
       };
 
       // Add 5-second timeout to prevent UI freeze
-      console.log(`⏱️ Fetching workouts with 5s timeout for ${memberNpubs.length} members...`);
+      console.log(
+        `⏱️ Fetching workouts with 5s timeout for ${memberNpubs.length} members...`
+      );
       const events = await this.fetchWithTimeout(
         ndk.fetchEvents(filter),
         5000,
@@ -252,7 +265,10 @@ export class SimpleLeaderboardService {
           const workout = this.parseWorkoutEvent(event);
           if (workout) {
             // Filter by activity type if not "Any"
-            if (activityType === 'Any' || workout.activityType.toLowerCase() === activityType.toLowerCase()) {
+            if (
+              activityType === 'Any' ||
+              workout.activityType.toLowerCase() === activityType.toLowerCase()
+            ) {
               workouts.push(workout);
             }
           }
@@ -260,16 +276,19 @@ export class SimpleLeaderboardService {
 
         // Yield to UI thread between batches (runstr-github pattern)
         if (i + BATCH_SIZE < eventsArray.length) {
-          await new Promise(resolve => setTimeout(resolve, 10));
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
       }
 
       return workouts;
-
     } catch (error) {
       if (error instanceof Error && error.message === 'Workout fetch timeout') {
-        console.warn('⚠️ Workout fetch timed out after 5 seconds - showing empty leaderboard');
-        console.warn('   This may indicate slow relay connections or large result set');
+        console.warn(
+          '⚠️ Workout fetch timed out after 5 seconds - showing empty leaderboard'
+        );
+        console.warn(
+          '   This may indicate slow relay connections or large result set'
+        );
         return [];
       }
       console.error('Failed to fetch workouts:', error);
@@ -282,7 +301,8 @@ export class SimpleLeaderboardService {
    */
   private parseWorkoutEvent(event: NDKEvent): Workout | null {
     try {
-      const getTag = (name: string) => event.tags.find(t => t[0] === name)?.[1];
+      const getTag = (name: string) =>
+        event.tags.find((t) => t[0] === name)?.[1];
 
       const activityType = getTag('exercise') || 'unknown';
       const distanceStr = getTag('distance');
@@ -336,10 +356,16 @@ export class SimpleLeaderboardService {
     workouts: Workout[],
     metric: string
   ): Map<string, { score: number; workoutCount: number }> {
-    const scoresByMember = new Map<string, { score: number; workoutCount: number }>();
+    const scoresByMember = new Map<
+      string,
+      { score: number; workoutCount: number }
+    >();
 
     for (const workout of workouts) {
-      const existing = scoresByMember.get(workout.npub) || { score: 0, workoutCount: 0 };
+      const existing = scoresByMember.get(workout.npub) || {
+        score: 0,
+        workoutCount: 0,
+      };
 
       let score = existing.score;
 
@@ -370,7 +396,7 @@ export class SimpleLeaderboardService {
         case 'average_pace':
           // Calculate pace (min/km) - lower is better
           if (workout.distance > 0) {
-            const paceMinutesPerKm = (workout.duration / 60) / workout.distance;
+            const paceMinutesPerKm = workout.duration / 60 / workout.distance;
             // Take the best pace
             if (existing.score === 0 || paceMinutesPerKm < existing.score) {
               score = paceMinutesPerKm;

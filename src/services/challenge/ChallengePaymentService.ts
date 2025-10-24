@@ -27,7 +27,13 @@ export interface ChallengePaymentRecord {
   accepterPaymentIntent: boolean; // Accepter clicked "I Paid"
   creatorPaymentProof?: string; // Invoice paid by creator
   accepterPaymentProof?: string; // Invoice paid by accepter
-  status: 'awaiting_accepter_address' | 'awaiting_accepter_payment' | 'awaiting_creator_payment' | 'both_paid' | 'completed' | 'cancelled';
+  status:
+    | 'awaiting_accepter_address'
+    | 'awaiting_accepter_payment'
+    | 'awaiting_creator_payment'
+    | 'both_paid'
+    | 'completed'
+    | 'cancelled';
   winnerId?: string;
   payoutInvoice?: string; // Invoice for winner payout
   payoutConfirmed: boolean; // Loser clicked "I Paid" for payout
@@ -72,7 +78,7 @@ export class ChallengePaymentService {
     accepterPubkey: string
   ): Promise<ChallengePaymentRecord> {
     const now = Date.now();
-    const expiresAt = now + (this.PAYMENT_TIMEOUT_HOURS * 60 * 60 * 1000);
+    const expiresAt = now + this.PAYMENT_TIMEOUT_HOURS * 60 * 60 * 1000;
 
     const record: ChallengePaymentRecord = {
       challengeId,
@@ -110,7 +116,9 @@ export class ChallengePaymentService {
       record.status = 'awaiting_accepter_payment';
 
       await this.savePaymentRecord(record);
-      console.log(`✅ Accepter Lightning address added: ${accepterLightningAddress}`);
+      console.log(
+        `✅ Accepter Lightning address added: ${accepterLightningAddress}`
+      );
       return true;
     } catch (error) {
       console.error('Failed to set accepter Lightning address:', error);
@@ -134,7 +142,9 @@ export class ChallengePaymentService {
     role: 'creator' | 'accepter'
   ): Promise<InvoiceGenerationResult> {
     try {
-      console.log(`⚡ Generating ${wagerAmount} sats invoice from ${lightningAddress}...`);
+      console.log(
+        `⚡ Generating ${wagerAmount} sats invoice from ${lightningAddress}...`
+      );
 
       const result = await getInvoiceFromLightningAddress(
         lightningAddress,
@@ -193,9 +203,10 @@ export class ChallengePaymentService {
 
       return {
         success: true,
-        message: record.status === 'both_paid'
-          ? 'Challenge is now active! Both participants confirmed payment.'
-          : 'Payment confirmed. Waiting for other participant.',
+        message:
+          record.status === 'both_paid'
+            ? 'Challenge is now active! Both participants confirmed payment.'
+            : 'Payment confirmed. Waiting for other participant.',
       };
     } catch (error) {
       console.error('Failed to record payment intent:', error);
@@ -264,7 +275,9 @@ export class ChallengePaymentService {
   /**
    * Record payout confirmation (loser clicked "I Paid")
    */
-  async recordPayoutConfirmation(challengeId: string): Promise<PaymentConfirmationResult> {
+  async recordPayoutConfirmation(
+    challengeId: string
+  ): Promise<PaymentConfirmationResult> {
     try {
       const record = await this.getPaymentRecord(challengeId);
       if (!record) {
@@ -313,19 +326,25 @@ export class ChallengePaymentService {
   /**
    * Get payment status for challenge
    */
-  async getPaymentStatus(challengeId: string): Promise<ChallengePaymentRecord | null> {
+  async getPaymentStatus(
+    challengeId: string
+  ): Promise<ChallengePaymentRecord | null> {
     return this.getPaymentRecord(challengeId);
   }
 
   /**
    * Storage helpers
    */
-  private async savePaymentRecord(record: ChallengePaymentRecord): Promise<void> {
+  private async savePaymentRecord(
+    record: ChallengePaymentRecord
+  ): Promise<void> {
     const key = `${this.STORAGE_KEY_PREFIX}${record.challengeId}`;
     await AsyncStorage.setItem(key, JSON.stringify(record));
   }
 
-  private async getPaymentRecord(challengeId: string): Promise<ChallengePaymentRecord | null> {
+  private async getPaymentRecord(
+    challengeId: string
+  ): Promise<ChallengePaymentRecord | null> {
     try {
       const key = `${this.STORAGE_KEY_PREFIX}${challengeId}`;
       const data = await AsyncStorage.getItem(key);
@@ -342,7 +361,9 @@ export class ChallengePaymentService {
   async getAllPaymentRecords(): Promise<ChallengePaymentRecord[]> {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const paymentKeys = keys.filter((key) => key.startsWith(this.STORAGE_KEY_PREFIX));
+      const paymentKeys = keys.filter((key) =>
+        key.startsWith(this.STORAGE_KEY_PREFIX)
+      );
 
       const records = await Promise.all(
         paymentKeys.map(async (key) => {
@@ -369,7 +390,10 @@ export class ChallengePaymentService {
 
       let cleaned = 0;
       for (const record of records) {
-        if (now - record.createdAt > thirtyDaysMs && record.status === 'completed') {
+        if (
+          now - record.createdAt > thirtyDaysMs &&
+          record.status === 'completed'
+        ) {
           const key = `${this.STORAGE_KEY_PREFIX}${record.challengeId}`;
           await AsyncStorage.removeItem(key);
           cleaned++;

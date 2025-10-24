@@ -55,7 +55,10 @@ class WalletDetectionService {
   async findRunstrWallet(hexPubkey: string): Promise<WalletDetectionResult> {
     try {
       console.log('[WalletDetection] Searching for RUNSTR wallet...');
-      console.log('[WalletDetection] User pubkey:', hexPubkey.slice(0, 16) + '...');
+      console.log(
+        '[WalletDetection] User pubkey:',
+        hexPubkey.slice(0, 16) + '...'
+      );
       console.log('[WalletDetection] Looking for d-tag:', RUNSTR_WALLET_DTAG);
 
       const ndk = await GlobalNDKService.getInstance();
@@ -65,7 +68,7 @@ class WalletDetectionService {
         kinds: [37375 as NDKKind],
         authors: [hexPubkey],
         '#d': [RUNSTR_WALLET_DTAG], // Deterministic - only 0 or 1 result
-        limit: 1
+        limit: 1,
       };
 
       console.log('[WalletDetection] Querying for standard wallet...');
@@ -78,7 +81,7 @@ class WalletDetectionService {
             console.warn('[WalletDetection] Query timeout (10s)');
             resolve(new Set());
           }, 10000)
-        )
+        ),
       ]);
 
       if (standardEvents.size > 0) {
@@ -87,25 +90,33 @@ class WalletDetectionService {
         const walletInfo = this.parseWalletEvent(event);
 
         console.log('[WalletDetection] ✅ Standard RUNSTR wallet found!');
-        console.log('[WalletDetection] Event ID:', walletInfo.eventId.slice(0, 16) + '...');
+        console.log(
+          '[WalletDetection] Event ID:',
+          walletInfo.eventId.slice(0, 16) + '...'
+        );
         console.log('[WalletDetection] Balance:', walletInfo.balance, 'sats');
         console.log('[WalletDetection] Mint:', walletInfo.mint);
-        console.log('[WalletDetection] Created:', new Date(walletInfo.createdAt * 1000).toLocaleString());
+        console.log(
+          '[WalletDetection] Created:',
+          new Date(walletInfo.createdAt * 1000).toLocaleString()
+        );
 
         return {
           found: true,
           walletInfo,
-          error: null
+          error: null,
         };
       }
 
       // STEP 2: Fallback - find ANY wallet for this user (backwards compatibility)
-      console.log('[WalletDetection] No standard wallet found, searching for legacy wallets...');
+      console.log(
+        '[WalletDetection] No standard wallet found, searching for legacy wallets...'
+      );
 
       const legacyFilter = {
         kinds: [37375 as NDKKind],
         authors: [hexPubkey],
-        limit: 10  // Get multiple wallets, we'll pick the most recent
+        limit: 10, // Get multiple wallets, we'll pick the most recent
       };
 
       const legacyEvents = await Promise.race([
@@ -115,16 +126,18 @@ class WalletDetectionService {
             console.warn('[WalletDetection] Legacy query timeout (10s)');
             resolve(new Set());
           }, 10000)
-        )
+        ),
       ]);
 
       if (legacyEvents.size === 0) {
-        console.log('[WalletDetection] ❌ No wallets found (neither standard nor legacy)');
+        console.log(
+          '[WalletDetection] ❌ No wallets found (neither standard nor legacy)'
+        );
         console.log('[WalletDetection] User needs to create wallet');
         return {
           found: false,
           walletInfo: null,
-          error: null
+          error: null,
         };
       }
 
@@ -135,27 +148,40 @@ class WalletDetectionService {
       const mostRecentEvent = sortedEvents[0];
       const walletInfo = this.parseWalletEvent(mostRecentEvent);
 
-      console.log('[WalletDetection] ✅ Legacy wallet found (backwards compatibility)');
-      console.log('[WalletDetection] Found', legacyEvents.size, 'legacy wallet(s), using most recent');
-      console.log('[WalletDetection] Event ID:', walletInfo.eventId.slice(0, 16) + '...');
+      console.log(
+        '[WalletDetection] ✅ Legacy wallet found (backwards compatibility)'
+      );
+      console.log(
+        '[WalletDetection] Found',
+        legacyEvents.size,
+        'legacy wallet(s), using most recent'
+      );
+      console.log(
+        '[WalletDetection] Event ID:',
+        walletInfo.eventId.slice(0, 16) + '...'
+      );
       console.log('[WalletDetection] d-tag:', walletInfo.dTag);
       console.log('[WalletDetection] Balance:', walletInfo.balance, 'sats');
       console.log('[WalletDetection] Mint:', walletInfo.mint);
-      console.log('[WalletDetection] Created:', new Date(walletInfo.createdAt * 1000).toLocaleString());
-      console.log('[WalletDetection] ⚠️  Recommend creating new wallet with standard d-tag for consistency');
+      console.log(
+        '[WalletDetection] Created:',
+        new Date(walletInfo.createdAt * 1000).toLocaleString()
+      );
+      console.log(
+        '[WalletDetection] ⚠️  Recommend creating new wallet with standard d-tag for consistency'
+      );
 
       return {
         found: true,
         walletInfo,
-        error: null
+        error: null,
       };
-
     } catch (error) {
       console.error('[WalletDetection] Query failed:', error);
       return {
         found: false,
         walletInfo: null,
-        error: error instanceof Error ? error.message : 'Query failed'
+        error: error instanceof Error ? error.message : 'Query failed',
       };
     }
   }
@@ -165,10 +191,12 @@ class WalletDetectionService {
    * Reads public tags - no decryption needed
    */
   private parseWalletEvent(event: NDKEvent): WalletInfo {
-    const dTag = event.tags.find(t => t[0] === 'd')?.[1] || '';
-    const nameTag = event.tags.find(t => t[0] === 'name')?.[1] || 'Unknown Wallet';
-    const mintTag = event.tags.find(t => t[0] === 'mint')?.[1] || 'https://mint.coinos.io';
-    const balanceTag = event.tags.find(t => t[0] === 'balance')?.[1];
+    const dTag = event.tags.find((t) => t[0] === 'd')?.[1] || '';
+    const nameTag =
+      event.tags.find((t) => t[0] === 'name')?.[1] || 'Unknown Wallet';
+    const mintTag =
+      event.tags.find((t) => t[0] === 'mint')?.[1] || 'https://mint.coinos.io';
+    const balanceTag = event.tags.find((t) => t[0] === 'balance')?.[1];
 
     // Parse balance from tag (public, no decryption)
     let balance = 0;
@@ -187,7 +215,7 @@ class WalletDetectionService {
       name: nameTag,
       eventId: event.id,
       createdAt: event.created_at || 0,
-      dTag
+      dTag,
     };
   }
 

@@ -4,19 +4,42 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Modal,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
+import { EnhancedSocialShareModal } from '../../components/profile/shared/EnhancedSocialShareModal';
+import { WorkoutPublishingService } from '../../services/nostr/workoutPublishingService';
+import { getNsecFromStorage } from '../../utils/nostr';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Workout } from '../../types/workout';
 
-type MeditationType = 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+type MeditationType =
+  | 'guided'
+  | 'unguided'
+  | 'breathwork'
+  | 'body_scan'
+  | 'gratitude';
 
-const MEDITATION_TYPES: { value: MeditationType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const MEDITATION_TYPES: {
+  value: MeditationType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { value: 'guided', label: 'Guided Meditation', icon: 'headset' },
   { value: 'unguided', label: 'Unguided Meditation', icon: 'infinite' },
   { value: 'breathwork', label: 'Breathwork', icon: 'pulse' },
   { value: 'body_scan', label: 'Body Scan', icon: 'body' },
-  { value: 'loving_kindness', label: 'Loving-Kindness', icon: 'heart' },
+  { value: 'gratitude', label: 'Gratitude', icon: 'heart-outline' },
 ];
 
 export const MeditationTrackerScreen: React.FC = () => {
@@ -30,12 +53,26 @@ export const MeditationTrackerScreen: React.FC = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [sessionNotes, setSessionNotes] = useState('');
 
+  // Sharing state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [savedWorkout, setSavedWorkout] = useState<Workout | null>(null);
+  const [userId, setUserId] = useState<string>('');
+
   // Timer refs
   const startTimeRef = useRef<number>(0);
   const totalPausedTimeRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<number>(0);
   const isPausedRef = useRef<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load userId on mount
+  useEffect(() => {
+    const loadUserId = async () => {
+      const npub = await AsyncStorage.getItem('@runstr:npub');
+      if (npub) setUserId(npub);
+    };
+    loadUserId();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -52,7 +89,9 @@ export const MeditationTrackerScreen: React.FC = () => {
       interval = setInterval(() => {
         const now = Date.now();
         const totalPausedTime = totalPausedTimeRef.current;
-        const elapsed = Math.floor((now - startTimeRef.current - totalPausedTime) / 1000);
+        const elapsed = Math.floor(
+          (now - startTimeRef.current - totalPausedTime) / 1000
+        );
         setElapsedSeconds(elapsed);
       }, 1000);
     }
@@ -95,26 +134,104 @@ export const MeditationTrackerScreen: React.FC = () => {
     setShowSummary(true);
   };
 
-  const saveSession = async () => {
+  const saveSessionLocally = async () => {
     try {
-      const meditationTypeLabel = MEDITATION_TYPES.find(t => t.value === selectedType)?.label || 'Meditation';
+      const meditationTypeLabel =
+        MEDITATION_TYPES.find((t) => t.value === selectedType)?.label ||
+        'Meditation';
 
-      await LocalWorkoutStorageService.saveManualWorkout({
-        type: 'other', // Will be properly handled in kind 1301 as 'meditation'
-        duration: elapsedSeconds * 60, // Convert to minutes for storage
-        notes: sessionNotes || `${elapsedSeconds >= 60 ? Math.floor(elapsedSeconds / 60) + ' minute' : elapsedSeconds + ' second'} ${meditationTypeLabel.toLowerCase()} session`,
-        // @ts-ignore - We'll add this field to LocalWorkout interface in Phase 5
+      const workoutId = await LocalWorkoutStorageService.saveManualWorkout({
+        type: 'meditation',
+        duration: elapsedSeconds,
+        notes:
+          sessionNotes ||
+          `${
+            elapsedSeconds >= 60
+              ? Math.floor(elapsedSeconds / 60) + ' minute'
+              : elapsedSeconds + ' second'
+          } ${meditationTypeLabel.toLowerCase()} session`,
         meditationType: selectedType,
       });
 
-      console.log(`✅ Meditation session saved: ${selectedType} - ${formatTime(elapsedSeconds)}`);
+      console.log(
+        `✅ Meditation session saved locally: ${selectedType} - ${formatTime(
+          elapsedSeconds
+        )}`
+      );
 
-      // Reset state
-      setShowSummary(false);
-      setSessionNotes('');
-      setElapsedSeconds(0);
+      // Retrieve the saved workout from storage
+      const allWorkouts = await LocalWorkoutStorageService.getAllWorkouts();
+      const workout = allWorkouts.find((w) => w.id === workoutId);
+
+      if (workout) {
+        setSavedWorkout(workout as any);
+        return workout as any;
+      }
+
+      throw new Error('Failed to retrieve saved workout');
     } catch (error) {
       console.error('❌ Failed to save meditation session:', error);
+      throw error;
+    }
+  };
+
+  const saveToNostr = async () => {
+    try {
+      // Save locally first
+      const workout = savedWorkout || (await saveSessionLocally());
+      if (!workout) return;
+
+      // Get nsec for publishing
+      const nsec = await getNsecFromStorage(userId);
+      if (!nsec) {
+        Alert.alert(
+          'Authentication Required',
+          'Please log in with your Nostr key to post workouts.'
+        );
+        return;
+      }
+
+      // Publish as kind 1301 (competition data)
+      const publishingService = WorkoutPublishingService.getInstance();
+      const result = await publishingService.saveWorkoutToNostr(
+        workout,
+        nsec,
+        userId
+      );
+
+      if (result.success) {
+        Alert.alert(
+          'Success!',
+          'Your meditation session has been saved to Nostr.',
+          [{ text: 'OK', onPress: handleDone }]
+        );
+      } else {
+        throw new Error(result.error || 'Failed to save to Nostr');
+      }
+    } catch (error) {
+      console.error('❌ Failed to save to Nostr:', error);
+      Alert.alert('Error', 'Failed to save to Nostr. Please try again.');
+    }
+  };
+
+  const handleDone = () => {
+    setShowSummary(false);
+    setShowShareModal(false);
+    setSessionNotes('');
+    setElapsedSeconds(0);
+    setSavedWorkout(null);
+  };
+
+  const openShareModal = async () => {
+    try {
+      // Save locally first
+      const workout = savedWorkout || (await saveSessionLocally());
+      if (workout) {
+        setShowShareModal(true);
+      }
+    } catch (error) {
+      console.error('❌ Failed to prepare workout for sharing:', error);
+      Alert.alert('Error', 'Failed to prepare workout. Please try again.');
     }
   };
 
@@ -127,7 +244,10 @@ export const MeditationTrackerScreen: React.FC = () => {
   // Start screen (before session begins)
   if (!isActive && !showSummary) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.startContainer}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.startContainer}
+      >
         <View style={styles.iconContainer}>
           <Ionicons name="body" size={64} color={theme.colors.text} />
         </View>
@@ -148,7 +268,11 @@ export const MeditationTrackerScreen: React.FC = () => {
               <Ionicons
                 name={type.icon}
                 size={32}
-                color={selectedType === type.value ? theme.colors.text : theme.colors.textMuted}
+                color={
+                  selectedType === type.value
+                    ? theme.colors.text
+                    : theme.colors.textMuted
+                }
               />
               <Text
                 style={[
@@ -175,7 +299,7 @@ export const MeditationTrackerScreen: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.activeContainer}>
           <Text style={styles.meditationType}>
-            {MEDITATION_TYPES.find(t => t.value === selectedType)?.label}
+            {MEDITATION_TYPES.find((t) => t.value === selectedType)?.label}
           </Text>
 
           <View style={styles.timerContainer}>
@@ -187,12 +311,22 @@ export const MeditationTrackerScreen: React.FC = () => {
 
           <View style={styles.controlButtons}>
             {!isPaused ? (
-              <TouchableOpacity style={styles.pauseButton} onPress={pauseMeditation}>
+              <TouchableOpacity
+                style={styles.pauseButton}
+                onPress={pauseMeditation}
+              >
                 <Ionicons name="pause" size={32} color={theme.colors.text} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.resumeButton} onPress={resumeMeditation}>
-                <Ionicons name="play" size={32} color={theme.colors.background} />
+              <TouchableOpacity
+                style={styles.resumeButton}
+                onPress={resumeMeditation}
+              >
+                <Ionicons
+                  name="play"
+                  size={32}
+                  color={theme.colors.background}
+                />
               </TouchableOpacity>
             )}
 
@@ -216,7 +350,7 @@ export const MeditationTrackerScreen: React.FC = () => {
             <Ionicons name="time" size={48} color={theme.colors.text} />
             <Text style={styles.summaryTime}>{formatTime(elapsedSeconds)}</Text>
             <Text style={styles.summaryType}>
-              {MEDITATION_TYPES.find(t => t.value === selectedType)?.label}
+              {MEDITATION_TYPES.find((t) => t.value === selectedType)?.label}
             </Text>
           </View>
 
@@ -232,26 +366,51 @@ export const MeditationTrackerScreen: React.FC = () => {
           />
 
           <View style={styles.summaryButtons}>
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={saveSession}
-            >
-              <Text style={styles.saveButtonText}>Save Session</Text>
+            <TouchableOpacity style={styles.saveButton} onPress={saveToNostr}>
+              <Ionicons
+                name="cloud-upload-outline"
+                size={20}
+                color={theme.colors.background}
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.saveButtonText}>Save to Nostr</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.discardButton}
-              onPress={() => {
-                setShowSummary(false);
-                setSessionNotes('');
-                setElapsedSeconds(0);
-              }}
+              style={styles.shareButton}
+              onPress={openShareModal}
             >
-              <Text style={styles.discardButtonText}>Discard</Text>
+              <Ionicons
+                name="share-social-outline"
+                size={20}
+                color={theme.colors.text}
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.shareButtonText}>Share to Social</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
+              <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
+      {/* Social Share Modal */}
+      {savedWorkout && (
+        <EnhancedSocialShareModal
+          visible={showShareModal}
+          workout={savedWorkout}
+          userId={userId}
+          onClose={() => setShowShareModal(false)}
+          onSuccess={() => {
+            Alert.alert(
+              'Success!',
+              'Your meditation session has been shared to Nostr with a beautiful card!',
+              [{ text: 'OK', onPress: handleDone }]
+            );
+          }}
+        />
+      )}
     </Modal>
   );
 };
@@ -437,18 +596,38 @@ const styles = StyleSheet.create({
   summaryButtons: {
     gap: 12,
   },
+  buttonIcon: {
+    marginRight: 8,
+  },
   saveButton: {
+    flexDirection: 'row',
     backgroundColor: theme.colors.text,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonText: {
     color: theme.colors.background,
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,
   },
-  discardButton: {
+  shareButton: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  shareButtonText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+  },
+  doneButton: {
     backgroundColor: theme.colors.card,
     borderRadius: 12,
     paddingVertical: 14,
@@ -456,7 +635,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  discardButtonText: {
+  doneButtonText: {
     color: theme.colors.textMuted,
     fontSize: 16,
     fontWeight: theme.typography.weights.medium,

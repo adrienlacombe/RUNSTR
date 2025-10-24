@@ -1,5 +1,5 @@
 /**
- * Nostr Preload Service  
+ * Nostr Preload Service
  * Background data preloading during app boot to mask Nostr loading delays
  * Starts all Nostr queries immediately when app opens, caches results
  */
@@ -21,7 +21,9 @@ export class NostrPreloadService {
    */
   static async startBackgroundPreload(): Promise<void> {
     if (this.isPreloading) {
-      console.log('🔄 NostrPreload: Already preloading, skipping duplicate request');
+      console.log(
+        '🔄 NostrPreload: Already preloading, skipping duplicate request'
+      );
       return;
     }
 
@@ -37,20 +39,24 @@ export class NostrPreloadService {
         return;
       }
 
-      console.log('✅ NostrPreload: Found npub, starting parallel preload operations...');
+      console.log(
+        '✅ NostrPreload: Found npub, starting parallel preload operations...'
+      );
 
       // Start all operations in parallel (non-blocking)
       const preloadPromises = [
         this.preloadProfileData(npub),
-        this.preloadWorkoutData(npub), 
+        this.preloadWorkoutData(npub),
         this.preloadTeamsData(),
       ];
 
       // Don't await - let them run in background
-      Promise.allSettled(preloadPromises).then(results => {
+      Promise.allSettled(preloadPromises).then((results) => {
         const duration = Date.now() - this.preloadStartTime;
-        console.log(`✅ NostrPreload: Background preload completed in ${duration}ms`);
-        
+        console.log(
+          `✅ NostrPreload: Background preload completed in ${duration}ms`
+        );
+
         // Log results
         results.forEach((result, index) => {
           const operation = ['profile', 'workouts', 'teams'][index];
@@ -60,12 +66,14 @@ export class NostrPreloadService {
             console.log(`   ❌ ${operation} preload: failed -`, result.reason);
           }
         });
-        
+
         this.isPreloading = false;
       });
-
     } catch (error) {
-      console.error('❌ NostrPreload: Error starting background preload:', error);
+      console.error(
+        '❌ NostrPreload: Error starting background preload:',
+        error
+      );
       this.isPreloading = false;
     }
   }
@@ -76,7 +84,7 @@ export class NostrPreloadService {
   private static async preloadProfileData(npub: string): Promise<void> {
     try {
       console.log('📡 NostrPreload: Preloading profile data...');
-      
+
       // Check if already cached
       const cachedProfile = await NostrCacheService.getCachedProfile(npub);
       if (cachedProfile) {
@@ -90,28 +98,34 @@ export class NostrPreloadService {
       });
 
       const profilePromise = nostrProfileService.getProfile(npub);
-      
+
       // Race between fetch and timeout
       try {
-        const nostrProfile = await Promise.race([profilePromise, timeoutPromise]);
-        
+        const nostrProfile = await Promise.race([
+          profilePromise,
+          timeoutPromise,
+        ]);
+
         if (nostrProfile) {
           // Create and cache the profile
           const directUser = {
             id: 'nostr_' + npub.slice(-10),
             npub: npub,
-            name: nostrProfile?.display_name || nostrProfile?.name || `user_${npub.slice(5, 13)}`,
+            name:
+              nostrProfile?.display_name ||
+              nostrProfile?.name ||
+              `user_${npub.slice(5, 13)}`,
             displayName: nostrProfile?.display_name || nostrProfile?.name,
             role: 'member' as const,
             createdAt: new Date().toISOString(),
-            
+
             // Nostr profile data
             bio: nostrProfile?.about,
             website: nostrProfile?.website,
             picture: nostrProfile?.picture,
             banner: nostrProfile?.banner,
             lud16: nostrProfile?.lud16,
-            
+
             // Basic settings
             lightningAddress: nostrProfile?.lud16,
             personalWalletAddress: nostrProfile?.lud16,
@@ -138,7 +152,7 @@ export class NostrPreloadService {
   private static async preloadWorkoutData(npub: string): Promise<void> {
     try {
       console.log('🏃‍♂️ NostrPreload: Preloading workout data...');
-      
+
       // Check if already cached
       const cachedWorkouts = await NostrCacheService.getCachedWorkouts(npub);
       if (cachedWorkouts.length > 0) {
@@ -151,24 +165,32 @@ export class NostrPreloadService {
         setTimeout(() => reject(new Error('Workout preload timeout')), 15000); // 15 sec timeout
       });
 
-      const { NostrWorkoutService } = await import('../fitness/nostrWorkoutService');
+      const { NostrWorkoutService } = await import(
+        '../fitness/nostrWorkoutService'
+      );
       const workoutService = NostrWorkoutService.getInstance();
       const { nip19 } = await import('nostr-tools');
       const { data: pubkeyBytes } = nip19.decode(npub);
       const pubkey = pubkeyBytes as string;
-      
+
       const workoutPromise = workoutService.fetchUserWorkouts(pubkey, {
         userId: 'nostr_' + npub.slice(-10),
         limit: 50, // Reasonable limit for preloading
       });
-      
+
       // Race between fetch and timeout
       try {
         const syncResult = await Promise.race([workoutPromise, timeoutPromise]);
-        
-        if (syncResult && syncResult.workouts && syncResult.workouts.length > 0) {
+
+        if (
+          syncResult &&
+          syncResult.workouts &&
+          syncResult.workouts.length > 0
+        ) {
           await NostrCacheService.setCachedWorkouts(npub, syncResult.workouts);
-          console.log(`✅ NostrPreload: ${syncResult.workouts.length} workouts preloaded and cached`);
+          console.log(
+            `✅ NostrPreload: ${syncResult.workouts.length} workouts preloaded and cached`
+          );
         } else {
           console.log('⚠️ NostrPreload: No workout data found');
         }
@@ -188,7 +210,7 @@ export class NostrPreloadService {
   private static async preloadTeamsData(): Promise<void> {
     try {
       console.log('👥 NostrPreload: Preloading teams data...');
-      
+
       // Check if already cached
       const cachedTeams = await NostrCacheService.getCachedTeams();
       if (cachedTeams.length > 0) {
@@ -206,11 +228,11 @@ export class NostrPreloadService {
         limit: 50, // Increased limit for better discovery
         // Removed since filter to access ALL historical teams
       });
-      
+
       // Race between fetch and timeout
       try {
         const nostrTeams = await Promise.race([teamsPromise, timeoutPromise]);
-        
+
         if (nostrTeams && nostrTeams.length > 0) {
           // Convert to DiscoveryTeam format
           const discoveryTeams = nostrTeams.map((team) => ({
@@ -239,7 +261,9 @@ export class NostrPreloadService {
           }));
 
           await NostrCacheService.setCachedTeams(discoveryTeams);
-          console.log(`✅ NostrPreload: ${discoveryTeams.length} teams preloaded and cached`);
+          console.log(
+            `✅ NostrPreload: ${discoveryTeams.length} teams preloaded and cached`
+          );
         } else {
           console.log('⚠️ NostrPreload: No teams data found');
         }
@@ -262,7 +286,7 @@ export class NostrPreloadService {
   } {
     return {
       isPreloading: this.isPreloading,
-      duration: this.isPreloading ? Date.now() - this.preloadStartTime : 0
+      duration: this.isPreloading ? Date.now() - this.preloadStartTime : 0,
     };
   }
 

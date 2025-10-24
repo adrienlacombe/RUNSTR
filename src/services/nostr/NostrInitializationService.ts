@@ -50,7 +50,7 @@ export class NostrInitializationService {
         try {
           console.log(`Connecting to ${relay}...`);
           // Simulate connection (actual connection happens in NDK)
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
         } catch (error) {
           console.warn(`Failed to connect to ${relay}:`, error);
         }
@@ -90,7 +90,9 @@ export class NostrInitializationService {
   }
 
   async prefetchTeams(): Promise<void> {
-    console.log('🏃 Pre-fetching teams using TeamCacheService (30-min cache)...');
+    console.log(
+      '🏃 Pre-fetching teams using TeamCacheService (30-min cache)...'
+    );
 
     try {
       // Use TeamCacheService as single source of truth (30-min TTL + 5-min background refresh)
@@ -99,7 +101,9 @@ export class NostrInitializationService {
 
       if (teams && teams.length > 0) {
         this.prefetchedTeams = teams;
-        console.log(`✅ Pre-fetched and cached ${teams.length} teams via TeamCacheService`);
+        console.log(
+          `✅ Pre-fetched and cached ${teams.length} teams via TeamCacheService`
+        );
       } else {
         console.log('⚠️ No teams found during prefetch');
       }
@@ -121,8 +125,14 @@ export class NostrInitializationService {
 
       // DEBUG: Log what we found (safely)
       console.log('📝 Storage Check:');
-      console.log(`   - userNpub: ${userNpub ? userNpub.slice(0, 20) + '...' : '❌ NULL'}`);
-      console.log(`   - hexPubkey: ${hexPubkey ? hexPubkey.slice(0, 20) + '...' : '❌ NULL'}`);
+      console.log(
+        `   - userNpub: ${userNpub ? userNpub.slice(0, 20) + '...' : '❌ NULL'}`
+      );
+      console.log(
+        `   - hexPubkey: ${
+          hexPubkey ? hexPubkey.slice(0, 20) + '...' : '❌ NULL'
+        }`
+      );
 
       if (!userNpub) {
         console.error('❌ ================================');
@@ -150,11 +160,15 @@ export class NostrInitializationService {
 
       // Use WorkoutCacheService for centralized caching strategy
       // This ensures cache key alignment and proper data format
-      const { WorkoutCacheService } = await import('../cache/WorkoutCacheService');
+      const { WorkoutCacheService } = await import(
+        '../cache/WorkoutCacheService'
+      );
       const cacheService = WorkoutCacheService.getInstance();
 
       console.log('📞 Calling WorkoutCacheService.getMergedWorkouts()...');
-      console.log(`   Parameters: pubkey=${hexPubkey.slice(0, 10)}..., limit=20`);
+      console.log(
+        `   Parameters: pubkey=${hexPubkey.slice(0, 10)}..., limit=20`
+      );
 
       // ✅ OPTIMIZATION: Reduced from 100 → 20 workouts for FAST initial load
       // Fetch only recent workouts for initial screen display (limit: 20 for speed)
@@ -175,7 +189,9 @@ export class NostrInitializationService {
         console.log('   3. Network/relay connection issue');
         console.log('   4. Incorrect npub/hex_pubkey format');
       } else {
-        console.log(`✅ Successfully cached ${result.allWorkouts.length} workouts`);
+        console.log(
+          `✅ Successfully cached ${result.allWorkouts.length} workouts`
+        );
         console.log(`   📊 HealthKit: ${result.healthKitCount}`);
         console.log(`   📊 Nostr: ${result.nostrCount}`);
         console.log(`   📊 Duplicates removed: ${result.duplicateCount}`);
@@ -189,8 +205,14 @@ export class NostrInitializationService {
       console.error('❌ WORKOUT PREFETCH FAILED');
       console.error('❌ ================================');
       console.error('❌ Error:', error);
-      console.error('❌ Error type:', error instanceof Error ? error.constructor.name : typeof error);
-      console.error('❌ Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error(
+        '❌ Error type:',
+        error instanceof Error ? error.constructor.name : typeof error
+      );
+      console.error(
+        '❌ Error message:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       if (error instanceof Error && error.stack) {
         console.error('❌ Stack trace:', error.stack);
       }

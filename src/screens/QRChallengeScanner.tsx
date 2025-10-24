@@ -28,12 +28,16 @@ interface QRChallengeScannerProps {
   navigation: any;
 }
 
-export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({ navigation }) => {
+export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
+  navigation,
+}) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
-  const [challengeData, setChallengeData] = useState<QRChallengeData | null>(null);
+  const [challengeData, setChallengeData] = useState<QRChallengeData | null>(
+    null
+  );
   const [eventData, setEventData] = useState<QREventData | null>(null);
   const [challengePreviewVisible, setChallengePreviewVisible] = useState(false);
   const [eventPreviewVisible, setEventPreviewVisible] = useState(false);
@@ -49,7 +53,13 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({ navigati
   /**
    * Handle QR code scan
    */
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = ({
+    type,
+    data,
+  }: {
+    type: string;
+    data: string;
+  }) => {
     if (scanned) return;
 
     setScanned(true);
@@ -112,10 +122,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({ navigati
     }
 
     // Neither challenge nor event
-    Alert.alert(
-      'Invalid Code',
-      'This code is not a valid challenge or event'
-    );
+    Alert.alert('Invalid Code', 'This code is not a valid challenge or event');
   };
 
   /**
@@ -171,7 +178,9 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({ navigati
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Requesting camera permission...</Text>
+          <Text style={styles.loadingText}>
+            Requesting camera permission...
+          </Text>
         </View>
       </SafeAreaView>
     );

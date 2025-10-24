@@ -17,7 +17,11 @@ interface UseNutzapCompatReturn {
   error: string | null;
 
   // Actions
-  sendNutzap: (recipientPubkey: string, amount: number, memo?: string) => Promise<boolean>;
+  sendNutzap: (
+    recipientPubkey: string,
+    amount: number,
+    memo?: string
+  ) => Promise<boolean>;
   claimNutzaps: () => Promise<{ claimed: number; total: number }>;
   refreshBalance: () => Promise<void>;
   clearWallet: () => Promise<void>;
@@ -27,7 +31,9 @@ interface UseNutzapCompatReturn {
  * Compatibility hook that maps NutZap interface to NWC implementation
  * Drop-in replacement for useNutzap hook
  */
-export const useNutzapCompat = (autoInitialize: boolean = true): UseNutzapCompatReturn => {
+export const useNutzapCompat = (
+  autoInitialize: boolean = true
+): UseNutzapCompatReturn => {
   const {
     isInitialized,
     isLoading,
@@ -35,47 +41,57 @@ export const useNutzapCompat = (autoInitialize: boolean = true): UseNutzapCompat
     hasWallet,
     error,
     sendZap,
-    refreshBalance
+    refreshBalance,
   } = useNWCZap();
 
   /**
    * Send payment using NWC (replaces NutZap send)
    * Maps to Lightning address payments via NWC
    */
-  const sendNutzap = useCallback(async (
-    recipientPubkey: string,
-    amount: number,
-    memo?: string
-  ): Promise<boolean> => {
-    if (!isInitialized || !hasWallet) {
-      console.warn('[useNutzapCompat] Wallet not ready for sending');
-      return false;
-    }
-
-    try {
-      // Normalize recipient pubkey to hex format
-      const recipientHex = npubToHex(recipientPubkey) || recipientPubkey;
-
-      // Use NWC to send to Lightning address
-      const result = await sendZap(recipientHex, amount, memo || 'Zap from RUNSTR');
-
-      if (result) {
-        console.log(`[useNutzapCompat] Sent ${amount} sats via NWC`);
-        return true;
+  const sendNutzap = useCallback(
+    async (
+      recipientPubkey: string,
+      amount: number,
+      memo?: string
+    ): Promise<boolean> => {
+      if (!isInitialized || !hasWallet) {
+        console.warn('[useNutzapCompat] Wallet not ready for sending');
+        return false;
       }
 
-      return false;
-    } catch (err) {
-      console.error('[useNutzapCompat] Send error:', err);
-      return false;
-    }
-  }, [isInitialized, hasWallet, sendZap]);
+      try {
+        // Normalize recipient pubkey to hex format
+        const recipientHex = npubToHex(recipientPubkey) || recipientPubkey;
+
+        // Use NWC to send to Lightning address
+        const result = await sendZap(
+          recipientHex,
+          amount,
+          memo || 'Zap from RUNSTR'
+        );
+
+        if (result) {
+          console.log(`[useNutzapCompat] Sent ${amount} sats via NWC`);
+          return true;
+        }
+
+        return false;
+      } catch (err) {
+        console.error('[useNutzapCompat] Send error:', err);
+        return false;
+      }
+    },
+    [isInitialized, hasWallet, sendZap]
+  );
 
   /**
    * Claim incoming payments (no-op for NWC)
    * NWC doesn't have a claim mechanism like NutZap
    */
-  const claimNutzaps = useCallback(async (): Promise<{ claimed: number; total: number }> => {
+  const claimNutzaps = useCallback(async (): Promise<{
+    claimed: number;
+    total: number;
+  }> => {
     console.log('[useNutzapCompat] Claim called - no-op for NWC');
     // NWC doesn't need claiming - payments are received directly
     return { claimed: 0, total: 0 };

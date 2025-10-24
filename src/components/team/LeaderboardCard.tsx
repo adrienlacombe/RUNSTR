@@ -18,7 +18,10 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
   title = 'League',
 }) => {
   const [challengeWizardVisible, setChallengeWizardVisible] = useState(false);
-  const [selectedOpponent, setSelectedOpponent] = useState<{ pubkey: string; name: string } | null>(null);
+  const [selectedOpponent, setSelectedOpponent] = useState<{
+    pubkey: string;
+    name: string;
+  } | null>(null);
 
   const handleChallengePress = (entry: FormattedLeaderboardEntry) => {
     setSelectedOpponent({
@@ -37,7 +40,9 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
 
         {leaderboard.slice(0, 5).map((entry) => (
           <View key={entry.userId} style={styles.item}>
-            <View style={[styles.rank, entry.isTopThree && styles.rankTopThree]}>
+            <View
+              style={[styles.rank, entry.isTopThree && styles.rankTopThree]}
+            >
               <Text
                 style={[
                   styles.rankText,

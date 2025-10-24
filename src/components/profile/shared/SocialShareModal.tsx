@@ -89,23 +89,21 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
           // Mark as posted
           await statusTracker.markAsPosted(workout.id, result.eventId);
 
-          Alert.alert(
-            'Success',
-            'Workout shared to Nostr successfully!',
-            [{ text: 'OK', onPress: () => {
-              onSuccess?.();
-              onClose();
-            }}]
-          );
+          Alert.alert('Success', 'Workout shared to Nostr successfully!', [
+            {
+              text: 'OK',
+              onPress: () => {
+                onSuccess?.();
+                onClose();
+              },
+            },
+          ]);
         } else {
           throw new Error(result.error || 'Failed to share workout');
         }
       } catch (error) {
         console.error('Failed to share to Nostr:', error);
-        Alert.alert(
-          'Error',
-          'Failed to share workout. Please try again.'
-        );
+        Alert.alert('Error', 'Failed to share workout. Please try again.');
       } finally {
         setLoading(false);
         setSelectedPlatform(null);
@@ -171,10 +169,12 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
                 disabled={!platform.available || loading}
               >
                 <Text style={styles.platformIcon}>{platform.icon}</Text>
-                <Text style={[
-                  styles.platformName,
-                  !platform.available && styles.platformNameDisabled,
-                ]}>
+                <Text
+                  style={[
+                    styles.platformName,
+                    !platform.available && styles.platformNameDisabled,
+                  ]}
+                >
                   {platform.name}
                 </Text>
                 {!platform.available && (

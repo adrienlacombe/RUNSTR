@@ -42,9 +42,12 @@ export interface NavigationData {
 export const useNavigationData = (): NavigationData => {
   const [user, setUser] = useState<UserWithWallet | null>(null);
   const [teamData, setTeamData] = useState<TeamScreenData | null>(null);
-  const [profileData, setProfileData] = useState<ProfileScreenData | null>(null);
+  const [profileData, setProfileData] = useState<ProfileScreenData | null>(
+    null
+  );
   const [walletData, setWalletData] = useState<WalletData | null>(null);
-  const [captainDashboardData, setCaptainDashboardData] = useState<CaptainDashboardData | null>(null);
+  const [captainDashboardData, setCaptainDashboardData] =
+    useState<CaptainDashboardData | null>(null);
   const [availableTeams, setAvailableTeams] = useState<DiscoveryTeam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,14 +82,16 @@ export const useNavigationData = (): NavigationData => {
 
       // Filter for this team's competitions that haven't ended
       const now = Date.now() / 1000;
-      const teamCompetitions = allCompetitions.filter(comp => {
+      const teamCompetitions = allCompetitions.filter((comp) => {
         return comp.teamId === teamId && comp.endTime >= now;
       });
 
-      console.log(`📊 Found ${teamCompetitions.length} active/upcoming competitions for team`);
+      console.log(
+        `📊 Found ${teamCompetitions.length} active/upcoming competitions for team`
+      );
 
       // Convert competitions to events format
-      const events = teamCompetitions.map(comp => ({
+      const events = teamCompetitions.map((comp) => ({
         id: comp.id,
         name: comp.name,
         startDate: new Date(comp.startTime * 1000).toISOString(),
@@ -157,7 +162,8 @@ export const useNavigationData = (): NavigationData => {
 
       // Step 2: Try direct Nostr profile
       try {
-        const directNostrUser = await DirectNostrProfileService.getCurrentUserProfile();
+        const directNostrUser =
+          await DirectNostrProfileService.getCurrentUserProfile();
         if (directNostrUser) {
           setUser(directNostrUser);
           await appCache.set('nav_user_data', directNostrUser, 5 * 60 * 1000);
@@ -317,7 +323,9 @@ export const useNavigationData = (): NavigationData => {
         currentTeam = await getUserTeamFromCache(user);
 
         if (currentTeam) {
-          console.log(`✅ Profile: Found user's team - ${currentTeam.name} (${currentTeam.role})`);
+          console.log(
+            `✅ Profile: Found user's team - ${currentTeam.name} (${currentTeam.role})`
+          );
         } else {
           console.log('ℹ️ Profile: User has no team membership');
         }
@@ -387,7 +395,9 @@ export const useNavigationData = (): NavigationData => {
 
     try {
       // Check cache first
-      const cachedTeams = await appCache.get<DiscoveryTeam[]>('available_teams');
+      const cachedTeams = await appCache.get<DiscoveryTeam[]>(
+        'available_teams'
+      );
       if (cachedTeams) {
         setAvailableTeams(cachedTeams);
         setTeamsLoaded(true);
@@ -456,7 +466,12 @@ export const useNavigationData = (): NavigationData => {
       if (user.role === 'captain' && user.hasWalletCredentials) {
         try {
           // Team wallets deprecated - use P2P NIP-60/61 payments
-          const walletBalance = { lightning: 0, onchain: 0, liquid: 0, total: 0 };
+          const walletBalance = {
+            lightning: 0,
+            onchain: 0,
+            liquid: 0,
+            total: 0,
+          };
           realWalletBalance = walletBalance.total;
         } catch (error) {
           // Use cached balance on error
@@ -564,7 +579,7 @@ export const useNavigationData = (): NavigationData => {
         // Load teams in parallel with profile data for better captain detection
         await Promise.all([
           fetchProfileData(userData),
-          loadTeams() // Ensure teams are discovered for captain detection
+          loadTeams(), // Ensure teams are discovered for captain detection
         ]);
 
         // Load team data if user has a team

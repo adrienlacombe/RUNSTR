@@ -1,14 +1,14 @@
 /**
  * HybridNostrQueryService - Intelligent Multi-Strategy Nostr Query Coordinator
- * 
+ *
  * PROBLEM: React Native WebSocket limitations cause 85% event loss vs Node.js
  * SOLUTION: Intelligent HTTP → Optimized WebSocket → Proxy fallback strategy
- * 
+ *
  * Strategy Priority:
  * 1. HTTP (fastest, most reliable on mobile)
  * 2. Optimized WebSocket (connection pooling, mobile timeouts)
  * 3. Proxy/Cache fallback (when all else fails)
- * 
+ *
  * Benefits:
  * - 90%+ event retrieval vs current 15% WebSocket-only success
  * - Intelligent relay performance tracking and optimization
@@ -17,8 +17,12 @@
  */
 
 import type { Event, Filter } from 'nostr-tools';
-import HttpNostrQueryService, { type HttpQueryResult } from './HttpNostrQueryService';
-import OptimizedWebSocketManager, { type OptimizedQueryResult } from './OptimizedWebSocketManager';
+import HttpNostrQueryService, {
+  type HttpQueryResult,
+} from './HttpNostrQueryService';
+import OptimizedWebSocketManager, {
+  type OptimizedQueryResult,
+} from './OptimizedWebSocketManager';
 
 // Unified result interface compatible with existing code
 export interface HybridQueryResult {
@@ -64,19 +68,19 @@ interface QueryAttempt {
 
 export class HybridNostrQueryService {
   private static instance: HybridNostrQueryService;
-  
+
   // Service dependencies
   private httpService: HttpNostrQueryService;
   private wsManager: OptimizedWebSocketManager;
-  
+
   // Performance tracking
   private relayMetrics = new Map<string, RelayPerformanceMetrics>();
-  private cache = new Map<string, { events: Event[], timestamp: number }>();
+  private cache = new Map<string, { events: Event[]; timestamp: number }>();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  
+
   // Relay performance optimization
   private relayPreferences = new Map<string, 'http' | 'websocket'>();
-  
+
   private constructor() {
     this.httpService = HttpNostrQueryService.getInstance();
     this.wsManager = OptimizedWebSocketManager.getInstance();
@@ -100,8 +104,13 @@ export class HybridNostrQueryService {
   ): Promise<HybridQueryResult> {
     const startTime = Date.now();
     const fallbacksUsed: string[] = [];
-    
-    console.log(`🎯 HybridNostrQueryService: Starting intelligent query for ${relayUrl.replace('wss://', '')}`);
+
+    console.log(
+      `🎯 HybridNostrQueryService: Starting intelligent query for ${relayUrl.replace(
+        'wss://',
+        ''
+      )}`
+    );
     console.log(`📋 Filter:`, JSON.stringify(filter, null, 2));
 
     try {
@@ -109,7 +118,9 @@ export class HybridNostrQueryService {
       const cacheKey = this.generateCacheKey(relayUrl, filter);
       const cached = this.getCachedResult(cacheKey);
       if (cached) {
-        console.log(`💾 Cache hit for ${relayUrl}: ${cached.events.length} events`);
+        console.log(
+          `💾 Cache hit for ${relayUrl}: ${cached.events.length} events`
+        );
         return {
           success: true,
           events: cached.events,
@@ -117,61 +128,99 @@ export class HybridNostrQueryService {
           method: 'cache',
           responseTime: Date.now() - startTime,
           eventsFound: cached.events.length,
-          fallbacksUsed: ['cache']
+          fallbacksUsed: ['cache'],
         };
       }
 
       // Determine optimal strategy based on performance history
-      const preferredMethod = this.getPreferredMethod(relayUrl, options.forceMethod);
+      const preferredMethod = this.getPreferredMethod(
+        relayUrl,
+        options.forceMethod
+      );
       console.log(`🎲 Preferred method for ${relayUrl}: ${preferredMethod}`);
 
       let result: HybridQueryResult;
 
       // Try preferred method first
       if (preferredMethod === 'http') {
-        result = await this.tryHttpStrategy(relayUrl, filter, options, startTime, fallbacksUsed);
+        result = await this.tryHttpStrategy(
+          relayUrl,
+          filter,
+          options,
+          startTime,
+          fallbacksUsed
+        );
         if (result.success) {
           this.updateRelayMetrics(relayUrl, 'http', result);
           this.cacheResult(cacheKey, result.events);
           return result;
         }
-        
+
         // HTTP failed, try WebSocket fallback
-        console.log(`⚠️ HTTP failed for ${relayUrl}, trying WebSocket fallback...`);
+        console.log(
+          `⚠️ HTTP failed for ${relayUrl}, trying WebSocket fallback...`
+        );
         fallbacksUsed.push('http_failed');
-        result = await this.tryWebSocketStrategy(relayUrl, filter, options, startTime, fallbacksUsed);
+        result = await this.tryWebSocketStrategy(
+          relayUrl,
+          filter,
+          options,
+          startTime,
+          fallbacksUsed
+        );
       } else {
-        result = await this.tryWebSocketStrategy(relayUrl, filter, options, startTime, fallbacksUsed);
+        result = await this.tryWebSocketStrategy(
+          relayUrl,
+          filter,
+          options,
+          startTime,
+          fallbacksUsed
+        );
         if (result.success) {
           this.updateRelayMetrics(relayUrl, 'websocket', result);
           this.cacheResult(cacheKey, result.events);
           return result;
         }
-        
+
         // WebSocket failed, try HTTP fallback
-        console.log(`⚠️ WebSocket failed for ${relayUrl}, trying HTTP fallback...`);
+        console.log(
+          `⚠️ WebSocket failed for ${relayUrl}, trying HTTP fallback...`
+        );
         fallbacksUsed.push('websocket_failed');
-        result = await this.tryHttpStrategy(relayUrl, filter, options, startTime, fallbacksUsed);
+        result = await this.tryHttpStrategy(
+          relayUrl,
+          filter,
+          options,
+          startTime,
+          fallbacksUsed
+        );
       }
 
       // Update metrics regardless of success
       this.updateRelayMetrics(relayUrl, result.method as any, result);
-      
+
       if (result.success) {
         this.cacheResult(cacheKey, result.events);
         return result;
       }
 
       // All primary strategies failed, try proxy/emergency fallbacks
-      console.log(`🚨 All primary strategies failed for ${relayUrl}, trying emergency fallbacks...`);
+      console.log(
+        `🚨 All primary strategies failed for ${relayUrl}, trying emergency fallbacks...`
+      );
       fallbacksUsed.push('primary_strategies_failed');
-      
-      const emergencyResult = await this.tryEmergencyFallbacks(relayUrl, filter, options, startTime, fallbacksUsed);
-      return emergencyResult;
 
+      const emergencyResult = await this.tryEmergencyFallbacks(
+        relayUrl,
+        filter,
+        options,
+        startTime,
+        fallbacksUsed
+      );
+      return emergencyResult;
     } catch (error) {
       console.error(`💥 HybridNostrQueryService critical error:`, error);
-      
+
       return {
         success: false,
         events: [],
@@ -180,7 +229,7 @@ export class HybridNostrQueryService {
         responseTime: Date.now() - startTime,
         eventsFound: 0,
         error: `Critical query error: ${error}`,
-        fallbacksUsed
+        fallbacksUsed,
       };
     }
   }
@@ -203,7 +252,7 @@ export class HybridNostrQueryService {
         limit: options.limit,
         since: options.since,
         until: options.until,
-        timeoutMs: options.timeoutMs
+        timeoutMs: options.timeoutMs,
       });
 
       return {
@@ -214,12 +263,11 @@ export class HybridNostrQueryService {
         responseTime: httpResult.responseTime,
         eventsFound: httpResult.events.length,
         error: httpResult.error,
-        fallbacksUsed
+        fallbacksUsed,
       };
-
     } catch (error) {
       console.warn(`❌ HTTP strategy failed for ${relayUrl}:`, error);
-      
+
       return {
         success: false,
         events: [],
@@ -228,7 +276,7 @@ export class HybridNostrQueryService {
         responseTime: Date.now() - startTime,
         eventsFound: 0,
         error: `HTTP strategy error: ${error}`,
-        fallbacksUsed
+        fallbacksUsed,
       };
     }
   }
@@ -257,12 +305,11 @@ export class HybridNostrQueryService {
         responseTime: wsResult.responseTime,
         eventsFound: wsResult.events.length,
         error: wsResult.error,
-        fallbacksUsed
+        fallbacksUsed,
       };
-
     } catch (error) {
       console.warn(`❌ WebSocket strategy failed for ${relayUrl}:`, error);
-      
+
       return {
         success: false,
         events: [],
@@ -271,7 +318,7 @@ export class HybridNostrQueryService {
         responseTime: Date.now() - startTime,
         eventsFound: 0,
         error: `WebSocket strategy error: ${error}`,
-        fallbacksUsed
+        fallbacksUsed,
       };
     }
   }
@@ -286,15 +333,22 @@ export class HybridNostrQueryService {
     startTime: number,
     fallbacksUsed: string[]
   ): Promise<HybridQueryResult> {
-    
     // Emergency Fallback 1: Simplified filter (reduce complexity)
     if (filter.limit && filter.limit > 50) {
-      console.log(`🚨 Emergency: Trying simplified filter (limit: ${filter.limit} → 20)`);
+      console.log(
+        `🚨 Emergency: Trying simplified filter (limit: ${filter.limit} → 20)`
+      );
       fallbacksUsed.push('simplified_filter');
-      
+
       const simplifiedFilter = { ...filter, limit: 20 };
-      const simplifiedResult = await this.tryWebSocketStrategy(relayUrl, simplifiedFilter, options, startTime, [...fallbacksUsed]);
-      
+      const simplifiedResult = await this.tryWebSocketStrategy(
+        relayUrl,
+        simplifiedFilter,
+        options,
+        startTime,
+        [...fallbacksUsed]
+      );
+
       if (simplifiedResult.success) {
         return simplifiedResult;
       }
@@ -303,7 +357,7 @@ export class HybridNostrQueryService {
     // Emergency Fallback 2: Legacy nostr-tools query (ultra simple)
     console.log(`🚨 Emergency: Trying legacy nostr-tools direct query`);
     fallbacksUsed.push('legacy_direct');
-    
+
     try {
       const NostrTools = require('nostr-tools');
       const { Relay } = NostrTools;
@@ -319,10 +373,12 @@ export class HybridNostrQueryService {
           oneose: () => {
             sub.close();
             relay.close();
-            
+
             const responseTime = Date.now() - startTime;
-            console.log(`🚨 Legacy fallback completed: ${events.length} events in ${responseTime}ms`);
-            
+            console.log(
+              `🚨 Legacy fallback completed: ${events.length} events in ${responseTime}ms`
+            );
+
             resolve({
               success: events.length > 0,
               events,
@@ -330,16 +386,16 @@ export class HybridNostrQueryService {
               method: 'proxy',
               responseTime,
               eventsFound: events.length,
-              fallbacksUsed
+              fallbacksUsed,
             });
-          }
+          },
         });
 
         // Emergency timeout
         setTimeout(() => {
           sub.close();
           relay.close();
-          
+
           resolve({
             success: events.length > 0,
             events,
@@ -347,14 +403,13 @@ export class HybridNostrQueryService {
             method: 'proxy',
             responseTime: Date.now() - startTime,
             eventsFound: events.length,
-            fallbacksUsed
+            fallbacksUsed,
           });
         }, 5000); // Short timeout for emergency
       });
-
     } catch (error) {
       console.error(`💥 Emergency fallback failed for ${relayUrl}:`, error);
-      
+
       return {
         success: false,
         events: [],
@@ -363,7 +418,7 @@ export class HybridNostrQueryService {
         responseTime: Date.now() - startTime,
         eventsFound: 0,
         error: `All strategies failed: ${error}`,
-        fallbacksUsed
+        fallbacksUsed,
       };
     }
   }
@@ -371,7 +426,10 @@ export class HybridNostrQueryService {
   /**
    * Determine preferred method based on performance history
    */
-  private getPreferredMethod(relayUrl: string, forceMethod?: 'http' | 'websocket'): 'http' | 'websocket' {
+  private getPreferredMethod(
+    relayUrl: string,
+    forceMethod?: 'http' | 'websocket'
+  ): 'http' | 'websocket' {
     if (forceMethod) {
       return forceMethod;
     }
@@ -388,9 +446,13 @@ export class HybridNostrQueryService {
   /**
    * Update relay performance metrics for optimization
    */
-  private updateRelayMetrics(relayUrl: string, method: 'http' | 'websocket', result: HybridQueryResult): void {
+  private updateRelayMetrics(
+    relayUrl: string,
+    method: 'http' | 'websocket',
+    result: HybridQueryResult
+  ): void {
     let metrics = this.relayMetrics.get(relayUrl);
-    
+
     if (!metrics) {
       metrics = {
         relay: relayUrl,
@@ -401,7 +463,7 @@ export class HybridNostrQueryService {
         avgResponseTime: 0,
         totalEvents: 0,
         lastSuccessful: new Date(),
-        preferredMethod: 'http'
+        preferredMethod: 'http',
       };
     }
 
@@ -427,14 +489,25 @@ export class HybridNostrQueryService {
     }
 
     // Update average response time (simple running average)
-    const totalAttempts = metrics.httpSuccess + metrics.httpFailures + metrics.websocketSuccess + metrics.websocketFailures;
-    metrics.avgResponseTime = ((metrics.avgResponseTime * (totalAttempts - 1)) + result.responseTime) / totalAttempts;
+    const totalAttempts =
+      metrics.httpSuccess +
+      metrics.httpFailures +
+      metrics.websocketSuccess +
+      metrics.websocketFailures;
+    metrics.avgResponseTime =
+      (metrics.avgResponseTime * (totalAttempts - 1) + result.responseTime) /
+      totalAttempts;
 
     // Calculate preferred method based on success rates
-    const httpSuccessRate = metrics.httpSuccess / Math.max(metrics.httpSuccess + metrics.httpFailures, 1);
-    const wsSuccessRate = metrics.websocketSuccess / Math.max(metrics.websocketSuccess + metrics.websocketFailures, 1);
-    
-    metrics.preferredMethod = httpSuccessRate >= wsSuccessRate ? 'http' : 'websocket';
+    const httpSuccessRate =
+      metrics.httpSuccess /
+      Math.max(metrics.httpSuccess + metrics.httpFailures, 1);
+    const wsSuccessRate =
+      metrics.websocketSuccess /
+      Math.max(metrics.websocketSuccess + metrics.websocketFailures, 1);
+
+    metrics.preferredMethod =
+      httpSuccessRate >= wsSuccessRate ? 'http' : 'websocket';
 
     this.relayMetrics.set(relayUrl, metrics);
   }
@@ -463,7 +536,7 @@ export class HybridNostrQueryService {
     if (events.length > 0) {
       this.cache.set(cacheKey, {
         events,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
   }
@@ -482,8 +555,14 @@ export class HybridNostrQueryService {
     totalEventsFound: number;
     successfulRelays: number;
   }> {
-    console.log(`🎯 HybridNostrQueryService: Querying ${relayUrls.length} relays with intelligent strategy`);
-    console.log(`📡 Relays: ${relayUrls.map(url => url.replace('wss://', '')).join(', ')}`);
+    console.log(
+      `🎯 HybridNostrQueryService: Querying ${relayUrls.length} relays with intelligent strategy`
+    );
+    console.log(
+      `📡 Relays: ${relayUrls
+        .map((url) => url.replace('wss://', ''))
+        .join(', ')}`
+    );
 
     const allEvents: Event[] = [];
     const relayResults = new Map<string, HybridQueryResult>();
@@ -494,7 +573,9 @@ export class HybridNostrQueryService {
     const chunks = this.chunkArray(relayUrls, maxConcurrent);
 
     for (const chunk of chunks) {
-      const chunkPromises = chunk.map(relay => this.queryRelay(relay, filter, options));
+      const chunkPromises = chunk.map((relay) =>
+        this.queryRelay(relay, filter, options)
+      );
       const chunkResults = await Promise.allSettled(chunkPromises);
 
       for (let i = 0; i < chunk.length; i++) {
@@ -503,7 +584,7 @@ export class HybridNostrQueryService {
 
         if (result.status === 'fulfilled') {
           relayResults.set(relay, result.value);
-          
+
           // Deduplicate events by ID
           for (const event of result.value.events) {
             if (!processedEventIds.has(event.id)) {
@@ -520,26 +601,30 @@ export class HybridNostrQueryService {
             method: 'proxy',
             responseTime: 0,
             eventsFound: 0,
-            error: `Promise rejected: ${result.reason}`
+            error: `Promise rejected: ${result.reason}`,
           });
         }
       }
 
       // Small delay between chunks to prevent overwhelming mobile WebSocket
       if (chunks.length > 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
 
-    const successfulRelays = Array.from(relayResults.values()).filter(r => r.success).length;
-    
-    console.log(`📊 Multi-relay query completed: ${allEvents.length} unique events from ${successfulRelays}/${relayUrls.length} relays`);
+    const successfulRelays = Array.from(relayResults.values()).filter(
+      (r) => r.success
+    ).length;
+
+    console.log(
+      `📊 Multi-relay query completed: ${allEvents.length} unique events from ${successfulRelays}/${relayUrls.length} relays`
+    );
 
     return {
       events: allEvents,
       relayResults,
       totalEventsFound: allEvents.length,
-      successfulRelays
+      successfulRelays,
     };
   }
 
@@ -567,16 +652,25 @@ export class HybridNostrQueryService {
   getBestPerformingRelays(limit: number = 5): string[] {
     const relays = Array.from(this.relayMetrics.entries())
       .map(([relay, metrics]) => {
-        const totalAttempts = metrics.httpSuccess + metrics.httpFailures + metrics.websocketSuccess + metrics.websocketFailures;
-        const successRate = (metrics.httpSuccess + metrics.websocketSuccess) / Math.max(totalAttempts, 1);
-        const score = successRate * 100 + (metrics.totalEvents / 10) + (1000 / Math.max(metrics.avgResponseTime, 100));
-        
+        const totalAttempts =
+          metrics.httpSuccess +
+          metrics.httpFailures +
+          metrics.websocketSuccess +
+          metrics.websocketFailures;
+        const successRate =
+          (metrics.httpSuccess + metrics.websocketSuccess) /
+          Math.max(totalAttempts, 1);
+        const score =
+          successRate * 100 +
+          metrics.totalEvents / 10 +
+          1000 / Math.max(metrics.avgResponseTime, 100);
+
         return { relay, score, successRate };
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    return relays.map(r => r.relay);
+    return relays.map((r) => r.relay);
   }
 
   /**

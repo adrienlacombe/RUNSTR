@@ -30,7 +30,9 @@ export class ChatService {
     const globalNDK = (global as any).preInitializedNDK;
 
     if (!globalNDK) {
-      throw new Error('NDK not initialized. Ensure NostrInitializationService has run.');
+      throw new Error(
+        'NDK not initialized. Ensure NostrInitializationService has run.'
+      );
     }
 
     this.ndk = globalNDK;
@@ -62,12 +64,12 @@ export class ChatService {
       event.content = JSON.stringify({
         name: `${teamName} Chat`,
         about: `Team chat for ${teamName}. ⚠️ Messages are public on Nostr.`,
-        relays: [] // Use NDK's relay pool
+        relays: [], // Use NDK's relay pool
       });
       event.tags = [
         ['d', teamId], // Team identifier tag
         ['team', teamId], // For filtering by team
-        ['t', 'runstr-team-chat'] // Category tag
+        ['t', 'runstr-team-chat'], // Category tag
       ];
 
       // Sign with UnifiedSigningService signer
@@ -77,10 +79,7 @@ export class ChatService {
       console.log(`✅ Chat channel created with ID: ${event.id}`);
 
       // Store NDK-generated channel ID locally
-      await AsyncStorage.setItem(
-        `@runstr:team_chat:${teamId}`,
-        event.id!
-      );
+      await AsyncStorage.setItem(`@runstr:team_chat:${teamId}`, event.id!);
 
       return event;
     } catch (error) {
@@ -101,7 +100,9 @@ export class ChatService {
 
     try {
       // Check local storage first
-      const storedId = await AsyncStorage.getItem(`@runstr:team_chat:${teamId}`);
+      const storedId = await AsyncStorage.getItem(
+        `@runstr:team_chat:${teamId}`
+      );
       if (storedId) {
         const event = await this.fetchChannelById(storedId);
         if (event) {
@@ -116,7 +117,7 @@ export class ChatService {
         kinds: [40],
         '#team': [teamId],
         authors: [captainPubkey], // Only captain can create
-        limit: 50 // Prevent unbounded query
+        limit: 50, // Prevent unbounded query
       };
 
       const events = await ndk.fetchEvents(filter);
@@ -150,7 +151,7 @@ export class ChatService {
       const filter: NDKFilter = {
         kinds: [40],
         ids: [channelId],
-        limit: 1 // Only need one specific channel
+        limit: 1, // Only need one specific channel
       };
 
       const events = await ndk.fetchEvents(filter);
@@ -179,7 +180,7 @@ export class ChatService {
       event.content = content;
       event.tags = [
         ['e', channelId, '', 'root'], // Reference to channel
-        ['team', teamId] // For filtering team messages
+        ['team', teamId], // For filtering team messages
       ];
 
       await event.sign();
@@ -202,7 +203,9 @@ export class ChatService {
     limit: number = 50,
     until?: number
   ): Promise<NDKEvent[]> {
-    console.log(`📥 Fetching messages for channel: ${channelId.slice(0, 20)}...`);
+    console.log(
+      `📥 Fetching messages for channel: ${channelId.slice(0, 20)}...`
+    );
 
     try {
       const ndk = this.getNDK();
@@ -210,7 +213,7 @@ export class ChatService {
         kinds: [42],
         '#e': [channelId],
         limit,
-        ...(until && { until })
+        ...(until && { until }),
       };
 
       const events = await ndk.fetchEvents(filter);
@@ -246,11 +249,11 @@ export class ChatService {
       const filter: NDKFilter = {
         kinds: [42],
         '#e': [channelId],
-        since: Math.floor(Date.now() / 1000) // Only new messages
+        since: Math.floor(Date.now() / 1000), // Only new messages
       };
 
       const subscription = ndk.subscribe(filter, {
-        closeOnEose: false // Keep open for real-time updates
+        closeOnEose: false, // Keep open for real-time updates
       });
 
       subscription.on('event', (event: NDKEvent) => {
@@ -281,7 +284,9 @@ export class ChatService {
   unsubscribe(channelId: string): void {
     const subscription = this.activeSubscriptions.get(channelId);
     if (subscription) {
-      console.log(`🔕 Unsubscribing from channel: ${channelId.slice(0, 20)}...`);
+      console.log(
+        `🔕 Unsubscribing from channel: ${channelId.slice(0, 20)}...`
+      );
       subscription.stop();
       this.activeSubscriptions.delete(channelId);
     }
@@ -291,8 +296,10 @@ export class ChatService {
    * Cleanup all subscriptions
    */
   cleanup(): void {
-    console.log(`🧹 Cleaning up ${this.activeSubscriptions.size} subscriptions`);
-    this.activeSubscriptions.forEach(sub => sub.stop());
+    console.log(
+      `🧹 Cleaning up ${this.activeSubscriptions.size} subscriptions`
+    );
+    this.activeSubscriptions.forEach((sub) => sub.stop());
     this.activeSubscriptions.clear();
   }
 
@@ -303,7 +310,7 @@ export class ChatService {
     activeSubscriptions: number;
   } {
     return {
-      activeSubscriptions: this.activeSubscriptions.size
+      activeSubscriptions: this.activeSubscriptions.size,
     };
   }
 }

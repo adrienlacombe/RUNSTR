@@ -49,9 +49,11 @@ export class WorkoutGroupingService {
     const monthGroups: Map<string, UnifiedWorkout[]> = new Map();
 
     // Group workouts by year-month
-    workouts.forEach(workout => {
+    workouts.forEach((workout) => {
       const workoutDate = new Date(workout.startTime);
-      const monthKey = `${workoutDate.getFullYear()}-${String(workoutDate.getMonth() + 1).padStart(2, '0')}`;
+      const monthKey = `${workoutDate.getFullYear()}-${String(
+        workoutDate.getMonth() + 1
+      ).padStart(2, '0')}`;
 
       if (!monthGroups.has(monthKey)) {
         monthGroups.set(monthKey, []);
@@ -67,12 +69,13 @@ export class WorkoutGroupingService {
       return b.localeCompare(a); // Descending order (newest first)
     });
 
-    sortedMonthKeys.forEach(monthKey => {
+    sortedMonthKeys.forEach((monthKey) => {
       const groupWorkouts = monthGroups.get(monthKey) || [];
       if (groupWorkouts.length > 0) {
         // Sort workouts within month by date (newest first)
-        const sortedWorkouts = groupWorkouts.sort((a, b) =>
-          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        const sortedWorkouts = groupWorkouts.sort(
+          (a, b) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
         );
 
         const monthDate = this.parseMonthKey(monthKey);
@@ -85,9 +88,17 @@ export class WorkoutGroupingService {
           stats: this.calculateGroupStats(sortedWorkouts),
           dateRange: {
             start: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1),
-            end: new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999)
+            end: new Date(
+              monthDate.getFullYear(),
+              monthDate.getMonth() + 1,
+              0,
+              23,
+              59,
+              59,
+              999
+            ),
           },
-          isExpanded: false // All folders collapsed by default
+          isExpanded: false, // All folders collapsed by default
         });
       }
     });
@@ -109,8 +120,18 @@ export class WorkoutGroupingService {
   private static getMonthTitle(monthKey: string): string {
     const date = this.parseMonthKey(monthKey);
     const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
   }
@@ -133,12 +154,16 @@ export class WorkoutGroupingService {
     startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const startOfLastMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() - 1,
+      1
+    );
 
     const startOfYear = new Date(today.getFullYear(), 0, 1);
 
     // Group workouts
-    workouts.forEach(workout => {
+    workouts.forEach((workout) => {
       const workoutDate = new Date(workout.startTime);
       const key = this.getTimeGroupKey(workoutDate, {
         today,
@@ -146,7 +171,7 @@ export class WorkoutGroupingService {
         startOfLastWeek,
         startOfMonth,
         startOfLastMonth,
-        startOfYear
+        startOfYear,
       });
 
       if (!groups.has(key)) {
@@ -159,18 +184,19 @@ export class WorkoutGroupingService {
     const result: WorkoutGroup[] = [];
     const sortedKeys = this.sortGroupKeys(Array.from(groups.keys()));
 
-    sortedKeys.forEach(key => {
+    sortedKeys.forEach((key) => {
       const groupWorkouts = groups.get(key) || [];
       if (groupWorkouts.length > 0) {
         result.push({
           key,
           title: this.getGroupTitle(key),
-          workouts: groupWorkouts.sort((a, b) =>
-            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          workouts: groupWorkouts.sort(
+            (a, b) =>
+              new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
           ),
           stats: this.calculateGroupStats(groupWorkouts),
           dateRange: this.getDateRange(key, referenceDate),
-          isExpanded: key === 'thisWeek' // Expand current week by default
+          isExpanded: key === 'thisWeek', // Expand current week by default
         });
       }
     });
@@ -202,7 +228,14 @@ export class WorkoutGroupingService {
       startOfYear: Date;
     }
   ): TimeGroupKey {
-    const { today, startOfWeek, startOfLastWeek, startOfMonth, startOfLastMonth, startOfYear } = boundaries;
+    const {
+      today,
+      startOfWeek,
+      startOfLastWeek,
+      startOfMonth,
+      startOfLastMonth,
+      startOfYear,
+    } = boundaries;
 
     if (workoutDate >= startOfWeek && workoutDate <= today) {
       return 'thisWeek';
@@ -232,10 +265,18 @@ export class WorkoutGroupingService {
    * Sort group keys chronologically (most recent first)
    */
   private static sortGroupKeys(keys: TimeGroupKey[]): TimeGroupKey[] {
-    const order = ['thisWeek', 'lastWeek', 'earlierThisMonth', 'lastMonth', 'earlierThisYear'];
-    const yearKeys = keys.filter(k => !order.includes(k)).sort((a, b) => parseInt(b) - parseInt(a));
+    const order = [
+      'thisWeek',
+      'lastWeek',
+      'earlierThisMonth',
+      'lastMonth',
+      'earlierThisYear',
+    ];
+    const yearKeys = keys
+      .filter((k) => !order.includes(k))
+      .sort((a, b) => parseInt(b) - parseInt(a));
 
-    return [...order.filter(k => keys.includes(k)), ...yearKeys];
+    return [...order.filter((k) => keys.includes(k)), ...yearKeys];
   }
 
   /**
@@ -247,7 +288,7 @@ export class WorkoutGroupingService {
       lastWeek: 'Last Week',
       earlierThisMonth: 'Month',
       lastMonth: 'Month',
-      earlierThisYear: 'Year'
+      earlierThisYear: 'Year',
     };
 
     return titles[key] || key; // Year groups use the year as title
@@ -257,13 +298,16 @@ export class WorkoutGroupingService {
    * Calculate aggregated statistics for a group of workouts
    */
   static calculateGroupStats(workouts: UnifiedWorkout[]): GroupStats {
-    const activityBreakdown: Record<WorkoutType, number> = {} as Record<WorkoutType, number>;
+    const activityBreakdown: Record<WorkoutType, number> = {} as Record<
+      WorkoutType,
+      number
+    >;
 
     let totalDistance = 0;
     let totalDuration = 0;
     let totalCalories = 0;
 
-    workouts.forEach(workout => {
+    workouts.forEach((workout) => {
       totalDistance += workout.distance || 0;
       totalDuration += workout.duration;
       totalCalories += workout.calories || 0;
@@ -283,9 +327,10 @@ export class WorkoutGroupingService {
     });
 
     // Calculate average pace if distance workouts exist
-    const averagePace = totalDistance > 0
-      ? (totalDuration / (totalDistance / 1000)) // seconds per km
-      : undefined;
+    const averagePace =
+      totalDistance > 0
+        ? totalDuration / (totalDistance / 1000) // seconds per km
+        : undefined;
 
     return {
       totalWorkouts: workouts.length,
@@ -294,14 +339,17 @@ export class WorkoutGroupingService {
       totalCalories,
       averagePace,
       favoriteActivity,
-      activityBreakdown
+      activityBreakdown,
     };
   }
 
   /**
    * Get date range for a time group
    */
-  private static getDateRange(key: TimeGroupKey, referenceDate = new Date()): { start: Date; end: Date } {
+  private static getDateRange(
+    key: TimeGroupKey,
+    referenceDate = new Date()
+  ): { start: Date; end: Date } {
     const today = new Date(referenceDate);
     today.setHours(23, 59, 59, 999);
 
@@ -310,7 +358,11 @@ export class WorkoutGroupingService {
     startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const startOfLastMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() - 1,
+      1
+    );
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
     const startOfYear = new Date(today.getFullYear(), 0, 1);
@@ -319,19 +371,28 @@ export class WorkoutGroupingService {
       case 'thisWeek':
         return { start: startOfWeek, end: today };
       case 'lastWeek':
-        return { start: startOfLastWeek, end: new Date(startOfWeek.getTime() - 1) };
+        return {
+          start: startOfLastWeek,
+          end: new Date(startOfWeek.getTime() - 1),
+        };
       case 'earlierThisMonth':
-        return { start: startOfMonth, end: new Date(startOfLastWeek.getTime() - 1) };
+        return {
+          start: startOfMonth,
+          end: new Date(startOfLastWeek.getTime() - 1),
+        };
       case 'lastMonth':
         return { start: startOfLastMonth, end: endOfLastMonth };
       case 'earlierThisYear':
-        return { start: startOfYear, end: new Date(startOfLastMonth.getTime() - 1) };
+        return {
+          start: startOfYear,
+          end: new Date(startOfLastMonth.getTime() - 1),
+        };
       default:
         // Year groups
         const year = parseInt(key);
         return {
           start: new Date(year, 0, 1),
-          end: new Date(year, 11, 31, 23, 59, 59, 999)
+          end: new Date(year, 11, 31, 23, 59, 59, 999),
         };
     }
   }

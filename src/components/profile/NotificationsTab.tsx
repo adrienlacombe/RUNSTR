@@ -4,7 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { theme } from '../../styles/theme';
 import { NotificationHistory } from '../../types';
 import { Card } from '../ui/Card';
@@ -72,9 +78,9 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = () => {
       <Card style={styles.card}>
         <Text style={styles.cardTitle}>About Notifications</Text>
         <Text style={styles.infoText}>
-          You'll receive notifications for new competitions, leaderboard changes,
-          competition reminders, and team announcements. Notifications appear when
-          your app is open or running in the background.
+          You'll receive notifications for new competitions, leaderboard
+          changes, competition reminders, and team announcements. Notifications
+          appear when your app is open or running in the background.
         </Text>
       </Card>
 

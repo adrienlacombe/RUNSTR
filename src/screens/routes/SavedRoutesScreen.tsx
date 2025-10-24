@@ -15,14 +15,19 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-import routeStorageService, { SavedRoute } from '../../services/routes/RouteStorageService';
+import routeStorageService, {
+  SavedRoute,
+} from '../../services/routes/RouteStorageService';
 import type { WorkoutType } from '../../types/workout';
 
 type ActivityFilter = 'all' | WorkoutType;
 
 export const SavedRoutesScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [filteredRoutes, setFilteredRoutes] = useState<SavedRoute[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -56,16 +61,17 @@ export const SavedRoutesScreen: React.FC = () => {
 
     // Filter by activity type
     if (activeFilter !== 'all') {
-      filtered = filtered.filter(r => r.activityType === activeFilter);
+      filtered = filtered.filter((r) => r.activityType === activeFilter);
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(r =>
-        r.name.toLowerCase().includes(query) ||
-        r.description?.toLowerCase().includes(query) ||
-        r.tags?.some(tag => tag.toLowerCase().includes(query))
+      filtered = filtered.filter(
+        (r) =>
+          r.name.toLowerCase().includes(query) ||
+          r.description?.toLowerCase().includes(query) ||
+          r.tags?.some((tag) => tag.toLowerCase().includes(query))
       );
     }
 
@@ -154,106 +160,134 @@ export const SavedRoutesScreen: React.FC = () => {
       : `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const getActivityIcon = (type: WorkoutType): keyof typeof Ionicons.glyphMap => {
+  const getActivityIcon = (
+    type: WorkoutType
+  ): keyof typeof Ionicons.glyphMap => {
     switch (type) {
-      case 'running': return 'fitness';
-      case 'walking': return 'walk';
-      case 'cycling': return 'bicycle';
-      case 'hiking': return 'trail-sign';
-      default: return 'location';
+      case 'running':
+        return 'fitness';
+      case 'walking':
+        return 'walk';
+      case 'cycling':
+        return 'bicycle';
+      case 'hiking':
+        return 'trail-sign';
+      default:
+        return 'location';
     }
   };
 
   const getActivityColor = (type: WorkoutType): string => {
     switch (type) {
-      case 'running': return '#FF6B6B';
-      case 'walking': return '#4ECDC4';
-      case 'cycling': return '#45B7D1';
-      case 'hiking': return '#96CEB4';
-      default: return theme.colors.accent;
+      case 'running':
+        return '#FF6B6B';
+      case 'walking':
+        return '#4ECDC4';
+      case 'cycling':
+        return '#45B7D1';
+      case 'hiking':
+        return '#96CEB4';
+      default:
+        return theme.colors.accent;
     }
   };
 
-  const renderRouteCard = useCallback(({ item: route }: { item: SavedRoute }) => {
-    const activityColor = getActivityColor(route.activityType);
+  const renderRouteCard = useCallback(
+    ({ item: route }: { item: SavedRoute }) => {
+      const activityColor = getActivityColor(route.activityType);
 
-    return (
-      <View style={styles.routeCard}>
-        {/* Header */}
-        <View style={styles.routeHeader}>
-          <View style={styles.routeHeaderLeft}>
-            <View style={[styles.activityIconContainer, { backgroundColor: activityColor + '20' }]}>
-              <Ionicons
-                name={getActivityIcon(route.activityType)}
-                size={24}
-                color={activityColor}
-              />
+      return (
+        <View style={styles.routeCard}>
+          {/* Header */}
+          <View style={styles.routeHeader}>
+            <View style={styles.routeHeaderLeft}>
+              <View
+                style={[
+                  styles.activityIconContainer,
+                  { backgroundColor: activityColor + '20' },
+                ]}
+              >
+                <Ionicons
+                  name={getActivityIcon(route.activityType)}
+                  size={24}
+                  color={activityColor}
+                />
+              </View>
+              <View style={styles.routeInfo}>
+                <Text style={styles.routeName}>{route.name}</Text>
+                <Text style={styles.routeMeta}>
+                  Last used {formatDate(route.lastUsed || route.createdAt)}
+                </Text>
+              </View>
             </View>
-            <View style={styles.routeInfo}>
-              <Text style={styles.routeName}>{route.name}</Text>
-              <Text style={styles.routeMeta}>
-                Last used {formatDate(route.lastUsed || route.createdAt)}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => {
-              Alert.alert(
-                route.name,
-                'Choose an action',
-                [
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={() => {
+                Alert.alert(route.name, 'Choose an action', [
                   { text: 'Cancel', style: 'cancel' },
                   { text: 'Rename', onPress: () => handleRenameRoute(route) },
-                  { text: 'Delete', style: 'destructive', onPress: () => handleDeleteRoute(route) },
-                ]
-              );
-            }}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.textMuted} />
-          </TouchableOpacity>
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => handleDeleteRoute(route),
+                  },
+                ]);
+              }}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={20}
+                color={theme.colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Stats */}
+          <View style={styles.routeStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatDistance(route.distance)}
+              </Text>
+              <Text style={styles.statLabel}>Distance</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {route.elevationGain.toFixed(0)}m
+              </Text>
+              <Text style={styles.statLabel}>Elevation</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{route.timesUsed}</Text>
+              <Text style={styles.statLabel}>Times Used</Text>
+            </View>
+          </View>
+
+          {/* Best Performance */}
+          {route.bestTime && (
+            <View style={styles.bestPerformance}>
+              <Ionicons name="trophy" size={14} color={theme.colors.accent} />
+              <Text style={styles.bestPerformanceText}>
+                Best: {formatTime(route.bestTime)}
+                {route.bestPace && ` • ${route.bestPace.toFixed(2)} min/km`}
+              </Text>
+            </View>
+          )}
+
+          {/* Tags */}
+          {route.tags && route.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {route.tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
-
-        {/* Stats */}
-        <View style={styles.routeStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{formatDistance(route.distance)}</Text>
-            <Text style={styles.statLabel}>Distance</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{route.elevationGain.toFixed(0)}m</Text>
-            <Text style={styles.statLabel}>Elevation</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{route.timesUsed}</Text>
-            <Text style={styles.statLabel}>Times Used</Text>
-          </View>
-        </View>
-
-        {/* Best Performance */}
-        {route.bestTime && (
-          <View style={styles.bestPerformance}>
-            <Ionicons name="trophy" size={14} color={theme.colors.accent} />
-            <Text style={styles.bestPerformanceText}>
-              Best: {formatTime(route.bestTime)}
-              {route.bestPace && ` • ${route.bestPace.toFixed(2)} min/km`}
-            </Text>
-          </View>
-        )}
-
-        {/* Tags */}
-        {route.tags && route.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {route.tags.map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  }, []);
+      );
+    },
+    []
+  );
 
   const renderFilters = () => {
     const filters: { label: string; value: ActivityFilter }[] = [
@@ -303,7 +337,11 @@ export const SavedRoutesScreen: React.FC = () => {
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={theme.colors.textMuted} />
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -337,14 +375,28 @@ export const SavedRoutesScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading routes...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading routes...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Saved Routes</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <FlatList
         data={filteredRoutes}
         renderItem={renderRouteCard}
@@ -360,7 +412,7 @@ export const SavedRoutesScreen: React.FC = () => {
           />
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -369,6 +421,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: theme.colors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+
+  backButton: {
+    padding: 8,
+  },
+
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+
+  headerSpacer: {
+    width: 40,
+  },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

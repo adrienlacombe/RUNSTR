@@ -28,7 +28,10 @@ import {
 import { CaptainDetectionService } from '../services/team/captainDetectionService';
 import { TeamCacheService } from '../services/cache/TeamCacheService';
 import NostrCompetitionService from '../services/nostr/NostrCompetitionService';
-import type { NostrLeagueDefinition, NostrEventDefinition } from '../types/nostrCompetition';
+import type {
+  NostrLeagueDefinition,
+  NostrEventDefinition,
+} from '../types/nostrCompetition';
 import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys } from '../constants/cacheTTL';
 
@@ -56,22 +59,51 @@ interface TeamDiscoveryScreenProps {
 const categorizeTeam = (team: DiscoveryTeam): string => {
   const content = `${team.name} ${team.about}`.toLowerCase();
 
-  if (content.includes('running') || content.includes('run') || content.includes('marathon') || content.includes('5k') || content.includes('10k')) {
+  if (
+    content.includes('running') ||
+    content.includes('run') ||
+    content.includes('marathon') ||
+    content.includes('5k') ||
+    content.includes('10k')
+  ) {
     return 'Running';
   }
-  if (content.includes('cycling') || content.includes('bike') || content.includes('bicycle') || content.includes('ride')) {
+  if (
+    content.includes('cycling') ||
+    content.includes('bike') ||
+    content.includes('bicycle') ||
+    content.includes('ride')
+  ) {
     return 'Cycling';
   }
-  if (content.includes('gym') || content.includes('workout') || content.includes('fitness') || content.includes('strength')) {
+  if (
+    content.includes('gym') ||
+    content.includes('workout') ||
+    content.includes('fitness') ||
+    content.includes('strength')
+  ) {
     return 'Gym & Fitness';
   }
-  if (content.includes('swimming') || content.includes('swim') || content.includes('pool')) {
+  if (
+    content.includes('swimming') ||
+    content.includes('swim') ||
+    content.includes('pool')
+  ) {
     return 'Swimming';
   }
-  if (content.includes('walking') || content.includes('walk') || content.includes('hike') || content.includes('hiking')) {
+  if (
+    content.includes('walking') ||
+    content.includes('walk') ||
+    content.includes('hike') ||
+    content.includes('hiking')
+  ) {
     return 'Walking & Hiking';
   }
-  if (content.includes('yoga') || content.includes('pilates') || content.includes('meditation')) {
+  if (
+    content.includes('yoga') ||
+    content.includes('pilates') ||
+    content.includes('meditation')
+  ) {
     return 'Yoga & Wellness';
   }
 
@@ -91,14 +123,20 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
   onCaptainDashboard,
   navigation,
 }) => {
-  const [discoveryMode, setDiscoveryMode] = useState<'teams' | 'events'>('teams');
+  const [discoveryMode, setDiscoveryMode] = useState<'teams' | 'events'>(
+    'teams'
+  );
   const [teams, setTeams] = useState<DiscoveryTeam[]>(propTeams || []);
-  const [events, setEvents] = useState<(NostrLeagueDefinition | NostrEventDefinition)[]>([]);
+  const [events, setEvents] = useState<
+    (NostrLeagueDefinition | NostrEventDefinition)[]
+  >([]);
   const [isLoading, setIsLoading] = useState(propIsLoading);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Running'])); // Start with Running expanded
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(['Running'])
+  ); // Start with Running expanded
   const [eventTab, setEventTab] = useState<'upcoming' | 'active'>('upcoming');
   const [captainStatus, setCaptainStatus] = useState<{
     showCaptainDashboard: boolean;
@@ -120,10 +158,14 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
       // PERFORMANCE FIX: Only fetch if no teams provided via props
       // This prevents double-fetching when NavigationDataContext already loaded teams
       if (!propTeams || propTeams.length === 0) {
-        console.log('🚀 TeamDiscoveryScreen: No prop teams, loading from cache...');
+        console.log(
+          '🚀 TeamDiscoveryScreen: No prop teams, loading from cache...'
+        );
         fetchTeams(false); // Don't force refresh on initial load
       } else {
-        console.log('✅ TeamDiscoveryScreen: Using teams from props, skipping fetch');
+        console.log(
+          '✅ TeamDiscoveryScreen: Using teams from props, skipping fetch'
+        );
       }
     } else {
       console.log('🎯 TeamDiscoveryScreen: Loading events...');
@@ -142,7 +184,9 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
   // Update local teams state when prop teams change
   useEffect(() => {
     if (propTeams && propTeams.length > 0 && discoveryMode === 'teams') {
-      console.log(`📦 TeamDiscoveryScreen: Updating from prop teams (${propTeams.length})`);
+      console.log(
+        `📦 TeamDiscoveryScreen: Updating from prop teams (${propTeams.length})`
+      );
       setTeams(propTeams);
       setIsLoading(false);
     }
@@ -184,13 +228,19 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     try {
       setError(null);
 
-      console.log('📦 TeamDiscoveryScreen: Loading teams with cache-first strategy...');
+      console.log(
+        '📦 TeamDiscoveryScreen: Loading teams with cache-first strategy...'
+      );
 
       // ✅ PERFORMANCE: Show cached teams INSTANTLY (synchronous)
       // This makes the screen feel instant on subsequent visits
-      const cachedTeams = unifiedCache.getCached<DiscoveryTeam[]>(CacheKeys.DISCOVERED_TEAMS);
+      const cachedTeams = unifiedCache.getCached<DiscoveryTeam[]>(
+        CacheKeys.DISCOVERED_TEAMS
+      );
       if (cachedTeams && cachedTeams.length > 0 && !forceRefresh) {
-        console.log(`⚡ TeamDiscoveryScreen: Showing ${cachedTeams.length} cached teams instantly`);
+        console.log(
+          `⚡ TeamDiscoveryScreen: Showing ${cachedTeams.length} cached teams instantly`
+        );
         setTeams(cachedTeams);
         setIsLoading(false);
         // Screen is now visible with cached data!
@@ -256,7 +306,8 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
         setError('No events found. Check back later for competitions.');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load events';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load events';
       console.error('Failed to fetch events:', error);
       setError(errorMessage);
       setEvents([]);
@@ -271,13 +322,15 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     onTeamSelect?.(team);
   };
 
-  const handleEventSelect = (event: NostrLeagueDefinition | NostrEventDefinition) => {
+  const handleEventSelect = (
+    event: NostrLeagueDefinition | NostrEventDefinition
+  ) => {
     console.log(`🎯 Event selected: ${event.name}`);
     if (navigation) {
       // Navigate to EventDetailScreen with event data
       navigation.navigate('EventDetail', {
         eventId: event.id,
-        eventData: event
+        eventData: event,
       });
     }
   };
@@ -290,7 +343,9 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
       // Use NostrTeamService for joining
       const nostrTeamService = getNostrTeamService();
-      const cachedTeams = Array.from(nostrTeamService.getDiscoveredTeams().values());
+      const cachedTeams = Array.from(
+        nostrTeamService.getDiscoveredTeams().values()
+      );
       const nostrTeam = cachedTeams.find((t) => t.id === team.id);
 
       if (nostrTeam) {
@@ -328,11 +383,42 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
     return [
       { id: 'all', label: `All (${teams.length})`, filter: () => true },
-      { id: 'running', label: `Running (${getCategoryCount((team) => categorizeTeam(team) === 'Running')})`, filter: (team: DiscoveryTeam) => categorizeTeam(team) === 'Running' },
-      { id: 'cycling', label: `Cycling (${getCategoryCount((team) => categorizeTeam(team) === 'Cycling')})`, filter: (team: DiscoveryTeam) => categorizeTeam(team) === 'Cycling' },
-      { id: 'gym', label: `Gym (${getCategoryCount((team) => categorizeTeam(team) === 'Gym & Fitness')})`, filter: (team: DiscoveryTeam) => categorizeTeam(team) === 'Gym & Fitness' },
-      { id: 'active', label: `Active (${getCategoryCount((team) => (team.stats?.memberCount ?? 0) > 10)})`, filter: (team: DiscoveryTeam) => (team.stats?.memberCount ?? 0) > 10 },
-      { id: 'prizes', label: `Prizes (${getCategoryCount((team) => (team.prizePool || 0) > 0)})`, filter: (team: DiscoveryTeam) => (team.prizePool || 0) > 0 },
+      {
+        id: 'running',
+        label: `Running (${getCategoryCount(
+          (team) => categorizeTeam(team) === 'Running'
+        )})`,
+        filter: (team: DiscoveryTeam) => categorizeTeam(team) === 'Running',
+      },
+      {
+        id: 'cycling',
+        label: `Cycling (${getCategoryCount(
+          (team) => categorizeTeam(team) === 'Cycling'
+        )})`,
+        filter: (team: DiscoveryTeam) => categorizeTeam(team) === 'Cycling',
+      },
+      {
+        id: 'gym',
+        label: `Gym (${getCategoryCount(
+          (team) => categorizeTeam(team) === 'Gym & Fitness'
+        )})`,
+        filter: (team: DiscoveryTeam) =>
+          categorizeTeam(team) === 'Gym & Fitness',
+      },
+      {
+        id: 'active',
+        label: `Active (${getCategoryCount(
+          (team) => (team.stats?.memberCount ?? 0) > 10
+        )})`,
+        filter: (team: DiscoveryTeam) => (team.stats?.memberCount ?? 0) > 10,
+      },
+      {
+        id: 'prizes',
+        label: `Prizes (${getCategoryCount(
+          (team) => (team.prizePool || 0) > 0
+        )})`,
+        filter: (team: DiscoveryTeam) => (team.prizePool || 0) > 0,
+      },
     ];
   }, [teams]);
 
@@ -342,14 +428,14 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter(team =>
+      filtered = filtered.filter((team) =>
         team.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Apply selected filter
     if (selectedCategory && selectedCategory !== 'all') {
-      const filterDef = filterCategories.find(f => f.id === selectedCategory);
+      const filterDef = filterCategories.find((f) => f.id === selectedCategory);
       if (filterDef) {
         filtered = filtered.filter(filterDef.filter);
       }
@@ -358,7 +444,7 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     const categorized: Record<string, DiscoveryTeam[]> = {};
     const categorySet = new Set<string>();
 
-    filtered.forEach(team => {
+    filtered.forEach((team) => {
       const category = categorizeTeam(team);
       categorySet.add(category);
       if (!categorized[category]) {
@@ -369,7 +455,15 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
     // Sort categories by priority
     const sortedCategories = Array.from(categorySet).sort((a, b) => {
-      const priority = ['Running', 'Cycling', 'Gym & Fitness', 'Swimming', 'Walking & Hiking', 'Yoga & Wellness', 'Other'];
+      const priority = [
+        'Running',
+        'Cycling',
+        'Gym & Fitness',
+        'Swimming',
+        'Walking & Hiking',
+        'Yoga & Wellness',
+        'Other',
+      ];
       return priority.indexOf(a) - priority.indexOf(b);
     });
 
@@ -382,14 +476,14 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
     // Apply search filter
     if (searchQuery) {
-      result = result.filter(team =>
+      result = result.filter((team) =>
         team.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Apply category filter
     if (selectedCategory && selectedCategory !== 'all') {
-      const filterDef = filterCategories.find(f => f.id === selectedCategory);
+      const filterDef = filterCategories.find((f) => f.id === selectedCategory);
       if (filterDef) {
         result = result.filter(filterDef.filter);
       }
@@ -405,14 +499,14 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
     // Apply search filter
     if (searchQuery) {
-      result = result.filter(event =>
+      result = result.filter((event) =>
         event.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Apply temporal filter
     if (eventTab === 'upcoming') {
-      result = result.filter(event => {
+      result = result.filter((event) => {
         if ('duration' in event) {
           const startDate = new Date(event.startDate);
           return startDate > now;
@@ -422,7 +516,7 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
         }
       });
     } else if (eventTab === 'active') {
-      result = result.filter(event => {
+      result = result.filter((event) => {
         if ('duration' in event) {
           const startDate = new Date(event.startDate);
           const endDate = new Date(event.endDate);
@@ -474,19 +568,20 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
           <Text style={styles.expandIcon}>{isExpanded ? '−' : '+'}</Text>
         </TouchableOpacity>
 
-        {isExpanded && categoryTeams.map((team) => {
-          discoverySession.current.trackTeamViewed(team.id);
-          analytics.trackTeamCardViewed(team);
+        {isExpanded &&
+          categoryTeams.map((team) => {
+            discoverySession.current.trackTeamViewed(team.id);
+            analytics.trackTeamCardViewed(team);
 
-          return (
-            <TeamCard
-              key={team.id}
-              team={team}
-              onPress={handleTeamSelect}
-              currentUserNpub={currentUserPubkey}
-            />
-          );
-        })}
+            return (
+              <TeamCard
+                key={team.id}
+                team={team}
+                onPress={handleTeamSelect}
+                currentUserNpub={currentUserPubkey}
+              />
+            );
+          })}
       </View>
     );
   };
@@ -573,29 +668,33 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
       {/* Search bar */}
       <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={discoveryMode === 'teams' ? "Search teams by name..." : "Search events by name..."}
-              placeholderTextColor={theme.colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery('')}
-                style={styles.clearButton}
-              >
-                <Text style={styles.clearButtonText}>×</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+        <View style={styles.searchContainer}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={
+              discoveryMode === 'teams'
+                ? 'Search teams by name...'
+                : 'Search events by name...'
+            }
+            placeholderTextColor={theme.colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Text style={styles.clearButtonText}>×</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-          {/* Enhanced Category Filter Pills - Only show for teams */}
-          {discoveryMode === 'teams' && (
+        {/* Enhanced Category Filter Pills - Only show for teams */}
+        {discoveryMode === 'teams' && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -609,12 +708,17 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
                   styles.filterPill,
                   selectedCategory === filter.id && styles.filterPillActive,
                 ]}
-                onPress={() => setSelectedCategory(filter.id === selectedCategory ? 'all' : filter.id)}
+                onPress={() =>
+                  setSelectedCategory(
+                    filter.id === selectedCategory ? 'all' : filter.id
+                  )
+                }
               >
                 <Text
                   style={[
                     styles.filterPillText,
-                    selectedCategory === filter.id && styles.filterPillTextActive,
+                    selectedCategory === filter.id &&
+                      styles.filterPillTextActive,
                   ]}
                 >
                   {filter.label}
@@ -622,8 +726,8 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
               </TouchableOpacity>
             ))}
           </ScrollView>
-          )}
-        </View>
+        )}
+      </View>
 
       {/* Team Display */}
       {/* PERFORMANCE FIX: Only show loading if actively loading AND no cached teams */}
@@ -636,80 +740,83 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Failed to load teams</Text>
           <Text style={styles.errorSubtext}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => fetchTeams(true)}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchTeams(true)}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
       ) : teams.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            {/* Empty State Icon */}
-            <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>🔍</Text>
-            </View>
-
-            {/* Empty State Content */}
-            <Text style={styles.emptyTitle}>No Nostr Fitness Teams Found</Text>
-            <Text style={styles.emptyDescription}>
-              {onCreateTeam
-                ? 'No fitness teams found on Nostr relays at the moment. Create the first team or check back later when other captains publish teams.'
-                : 'No fitness teams are currently published on Nostr relays. Check back later as the Nostr fitness community grows.'}
-            </Text>
-
-            {/* Action Buttons */}
-            <View style={styles.emptyActions}>
-              {onCreateTeam && (
-                <TouchableOpacity
-                  style={styles.createTeamButton}
-                  onPress={onCreateTeam}
-                >
-                  <Text style={styles.createTeamButtonText}>
-                    Create Your Team
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.refreshButton}
-                onPress={() => fetchTeams(true)}
-              >
-                <Text style={styles.refreshButtonText}>Check for Teams</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Additional Information */}
-            <View style={styles.emptyInfo}>
-              <Text style={styles.emptyInfoTitle}>
-                {onCreateTeam
-                  ? 'As a Captain, you can:'
-                  : 'When teams are available:'}
-              </Text>
-              {onCreateTeam ? (
-                <>
-                  <Text style={styles.emptyInfoItem}>
-                    • Create a team and invite friends
-                  </Text>
-                  <Text style={styles.emptyInfoItem}>
-                    • Set up challenges and competitions
-                  </Text>
-                  <Text style={styles.emptyInfoItem}>
-                    • Manage team wallet and rewards
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.emptyInfoItem}>
-                    • Join exciting fitness competitions
-                  </Text>
-                  <Text style={styles.emptyInfoItem}>
-                    • Earn Bitcoin rewards for workouts
-                  </Text>
-                  <Text style={styles.emptyInfoItem}>
-                    • Compete with other runners
-                  </Text>
-                </>
-              )}
-            </View>
+        <View style={styles.emptyContainer}>
+          {/* Empty State Icon */}
+          <View style={styles.emptyIcon}>
+            <Text style={styles.emptyIconText}>🔍</Text>
           </View>
+
+          {/* Empty State Content */}
+          <Text style={styles.emptyTitle}>No Nostr Fitness Teams Found</Text>
+          <Text style={styles.emptyDescription}>
+            {onCreateTeam
+              ? 'No fitness teams found on Nostr relays at the moment. Create the first team or check back later when other captains publish teams.'
+              : 'No fitness teams are currently published on Nostr relays. Check back later as the Nostr fitness community grows.'}
+          </Text>
+
+          {/* Action Buttons */}
+          <View style={styles.emptyActions}>
+            {onCreateTeam && (
+              <TouchableOpacity
+                style={styles.createTeamButton}
+                onPress={onCreateTeam}
+              >
+                <Text style={styles.createTeamButtonText}>
+                  Create Your Team
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={() => fetchTeams(true)}
+            >
+              <Text style={styles.refreshButtonText}>Check for Teams</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Additional Information */}
+          <View style={styles.emptyInfo}>
+            <Text style={styles.emptyInfoTitle}>
+              {onCreateTeam
+                ? 'As a Captain, you can:'
+                : 'When teams are available:'}
+            </Text>
+            {onCreateTeam ? (
+              <>
+                <Text style={styles.emptyInfoItem}>
+                  • Create a team and invite friends
+                </Text>
+                <Text style={styles.emptyInfoItem}>
+                  • Set up challenges and competitions
+                </Text>
+                <Text style={styles.emptyInfoItem}>
+                  • Manage team wallet and rewards
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyInfoItem}>
+                  • Join exciting fitness competitions
+                </Text>
+                <Text style={styles.emptyInfoItem}>
+                  • Earn Bitcoin rewards for workouts
+                </Text>
+                <Text style={styles.emptyInfoItem}>
+                  • Compete with other runners
+                </Text>
+              </>
+            )}
+          </View>
+        </View>
       ) : (
         <>
           {/* Display teams or events based on mode */}
@@ -723,7 +830,8 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
               <>
                 {searchQuery && (
                   <Text style={styles.searchResultsText}>
-                    {displayTeams.length} team{displayTeams.length !== 1 ? 's' : ''} found
+                    {displayTeams.length} team
+                    {displayTeams.length !== 1 ? 's' : ''} found
                   </Text>
                 )}
 
@@ -746,7 +854,9 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
                 ) : (
                   // All teams view - show by category
                   <>
-                    {categories.map((category) => renderCategorySection({ item: category }))}
+                    {categories.map((category) =>
+                      renderCategorySection({ item: category })
+                    )}
 
                     {/* Create Team Button - Bottom of list after Other category */}
                     {onCreateTeam && (
@@ -769,7 +879,9 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
                       style={styles.clearSearchButton}
                       onPress={() => setSearchQuery('')}
                     >
-                      <Text style={styles.clearSearchButtonText}>Clear Search</Text>
+                      <Text style={styles.clearSearchButtonText}>
+                        Clear Search
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -779,7 +891,8 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
               <>
                 {searchQuery && (
                   <Text style={styles.searchResultsText}>
-                    {displayEvents.length} event{displayEvents.length !== 1 ? 's' : ''} found
+                    {displayEvents.length} event
+                    {displayEvents.length !== 1 ? 's' : ''} found
                   </Text>
                 )}
 
@@ -800,7 +913,9 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
                       style={styles.clearSearchButton}
                       onPress={() => setSearchQuery('')}
                     >
-                      <Text style={styles.clearSearchButtonText}>Clear Search</Text>
+                      <Text style={styles.clearSearchButtonText}>
+                        Clear Search
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 )}

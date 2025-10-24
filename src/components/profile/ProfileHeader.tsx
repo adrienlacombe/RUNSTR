@@ -88,9 +88,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         />
         <View style={styles.info}>
           <Text style={styles.name}>{displayName}</Text>
-          {bio && <Text style={styles.bio} numberOfLines={2}>{bio}</Text>}
+          {bio && (
+            <Text style={styles.bio} numberOfLines={2}>
+              {bio}
+            </Text>
+          )}
           {lud16 && (
-            <Text style={styles.lightningAddress} numberOfLines={1}>⚡ {lud16}</Text>
+            <Text style={styles.lightningAddress} numberOfLines={1}>
+              ⚡ {lud16}
+            </Text>
           )}
         </View>
       </View>

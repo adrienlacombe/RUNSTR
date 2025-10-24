@@ -45,7 +45,9 @@ export const EventsCard: React.FC<EventsCardProps> = ({
   onAddEvent,
   isCaptain = false,
 }) => {
-  const [eventStatuses, setEventStatuses] = useState<Record<string, EventStatus>>({});
+  const [eventStatuses, setEventStatuses] = useState<
+    Record<string, EventStatus>
+  >({});
   const [currentUserNpub, setCurrentUserNpub] = useState<string | null>(null);
   const [currentUserHex, setCurrentUserHex] = useState<string | null>(null);
   const [requestingJoin, setRequestingJoin] = useState<string | null>(null);
@@ -54,7 +56,9 @@ export const EventsCard: React.FC<EventsCardProps> = ({
 
   // QR Code state
   const [qrModalVisible, setQrModalVisible] = useState(false);
-  const [selectedEventQR, setSelectedEventQR] = useState<EventQRData | null>(null);
+  const [selectedEventQR, setSelectedEventQR] = useState<EventQRData | null>(
+    null
+  );
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -90,19 +94,27 @@ export const EventsCard: React.FC<EventsCardProps> = ({
 
           // Check if user has joined this event (using kind 30000 list)
           const eventDTag = `event-${event.id}-participants`;
-          const participants = await listService.getListMembers(captainHex, eventDTag);
+          const participants = await listService.getListMembers(
+            captainHex,
+            eventDTag
+          );
           const isJoined = participants.includes(currentUserHex || '');
 
           // Check if user has pending join request
-          const joinRequests = await joinRequestService.getEventJoinRequests(captainHex, event.id);
-          const hasRequestedJoin = joinRequests.some(r => r.requesterId === currentUserHex);
+          const joinRequests = await joinRequestService.getEventJoinRequests(
+            captainHex,
+            event.id
+          );
+          const hasRequestedJoin = joinRequests.some(
+            (r) => r.requesterId === currentUserHex
+          );
 
           statuses[event.id] = {
             isJoined,
             isActive,
             isCompleted,
             hasRequestedJoin,
-            participantCount: participants.length
+            participantCount: participants.length,
           };
         } catch (error) {
           console.log(`Could not check status for event ${event.id}`);
@@ -111,7 +123,7 @@ export const EventsCard: React.FC<EventsCardProps> = ({
             isActive: false,
             isCompleted: false,
             hasRequestedJoin: false,
-            participantCount: 0
+            participantCount: 0,
           };
         }
       }
@@ -177,96 +189,121 @@ export const EventsCard: React.FC<EventsCardProps> = ({
         ) : (
           events.map((event) => (
             <TouchableOpacity
-            key={event.id}
-            style={styles.eventItem}
-            onPress={() => {
-              // DEFENSIVE CHECK: Ensure event has required data before navigation
-              if (!event?.id || !event?.teamId) {
-                console.error('❌ Cannot navigate to event: missing required data', {
-                  hasId: !!event?.id,
-                  hasTeamId: !!event?.teamId,
-                  event
-                });
-                Alert.alert('Error', 'Event data incomplete. Please try refreshing the team page.');
-                return;
-              }
+              key={event.id}
+              style={styles.eventItem}
+              onPress={() => {
+                // DEFENSIVE CHECK: Ensure event has required data before navigation
+                if (!event?.id || !event?.teamId) {
+                  console.error(
+                    '❌ Cannot navigate to event: missing required data',
+                    {
+                      hasId: !!event?.id,
+                      hasTeamId: !!event?.teamId,
+                      event,
+                    }
+                  );
+                  Alert.alert(
+                    'Error',
+                    'Event data incomplete. Please try refreshing the team page.'
+                  );
+                  return;
+                }
 
-              console.log('✅ Navigating to event:', event.id, 'with complete data');
-              onEventPress?.(event.id, event);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.eventHeader}>
-              <View style={styles.eventTitleRow}>
-                <Text style={styles.eventName}>{event.name}</Text>
-                {eventStatuses[event.id] && (
-                  <View style={styles.statusBadges}>
-                    {eventStatuses[event.id].isJoined && (
-                      <View style={styles.statusBadge}>
-                        <Text style={styles.statusText}>Joined</Text>
-                      </View>
-                    )}
-                    {eventStatuses[event.id].isActive && (
-                      <View style={styles.activeBadge}>
-                        <Text style={styles.statusText}>Active</Text>
-                      </View>
-                    )}
-                    {eventStatuses[event.id].isCompleted && !eventStatuses[event.id].isJoined && (
-                      <View style={styles.completedBadge}>
-                        <Text style={styles.statusText}>Past</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                console.log(
+                  '✅ Navigating to event:',
+                  event.id,
+                  'with complete data'
+                );
+                onEventPress?.(event.id, event);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.eventHeader}>
+                <View style={styles.eventTitleRow}>
+                  <Text style={styles.eventName}>{event.name}</Text>
+                  {eventStatuses[event.id] && (
+                    <View style={styles.statusBadges}>
+                      {eventStatuses[event.id].isJoined && (
+                        <View style={styles.statusBadge}>
+                          <Text style={styles.statusText}>Joined</Text>
+                        </View>
+                      )}
+                      {eventStatuses[event.id].isActive && (
+                        <View style={styles.activeBadge}>
+                          <Text style={styles.statusText}>Active</Text>
+                        </View>
+                      )}
+                      {eventStatuses[event.id].isCompleted &&
+                        !eventStatuses[event.id].isJoined && (
+                          <View style={styles.completedBadge}>
+                            <Text style={styles.statusText}>Past</Text>
+                          </View>
+                        )}
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.eventDate}>{event.date}</Text>
               </View>
-              <Text style={styles.eventDate}>{event.date}</Text>
-            </View>
-            <Text style={styles.eventDetails}>{event.details}</Text>
-            {event.prizePoolSats !== undefined && (
-              <Text style={styles.prizePool}>
-                Prize Pool: {event.prizePoolSats === 0 ? 'N/A' : `${event.prizePoolSats.toLocaleString()} sats`}
-              </Text>
-            )}
-
-            {/* Show participant count and join button */}
-            <View style={styles.eventFooter}>
-              <Text style={styles.participantCount}>
-                {eventStatuses[event.id]?.participantCount || 0} participants
-              </Text>
-
-              {/* Captain QR button */}
-              {isCaptain && (
-                <TouchableOpacity
-                  style={styles.qrButton}
-                  onPress={() => handleShowEventQR(event)}
-                >
-                  <Ionicons name="qr-code-outline" size={16} color={theme.colors.text} />
-                  <Text style={styles.qrButtonText}>QR</Text>
-                </TouchableOpacity>
+              <Text style={styles.eventDetails}>{event.details}</Text>
+              {event.prizePoolSats !== undefined && (
+                <Text style={styles.prizePool}>
+                  Prize Pool:{' '}
+                  {event.prizePoolSats === 0
+                    ? 'N/A'
+                    : `${event.prizePoolSats.toLocaleString()} sats`}
+                </Text>
               )}
 
-              {!isCaptain && !eventStatuses[event.id]?.isJoined && !eventStatuses[event.id]?.isCompleted && (
-                <TouchableOpacity
-                  style={[
-                    styles.joinButton,
-                    eventStatuses[event.id]?.hasRequestedJoin && styles.pendingButton,
-                    requestingJoin === event.id && styles.disabledButton
-                  ]}
-                  onPress={() => handleRequestJoin(event)}
-                  disabled={eventStatuses[event.id]?.hasRequestedJoin || requestingJoin === event.id}
-                >
-                  <Text style={styles.joinButtonText}>
-                    {requestingJoin === event.id
-                      ? 'Requesting...'
-                      : eventStatuses[event.id]?.hasRequestedJoin
-                      ? 'Request Pending'
-                      : 'Request to Join'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </TouchableOpacity>
-        )))}
+              {/* Show participant count and join button */}
+              <View style={styles.eventFooter}>
+                <Text style={styles.participantCount}>
+                  {eventStatuses[event.id]?.participantCount || 0} participants
+                </Text>
+
+                {/* Captain QR button */}
+                {isCaptain && (
+                  <TouchableOpacity
+                    style={styles.qrButton}
+                    onPress={() => handleShowEventQR(event)}
+                  >
+                    <Ionicons
+                      name="qr-code-outline"
+                      size={16}
+                      color={theme.colors.text}
+                    />
+                    <Text style={styles.qrButtonText}>QR</Text>
+                  </TouchableOpacity>
+                )}
+
+                {!isCaptain &&
+                  !eventStatuses[event.id]?.isJoined &&
+                  !eventStatuses[event.id]?.isCompleted && (
+                    <TouchableOpacity
+                      style={[
+                        styles.joinButton,
+                        eventStatuses[event.id]?.hasRequestedJoin &&
+                          styles.pendingButton,
+                        requestingJoin === event.id && styles.disabledButton,
+                      ]}
+                      onPress={() => handleRequestJoin(event)}
+                      disabled={
+                        eventStatuses[event.id]?.hasRequestedJoin ||
+                        requestingJoin === event.id
+                      }
+                    >
+                      <Text style={styles.joinButtonText}>
+                        {requestingJoin === event.id
+                          ? 'Requesting...'
+                          : eventStatuses[event.id]?.hasRequestedJoin
+                          ? 'Request Pending'
+                          : 'Request to Join'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       {/* QR Code Modal */}
@@ -327,7 +364,7 @@ export const EventsCard: React.FC<EventsCardProps> = ({
       Alert.alert('Success', 'Your join request has been sent to the captain');
 
       // Update status to show pending
-      setEventStatuses(prev => ({
+      setEventStatuses((prev) => ({
         ...prev,
         [event.id]: {
           ...prev[event.id],

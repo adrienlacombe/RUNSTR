@@ -45,11 +45,18 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
       activeOpacity={0.7}
     >
       {/* Left: Icon */}
-      <View style={[styles.iconContainer, !notification.isRead && styles.unreadIconContainer]}>
+      <View
+        style={[
+          styles.iconContainer,
+          !notification.isRead && styles.unreadIconContainer,
+        ]}
+      >
         <Ionicons
           name={notification.icon as any}
           size={24}
-          color={notification.isRead ? theme.colors.textMuted : theme.colors.text}
+          color={
+            notification.isRead ? theme.colors.textMuted : theme.colors.text
+          }
         />
       </View>
 
@@ -62,7 +69,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
           >
             {notification.title}
           </Text>
-          <Text style={styles.timestamp}>{getRelativeTime(notification.timestamp)}</Text>
+          <Text style={styles.timestamp}>
+            {getRelativeTime(notification.timestamp)}
+          </Text>
         </View>
 
         <Text style={styles.body} numberOfLines={3}>
@@ -77,7 +86,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
                 key={action.id}
                 style={[
                   styles.actionButton,
-                  action.isPrimary ? styles.primaryActionButton : styles.secondaryActionButton,
+                  action.isPrimary
+                    ? styles.primaryActionButton
+                    : styles.secondaryActionButton,
                 ]}
                 onPress={(e) => {
                   e.stopPropagation();

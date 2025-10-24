@@ -140,10 +140,7 @@ export const ChallengeCreationWizard: React.FC<
       clearError();
 
       // Validate all form data before submission
-      if (
-        !formData.opponentId ||
-        !formData.challengeType
-      ) {
+      if (!formData.opponentId || !formData.challengeType) {
         throw new Error(
           'Please complete all required fields before creating the challenge.'
         );
@@ -185,7 +182,7 @@ export const ChallengeCreationWizard: React.FC<
               setTimeout(() => handleCreateChallenge(), 1000);
             },
           });
-        // Removed insufficient funds error - no wagers in this phase
+          // Removed insufficient funds error - no wagers in this phase
         } else if (
           error.message.includes('user not found') ||
           error.message.includes('opponent')

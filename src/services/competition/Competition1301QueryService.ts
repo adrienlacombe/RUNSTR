@@ -45,7 +45,8 @@ export interface QueryResult {
 
 export class Competition1301QueryService {
   private static instance: Competition1301QueryService;
-  private queryCache: Map<string, { result: QueryResult; timestamp: number }> = new Map();
+  private queryCache: Map<string, { result: QueryResult; timestamp: number }> =
+    new Map();
   private readonly CACHE_EXPIRY = 60000; // 1 minute
 
   private constructor() {}
@@ -69,7 +70,10 @@ export class Competition1301QueryService {
     if (!memberNpubs && query.teamId && query.captainPubkey) {
       // Try to fetch from kind 30000 list
       const detector = getTeamListDetector();
-      const haslist = await detector.hasKind30000List(query.teamId, query.captainPubkey);
+      const haslist = await detector.hasKind30000List(
+        query.teamId,
+        query.captainPubkey
+      );
 
       if (!haslist) {
         console.warn(`❌ Team ${query.teamId} has no kind 30000 member list`);
@@ -78,13 +82,17 @@ export class Competition1301QueryService {
           totalWorkouts: 0,
           queryTime: Date.now() - startTime,
           fromCache: false,
-          error: 'Team member list not found. Captain must create member list first.',
+          error:
+            'Team member list not found. Captain must create member list first.',
         };
       }
 
       // Get members from cache or fetch from relays
       const memberCache = TeamMemberCache.getInstance();
-      const members = await memberCache.getTeamMembers(query.teamId, query.captainPubkey);
+      const members = await memberCache.getTeamMembers(
+        query.teamId,
+        query.captainPubkey
+      );
 
       if (!members || members.length === 0) {
         console.warn(`⚠️ Team ${query.teamId} has empty member list`);
@@ -97,7 +105,7 @@ export class Competition1301QueryService {
         };
       }
 
-      memberNpubs = members.map(m => m.npub || m.pubkey);
+      memberNpubs = members.map((m) => m.npub || m.pubkey);
     }
 
     if (!memberNpubs || memberNpubs.length === 0) {
@@ -120,7 +128,9 @@ export class Competition1301QueryService {
     }
 
     console.log(`🔍 Querying workouts for ${memberNpubs.length} members`);
-    console.log(`📅 Date range: ${query.startDate.toISOString()} to ${query.endDate.toISOString()}`);
+    console.log(
+      `📅 Date range: ${query.startDate.toISOString()} to ${query.endDate.toISOString()}`
+    );
     console.log(`🏃 Activity type: ${query.activityType}`);
 
     const metrics = new Map<string, WorkoutMetrics>();
@@ -146,7 +156,9 @@ export class Competition1301QueryService {
     // Cache result
     this.queryCache.set(cacheKey, { result, timestamp: Date.now() });
 
-    console.log(`✅ Query complete: ${totalWorkouts} workouts in ${result.queryTime}ms`);
+    console.log(
+      `✅ Query complete: ${totalWorkouts} workouts in ${result.queryTime}ms`
+    );
     return result;
   }
 
@@ -205,8 +217,7 @@ export class Competition1301QueryService {
       });
 
       // Parse events into NostrWorkout format
-      return events.map(event => this.parseWorkoutEvent(event));
-
+      return events.map((event) => this.parseWorkoutEvent(event));
     } catch (error) {
       console.error(`Failed to fetch workouts for ${npub}:`, error);
       return [];
@@ -242,7 +253,7 @@ export class Competition1301QueryService {
     const activeDaysSet = new Set<string>();
 
     // Process each workout
-    workouts.forEach(workout => {
+    workouts.forEach((workout) => {
       // Distance
       const distance = this.parseDistance(workout);
       metrics.totalDistance += distance;
@@ -261,7 +272,10 @@ export class Competition1301QueryService {
       activeDaysSet.add(workoutDate);
 
       // Last activity
-      if (!metrics.lastActivityDate || workout.startTime > metrics.lastActivityDate) {
+      if (
+        !metrics.lastActivityDate ||
+        workout.startTime > metrics.lastActivityDate
+      ) {
         metrics.lastActivityDate = workout.startTime;
       }
     });
@@ -271,7 +285,8 @@ export class Competition1301QueryService {
     // Calculate averages
     if (metrics.totalDistance > 0 && metrics.totalDuration > 0) {
       metrics.averagePace = metrics.totalDuration / metrics.totalDistance; // min/km
-      metrics.averageSpeed = (metrics.totalDistance / metrics.totalDuration) * 60; // km/h
+      metrics.averageSpeed =
+        (metrics.totalDistance / metrics.totalDuration) * 60; // km/h
     }
 
     // Calculate streak
@@ -288,10 +303,11 @@ export class Competition1301QueryService {
     const tags = event.tags || [];
 
     // Parse exercise/activity type
-    let workoutType = this.extractTag(tags, 'exercise') || // runstr format
-                     this.extractTag(tags, 'type') || // NIP-101e format
-                     this.extractTag(tags, 'activity') || // Alternative
-                     'unknown';
+    let workoutType =
+      this.extractTag(tags, 'exercise') || // runstr format
+      this.extractTag(tags, 'type') || // NIP-101e format
+      this.extractTag(tags, 'activity') || // Alternative
+      'unknown';
 
     // Parse duration - support both HH:MM:SS and seconds
     let duration = 0;
@@ -299,7 +315,7 @@ export class Competition1301QueryService {
     if (durationTag) {
       if (durationTag.includes(':')) {
         // HH:MM:SS format (runstr style)
-        const parts = durationTag.split(':').map(p => parseInt(p) || 0);
+        const parts = durationTag.split(':').map((p) => parseInt(p) || 0);
         if (parts.length === 3) {
           duration = parts[0] * 3600 + parts[1] * 60 + parts[2]; // Convert to seconds
         } else if (parts.length === 2) {
@@ -313,7 +329,7 @@ export class Competition1301QueryService {
 
     // Parse distance - look for tag with unit
     let distance = 0; // in meters
-    const distanceTagIndex = tags.findIndex(t => t[0] === 'distance');
+    const distanceTagIndex = tags.findIndex((t) => t[0] === 'distance');
     if (distanceTagIndex !== -1) {
       const distanceTag = tags[distanceTagIndex];
       const distValue = parseFloat(distanceTag[1]) || 0;
@@ -334,7 +350,7 @@ export class Competition1301QueryService {
 
     // Calculate end time based on duration
     const startTimestamp = event.created_at * 1000;
-    const endTimestamp = startTimestamp + (duration * 1000); // duration is in seconds
+    const endTimestamp = startTimestamp + duration * 1000; // duration is in seconds
 
     const workout: NostrWorkout = {
       id: event.id,
@@ -361,7 +377,7 @@ export class Competition1301QueryService {
    * Extract tag value from event tags
    */
   private extractTag(tags: string[][], tagName: string): string | undefined {
-    const tag = tags.find(t => t[0] === tagName);
+    const tag = tags.find((t) => t[0] === tagName);
     return tag?.[1];
   }
 
@@ -393,7 +409,7 @@ export class Competition1301QueryService {
 
     // Sort dates
     const sortedDates = activeDays
-      .map(d => new Date(d))
+      .map((d) => new Date(d))
       .sort((a, b) => b.getTime() - a.getTime());
 
     let streak = 1;
@@ -402,7 +418,9 @@ export class Competition1301QueryService {
 
     // Check if most recent activity was today or yesterday
     const mostRecent = sortedDates[0];
-    const daysDiff = Math.floor((today.getTime() - mostRecent.getTime()) / (24 * 60 * 60 * 1000));
+    const daysDiff = Math.floor(
+      (today.getTime() - mostRecent.getTime()) / (24 * 60 * 60 * 1000)
+    );
 
     if (daysDiff > 1) return 0; // Streak broken
 
@@ -410,7 +428,9 @@ export class Competition1301QueryService {
     for (let i = 1; i < sortedDates.length; i++) {
       const prevDate = sortedDates[i - 1];
       const currDate = sortedDates[i];
-      const diff = Math.floor((prevDate.getTime() - currDate.getTime()) / (24 * 60 * 60 * 1000));
+      const diff = Math.floor(
+        (prevDate.getTime() - currDate.getTime()) / (24 * 60 * 60 * 1000)
+      );
 
       if (diff === 1) {
         streak++;
@@ -427,14 +447,14 @@ export class Competition1301QueryService {
    */
   private mapActivityTypeToTag(activityType: NostrActivityType): string {
     const mapping: Record<NostrActivityType | 'Any', string> = {
-      'Running': 'running',
-      'Walking': 'walking',
-      'Cycling': 'cycling',
+      Running: 'running',
+      Walking: 'walking',
+      Cycling: 'cycling',
       'Strength Training': 'strength',
-      'Meditation': 'meditation',
-      'Yoga': 'yoga',
-      'Diet': 'diet',
-      'Any': 'any',
+      Meditation: 'meditation',
+      Yoga: 'yoga',
+      Diet: 'diet',
+      Any: 'any',
     } as const;
     return mapping[activityType] || activityType.toLowerCase();
   }
@@ -443,7 +463,9 @@ export class Competition1301QueryService {
    * Generate cache key for query
    */
   private getCacheKey(query: CompetitionQuery): string {
-    return `${query.memberNpubs.sort().join(',')}:${query.activityType}:${query.startDate.getTime()}:${query.endDate.getTime()}`;
+    return `${query.memberNpubs.sort().join(',')}:${
+      query.activityType
+    }:${query.startDate.getTime()}:${query.endDate.getTime()}`;
   }
 
   /**

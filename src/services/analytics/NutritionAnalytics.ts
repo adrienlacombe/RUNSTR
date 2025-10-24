@@ -23,9 +23,7 @@ export class NutritionAnalytics {
   /**
    * Calculate all nutrition metrics from workout data
    */
-  static calculateMetrics(
-    workouts: LocalWorkout[]
-  ): NutritionMetrics | null {
+  static calculateMetrics(workouts: LocalWorkout[]): NutritionMetrics | null {
     const mealEntries = this.extractMealEntries(workouts);
 
     if (mealEntries.length === 0) {
@@ -36,7 +34,10 @@ export class NutritionAnalytics {
       mealTimingPatterns: this.calculateMealTiming(mealEntries),
       fastingTrends: this.calculateFastingTrends(mealEntries),
       mealFrequency: this.calculateMealFrequency(mealEntries),
-      dietPerformanceCorrelation: this.calculateDietPerformanceCorrelation(workouts, mealEntries),
+      dietPerformanceCorrelation: this.calculateDietPerformanceCorrelation(
+        workouts,
+        mealEntries
+      ),
       consistencyScore: this.calculateConsistencyScore(mealEntries),
     };
   }
@@ -47,7 +48,7 @@ export class NutritionAnalytics {
   private static extractMealEntries(workouts: LocalWorkout[]): MealEntry[] {
     const entries: MealEntry[] = [];
 
-    workouts.forEach(w => {
+    workouts.forEach((w) => {
       // Look for diet/meal tracking workouts
       if (w.type === 'other' || w.type === 'wellness') {
         const notes = (w.notes || '').toLowerCase();
@@ -86,7 +87,7 @@ export class NutritionAnalytics {
     const lunchTimes: number[] = [];
     const dinnerTimes: number[] = [];
 
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       const hour = entry.time.getHours();
       const minutes = entry.time.getMinutes();
       const timeInMinutes = hour * 60 + minutes; // Minutes since midnight
@@ -119,7 +120,8 @@ export class NutritionAnalytics {
     const lunchConsistency = this.calculateTimeConsistency(lunchTimes);
     const dinnerConsistency = this.calculateTimeConsistency(dinnerTimes);
 
-    const avgConsistency = (breakfastConsistency + lunchConsistency + dinnerConsistency) / 3;
+    const avgConsistency =
+      (breakfastConsistency + lunchConsistency + dinnerConsistency) / 3;
 
     // Group entries by meal and time range
     const patterns = this.groupMealsByTimeRange(entries);
@@ -136,10 +138,12 @@ export class NutritionAnalytics {
   /**
    * Group meals by time ranges for pattern analysis
    */
-  private static groupMealsByTimeRange(entries: MealEntry[]): Array<{ meal: string; timeRange: string; count: number }> {
+  private static groupMealsByTimeRange(
+    entries: MealEntry[]
+  ): Array<{ meal: string; timeRange: string; count: number }> {
     const patterns: Record<string, number> = {};
 
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       const hour = entry.time.getHours();
       let timeRange: string;
 
@@ -194,7 +198,8 @@ export class NutritionAnalytics {
         const firstMealTomorrow = tomorrowMeals[0].time;
 
         const fastingHours =
-          (firstMealTomorrow.getTime() - lastMealToday.getTime()) / (1000 * 60 * 60);
+          (firstMealTomorrow.getTime() - lastMealToday.getTime()) /
+          (1000 * 60 * 60);
 
         if (fastingHours > 0 && fastingHours < 24) {
           fastingDurations.push(fastingHours);
@@ -220,15 +225,16 @@ export class NutritionAnalytics {
     const weeklyAvgs = this.calculateWeeklyFastingAverages(entries, 8);
 
     // Calculate trend
-    const recentAvg = weeklyAvgs.slice(-4).reduce((sum, w) => sum + w.avgHours, 0) / 4;
-    const previousAvg = weeklyAvgs.slice(-8, -4).reduce((sum, w) => sum + w.avgHours, 0) / 4;
+    const recentAvg =
+      weeklyAvgs.slice(-4).reduce((sum, w) => sum + w.avgHours, 0) / 4;
+    const previousAvg =
+      weeklyAvgs.slice(-8, -4).reduce((sum, w) => sum + w.avgHours, 0) / 4;
 
-    const change = previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
+    const change =
+      previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
 
     const trend: FastingData['trend'] =
-      change > 10 ? 'increasing' :
-      change < -10 ? 'decreasing' :
-      'stable';
+      change > 10 ? 'increasing' : change < -10 ? 'decreasing' : 'stable';
 
     return {
       avgFastingDuration: Math.round(avgFastingDuration * 10) / 10,
@@ -241,10 +247,12 @@ export class NutritionAnalytics {
   /**
    * Group meal entries by day
    */
-  private static groupEntriesByDay(entries: MealEntry[]): Record<string, MealEntry[]> {
+  private static groupEntriesByDay(
+    entries: MealEntry[]
+  ): Record<string, MealEntry[]> {
     const grouped: Record<string, MealEntry[]> = {};
 
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       const dayKey = entry.time.toISOString().split('T')[0];
       if (!grouped[dayKey]) {
         grouped[dayKey] = [];
@@ -253,7 +261,7 @@ export class NutritionAnalytics {
     });
 
     // Sort each day's entries by time
-    Object.keys(grouped).forEach(day => {
+    Object.keys(grouped).forEach((day) => {
       grouped[day].sort((a, b) => a.time.getTime() - b.time.getTime());
     });
 
@@ -288,11 +296,13 @@ export class NutritionAnalytics {
     const now = new Date();
 
     for (let i = weeks - 1; i >= 0; i--) {
-      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekStart = new Date(
+        now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000
+      );
       const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
 
-      const weekEntries = entries.filter(e =>
-        e.time >= weekStart && e.time < weekEnd
+      const weekEntries = entries.filter(
+        (e) => e.time >= weekStart && e.time < weekEnd
       );
 
       // Calculate fasting durations for this week
@@ -309,7 +319,8 @@ export class NutritionAnalytics {
           const firstMealTomorrow = tomorrowMeals[0].time;
 
           const fastingHours =
-            (firstMealTomorrow.getTime() - lastMealToday.getTime()) / (1000 * 60 * 60);
+            (firstMealTomorrow.getTime() - lastMealToday.getTime()) /
+            (1000 * 60 * 60);
 
           if (fastingHours > 0 && fastingHours < 24) {
             weekFastingDurations.push(fastingHours);
@@ -317,9 +328,10 @@ export class NutritionAnalytics {
         }
       }
 
-      const avgHours = weekFastingDurations.length > 0
-        ? this.calculateAverage(weekFastingDurations)
-        : 0;
+      const avgHours =
+        weekFastingDurations.length > 0
+          ? this.calculateAverage(weekFastingDurations)
+          : 0;
 
       result.push({
         week: this.formatWeek(weekStart),
@@ -333,7 +345,9 @@ export class NutritionAnalytics {
   /**
    * Calculate meal frequency patterns
    */
-  private static calculateMealFrequency(entries: MealEntry[]): MealFrequencyData {
+  private static calculateMealFrequency(
+    entries: MealEntry[]
+  ): MealFrequencyData {
     const groupedByDay = this.groupEntriesByDay(entries);
     const days = Object.keys(groupedByDay);
 
@@ -346,49 +360,59 @@ export class NutritionAnalytics {
     }
 
     // Calculate average meals per day
-    const mealsPerDay = days.map(day => groupedByDay[day].length);
+    const mealsPerDay = days.map((day) => groupedByDay[day].length);
     const avgMealsPerDay = this.calculateAverage(mealsPerDay);
 
     // Determine pattern (count snacks separately)
-    const avgMainMeals = days.map(day =>
-      groupedByDay[day].filter(e => e.type !== 'snack').length
+    const avgMainMeals = days.map(
+      (day) => groupedByDay[day].filter((e) => e.type !== 'snack').length
     );
-    const avgSnacks = days.map(day =>
-      groupedByDay[day].filter(e => e.type === 'snack').length
+    const avgSnacks = days.map(
+      (day) => groupedByDay[day].filter((e) => e.type === 'snack').length
     );
 
     const avgMain = Math.round(this.calculateAverage(avgMainMeals));
     const avgSnack = Math.round(this.calculateAverage(avgSnacks));
 
-    const pattern = avgSnack > 0
-      ? `${avgMain} meals + ${avgSnack} snack${avgSnack !== 1 ? 's' : ''}`
-      : `${avgMain} meal${avgMain !== 1 ? 's' : ''}`;
+    const pattern =
+      avgSnack > 0
+        ? `${avgMain} meals + ${avgSnack} snack${avgSnack !== 1 ? 's' : ''}`
+        : `${avgMain} meal${avgMain !== 1 ? 's' : ''}`;
 
     // Calculate trend (last 30 days vs previous 30 days)
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const recentEntries = entries.filter(e => e.time >= thirtyDaysAgo);
-    const previousEntries = entries.filter(e => e.time >= sixtyDaysAgo && e.time < thirtyDaysAgo);
+    const recentEntries = entries.filter((e) => e.time >= thirtyDaysAgo);
+    const previousEntries = entries.filter(
+      (e) => e.time >= sixtyDaysAgo && e.time < thirtyDaysAgo
+    );
 
     const recentGrouped = this.groupEntriesByDay(recentEntries);
     const previousGrouped = this.groupEntriesByDay(previousEntries);
 
-    const recentAvg = Object.keys(recentGrouped).length > 0
-      ? Object.values(recentGrouped).reduce((sum, meals) => sum + meals.length, 0) / Object.keys(recentGrouped).length
-      : 0;
+    const recentAvg =
+      Object.keys(recentGrouped).length > 0
+        ? Object.values(recentGrouped).reduce(
+            (sum, meals) => sum + meals.length,
+            0
+          ) / Object.keys(recentGrouped).length
+        : 0;
 
-    const previousAvg = Object.keys(previousGrouped).length > 0
-      ? Object.values(previousGrouped).reduce((sum, meals) => sum + meals.length, 0) / Object.keys(previousGrouped).length
-      : 0;
+    const previousAvg =
+      Object.keys(previousGrouped).length > 0
+        ? Object.values(previousGrouped).reduce(
+            (sum, meals) => sum + meals.length,
+            0
+          ) / Object.keys(previousGrouped).length
+        : 0;
 
-    const change = previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
+    const change =
+      previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
 
     const trend: MealFrequencyData['trend'] =
-      change > 10 ? 'increasing' :
-      change < -10 ? 'decreasing' :
-      'stable';
+      change > 10 ? 'increasing' : change < -10 ? 'decreasing' : 'stable';
 
     return {
       avgMealsPerDay: Math.round(avgMealsPerDay * 10) / 10,
@@ -405,7 +429,7 @@ export class NutritionAnalytics {
     mealEntries: MealEntry[]
   ): CorrelationData | undefined {
     // Need sufficient data for meaningful correlation
-    const cardioWorkouts = allWorkouts.filter(w =>
+    const cardioWorkouts = allWorkouts.filter((w) =>
       ['running', 'cycling', 'walking', 'hiking'].includes(w.type)
     );
 
@@ -414,26 +438,32 @@ export class NutritionAnalytics {
     }
 
     // For each workout, check meal timing consistency in previous 24 hours
-    const workoutsWithDietData: Array<{ hadConsistentMeals: boolean; performance: number }> = [];
+    const workoutsWithDietData: Array<{
+      hadConsistentMeals: boolean;
+      performance: number;
+    }> = [];
 
-    cardioWorkouts.forEach(workout => {
+    cardioWorkouts.forEach((workout) => {
       const workoutTime = workout.startTime;
       const workoutDate = new Date(workoutTime);
-      const twentyFourHoursBefore = new Date(workoutDate.getTime() - 24 * 60 * 60 * 1000);
+      const twentyFourHoursBefore = new Date(
+        workoutDate.getTime() - 24 * 60 * 60 * 1000
+      );
 
       // Find meals in 24h before workout
-      const recentMeals = mealEntries.filter(meal =>
-        meal.time >= twentyFourHoursBefore && meal.time < workoutDate
+      const recentMeals = mealEntries.filter(
+        (meal) => meal.time >= twentyFourHoursBefore && meal.time < workoutDate
       );
 
       // Consider diet "consistent" if 2-3 main meals logged
-      const mainMeals = recentMeals.filter(m => m.type !== 'snack');
+      const mainMeals = recentMeals.filter((m) => m.type !== 'snack');
       const hadConsistentMeals = mainMeals.length >= 2 && mainMeals.length <= 4;
 
       // Use pace as performance metric
-      const pace = workout.distance && workout.duration > 0
-        ? (workout.duration / 60) / workout.distance
-        : 0;
+      const pace =
+        workout.distance && workout.duration > 0
+          ? workout.duration / 60 / workout.distance
+          : 0;
 
       if (pace > 0) {
         workoutsWithDietData.push({
@@ -448,17 +478,26 @@ export class NutritionAnalytics {
     }
 
     // Calculate average performance with and without consistent diet
-    const withConsistent = workoutsWithDietData.filter(w => w.hadConsistentMeals);
-    const withoutConsistent = workoutsWithDietData.filter(w => !w.hadConsistentMeals);
+    const withConsistent = workoutsWithDietData.filter(
+      (w) => w.hadConsistentMeals
+    );
+    const withoutConsistent = workoutsWithDietData.filter(
+      (w) => !w.hadConsistentMeals
+    );
 
     if (withConsistent.length < 3 || withoutConsistent.length < 3) {
       return undefined;
     }
 
-    const avgWithConsistent = withConsistent.reduce((sum, w) => sum + w.performance, 0) / withConsistent.length;
-    const avgWithoutConsistent = withoutConsistent.reduce((sum, w) => sum + w.performance, 0) / withoutConsistent.length;
+    const avgWithConsistent =
+      withConsistent.reduce((sum, w) => sum + w.performance, 0) /
+      withConsistent.length;
+    const avgWithoutConsistent =
+      withoutConsistent.reduce((sum, w) => sum + w.performance, 0) /
+      withoutConsistent.length;
 
-    const percentDiff = ((avgWithConsistent - avgWithoutConsistent) / avgWithoutConsistent) * 100;
+    const percentDiff =
+      ((avgWithConsistent - avgWithoutConsistent) / avgWithoutConsistent) * 100;
 
     let coefficient: number;
     let strength: CorrelationData['strength'];
@@ -469,28 +508,32 @@ export class NutritionAnalytics {
       coefficient = 0;
       strength = 'none';
       direction = 'none';
-      insight = 'No significant correlation between meal consistency and workout performance';
+      insight =
+        'No significant correlation between meal consistency and workout performance';
     } else if (Math.abs(percentDiff) < 5) {
       coefficient = percentDiff > 0 ? 0.3 : -0.3;
       strength = 'weak';
       direction = percentDiff > 0 ? 'positive' : 'negative';
-      insight = percentDiff > 0
-        ? 'Slight improvement in performance with consistent meal timing'
-        : 'Slight decrease in performance with consistent meal timing';
+      insight =
+        percentDiff > 0
+          ? 'Slight improvement in performance with consistent meal timing'
+          : 'Slight decrease in performance with consistent meal timing';
     } else if (Math.abs(percentDiff) < 10) {
       coefficient = percentDiff > 0 ? 0.6 : -0.6;
       strength = 'moderate';
       direction = percentDiff > 0 ? 'positive' : 'negative';
-      insight = percentDiff > 0
-        ? 'Moderate correlation: Consistent meal timing improves workout performance'
-        : 'Moderate correlation: Consistent meal timing decreases workout performance';
+      insight =
+        percentDiff > 0
+          ? 'Moderate correlation: Consistent meal timing improves workout performance'
+          : 'Moderate correlation: Consistent meal timing decreases workout performance';
     } else {
       coefficient = percentDiff > 0 ? 0.8 : -0.8;
       strength = 'strong';
       direction = percentDiff > 0 ? 'positive' : 'negative';
-      insight = percentDiff > 0
-        ? 'Strong correlation: Regular meal patterns significantly improve performance'
-        : 'Strong correlation: Regular meal patterns significantly decrease performance';
+      insight =
+        percentDiff > 0
+          ? 'Strong correlation: Regular meal patterns significantly improve performance'
+          : 'Strong correlation: Regular meal patterns significantly decrease performance';
     }
 
     return {
@@ -513,43 +556,52 @@ export class NutritionAnalytics {
     if (days.length < 7) return 0; // Need at least a week of data
 
     // Factor 1: Meal timing consistency (40 points)
-    const breakfastTimes = entries.filter(e => e.type === 'breakfast').map(e => {
-      const hour = e.time.getHours();
-      const minutes = e.time.getMinutes();
-      return hour * 60 + minutes;
-    });
+    const breakfastTimes = entries
+      .filter((e) => e.type === 'breakfast')
+      .map((e) => {
+        const hour = e.time.getHours();
+        const minutes = e.time.getMinutes();
+        return hour * 60 + minutes;
+      });
 
-    const lunchTimes = entries.filter(e => e.type === 'lunch').map(e => {
-      const hour = e.time.getHours();
-      const minutes = e.time.getMinutes();
-      return hour * 60 + minutes;
-    });
+    const lunchTimes = entries
+      .filter((e) => e.type === 'lunch')
+      .map((e) => {
+        const hour = e.time.getHours();
+        const minutes = e.time.getMinutes();
+        return hour * 60 + minutes;
+      });
 
-    const dinnerTimes = entries.filter(e => e.type === 'dinner').map(e => {
-      const hour = e.time.getHours();
-      const minutes = e.time.getMinutes();
-      return hour * 60 + minutes;
-    });
+    const dinnerTimes = entries
+      .filter((e) => e.type === 'dinner')
+      .map((e) => {
+        const hour = e.time.getHours();
+        const minutes = e.time.getMinutes();
+        return hour * 60 + minutes;
+      });
 
-    const timingScore = (
-      this.calculateTimeConsistency(breakfastTimes) +
-      this.calculateTimeConsistency(lunchTimes) +
-      this.calculateTimeConsistency(dinnerTimes)
-    ) / 3;
+    const timingScore =
+      (this.calculateTimeConsistency(breakfastTimes) +
+        this.calculateTimeConsistency(lunchTimes) +
+        this.calculateTimeConsistency(dinnerTimes)) /
+      3;
 
     // Factor 2: Tracking frequency (30 points)
     const trackingFrequency = (days.length / 30) * 100; // Percentage of days tracked in last 30 days
     const frequencyScore = Math.min(trackingFrequency, 100) * 0.3;
 
     // Factor 3: Meal count consistency (30 points)
-    const mealsPerDay = days.map(day => groupedByDay[day].length);
+    const mealsPerDay = days.map((day) => groupedByDay[day].length);
     const avgMeals = this.calculateAverage(mealsPerDay);
-    const mealCountVariance = mealsPerDay.reduce((sum, count) =>
-      sum + Math.pow(count - avgMeals, 2), 0
-    ) / mealsPerDay.length;
-    const mealCountScore = Math.max(0, 100 - (mealCountVariance * 20));
+    const mealCountVariance =
+      mealsPerDay.reduce(
+        (sum, count) => sum + Math.pow(count - avgMeals, 2),
+        0
+      ) / mealsPerDay.length;
+    const mealCountScore = Math.max(0, 100 - mealCountVariance * 20);
 
-    const totalScore = (timingScore * 0.4) + frequencyScore + (mealCountScore * 0.3);
+    const totalScore =
+      timingScore * 0.4 + frequencyScore + mealCountScore * 0.3;
 
     return Math.round(Math.min(100, Math.max(0, totalScore)));
   }
@@ -561,7 +613,9 @@ export class NutritionAnalytics {
     if (times.length < 2) return 0;
 
     const avg = this.calculateAverage(times);
-    const variance = times.reduce((sum, time) => sum + Math.pow(time - avg, 2), 0) / times.length;
+    const variance =
+      times.reduce((sum, time) => sum + Math.pow(time - avg, 2), 0) /
+      times.length;
     const stdDev = Math.sqrt(variance);
 
     // Lower standard deviation = higher consistency
@@ -588,7 +642,9 @@ export class NutritionAnalytics {
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
 
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, '0')}:${mins
+      .toString()
+      .padStart(2, '0')}`;
   }
 
   /**

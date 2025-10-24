@@ -17,6 +17,7 @@ import type { NDKSigner } from '@nostr-dev-kit/ndk';
 import { CacheInvalidationService } from '../cache/CacheInvalidationService';
 import { DailyRewardService } from '../rewards/DailyRewardService';
 import { FEATURES } from '../../config/features';
+import { ImageUploadService } from '../media/ImageUploadService';
 
 // Import split type for race replay data
 import type { Split } from '../activity/SplitTrackingService';
@@ -40,7 +41,12 @@ export interface PublishableWorkout extends Workout {
   positions?: Array<{ latitude: number; longitude: number; timestamp: number }>;
   pauseCount?: number;
   // Meditation-specific fields
-  meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'loving_kindness';
+  meditationType?:
+    | 'guided'
+    | 'unguided'
+    | 'breathwork'
+    | 'body_scan'
+    | 'gratitude';
   mindfulnessRating?: number;
   // Diet/Fasting-specific fields
   mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -69,6 +75,9 @@ export interface SocialPostOptions {
   cardTemplate?: 'achievement' | 'progress' | 'minimal' | 'stats';
   cardOptions?: WorkoutCardOptions;
   includeCard?: boolean;
+  userAvatar?: string; // User's profile picture URL
+  userName?: string; // User's display name
+  cardImageUri?: string; // Pre-rendered card image URI (optional)
 }
 
 interface WorkoutEventData {
@@ -87,9 +96,11 @@ interface WorkoutEventData {
 export class WorkoutPublishingService {
   private static instance: WorkoutPublishingService;
   private cardGenerator: WorkoutCardGenerator;
+  private imageUploadService: ImageUploadService;
 
   private constructor() {
     this.cardGenerator = WorkoutCardGenerator.getInstance();
+    this.imageUploadService = ImageUploadService.getInstance();
   }
 
   static getInstance(): WorkoutPublishingService {
@@ -109,7 +120,9 @@ export class WorkoutPublishingService {
     userId: string
   ): Promise<WorkoutPublishResult> {
     try {
-      console.log(`🔄 Publishing workout ${workout.id} as kind 1301 event (runstr format)...`);
+      console.log(
+        `🔄 Publishing workout ${workout.id} as kind 1301 event (runstr format)...`
+      );
 
       const ndk = await GlobalNDKService.getInstance();
       const isSigner = typeof privateKeyHexOrSigner !== 'string';
@@ -133,7 +146,9 @@ export class WorkoutPublishingService {
       ndkEvent.kind = 1301;
       ndkEvent.content = this.generateWorkoutDescription(workout);
       ndkEvent.tags = this.createNIP101eWorkoutTags(workout, pubkey);
-      ndkEvent.created_at = Math.floor(new Date(workout.startTime).getTime() / 1000);
+      ndkEvent.created_at = Math.floor(
+        new Date(workout.startTime).getTime() / 1000
+      );
 
       // Validate runstr format compliance
       const eventTemplate = {
@@ -172,7 +187,10 @@ export class WorkoutPublishingService {
           }
         } catch (error) {
           // Silent failure - reward system should never block workout publishing
-          console.log('[WorkoutPublishing] Reward check failed (silent):', error);
+          console.log(
+            '[WorkoutPublishing] Reward check failed (silent):',
+            error
+          );
         }
       }
 
@@ -192,8 +210,11 @@ export class WorkoutPublishingService {
   }
 
   /**
-   * Post workout as Kind 1 social event with workout card
+   * Post workout as Kind 1 social event with workout card image
    * Supports both direct privateKeyHex (nsec users) and NDKSigner (Amber users)
+   *
+   * New feature: Generates SVG card, converts to PNG, uploads to nostr.build,
+   * and includes as rich media in Nostr post using NIP-94 imeta tags
    */
   async postWorkoutToSocial(
     workout: PublishableWorkout,
@@ -215,11 +236,72 @@ export class WorkoutPublishingService {
         signer = new NDKPrivateKeySigner(privateKeyHexOrSigner);
       }
 
+      // Generate workout card image if requested
+      let imageUrl: string | undefined;
+      let imageDimensions: { width: number; height: number } | undefined;
+
+      if (options.includeCard !== false) {
+        console.log('🎨 Generating workout card image...');
+
+        try {
+          // Generate SVG card
+          const cardData = await this.cardGenerator.generateWorkoutCard(
+            workout,
+            {
+              template: options.cardTemplate || 'achievement',
+              userAvatar: options.userAvatar,
+              userName: options.userName,
+              ...options.cardOptions,
+            }
+          );
+
+          // Note: Image conversion will happen in the UI layer (SocialShareModal)
+          // using WorkoutCardRenderer + captureRef, then pass cardImageUri in options
+          if (options.cardImageUri) {
+            console.log('📤 Uploading card image to nostr.build with NIP-98 auth...', {
+              uri: options.cardImageUri,
+              filename: `runstr-workout-${workout.id}.png`,
+              hasSigner: !!signer,
+            });
+            const uploadResult = await this.imageUploadService.uploadImage(
+              options.cardImageUri,
+              `runstr-workout-${workout.id}.png`,
+              signer
+            );
+
+            console.log('📤 Upload result:', {
+              success: uploadResult.success,
+              hasUrl: !!uploadResult.url,
+              hasDimensions: !!uploadResult.dimensions,
+              error: uploadResult.error,
+            });
+
+            if (uploadResult.success && uploadResult.url) {
+              imageUrl = uploadResult.url;
+              imageDimensions = uploadResult.dimensions || cardData.dimensions;
+              console.log(`✅ Image uploaded successfully to: ${imageUrl}`);
+            } else {
+              console.warn('⚠️ Image upload failed:', uploadResult.error);
+              // Continue without image - post will still have text content
+            }
+          } else {
+            console.warn('⚠️ No cardImageUri provided - posting without image');
+          }
+        } catch (cardError) {
+          console.warn('⚠️ Card generation failed (non-blocking):', cardError);
+          // Continue without image - post will still have text content
+        }
+      }
+
       // Create unsigned NDKEvent
       const ndkEvent = new NDKEvent(ndk);
       ndkEvent.kind = 1;
-      ndkEvent.content = await this.generateSocialPostContent(workout, options);
-      ndkEvent.tags = this.createSocialPostTags(workout);
+      ndkEvent.content = await this.generateSocialPostContent(workout, options, imageUrl);
+      ndkEvent.tags = this.createSocialPostTags(
+        workout,
+        imageUrl,
+        imageDimensions
+      );
       ndkEvent.created_at = Math.floor(Date.now() / 1000);
 
       // Sign and publish
@@ -231,9 +313,11 @@ export class WorkoutPublishingService {
       // ✅ CRITICAL: Invalidate workout caches so social post appears in feeds
       // Get signer's pubkey for invalidation
       const user = await signer.user();
-      await CacheInvalidationService.invalidateWorkout(user.pubkey).catch((err) => {
-        console.warn('⚠️ Cache invalidation failed (non-blocking):', err);
-      });
+      await CacheInvalidationService.invalidateWorkout(user.pubkey).catch(
+        (err) => {
+          console.warn('⚠️ Cache invalidation failed (non-blocking):', err);
+        }
+      );
 
       return {
         success: true,
@@ -251,7 +335,9 @@ export class WorkoutPublishingService {
   /**
    * Convert Workout to Nostr event data format
    */
-  private convertWorkoutToEventData(workout: PublishableWorkout): WorkoutEventData {
+  private convertWorkoutToEventData(
+    workout: PublishableWorkout
+  ): WorkoutEventData {
     return {
       type: workout.type,
       duration: workout.duration,
@@ -270,7 +356,10 @@ export class WorkoutPublishingService {
    * Create runstr-compatible tags for kind 1301 workout events
    * Matches the exact format used by runstr GitHub implementation
    */
-  private createNIP101eWorkoutTags(workout: PublishableWorkout, pubkey: string): string[][] {
+  private createNIP101eWorkoutTags(
+    workout: PublishableWorkout,
+    pubkey: string
+  ): string[][] {
     // Map workout type to simple exercise verb (run, walk, cycle)
     const exerciseVerb = this.getExerciseVerb(workout.type);
 
@@ -280,8 +369,12 @@ export class WorkoutPublishingService {
     // Get specific exercise name for better title
     const specificExercise = this.getSpecificExerciseName(workout);
     const title = specificExercise
-      ? `${specificExercise.charAt(0).toUpperCase() + specificExercise.slice(1)}`
-      : `${exerciseVerb.charAt(0).toUpperCase() + exerciseVerb.slice(1)} Workout`;
+      ? `${
+          specificExercise.charAt(0).toUpperCase() + specificExercise.slice(1)
+        }`
+      : `${
+          exerciseVerb.charAt(0).toUpperCase() + exerciseVerb.slice(1)
+        } Workout`;
 
     // Start with required tags (always present)
     const tags: string[][] = [
@@ -298,18 +391,20 @@ export class WorkoutPublishingService {
     if (workout.distance && workout.distance > 0) {
       const distanceKm = (workout.distance / 1000).toFixed(2);
       const distanceUnit = workout.unitSystem === 'imperial' ? 'mi' : 'km';
-      const distanceValue = workout.unitSystem === 'imperial'
-        ? (parseFloat(distanceKm) * 0.621371).toFixed(2)
-        : distanceKm;
+      const distanceValue =
+        workout.unitSystem === 'imperial'
+          ? (parseFloat(distanceKm) * 0.621371).toFixed(2)
+          : distanceKm;
       tags.push(['distance', distanceValue, distanceUnit]);
     }
 
     // Add elevation if available (for running, hiking, cycling)
     if (workout.elevationGain && workout.elevationGain > 0) {
       const elevationUnit = workout.unitSystem === 'imperial' ? 'ft' : 'm';
-      const elevationValue = workout.unitSystem === 'imperial'
-        ? Math.round(workout.elevationGain * 3.28084).toString()
-        : Math.round(workout.elevationGain).toString();
+      const elevationValue =
+        workout.unitSystem === 'imperial'
+          ? Math.round(workout.elevationGain * 3.28084).toString()
+          : Math.round(workout.elevationGain).toString();
       tags.push(['elevation_gain', elevationValue, elevationUnit]);
     }
 
@@ -326,22 +421,46 @@ export class WorkoutPublishingService {
       tags.push(['reps', workout.reps.toString()]);
     }
 
+    // Add meditation subtype for meditation workouts
+    if (workout.meditationType) {
+      tags.push(['meditation_type', workout.meditationType]);
+    }
+
+    // Add meal type for diet/nutrition workouts
+    if (workout.mealType) {
+      tags.push(['meal_type', workout.mealType]);
+    }
+
+    // Add exercise type for strength training workouts
+    if (workout.exerciseType) {
+      tags.push(['exercise_type', workout.exerciseType]);
+    }
+
     // Add split times for running workouts (race replay data)
     if (workout.splits && workout.splits.length > 0) {
       for (const split of workout.splits) {
         // Format: ["split", "km_number", "elapsed_time_HH:MM:SS"]
-        const elapsedTimeFormatted = this.formatDurationHHMMSS(split.elapsedTime);
+        const elapsedTimeFormatted = this.formatDurationHHMMSS(
+          split.elapsedTime
+        );
         tags.push(['split', split.number.toString(), elapsedTimeFormatted]);
       }
 
       // Add individual split paces (seconds per km/mi)
       for (const split of workout.splits) {
         // Format: ["split_pace", "split_number", "pace_in_seconds"]
-        tags.push(['split_pace', split.number.toString(), Math.round(split.splitTime).toString()]);
+        tags.push([
+          'split_pace',
+          split.number.toString(),
+          Math.round(split.splitTime).toString(),
+        ]);
       }
 
       // Calculate and add average pace from splits
-      const totalSplitTime = workout.splits.reduce((sum, s) => sum + s.splitTime, 0);
+      const totalSplitTime = workout.splits.reduce(
+        (sum, s) => sum + s.splitTime,
+        0
+      );
       const averagePaceSeconds = totalSplitTime / workout.splits.length;
       const paceFormatted = this.formatPaceMMSS(averagePaceSeconds);
       const paceUnit = workout.unitSystem === 'imperial' ? 'min/mi' : 'min/km';
@@ -359,9 +478,10 @@ export class WorkoutPublishingService {
     // Add elevation loss if available (for running, hiking, cycling)
     if (workout.elevationLoss && workout.elevationLoss > 0) {
       const elevationUnit = workout.unitSystem === 'imperial' ? 'ft' : 'm';
-      const elevationValue = workout.unitSystem === 'imperial'
-        ? Math.round(workout.elevationLoss * 3.28084).toString()
-        : Math.round(workout.elevationLoss).toString();
+      const elevationValue =
+        workout.unitSystem === 'imperial'
+          ? Math.round(workout.elevationLoss * 3.28084).toString()
+          : Math.round(workout.elevationLoss).toString();
       tags.push(['elevation_loss', elevationValue, elevationUnit]);
     }
 
@@ -397,13 +517,24 @@ export class WorkoutPublishingService {
     // Cardio activities
     if (type.includes('run') || type === 'running') return 'running';
     if (type.includes('walk') || type === 'walking') return 'walking';
-    if (type.includes('cycl') || type === 'cycling' || type.includes('bike')) return 'cycling';
+    if (type.includes('cycl') || type === 'cycling' || type.includes('bike'))
+      return 'cycling';
     if (type.includes('hik')) return 'hiking';
     if (type.includes('swim')) return 'swimming';
     if (type.includes('row')) return 'rowing';
     // Strength activities
-    if (type.includes('strength') || type.includes('gym') || type.includes('weight')) return 'strength';
-    if (type.includes('pushup') || type.includes('pullup') || type.includes('situp')) return 'strength';
+    if (
+      type.includes('strength') ||
+      type.includes('gym') ||
+      type.includes('weight')
+    )
+      return 'strength';
+    if (
+      type.includes('pushup') ||
+      type.includes('pullup') ||
+      type.includes('situp')
+    )
+      return 'strength';
     if (type.includes('squat') || type.includes('burpee')) return 'strength';
     // Wellness activities
     if (type.includes('yoga')) return 'yoga';
@@ -422,7 +553,9 @@ export class WorkoutPublishingService {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
   /**
@@ -431,7 +564,9 @@ export class WorkoutPublishingService {
   private formatPaceMMSS(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, '0')}:${secs
+      .toString()
+      .padStart(2, '0')}`;
   }
 
   /**
@@ -443,13 +578,24 @@ export class WorkoutPublishingService {
     // Cardio hashtags
     if (type.includes('run') || type === 'running') return 'Running';
     if (type.includes('walk') || type === 'walking') return 'Walking';
-    if (type.includes('cycl') || type === 'cycling' || type.includes('bike')) return 'Cycling';
+    if (type.includes('cycl') || type === 'cycling' || type.includes('bike'))
+      return 'Cycling';
     if (type.includes('hik')) return 'Hiking';
     if (type.includes('swim')) return 'Swimming';
     if (type.includes('row')) return 'Rowing';
     // Strength hashtags
-    if (type.includes('gym') || type.includes('strength') || type.includes('weight')) return 'Strength';
-    if (type.includes('pushup') || type.includes('pullup') || type.includes('situp')) return 'Strength';
+    if (
+      type.includes('gym') ||
+      type.includes('strength') ||
+      type.includes('weight')
+    )
+      return 'Strength';
+    if (
+      type.includes('pushup') ||
+      type.includes('pullup') ||
+      type.includes('situp')
+    )
+      return 'Strength';
     if (type.includes('squat') || type.includes('burpee')) return 'Strength';
     // Wellness hashtags
     if (type.includes('yoga')) return 'Yoga';
@@ -459,7 +605,6 @@ export class WorkoutPublishingService {
     if (type.includes('fasting') || type.includes('fast')) return 'Fasting';
     return 'Fitness';
   }
-
 
   /**
    * Convert date/time to Unix timestamp in seconds (NIP-101e requirement)
@@ -498,7 +643,11 @@ export class WorkoutPublishingService {
     }
 
     // Priority 2: Strength workouts with sets/reps and specific exercise name
-    if ((workout.sets || workout.reps) && exerciseVerb === 'strength' && specificExercise) {
+    if (
+      (workout.sets || workout.reps) &&
+      exerciseVerb === 'strength' &&
+      specificExercise
+    ) {
       if (workout.reps && workout.sets) {
         return `Completed ${workout.reps} ${specificExercise} in ${workout.sets} sets with RUNSTR!`;
       } else if (workout.reps) {
@@ -541,7 +690,16 @@ export class WorkoutPublishingService {
    * Auto-generated notes are just the exercise name (e.g., "Pushups", "Yoga")
    */
   private isAutoGeneratedNote(notes: string): boolean {
-    const autoGenerated = ['pushups', 'pullups', 'situps', 'yoga', 'meditation', 'treadmill', 'weight training', 'stretching'];
+    const autoGenerated = [
+      'pushups',
+      'pullups',
+      'situps',
+      'yoga',
+      'meditation',
+      'treadmill',
+      'weight training',
+      'stretching',
+    ];
     return autoGenerated.includes(notes.toLowerCase().split(':')[0]);
   }
 
@@ -550,6 +708,28 @@ export class WorkoutPublishingService {
    * Returns exercise name like "pushups", "pullups", "yoga session", etc.
    */
   private getSpecificExerciseName(workout: PublishableWorkout): string | null {
+    // Check meditation subtype first
+    if (workout.meditationType) {
+      const meditationTypeMap: Record<string, string> = {
+        guided: 'guided meditation',
+        unguided: 'unguided meditation',
+        breathwork: 'breathwork session',
+        body_scan: 'body scan meditation',
+        gratitude: 'gratitude meditation',
+      };
+      return meditationTypeMap[workout.meditationType] || 'meditation session';
+    }
+
+    // Check meal type for diet workouts
+    if (workout.mealType) {
+      return `${workout.mealType} meal`;
+    }
+
+    // Check exercise type for strength workouts
+    if (workout.exerciseType) {
+      return workout.exerciseType;
+    }
+
     // Check notes first (where we store the specific exercise name from manual entry)
     if (workout.notes) {
       const notes = workout.notes.toLowerCase();
@@ -559,7 +739,8 @@ export class WorkoutPublishingService {
       if (notes.includes('situp') || notes.includes('sit-up')) return 'situps';
       if (notes.includes('squat')) return 'squats';
       if (notes.includes('burpee')) return 'burpees';
-      if (notes.includes('weight training') || notes.startsWith('weights')) return 'weight training';
+      if (notes.includes('weight training') || notes.startsWith('weights'))
+        return 'weight training';
       // Cardio exercises
       if (notes.includes('treadmill')) return 'treadmill run';
       // Wellness activities
@@ -577,7 +758,8 @@ export class WorkoutPublishingService {
       if (title.includes('situp') || title.includes('sit-up')) return 'situps';
       if (title.includes('squat')) return 'squats';
       if (title.includes('burpee')) return 'burpees';
-      if (title.includes('weight training') || title.includes('weights')) return 'weight training';
+      if (title.includes('weight training') || title.includes('weights'))
+        return 'weight training';
       // Cardio exercises
       if (title.includes('treadmill')) return 'treadmill run';
       // Wellness activities
@@ -590,7 +772,8 @@ export class WorkoutPublishingService {
     const typeStr = workout.type.toLowerCase();
     if (typeStr.includes('pushup')) return 'pushups';
     if (typeStr.includes('pullup')) return 'pullups';
-    if (typeStr.includes('situp') || typeStr.includes('sit-up')) return 'situps';
+    if (typeStr.includes('situp') || typeStr.includes('sit-up'))
+      return 'situps';
     if (typeStr.includes('squat')) return 'squats';
     if (typeStr.includes('burpee')) return 'burpees';
 
@@ -612,16 +795,26 @@ export class WorkoutPublishingService {
    */
   private getActivityEmoji(exerciseVerb: string): string {
     switch (exerciseVerb) {
-      case 'running': return '🏃‍♂️💨';
-      case 'walking': return '🚶‍♀️';
-      case 'cycling': return '🚴';
-      case 'hiking': return '🥾';
-      case 'swimming': return '🏊‍♂️';
-      case 'rowing': return '🚣';
-      case 'yoga': return '🧘';
-      case 'meditation': return '🧘‍♂️';
-      case 'strength': return '💪';
-      default: return '💪';
+      case 'running':
+        return '🏃‍♂️💨';
+      case 'walking':
+        return '🚶‍♀️';
+      case 'cycling':
+        return '🚴';
+      case 'hiking':
+        return '🥾';
+      case 'swimming':
+        return '🏊‍♂️';
+      case 'rowing':
+        return '🚣';
+      case 'yoga':
+        return '🧘';
+      case 'meditation':
+        return '🧘‍♂️';
+      case 'strength':
+        return '💪';
+      default:
+        return '💪';
     }
   }
 
@@ -632,7 +825,8 @@ export class WorkoutPublishingService {
     const type = workoutType.toLowerCase();
     if (type.includes('run') || type === 'running') return 'run';
     if (type.includes('walk') || type === 'walking') return 'walk';
-    if (type.includes('cycl') || type === 'cycling' || type.includes('bike')) return 'bike ride';
+    if (type.includes('cycl') || type === 'cycling' || type.includes('bike'))
+      return 'bike ride';
     if (type.includes('hik')) return 'hike';
     if (type.includes('swim')) return 'swim';
     if (type.includes('row')) return 'rowing session';
@@ -652,7 +846,9 @@ export class WorkoutPublishingService {
     const secs = Math.floor(seconds % 60);
 
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}`;
     } else {
       return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
@@ -661,15 +857,20 @@ export class WorkoutPublishingService {
   /**
    * Calculate pace (min:sec per km or mi)
    */
-  private calculatePace(distanceMeters: number, durationSeconds: number, unitSystem?: 'metric' | 'imperial'): string {
+  private calculatePace(
+    distanceMeters: number,
+    durationSeconds: number,
+    unitSystem?: 'metric' | 'imperial'
+  ): string {
     if (distanceMeters <= 0 || durationSeconds <= 0) return 'N/A';
 
     const distanceKm = distanceMeters / 1000;
     const distanceMiles = distanceKm * 0.621371;
 
-    const minutesPerUnit = unitSystem === 'imperial'
-      ? durationSeconds / 60 / distanceMiles
-      : durationSeconds / 60 / distanceKm;
+    const minutesPerUnit =
+      unitSystem === 'imperial'
+        ? durationSeconds / 60 / distanceMiles
+        : durationSeconds / 60 / distanceKm;
 
     const paceMinutes = Math.floor(minutesPerUnit);
     const paceSeconds = Math.round((minutesPerUnit - paceMinutes) * 60);
@@ -709,7 +910,7 @@ export class WorkoutPublishingService {
 
     // Check for required runstr-compatible tags (distance is optional now)
     const requiredTags = ['d', 'exercise', 'duration', 'source'];
-    const tagKeys = eventTemplate.tags.map(tag => tag[0]);
+    const tagKeys = eventTemplate.tags.map((tag) => tag[0]);
 
     for (const required of requiredTags) {
       if (!tagKeys.includes(required)) {
@@ -719,27 +920,46 @@ export class WorkoutPublishingService {
     }
 
     // Validate exercise tag is simple (just activity type)
-    const exerciseTag = eventTemplate.tags.find(tag => tag[0] === 'exercise');
+    const exerciseTag = eventTemplate.tags.find((tag) => tag[0] === 'exercise');
     if (!exerciseTag || exerciseTag.length !== 2) {
-      console.error('Validation failed: exercise tag must be simple ["exercise", activityType]');
+      console.error(
+        'Validation failed: exercise tag must be simple ["exercise", activityType]'
+      );
       return false;
     }
 
     // Validate exercise type is one of the supported values for in-app competitions
-    const validExerciseTypes = ['running', 'walking', 'cycling', 'hiking', 'swimming', 'rowing', 'strength', 'yoga', 'meditation', 'diet', 'fasting', 'other'];
+    const validExerciseTypes = [
+      'running',
+      'walking',
+      'cycling',
+      'hiking',
+      'swimming',
+      'rowing',
+      'strength',
+      'yoga',
+      'meditation',
+      'diet',
+      'fasting',
+      'other',
+    ];
     if (!validExerciseTypes.includes(exerciseTag[1])) {
-      console.warn(`Exercise type '${exerciseTag[1]}' is non-standard - competitions may not recognize it`);
+      console.warn(
+        `Exercise type '${exerciseTag[1]}' is non-standard - competitions may not recognize it`
+      );
     }
 
     // Validate distance tag if present (optional for wellness activities)
-    const distanceTag = eventTemplate.tags.find(tag => tag[0] === 'distance');
+    const distanceTag = eventTemplate.tags.find((tag) => tag[0] === 'distance');
     if (distanceTag && distanceTag.length !== 3) {
-      console.error('Validation failed: distance tag must have value and unit when present');
+      console.error(
+        'Validation failed: distance tag must have value and unit when present'
+      );
       return false;
     }
 
     // Validate duration is HH:MM:SS format (always required)
-    const durationTag = eventTemplate.tags.find(tag => tag[0] === 'duration');
+    const durationTag = eventTemplate.tags.find((tag) => tag[0] === 'duration');
     if (!durationTag || !/^\d{2}:\d{2}:\d{2}$/.test(durationTag[1])) {
       console.error('Validation failed: duration must be in HH:MM:SS format');
       return false;
@@ -749,9 +969,13 @@ export class WorkoutPublishingService {
   }
 
   /**
-   * Create tags for kind 1 social posts
+   * Create tags for kind 1 social posts with NIP-94 image metadata
    */
-  private createSocialPostTags(workout: PublishableWorkout): string[][] {
+  private createSocialPostTags(
+    workout: PublishableWorkout,
+    imageUrl?: string,
+    imageDimensions?: { width: number; height: number }
+  ): string[][] {
     const tags: string[][] = [
       ['t', 'fitness'], // General fitness hashtag
       ['t', workout.type], // Activity-specific hashtag
@@ -775,6 +999,16 @@ export class WorkoutPublishingService {
       tags.push(['t', 'strength']);
     }
 
+    // Add NIP-94 image metadata tag (imeta) if image was uploaded
+    if (imageUrl) {
+      const imetaTag = ['imeta', `url ${imageUrl}`];
+      if (imageDimensions) {
+        imetaTag.push(`dim ${imageDimensions.width}x${imageDimensions.height}`);
+      }
+      imetaTag.push('m image/png');
+      tags.push(imetaTag);
+    }
+
     // Reference the original workout event if it exists
     if (workout.nostrEventId) {
       tags.push(['e', workout.nostrEventId]);
@@ -785,13 +1019,24 @@ export class WorkoutPublishingService {
 
   /**
    * Generate social post content with clean format
+   * If imageUrl is provided, content is minimal (image + hashtags only)
+   * Otherwise, full text stats are included
    */
   private async generateSocialPostContent(
     workout: PublishableWorkout,
-    options: SocialPostOptions
+    options: SocialPostOptions,
+    imageUrl?: string
   ): Promise<string> {
     let content = '';
+    const activityHashtag = this.getActivityHashtag(workout.type);
 
+    // If we have an image, keep it minimal - the card has all the stats
+    if (imageUrl) {
+      content = `${imageUrl}\n\n#RUNSTR #${activityHashtag}`;
+      return content;
+    }
+
+    // Fallback: Full text content when no image is available
     // Custom message takes priority
     if (options.customMessage) {
       content = options.customMessage + '\n\n';
@@ -802,7 +1047,11 @@ export class WorkoutPublishingService {
       const specificExercise = this.getSpecificExerciseName(workout);
 
       // For strength workouts with sets/reps and specific exercise, create detailed header
-      if ((workout.sets || workout.reps) && exerciseVerb === 'strength' && specificExercise) {
+      if (
+        (workout.sets || workout.reps) &&
+        exerciseVerb === 'strength' &&
+        specificExercise
+      ) {
         if (workout.reps && workout.sets) {
           content = `Completed ${workout.reps} ${specificExercise} in ${workout.sets} sets with RUNSTR! ${activityEmoji}\n\n`;
         } else if (workout.reps) {
@@ -826,7 +1075,6 @@ export class WorkoutPublishingService {
     content += this.formatWorkoutStats(workout) + '\n\n';
 
     // Add hashtags
-    const activityHashtag = this.getActivityHashtag(workout.type);
     content += `#RUNSTR #${activityHashtag}`;
 
     return content.trim();
@@ -889,14 +1137,19 @@ export class WorkoutPublishingService {
     // Distance
     if (workout.distance && workout.distance > 0) {
       const distanceKm = (workout.distance / 1000).toFixed(2);
-      const distanceDisplay = workout.unitSystem === 'imperial'
-        ? `${(parseFloat(distanceKm) * 0.621371).toFixed(2)} mi`
-        : `${distanceKm} km`;
+      const distanceDisplay =
+        workout.unitSystem === 'imperial'
+          ? `${(parseFloat(distanceKm) * 0.621371).toFixed(2)} mi`
+          : `${distanceKm} km`;
       stats.push(`📏 Distance: ${distanceDisplay}`);
 
       // Pace - only if we have both distance and duration
       if (workout.duration > 0) {
-        const paceStr = this.calculatePace(workout.distance, workout.duration, workout.unitSystem);
+        const paceStr = this.calculatePace(
+          workout.distance,
+          workout.duration,
+          workout.unitSystem
+        );
         stats.push(`⚡ Pace: ${paceStr}`);
       }
     }
@@ -908,9 +1161,10 @@ export class WorkoutPublishingService {
 
     // Elevation gain
     if (workout.elevationGain && workout.elevationGain > 0) {
-      const elevationDisplay = workout.unitSystem === 'imperial'
-        ? `${Math.round(workout.elevationGain * 3.28084)} ft`
-        : `${Math.round(workout.elevationGain)} m`;
+      const elevationDisplay =
+        workout.unitSystem === 'imperial'
+          ? `${Math.round(workout.elevationGain * 3.28084)} ft`
+          : `${Math.round(workout.elevationGain)} m`;
       stats.push(`🏔️ Elevation Gain: ${elevationDisplay}`);
     }
 

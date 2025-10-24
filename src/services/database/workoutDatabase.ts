@@ -58,7 +58,7 @@ export interface LeaderboardCache {
 
 const STORAGE_KEYS = {
   WORKOUTS: 'workout_database_workouts',
-  METRICS: 'workout_database_metrics', 
+  METRICS: 'workout_database_metrics',
   COMPETITIONS: 'workout_database_competitions',
   LEADERBOARDS: 'workout_database_leaderboards',
 };
@@ -119,7 +119,7 @@ export class WorkoutDatabase {
       // Store in AsyncStorage (temporary implementation)
       const existingWorkouts = await this.getStoredWorkouts(npub);
       const updatedWorkouts = [...existingWorkouts, metrics];
-      
+
       await AsyncStorage.setItem(
         `${STORAGE_KEYS.WORKOUTS}_${npub}`,
         JSON.stringify(updatedWorkouts)
@@ -134,7 +134,9 @@ export class WorkoutDatabase {
 
   async getStoredWorkouts(npub: string): Promise<WorkoutMetrics[]> {
     try {
-      const data = await AsyncStorage.getItem(`${STORAGE_KEYS.WORKOUTS}_${npub}`);
+      const data = await AsyncStorage.getItem(
+        `${STORAGE_KEYS.WORKOUTS}_${npub}`
+      );
       return data ? JSON.parse(data) : [];
     } catch (error) {
       console.error('❌ Failed to get stored workouts:', error);
@@ -142,18 +144,21 @@ export class WorkoutDatabase {
     }
   }
 
-  async getWorkoutsByType(npub: string, type: WorkoutType): Promise<WorkoutMetrics[]> {
+  async getWorkoutsByType(
+    npub: string,
+    type: WorkoutType
+  ): Promise<WorkoutMetrics[]> {
     const allWorkouts = await this.getStoredWorkouts(npub);
-    return allWorkouts.filter(workout => workout.type === type);
+    return allWorkouts.filter((workout) => workout.type === type);
   }
 
   async getWorkoutsInDateRange(
-    npub: string, 
-    startDate: Date, 
+    npub: string,
+    startDate: Date,
     endDate: Date
   ): Promise<WorkoutMetrics[]> {
     const allWorkouts = await this.getStoredWorkouts(npub);
-    return allWorkouts.filter(workout => {
+    return allWorkouts.filter((workout) => {
       const workoutDate = new Date(workout.startTime);
       return workoutDate >= startDate && workoutDate <= endDate;
     });
@@ -163,37 +168,55 @@ export class WorkoutDatabase {
   // COMPETITION CALCULATIONS
   // ================================================================================
 
-  async calculateTotalDistance(npub: string, activityType?: WorkoutType): Promise<number> {
-    const workouts = activityType 
+  async calculateTotalDistance(
+    npub: string,
+    activityType?: WorkoutType
+  ): Promise<number> {
+    const workouts = activityType
       ? await this.getWorkoutsByType(npub, activityType)
       : await this.getStoredWorkouts(npub);
-    
-    return workouts.reduce((total, workout) => total + (workout.distance || 0), 0);
+
+    return workouts.reduce(
+      (total, workout) => total + (workout.distance || 0),
+      0
+    );
   }
 
-  async calculateBestTime(npub: string, distance: number, activityType: WorkoutType): Promise<number | null> {
+  async calculateBestTime(
+    npub: string,
+    distance: number,
+    activityType: WorkoutType
+  ): Promise<number | null> {
     const workouts = await this.getWorkoutsByType(npub, activityType);
-    const matchingWorkouts = workouts.filter(w => 
-      w.distance && Math.abs(w.distance - distance) < 100 // Within 100m tolerance
+    const matchingWorkouts = workouts.filter(
+      (w) => w.distance && Math.abs(w.distance - distance) < 100 // Within 100m tolerance
     );
 
     if (matchingWorkouts.length === 0) return null;
 
-    return Math.min(...matchingWorkouts.map(w => w.duration || Infinity));
+    return Math.min(...matchingWorkouts.map((w) => w.duration || Infinity));
   }
 
-  async calculateWorkoutCount(npub: string, activityType?: WorkoutType): Promise<number> {
-    const workouts = activityType 
+  async calculateWorkoutCount(
+    npub: string,
+    activityType?: WorkoutType
+  ): Promise<number> {
+    const workouts = activityType
       ? await this.getWorkoutsByType(npub, activityType)
       : await this.getStoredWorkouts(npub);
-    
+
     return workouts.length;
   }
 
-  async calculateAveragePace(npub: string, activityType: WorkoutType): Promise<number | null> {
+  async calculateAveragePace(
+    npub: string,
+    activityType: WorkoutType
+  ): Promise<number | null> {
     const workouts = await this.getWorkoutsByType(npub, activityType);
-    const workoutsWithPace = workouts.filter(w => w.distance && w.duration && w.distance > 0);
-    
+    const workoutsWithPace = workouts.filter(
+      (w) => w.distance && w.duration && w.distance > 0
+    );
+
     if (workoutsWithPace.length === 0) return null;
 
     const totalPace = workoutsWithPace.reduce((sum, workout) => {
@@ -204,17 +227,20 @@ export class WorkoutDatabase {
     return totalPace / workoutsWithPace.length;
   }
 
-  async calculateConsistencyScore(npub: string, activityType: WorkoutType): Promise<number> {
+  async calculateConsistencyScore(
+    npub: string,
+    activityType: WorkoutType
+  ): Promise<number> {
     const workouts = await this.getWorkoutsByType(npub, activityType);
-    
+
     if (workouts.length < 3) return 0; // Need at least 3 workouts
 
     // Simple consistency: how many workouts in the last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentWorkouts = workouts.filter(w => 
-      new Date(w.startTime) >= thirtyDaysAgo
+
+    const recentWorkouts = workouts.filter(
+      (w) => new Date(w.startTime) >= thirtyDaysAgo
     );
 
     // Consistency score: percentage of days with workouts
@@ -228,12 +254,17 @@ export class WorkoutDatabase {
   async calculateLeagueRankings(
     competitionId: string,
     participants: string[],
-    scoringType: 'total_distance' | 'best_time' | 'consistency' | 'workout_count',
+    scoringType:
+      | 'total_distance'
+      | 'best_time'
+      | 'consistency'
+      | 'workout_count',
     activityType: WorkoutType
   ): Promise<LeaderboardEntry[]> {
-    
-    console.log(`📊 Calculating rankings for ${participants.length} participants`);
-    
+    console.log(
+      `📊 Calculating rankings for ${participants.length} participants`
+    );
+
     const rankings: LeaderboardEntry[] = [];
 
     for (const npub of participants) {
@@ -244,8 +275,12 @@ export class WorkoutDatabase {
           score = await this.calculateTotalDistance(npub, activityType);
           break;
         case 'best_time':
-          const bestTime = await this.calculateBestTime(npub, 5000, activityType); // 5K default
-          score = bestTime ? (3600 - bestTime) : 0; // Inverse score (lower time = higher score)
+          const bestTime = await this.calculateBestTime(
+            npub,
+            5000,
+            activityType
+          ); // 5K default
+          score = bestTime ? 3600 - bestTime : 0; // Inverse score (lower time = higher score)
           break;
         case 'consistency':
           score = await this.calculateConsistencyScore(npub, activityType);
@@ -279,7 +314,9 @@ export class WorkoutDatabase {
 
   async getLeaderboard(competitionId: string): Promise<LeaderboardEntry[]> {
     try {
-      const data = await AsyncStorage.getItem(`${STORAGE_KEYS.LEADERBOARDS}_${competitionId}`);
+      const data = await AsyncStorage.getItem(
+        `${STORAGE_KEYS.LEADERBOARDS}_${competitionId}`
+      );
       return data ? JSON.parse(data) : [];
     } catch (error) {
       console.error('❌ Failed to get leaderboard:', error);
@@ -287,7 +324,10 @@ export class WorkoutDatabase {
     }
   }
 
-  private async cacheLeaderboard(competitionId: string, rankings: LeaderboardEntry[]): Promise<void> {
+  private async cacheLeaderboard(
+    competitionId: string,
+    rankings: LeaderboardEntry[]
+  ): Promise<void> {
     try {
       await AsyncStorage.setItem(
         `${STORAGE_KEYS.LEADERBOARDS}_${competitionId}`,
@@ -304,7 +344,7 @@ export class WorkoutDatabase {
 
   private calculatePace(duration?: number, distance?: number): number | null {
     if (!duration || !distance || distance === 0) return null;
-    
+
     const distanceKm = distance / 1000;
     return duration / distanceKm; // minutes per km
   }
@@ -329,9 +369,13 @@ export class WorkoutDatabase {
     try {
       // Get all keys and count workout-related ones
       const allKeys = await AsyncStorage.getAllKeys();
-      const workoutKeys = allKeys.filter(key => key.startsWith(STORAGE_KEYS.WORKOUTS));
-      const leaderboardKeys = allKeys.filter(key => key.startsWith(STORAGE_KEYS.LEADERBOARDS));
-      
+      const workoutKeys = allKeys.filter((key) =>
+        key.startsWith(STORAGE_KEYS.WORKOUTS)
+      );
+      const leaderboardKeys = allKeys.filter((key) =>
+        key.startsWith(STORAGE_KEYS.LEADERBOARDS)
+      );
+
       return {
         workoutCount: workoutKeys.length,
         leaderboardCount: leaderboardKeys.length,
@@ -347,25 +391,40 @@ export class WorkoutDatabase {
   // LEAGUE RANKING SERVICE COMPATIBILITY METHODS
   // ================================================================================
 
-  async getWorkoutMetrics(activityType: string, participantNpubs: string[]): Promise<Array<{
-    npub: string;
-    totalDistance: number;
-    avgPace: number | null;
-    totalDuration: number;
-    workoutCount: number;
-  }>> {
+  async getWorkoutMetrics(
+    activityType: string,
+    participantNpubs: string[]
+  ): Promise<
+    Array<{
+      npub: string;
+      totalDistance: number;
+      avgPace: number | null;
+      totalDuration: number;
+      workoutCount: number;
+    }>
+  > {
     const results = [];
-    
+
     for (const npub of participantNpubs) {
       const workouts = await this.getStoredWorkouts(npub);
-      const filteredWorkouts = activityType === 'other' 
-        ? workouts 
-        : workouts.filter(w => w.type === activityType);
-      
-      const totalDistance = filteredWorkouts.reduce((sum, w) => sum + (w.distance || 0), 0);
-      const totalDurationMinutes = filteredWorkouts.reduce((sum, w) => sum + (w.duration || 0), 0);
-      const avgPace = await this.calculateAveragePace(npub, activityType as any);
-      
+      const filteredWorkouts =
+        activityType === 'other'
+          ? workouts
+          : workouts.filter((w) => w.type === activityType);
+
+      const totalDistance = filteredWorkouts.reduce(
+        (sum, w) => sum + (w.distance || 0),
+        0
+      );
+      const totalDurationMinutes = filteredWorkouts.reduce(
+        (sum, w) => sum + (w.duration || 0),
+        0
+      );
+      const avgPace = await this.calculateAveragePace(
+        npub,
+        activityType as any
+      );
+
       results.push({
         npub,
         totalDistance,
@@ -374,7 +433,7 @@ export class WorkoutDatabase {
         workoutCount: filteredWorkouts.length,
       });
     }
-    
+
     return results;
   }
 
@@ -387,20 +446,22 @@ export class WorkoutDatabase {
     };
   }
 
-  async updateLeaderboard(entries: Array<{
-    competitionId: string;
-    npub: string;
-    score: number;
-    rank: number;
-  }>): Promise<void> {
+  async updateLeaderboard(
+    entries: Array<{
+      competitionId: string;
+      npub: string;
+      score: number;
+      rank: number;
+    }>
+  ): Promise<void> {
     if (entries.length === 0) return;
-    
+
     const competitionId = entries[0].competitionId;
-    const rankings = entries.map(entry => ({
+    const rankings = entries.map((entry) => ({
       ...entry,
       lastCalculated: new Date().toISOString(),
     }));
-    
+
     await this.cacheLeaderboard(competitionId, rankings);
   }
 }

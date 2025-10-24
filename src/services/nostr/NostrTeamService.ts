@@ -1,7 +1,7 @@
 /**
  * NostrTeamService - Enhanced Nostr Kind 33404 Team Discovery and Management
  * Discovers and manages fitness teams via Nostr relays using Kind 33404 events
- * 
+ *
  * ENHANCED: Now uses HybridNostrQueryService for 90%+ event retrieval vs 15% WebSocket-only
  * - HTTP-first strategy for mobile optimization
  * - Intelligent fallback: HTTP → Optimized WebSocket → Proxy
@@ -55,22 +55,24 @@ export interface TeamDiscoveryFilters {
 export class NostrTeamService {
   private discoveredTeams: Map<string, NostrTeam> = new Map();
   private ndkTeamService: NdkTeamService;
-  
+
   // ENHANCED RELAY LIST - Optimized for hybrid HTTP/WebSocket strategy
   // Performance ranking based on working script results: damus (21 events) > nos.lol (3) > primal (1) > nostr.wine (1)
   private relayUrls = [
-    'wss://relay.damus.io',     // Primary: 21 events (80% of all events)
-    'wss://nos.lol',           // Secondary: 3 events  
-    'wss://relay.primal.net',   // Tertiary: 1 event
-    'wss://nostr.wine',        // Quaternary: 1 event (had LATAM team)
-    'wss://relay.nostr.band',  // Additional coverage
+    'wss://relay.damus.io', // Primary: 21 events (80% of all events)
+    'wss://nos.lol', // Secondary: 3 events
+    'wss://relay.primal.net', // Tertiary: 1 event
+    'wss://nostr.wine', // Quaternary: 1 event (had LATAM team)
+    'wss://relay.nostr.band', // Additional coverage
     'wss://relay.snort.social', // Enhanced coverage
-    'wss://nostr-pub.wellorder.net' // Backup
+    'wss://nostr-pub.wellorder.net', // Backup
   ];
 
   constructor() {
     this.ndkTeamService = NdkTeamService.getInstance();
-    console.log('🚀 NostrTeamService: Initialized with NDK for ultra-fast team discovery (125x faster than nostr-tools)');
+    console.log(
+      '🚀 NostrTeamService: Initialized with NDK for ultra-fast team discovery (125x faster than nostr-tools)'
+    );
   }
 
   /**
@@ -80,20 +82,23 @@ export class NostrTeamService {
   async discoverFitnessTeams(
     filters?: TeamDiscoveryFilters
   ): Promise<NostrTeam[]> {
-    console.log('🚀 NostrTeamService: Delegating to NdkTeamService for ultra-fast global team discovery');
-    
+    console.log(
+      '🚀 NostrTeamService: Delegating to NdkTeamService for ultra-fast global team discovery'
+    );
+
     try {
       // Delegate to NdkTeamService which uses proven Zap-Arena NDK patterns
       const teams = await this.ndkTeamService.discoverAllTeams(filters);
-      
+
       // Cache discovered teams in our local map
-      teams.forEach(team => {
+      teams.forEach((team) => {
         this.discoveredTeams.set(team.id, team);
       });
-      
-      console.log(`🚀 NostrTeamService: Successfully discovered ${teams.length} teams via NDK (125x faster than nostr-tools)`);
+
+      console.log(
+        `🚀 NostrTeamService: Successfully discovered ${teams.length} teams via NDK (125x faster than nostr-tools)`
+      );
       return teams;
-      
     } catch (error) {
       console.error('❌ NostrTeamService: Error discovering teams:', error);
       return [];
@@ -203,12 +208,15 @@ export class NostrTeamService {
    * Enhanced validation with detailed logging (matches working script logic)
    * Much more permissive than original version to allow legitimate teams
    */
-  private validateTeam(team: NostrTeam, event: NostrTeamEvent): { isValid: boolean; reason: string | null } {
+  private validateTeam(
+    team: NostrTeam,
+    event: NostrTeamEvent
+  ): { isValid: boolean; reason: string | null } {
     // Must have a valid name
     if (!team.name || team.name.trim() === '') {
       return { isValid: false, reason: 'empty_name' };
     }
-    
+
     // Filter only obvious deleted/test teams (more permissive than original)
     const name = team.name.toLowerCase();
     if (name === 'deleted' || name === 'test' || name.startsWith('test ')) {
@@ -217,12 +225,12 @@ export class NostrTeamService {
 
     // Allow teams without descriptions (removed restrictive requirement from original)
     // Removed age-based filtering (removed 90-day restriction from original)
-    
+
     // Must have valid UUID (but allow fallback to event.id)
     if (!this.getTeamUUID(event) && !event.id) {
       return { isValid: false, reason: 'missing_uuid_and_id' };
     }
-    
+
     return { isValid: true, reason: null };
   }
 
@@ -230,10 +238,15 @@ export class NostrTeamService {
    * Get teams that match specific criteria
    */
   async getTeamsByActivity(activityType: string): Promise<NostrTeam[]> {
-    const teams = await this.discoverFitnessTeams({ activityTypes: [activityType] });
-    return teams.filter(team => 
-      team.activityType?.toLowerCase().includes(activityType.toLowerCase()) ||
-      team.tags.some(tag => tag.toLowerCase().includes(activityType.toLowerCase()))
+    const teams = await this.discoverFitnessTeams({
+      activityTypes: [activityType],
+    });
+    return teams.filter(
+      (team) =>
+        team.activityType?.toLowerCase().includes(activityType.toLowerCase()) ||
+        team.tags.some((tag) =>
+          tag.toLowerCase().includes(activityType.toLowerCase())
+        )
     );
   }
 
@@ -242,7 +255,7 @@ export class NostrTeamService {
    */
   async getTeamsByLocation(location: string): Promise<NostrTeam[]> {
     const teams = await this.discoverFitnessTeams({ location });
-    return teams.filter(team => 
+    return teams.filter((team) =>
       team.location?.toLowerCase().includes(location.toLowerCase())
     );
   }
@@ -279,7 +292,7 @@ export class NostrTeamService {
       serviceName: 'NdkTeamService',
       approach: 'Zap-Arena proven NDK patterns with global discovery',
       teamsDiscovered: this.discoveredTeams.size,
-      performanceBoost: '125x faster than nostr-tools'
+      performanceBoost: '125x faster than nostr-tools',
     };
   }
 
@@ -289,10 +302,10 @@ export class NostrTeamService {
   getBestRelays(): string[] {
     // Return the proven relay order from Phase 2
     return [
-      'wss://relay.damus.io',     // 80% of teams found here
-      'wss://nos.lol',           // Secondary coverage
-      'wss://relay.primal.net',   // Tertiary coverage
-      'wss://nostr.wine'         // Had LATAM team
+      'wss://relay.damus.io', // 80% of teams found here
+      'wss://nos.lol', // Secondary coverage
+      'wss://relay.primal.net', // Tertiary coverage
+      'wss://nostr.wine', // Had LATAM team
     ];
   }
 }

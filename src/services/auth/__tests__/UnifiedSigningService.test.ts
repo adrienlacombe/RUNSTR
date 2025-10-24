@@ -17,8 +17,10 @@ jest.mock('@react-native-async-storage/async-storage');
 describe('UnifiedSigningService', () => {
   let service: UnifiedSigningService;
   const mockNsec = 'nsec1test1234567890abcdefghijklmnopqrstuvwxyz1234567890abc';
-  const mockPubkey = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-  const mockSignature = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+  const mockPubkey =
+    '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+  const mockSignature =
+    'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -54,7 +56,10 @@ describe('UnifiedSigningService', () => {
       expect(authMethod).toBe('nostr');
 
       // Should auto-upgrade by setting auth_method
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@runstr:auth_method', 'nostr');
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        '@runstr:auth_method',
+        'nostr'
+      );
     });
 
     test('detects amber from amber_pubkey presence', async () => {
@@ -93,7 +98,7 @@ describe('UnifiedSigningService', () => {
     test('sets Amber signer on GlobalNDK', async () => {
       const mockNDK = {
         signer: null,
-        connect: jest.fn()
+        connect: jest.fn(),
       };
 
       (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce('amber');
@@ -102,7 +107,7 @@ describe('UnifiedSigningService', () => {
       // Mock AmberNDKSigner
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockResolvedValue(mockSignature)
+        sign: jest.fn().mockResolvedValue(mockSignature),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -116,7 +121,7 @@ describe('UnifiedSigningService', () => {
     test('sets nsec signer on GlobalNDK', async () => {
       const mockNDK = {
         signer: null,
-        connect: jest.fn()
+        connect: jest.fn(),
       };
 
       (AsyncStorage.getItem as jest.Mock)
@@ -135,14 +140,14 @@ describe('UnifiedSigningService', () => {
     test('caches signer for performance', async () => {
       const mockNDK = {
         signer: null,
-        connect: jest.fn()
+        connect: jest.fn(),
       };
 
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue('amber');
       (GlobalNDKService.getInstance as jest.Mock).mockResolvedValue(mockNDK);
 
       const mockAmberSigner = {
-        blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey })
+        blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -173,7 +178,7 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockResolvedValue(mockSignature)
+        sign: jest.fn().mockResolvedValue(mockSignature),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -182,7 +187,7 @@ describe('UnifiedSigningService', () => {
         content: 'Test post',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       const signature = await service.signEvent(event);
@@ -205,12 +210,14 @@ describe('UnifiedSigningService', () => {
         content: 'Test workout',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       // Mock NDKPrivateKeySigner.sign
       const mockSign = jest.fn().mockResolvedValue(mockSignature);
-      jest.spyOn(NDKPrivateKeySigner.prototype, 'sign').mockImplementation(mockSign);
+      jest
+        .spyOn(NDKPrivateKeySigner.prototype, 'sign')
+        .mockImplementation(mockSign);
 
       const signature = await service.signEvent(event);
 
@@ -226,10 +233,12 @@ describe('UnifiedSigningService', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
-      await expect(service.signEvent(event)).rejects.toThrow(/No signer available/);
+      await expect(service.signEvent(event)).rejects.toThrow(
+        /No signer available/
+      );
     });
   });
 
@@ -241,7 +250,9 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockRejectedValue(new Error('User rejected signing request'))
+        sign: jest
+          .fn()
+          .mockRejectedValue(new Error('User rejected signing request')),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -250,11 +261,15 @@ describe('UnifiedSigningService', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
-      await expect(service.signEvent(event)).rejects.toThrow(/rejected in Amber/);
-      await expect(service.signEvent(event)).rejects.toThrow(/approve the request/);
+      await expect(service.signEvent(event)).rejects.toThrow(
+        /rejected in Amber/
+      );
+      await expect(service.signEvent(event)).rejects.toThrow(
+        /approve the request/
+      );
     });
 
     test('provides helpful error for timeout', async () => {
@@ -264,7 +279,7 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockRejectedValue(new Error('Request timed out'))
+        sign: jest.fn().mockRejectedValue(new Error('Request timed out')),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -273,7 +288,7 @@ describe('UnifiedSigningService', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await expect(service.signEvent(event)).rejects.toThrow(/timed out/);
@@ -287,7 +302,9 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockRejectedValue(new Error('Could not open Amber app'))
+        sign: jest
+          .fn()
+          .mockRejectedValue(new Error('Could not open Amber app')),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -296,10 +313,12 @@ describe('UnifiedSigningService', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
-      await expect(service.signEvent(event)).rejects.toThrow(/Could not connect to Amber/);
+      await expect(service.signEvent(event)).rejects.toThrow(
+        /Could not connect to Amber/
+      );
       await expect(service.signEvent(event)).rejects.toThrow(/installed/);
     });
 
@@ -310,7 +329,7 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockRejectedValue(new Error('Amber permission denied'))
+        sign: jest.fn().mockRejectedValue(new Error('Amber permission denied')),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -319,11 +338,15 @@ describe('UnifiedSigningService', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
-      await expect(service.signEvent(event)).rejects.toThrow(/permission denied/);
-      await expect(service.signEvent(event)).rejects.toThrow(/permissions in Amber/);
+      await expect(service.signEvent(event)).rejects.toThrow(
+        /permission denied/
+      );
+      await expect(service.signEvent(event)).rejects.toThrow(
+        /permissions in Amber/
+      );
     });
 
     test('provides helpful error for Amber crash', async () => {
@@ -333,7 +356,7 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        sign: jest.fn().mockRejectedValue(new Error('Amber app crashed'))
+        sign: jest.fn().mockRejectedValue(new Error('Amber app crashed')),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -342,7 +365,7 @@ describe('UnifiedSigningService', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await expect(service.signEvent(event)).rejects.toThrow(/crashed/);
@@ -358,7 +381,7 @@ describe('UnifiedSigningService', () => {
 
       const mockAmberSigner = {
         blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
-        user: jest.fn().mockResolvedValue({ pubkey: mockPubkey })
+        user: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 
@@ -379,7 +402,7 @@ describe('UnifiedSigningService', () => {
       // Mock NDKPrivateKeySigner.user
       jest.spyOn(NDKPrivateKeySigner.prototype, 'user').mockResolvedValue({
         pubkey: mockPubkey,
-        npub: mockNpub
+        npub: mockNpub,
       } as any);
 
       const npub = await service.getUserNpub();
@@ -433,7 +456,7 @@ describe('UnifiedSigningService', () => {
       (GlobalNDKService.getInstance as jest.Mock).mockResolvedValue(mockNDK);
 
       const mockAmberSigner = {
-        blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey })
+        blockUntilReady: jest.fn().mockResolvedValue({ pubkey: mockPubkey }),
       };
       (AmberNDKSigner as jest.Mock).mockImplementation(() => mockAmberSigner);
 

@@ -6,12 +6,18 @@
  */
 
 import type { Event } from 'nostr-tools';
-import { NostrRelayManager, nostrRelayManager } from '../nostr/NostrRelayManager';
+import {
+  NostrRelayManager,
+  nostrRelayManager,
+} from '../nostr/NostrRelayManager';
 import { NostrTeamService } from '../nostr/NostrTeamService';
 import EventEligibilityService from './eventEligibilityService';
 import type { NostrFilter } from '../nostr/NostrProtocolHandler';
 import type { NostrTeam } from '../nostr/NostrTeamService';
-import type { EligibleEvent, EventAutoEntryResult } from './eventEligibilityService';
+import type {
+  EligibleEvent,
+  EventAutoEntryResult,
+} from './eventEligibilityService';
 import type { NostrWorkout } from '../../types/nostrWorkout';
 
 export interface Competition {
@@ -478,7 +484,9 @@ export class CompetitionService {
    */
   addCompetitionToCache(competition: Competition): void {
     this.activeCompetitions.set(competition.id, competition);
-    console.log(`✅ Cached competition: ${competition.name} (${competition.id})`);
+    console.log(
+      `✅ Cached competition: ${competition.name} (${competition.id})`
+    );
   }
 
   /**

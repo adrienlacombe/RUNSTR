@@ -51,22 +51,27 @@ export const useChallengeCreation = ({
 
     try {
       const nostrTeamService = getNostrTeamService();
-      const cachedTeams = Array.from(nostrTeamService.getDiscoveredTeams().values());
+      const cachedTeams = Array.from(
+        nostrTeamService.getDiscoveredTeams().values()
+      );
       const nostrTeam = cachedTeams.find((t) => t.id === teamId);
-      
+
       if (!nostrTeam) {
         throw new Error('Team not found in cached teams');
       }
 
       const memberIds = await nostrTeamService.getTeamMembers(nostrTeam);
-      
+
       if (!memberIds || memberIds.length === 0) {
         throw new Error('No teammates available for challenges');
       }
 
       // Filter out current user and convert to TeammateInfo format
       const teammates: TeammateInfo[] = memberIds
-        .filter((memberId) => memberId !== currentUser.npub && memberId !== currentUser.id)
+        .filter(
+          (memberId) =>
+            memberId !== currentUser.npub && memberId !== currentUser.id
+        )
         .map((memberId, index) => ({
           id: memberId,
           name: `Member ${index + 1}`, // TODO: Get actual names from Nostr profiles
@@ -78,7 +83,9 @@ export const useChallengeCreation = ({
         }));
 
       if (teammates.length === 0) {
-        throw new Error('Your team needs at least 2 members to create challenges');
+        throw new Error(
+          'Your team needs at least 2 members to create challenges'
+        );
       }
 
       setTeammates(teammates);
@@ -194,7 +201,7 @@ export const useChallengeCreation = ({
           if (err.message.includes('timeout')) {
             errorMessage =
               'Challenge creation timed out. Please check your connection and try again.';
-          // Removed insufficient funds error - no wagers in this phase
+            // Removed insufficient funds error - no wagers in this phase
           } else if (
             err.message.includes('duplicate') ||
             err.message.includes('already exists')

@@ -38,7 +38,7 @@ export class AmberAuthProvider {
       if (Platform.OS !== 'android') {
         return {
           success: false,
-          error: 'Amber authentication is only available on Android'
+          error: 'Amber authentication is only available on Android',
         };
       }
 
@@ -52,10 +52,16 @@ export class AmberAuthProvider {
       try {
         await this.signer.blockUntilReady();
       } catch (error) {
-        console.error('❌ AmberAuthProvider: Failed to initialize Amber:', error);
+        console.error(
+          '❌ AmberAuthProvider: Failed to initialize Amber:',
+          error
+        );
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to connect to Amber'
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to connect to Amber',
         };
       }
 
@@ -64,14 +70,17 @@ export class AmberAuthProvider {
       if (!ndkUser || !ndkUser.pubkey) {
         return {
           success: false,
-          error: 'Failed to get public key from Amber'
+          error: 'Failed to get public key from Amber',
         };
       }
 
       const npub = ndkUser.npub;
       const hexPubkey = ndkUser.pubkey;
 
-      console.log('✅ AmberAuthProvider: Got pubkey from Amber:', npub.slice(0, 20) + '...');
+      console.log(
+        '✅ AmberAuthProvider: Got pubkey from Amber:',
+        npub.slice(0, 20) + '...'
+      );
 
       // Store authentication method and keys
       await AsyncStorage.setItem('@runstr:auth_method', 'amber');
@@ -84,12 +93,19 @@ export class AmberAuthProvider {
         console.log('💰 AmberAuthProvider: Initializing NutZap wallet...');
         // For Amber, we don't have access to nsec, so pass null
         // NutZap can work with just pubkey for receiving
-        const walletState = await nutzapService.initializeForReceiveOnly(hexPubkey);
+        const walletState = await nutzapService.initializeForReceiveOnly(
+          hexPubkey
+        );
         if (walletState.created) {
-          console.log('✅ AmberAuthProvider: NutZap wallet configured for receiving');
+          console.log(
+            '✅ AmberAuthProvider: NutZap wallet configured for receiving'
+          );
         }
       } catch (walletError) {
-        console.warn('⚠️ AmberAuthProvider: NutZap initialization failed (non-fatal):', walletError);
+        console.warn(
+          '⚠️ AmberAuthProvider: NutZap initialization failed (non-fatal):',
+          walletError
+        );
       }
 
       // Get profile from Nostr using DirectNostrProfileService
@@ -111,7 +127,7 @@ export class AmberAuthProvider {
           email: '',
           npub: npub,
           role: 'member',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
 
         console.log('✅ AmberAuthProvider: Created basic user profile');
@@ -120,7 +136,7 @@ export class AmberAuthProvider {
           success: true,
           user,
           needsOnboarding: false,
-          needsRoleSelection: false
+          needsRoleSelection: false,
         };
       }
 
@@ -141,7 +157,7 @@ export class AmberAuthProvider {
         banner: directUser.banner,
         lud16: directUser.lud16,
         displayName: directUser.displayName,
-        isSupabaseSynced: false
+        isSupabaseSynced: false,
       };
 
       console.log('✅ AmberAuthProvider: Amber authentication successful:', {
@@ -149,20 +165,23 @@ export class AmberAuthProvider {
         name: user.name,
         npub: user.npub.slice(0, 20) + '...',
         hasPicture: !!user.picture,
-        hasLightning: !!user.lud16
+        hasLightning: !!user.lud16,
       });
 
       return {
         success: true,
         user,
         needsOnboarding: false,
-        needsRoleSelection: false
+        needsRoleSelection: false,
       };
     } catch (error) {
       console.error('❌ AmberAuthProvider: Authentication failed:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Amber authentication failed'
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Amber authentication failed',
       };
     }
   }

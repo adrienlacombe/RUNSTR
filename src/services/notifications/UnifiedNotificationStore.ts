@@ -41,7 +41,9 @@ export class UnifiedNotificationStore {
    */
   async initialize(userPubkey: string): Promise<void> {
     if (this.isInitialized && this.userPubkey === userPubkey) {
-      console.log('[UnifiedNotificationStore] Already initialized for this user');
+      console.log(
+        '[UnifiedNotificationStore] Already initialized for this user'
+      );
       return;
     }
 
@@ -52,7 +54,9 @@ export class UnifiedNotificationStore {
       await this.loadFromStorage();
       await this.cleanupOldNotifications();
       this.isInitialized = true;
-      console.log(`[UnifiedNotificationStore] Initialized with ${this.notifications.length} notifications`);
+      console.log(
+        `[UnifiedNotificationStore] Initialized with ${this.notifications.length} notifications`
+      );
     } catch (error) {
       console.error('[UnifiedNotificationStore] Failed to initialize:', error);
       throw error;
@@ -92,7 +96,10 @@ export class UnifiedNotificationStore {
         (n) => n.nostrEventId === options.nostrEventId
       );
       if (exists) {
-        console.log('[UnifiedNotificationStore] Duplicate notification, skipping:', options.nostrEventId);
+        console.log(
+          '[UnifiedNotificationStore] Duplicate notification, skipping:',
+          options.nostrEventId
+        );
         return notification; // Return without adding
       }
     }
@@ -106,7 +113,9 @@ export class UnifiedNotificationStore {
     // Notify subscribers
     this.notifySubscribers();
 
-    console.log(`[UnifiedNotificationStore] Added notification: ${type} - "${title}"`);
+    console.log(
+      `[UnifiedNotificationStore] Added notification: ${type} - "${title}"`
+    );
 
     return notification;
   }
@@ -193,10 +202,15 @@ export class UnifiedNotificationStore {
    * Mark notification as read
    */
   async markAsRead(notificationId: string): Promise<void> {
-    const notification = this.notifications.find((n) => n.id === notificationId);
+    const notification = this.notifications.find(
+      (n) => n.id === notificationId
+    );
 
     if (!notification) {
-      console.warn('[UnifiedNotificationStore] Notification not found:', notificationId);
+      console.warn(
+        '[UnifiedNotificationStore] Notification not found:',
+        notificationId
+      );
       return;
     }
 
@@ -241,7 +255,10 @@ export class UnifiedNotificationStore {
     const index = this.notifications.findIndex((n) => n.id === notificationId);
 
     if (index === -1) {
-      console.warn('[UnifiedNotificationStore] Notification not found:', notificationId);
+      console.warn(
+        '[UnifiedNotificationStore] Notification not found:',
+        notificationId
+      );
       return;
     }
 
@@ -250,7 +267,10 @@ export class UnifiedNotificationStore {
     await this.saveToStorage();
     this.notifySubscribers();
 
-    console.log('[UnifiedNotificationStore] Deleted notification:', notificationId);
+    console.log(
+      '[UnifiedNotificationStore] Deleted notification:',
+      notificationId
+    );
   }
 
   /**
@@ -324,15 +344,22 @@ export class UnifiedNotificationStore {
 
       // Check version for migrations
       if (data.version !== STORAGE_VERSION) {
-        console.log('[UnifiedNotificationStore] Storage version mismatch, resetting...');
+        console.log(
+          '[UnifiedNotificationStore] Storage version mismatch, resetting...'
+        );
         this.notifications = [];
         return;
       }
 
       this.notifications = data.notifications || [];
-      console.log(`[UnifiedNotificationStore] Loaded ${this.notifications.length} notifications from storage`);
+      console.log(
+        `[UnifiedNotificationStore] Loaded ${this.notifications.length} notifications from storage`
+      );
     } catch (error) {
-      console.error('[UnifiedNotificationStore] Failed to load from storage:', error);
+      console.error(
+        '[UnifiedNotificationStore] Failed to load from storage:',
+        error
+      );
       this.notifications = [];
     }
   }
@@ -350,7 +377,10 @@ export class UnifiedNotificationStore {
 
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-      console.error('[UnifiedNotificationStore] Failed to save to storage:', error);
+      console.error(
+        '[UnifiedNotificationStore] Failed to save to storage:',
+        error
+      );
     }
   }
 
@@ -369,7 +399,9 @@ export class UnifiedNotificationStore {
 
     if (removedCount > 0) {
       await this.saveToStorage();
-      console.log(`[UnifiedNotificationStore] Cleaned up ${removedCount} old notifications`);
+      console.log(
+        `[UnifiedNotificationStore] Cleaned up ${removedCount} old notifications`
+      );
     }
   }
 
@@ -383,7 +415,10 @@ export class UnifiedNotificationStore {
       try {
         callback([...this.notifications], unreadCount);
       } catch (error) {
-        console.error('[UnifiedNotificationStore] Error in subscriber callback:', error);
+        console.error(
+          '[UnifiedNotificationStore] Error in subscriber callback:',
+          error
+        );
       }
     });
   }

@@ -17,10 +17,15 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
-import { userDiscoveryService, type DiscoveredNostrUser } from '../../services/user/UserDiscoveryService';
+import {
+  userDiscoveryService,
+  type DiscoveredNostrUser,
+} from '../../services/user/UserDiscoveryService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import type { ActivityConfiguration } from '../../types/challenge';
-import QRCodeService, { type ChallengeQRData } from '../../services/qr/QRCodeService';
+import QRCodeService, {
+  type ChallengeQRData,
+} from '../../services/qr/QRCodeService';
 
 // Step components
 import { UserSearchStep } from './steps/UserSearchStep';
@@ -28,7 +33,11 @@ import { ActivityConfigurationStep } from './steps/ActivityConfigurationStep';
 import { ChallengeReviewStep } from './steps/ChallengeReviewStep';
 import { SuccessScreen } from './steps/SuccessScreen';
 
-type GlobalChallengeStep = 'user_search' | 'activity_config' | 'review' | 'success';
+type GlobalChallengeStep =
+  | 'user_search'
+  | 'activity_config'
+  | 'review'
+  | 'success';
 
 interface GlobalChallengeWizardProps {
   onComplete?: () => void;
@@ -41,7 +50,11 @@ interface WizardProgressProps {
 }
 
 const WizardProgress: React.FC<WizardProgressProps> = ({ currentStep }) => {
-  const steps: GlobalChallengeStep[] = ['user_search', 'activity_config', 'review'];
+  const steps: GlobalChallengeStep[] = [
+    'user_search',
+    'activity_config',
+    'review',
+  ];
   const currentIndex = steps.indexOf(currentStep);
 
   return (
@@ -69,10 +82,15 @@ export const GlobalChallengeWizard: React.FC<GlobalChallengeWizardProps> = ({
   const [currentStep, setCurrentStep] = useState<GlobalChallengeStep>(
     preselectedOpponent ? 'activity_config' : 'user_search'
   );
-  const [selectedUser, setSelectedUser] = useState<DiscoveredNostrUser | undefined>(preselectedOpponent);
-  const [configuration, setConfiguration] = useState<Partial<ActivityConfiguration>>({});
+  const [selectedUser, setSelectedUser] = useState<
+    DiscoveredNostrUser | undefined
+  >(preselectedOpponent);
+  const [configuration, setConfiguration] = useState<
+    Partial<ActivityConfiguration>
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [challengeQRData, setChallengeQRData] = useState<ChallengeQRData | null>(null);
+  const [challengeQRData, setChallengeQRData] =
+    useState<ChallengeQRData | null>(null);
 
   // Step validation
   const validateCurrentStep = useCallback((): boolean => {
@@ -127,8 +145,13 @@ export const GlobalChallengeWizard: React.FC<GlobalChallengeWizardProps> = ({
   }, [currentStep, preselectedOpponent]);
 
   const handleCreateChallenge = useCallback(async () => {
-    if (!selectedUser || !configuration.activityType || !configuration.metric ||
-        !configuration.duration || configuration.wagerAmount === undefined) {
+    if (
+      !selectedUser ||
+      !configuration.activityType ||
+      !configuration.metric ||
+      !configuration.duration ||
+      configuration.wagerAmount === undefined
+    ) {
       Alert.alert('Error', 'Please complete all required fields');
       return;
     }
@@ -173,7 +196,7 @@ export const GlobalChallengeWizard: React.FC<GlobalChallengeWizardProps> = ({
         duration: configuration.duration,
         wager: configuration.wagerAmount,
         startsAt: now,
-        expiresAt: now + (configuration.duration * 24 * 60 * 60),
+        expiresAt: now + configuration.duration * 24 * 60 * 60,
       };
       setChallengeQRData(qrData);
 
@@ -187,24 +210,20 @@ export const GlobalChallengeWizard: React.FC<GlobalChallengeWizardProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'An unexpected error occurred';
 
-      Alert.alert(
-        'Challenge Creation Failed',
-        errorMessage,
-        [
-          {
-            text: 'Try Again',
-            onPress: () => setIsSubmitting(false),
+      Alert.alert('Challenge Creation Failed', errorMessage, [
+        {
+          text: 'Try Again',
+          onPress: () => setIsSubmitting(false),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            setIsSubmitting(false);
+            onCancel();
           },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              setIsSubmitting(false);
-              onCancel();
-            },
-          },
-        ]
-      );
+        },
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -299,27 +318,30 @@ export const GlobalChallengeWizard: React.FC<GlobalChallengeWizardProps> = ({
           </View>
         )}
 
-        {currentStep === 'review' && selectedUser && configuration.activityType && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Review Challenge</Text>
-            <Text style={styles.stepSubtitle}>
-              Confirm details before sending
-            </Text>
-            <ChallengeReviewStep
-              opponent={selectedUser}
-              configuration={configuration as ActivityConfiguration}
-              onEditOpponent={handleEditOpponent}
-              onEditConfiguration={handleEditConfiguration}
-            />
-          </View>
-        )}
+        {currentStep === 'review' &&
+          selectedUser &&
+          configuration.activityType && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.stepTitle}>Review Challenge</Text>
+              <Text style={styles.stepSubtitle}>
+                Confirm details before sending
+              </Text>
+              <ChallengeReviewStep
+                opponent={selectedUser}
+                configuration={configuration as ActivityConfiguration}
+                onEditOpponent={handleEditOpponent}
+                onEditConfiguration={handleEditConfiguration}
+              />
+            </View>
+          )}
 
         {currentStep === 'success' && selectedUser && (
           <SuccessScreen
             challengeData={{
               opponentInfo: {
                 id: selectedUser.pubkey,
-                name: selectedUser.displayName || selectedUser.name || 'Unknown',
+                name:
+                  selectedUser.displayName || selectedUser.name || 'Unknown',
                 avatar: selectedUser.picture || '',
                 stats: { challengesCount: 0, winsCount: 0 },
               },

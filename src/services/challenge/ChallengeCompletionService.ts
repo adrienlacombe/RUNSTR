@@ -8,7 +8,13 @@
 
 import challengeService from '../competition/ChallengeService';
 import { challengePaymentService } from './ChallengePaymentService';
-import type { ChallengeMetadata, ChallengeParticipant } from '../../types/challenge';
+import { challengeArbitrationService } from './ChallengeArbitrationService';
+import { NWCWalletService } from '../wallet/NWCWalletService';
+import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
+import type {
+  ChallengeMetadata,
+  ChallengeParticipant,
+} from '../../types/challenge';
 
 export interface CompletionResult {
   success: boolean;
@@ -80,7 +86,9 @@ export class ChallengeCompletionService {
         return;
       }
 
-      console.log(`🔍 Checking ${activeChallenges.length} active challenges...`);
+      console.log(
+        `🔍 Checking ${activeChallenges.length} active challenges...`
+      );
 
       const now = Date.now();
       for (const challenge of activeChallenges) {
@@ -101,8 +109,147 @@ export class ChallengeCompletionService {
   }
 
   /**
-   * Complete a challenge - determine winner and generate payout invoice
-   * NEW: Returns invoice for loser to pay winner (no automatic payout)
+   * Attempt automatic payout via captain's NWC wallet
+   * Includes safety nets and fallback to manual
+   */
+  private async attemptAutomaticPayout(
+    challengeId: string,
+    winnerPubkey: string,
+    winnerLightningAddress: string,
+    wagerAmount: number,
+    arbitratorCaptainPubkey: string
+  ): Promise<{ success: boolean; payoutHash?: string; error?: string }> {
+    try {
+      console.log(
+        `🤖 Attempting automatic payout for challenge: ${challengeId}`
+      );
+
+      // SAFETY NET 1: Check if both participants paid
+      const fullyFunded = await challengeArbitrationService.checkFullyFunded(
+        challengeId
+      );
+      if (!fullyFunded) {
+        const reason =
+          'Challenge not fully funded - both participants must pay before payout';
+        console.warn(`⚠️ ${reason}`);
+        return { success: false, error: reason };
+      }
+
+      // SAFETY NET 2: Validate winner has Lightning address
+      if (!winnerLightningAddress || !winnerLightningAddress.includes('@')) {
+        const reason =
+          'Winner does not have valid Lightning address configured';
+        console.warn(`⚠️ ${reason}`);
+        return { success: false, error: reason };
+      }
+
+      // Get captain's NWC wallet
+      const nwcService = NWCWalletService.getInstance();
+      const walletInfo = await nwcService.getWalletInfo();
+
+      if (!walletInfo) {
+        const reason = 'Captain NWC wallet not configured';
+        console.warn(`⚠️ ${reason}`);
+        return { success: false, error: reason };
+      }
+
+      // SAFETY NET 3: Check captain's wallet balance
+      const balance = await nwcService.getBalance();
+      const totalPot = wagerAmount * 2;
+      const arbitrationFee = Math.floor(totalPot * 0.05); // 5% fee
+      const winnerPayout = totalPot - arbitrationFee;
+
+      if (!balance || balance < winnerPayout) {
+        const reason = `Insufficient captain wallet balance (has ${balance} sats, needs ${winnerPayout} sats)`;
+        console.warn(`⚠️ ${reason}`);
+        return { success: false, error: reason };
+      }
+
+      console.log(`💰 Payout calculation:`);
+      console.log(`   Total pot: ${totalPot} sats`);
+      console.log(`   Arbitration fee (5%): ${arbitrationFee} sats`);
+      console.log(`   Winner payout: ${winnerPayout} sats`);
+
+      // Generate invoice from winner's Lightning address
+      console.log(
+        `⚡ Generating invoice from winner's address: ${winnerLightningAddress}`
+      );
+      const invoiceResult = await getInvoiceFromLightningAddress(
+        winnerLightningAddress,
+        winnerPayout,
+        `Challenge ${challengeId.slice(0, 16)} winnings`
+      );
+
+      if (!invoiceResult.invoice) {
+        const reason =
+          'Failed to generate invoice from winner Lightning address';
+        console.error(`❌ ${reason}`);
+        return { success: false, error: reason };
+      }
+
+      console.log(
+        `✅ Invoice generated: ${invoiceResult.invoice.substring(0, 50)}...`
+      );
+
+      // RETRY LOGIC: Attempt payment with 3 retries
+      let lastError: string | undefined;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`🔄 Payment attempt ${attempt}/3...`);
+
+          const paymentResult = await nwcService.payInvoice(
+            invoiceResult.invoice
+          );
+
+          if (paymentResult.preimage) {
+            console.log(`✅ Automatic payout successful!`);
+            console.log(`   Payment hash: ${paymentResult.preimage}`);
+
+            // Record successful auto-payout
+            await challengeArbitrationService.markAutoPayoutComplete(
+              challengeId,
+              winnerPubkey,
+              paymentResult.preimage,
+              winnerPayout,
+              arbitrationFee
+            );
+
+            return {
+              success: true,
+              payoutHash: paymentResult.preimage,
+            };
+          } else {
+            lastError = 'Payment succeeded but no preimage returned';
+            console.warn(`⚠️ Attempt ${attempt}: ${lastError}`);
+          }
+        } catch (error) {
+          lastError =
+            error instanceof Error ? error.message : 'Unknown payment error';
+          console.error(`❌ Attempt ${attempt} failed:`, lastError);
+
+          if (attempt < 3) {
+            // Wait 5 seconds before retry
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+          }
+        }
+      }
+
+      // All retries failed
+      const finalError = `Payment failed after 3 attempts: ${lastError}`;
+      console.error(`❌ ${finalError}`);
+      return { success: false, error: finalError };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Automatic payout error:', errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Complete a challenge - determine winner and execute payout
+   * NEW: Automatic payout via captain's NWC wallet for arbitrated challenges
+   * FALLBACK: Manual payout invoice for P2P challenges or if automatic fails
    */
   async completeChallenge(challengeId: string): Promise<CompletionResult> {
     try {
@@ -142,12 +289,14 @@ export class ChallengeCompletionService {
         };
       }
 
-      // We have a winner - determine loser and generate payout invoice
+      // We have a winner - determine loser and get Lightning addresses
       console.log(`🏆 Winner: ${winnerPubkey.slice(0, 8)}...`);
 
       // Determine loser pubkey and get Lightning addresses
       const isCreatorWinner = winnerPubkey === challenge.challengerPubkey;
-      const loserPubkey = isCreatorWinner ? challenge.challengedPubkey : challenge.challengerPubkey;
+      const loserPubkey = isCreatorWinner
+        ? challenge.challengedPubkey
+        : challenge.challengerPubkey;
       const winnerLightningAddress = isCreatorWinner
         ? challenge.creatorLightningAddress
         : challenge.accepterLightningAddress;
@@ -155,39 +304,125 @@ export class ChallengeCompletionService {
         ? challenge.accepterLightningAddress
         : challenge.creatorLightningAddress;
 
-      console.log(`💰 Generating payout invoice from loser to winner...`);
-      console.log(`   Winner: ${winnerLightningAddress}`);
-      console.log(`   Loser pays: ${challenge.wager * 2} sats`);
+      // Check if challenge has arbitrator
+      const arbitrationRecord =
+        await challengeArbitrationService.getArbitrationStatus(challengeId);
+      const hasArbitrator = !!arbitrationRecord;
 
-      // Generate payout invoice (loser pays winner the full pot)
-      const payoutResult = await challengePaymentService.generatePayoutInvoice(
-        winnerLightningAddress,
-        challenge.wager * 2, // Winner takes all
-        challengeId
-      );
+      if (hasArbitrator && arbitrationRecord) {
+        console.log(
+          `💰 Challenge has arbitrator - attempting automatic payout...`
+        );
 
-      if (!payoutResult.success || !payoutResult.invoice) {
-        throw new Error(payoutResult.error || 'Failed to generate payout invoice');
+        // Attempt automatic payout via captain's NWC wallet
+        const payoutResult = await this.attemptAutomaticPayout(
+          challengeId,
+          winnerPubkey,
+          winnerLightningAddress,
+          challenge.wager,
+          arbitrationRecord.arbitratorCaptainPubkey
+        );
+
+        if (payoutResult.success) {
+          console.log(`✅ Automatic payout complete!`);
+
+          // TODO: Send notifications (kind 1102)
+          // - Winner: "You won! Payment sent automatically."
+          // - Captain: "Challenge complete. You earned X sats arbitration fee."
+
+          // Update challenge status to completed
+          await challengeService.updateChallengeStatus(
+            challengeId,
+            'completed',
+            winnerPubkey
+          );
+
+          return {
+            success: true,
+            winnerId: winnerPubkey,
+            loserId: loserPubkey,
+            winnerLightningAddress,
+            loserLightningAddress,
+          };
+        } else {
+          // Automatic payout failed - mark for manual intervention
+          console.warn(`⚠️ Automatic payout failed: ${payoutResult.error}`);
+          console.log(`📋 Marking challenge for manual payout...`);
+
+          const totalPot = challenge.wager * 2;
+          const arbitrationFee = Math.floor(totalPot * 0.05);
+          const winnerPayout = totalPot - arbitrationFee;
+
+          await challengeArbitrationService.markManualRequired(
+            challengeId,
+            winnerPubkey,
+            winnerPayout,
+            arbitrationFee,
+            payoutResult.error || 'Automatic payout failed'
+          );
+
+          // TODO: Send notification to captain (kind 1102)
+          // - Captain: "Manual payout required for challenge X. Winner: Y, Amount: Z sats."
+
+          // Update challenge status to completed (captain will handle payout manually)
+          await challengeService.updateChallengeStatus(
+            challengeId,
+            'completed',
+            winnerPubkey
+          );
+
+          return {
+            success: true,
+            winnerId: winnerPubkey,
+            loserId: loserPubkey,
+            winnerLightningAddress,
+            loserLightningAddress,
+            error: `Automatic payout failed: ${payoutResult.error}. Captain must pay manually.`,
+          };
+        }
+      } else {
+        // No arbitrator - use P2P payout flow (loser pays winner)
+        console.log(`💰 No arbitrator - generating P2P payout invoice...`);
+        console.log(`   Winner: ${winnerLightningAddress}`);
+        console.log(`   Loser pays: ${challenge.wager * 2} sats`);
+
+        // Generate payout invoice (loser pays winner the full pot)
+        const payoutResult =
+          await challengePaymentService.generatePayoutInvoice(
+            challengeId,
+            winnerLightningAddress,
+            winnerPubkey
+          );
+
+        if (!payoutResult.success || !payoutResult.invoice) {
+          throw new Error(
+            payoutResult.error || 'Failed to generate payout invoice'
+          );
+        }
+
+        console.log(`✅ P2P payout invoice generated`);
+        console.log(`   Invoice: ${payoutResult.invoice.substring(0, 50)}...`);
+
+        // TODO: Send notification to both participants (kind 1102)
+        // - Winner: "You won! Waiting for opponent to pay..."
+        // - Loser: "You lost. Please pay the payout invoice."
+
+        // Update challenge status to completed
+        await challengeService.updateChallengeStatus(
+          challengeId,
+          'completed',
+          winnerPubkey
+        );
+
+        return {
+          success: true,
+          winnerId: winnerPubkey,
+          loserId: loserPubkey,
+          payoutInvoice: payoutResult.invoice,
+          winnerLightningAddress,
+          loserLightningAddress,
+        };
       }
-
-      console.log(`✅ Payout invoice generated`);
-      console.log(`   Invoice: ${payoutResult.invoice.substring(0, 50)}...`);
-
-      // TODO: Send notification to both participants (kind 1102)
-      // - Winner: "You won! Waiting for opponent to pay..."
-      // - Loser: "You lost. Please pay the payout invoice."
-
-      // Update challenge status to completed
-      await challengeService.updateChallengeStatus(challengeId, 'completed', winnerPubkey);
-
-      return {
-        success: true,
-        winnerId: winnerPubkey,
-        loserId: loserPubkey,
-        payoutInvoice: payoutResult.invoice,
-        winnerLightningAddress,
-        loserLightningAddress,
-      };
     } catch (error) {
       console.error('Failed to complete challenge:', error);
       return {
@@ -201,12 +436,20 @@ export class ChallengeCompletionService {
    * Determine winner from leaderboard
    * Returns pubkey of winner, 'tie', or null if no workouts
    */
-  private async determineWinner(challengeId: string): Promise<string | 'tie' | null> {
+  private async determineWinner(
+    challengeId: string
+  ): Promise<string | 'tie' | null> {
     try {
       // Get leaderboard
-      const leaderboard = await challengeService.getChallengeLeaderboard(challengeId);
+      const leaderboard = await challengeService.getChallengeLeaderboard(
+        challengeId
+      );
 
-      if (!leaderboard || !leaderboard.participants || leaderboard.participants.length === 0) {
+      if (
+        !leaderboard ||
+        !leaderboard.participants ||
+        leaderboard.participants.length === 0
+      ) {
         console.log('No workouts found for challenge');
         return null;
       }
@@ -238,7 +481,10 @@ export class ChallengeCompletionService {
   /**
    * Check if two leaderboard entries have equal scores
    */
-  private scoresAreEqual(entry1: ChallengeParticipant, entry2: ChallengeParticipant): boolean {
+  private scoresAreEqual(
+    entry1: ChallengeParticipant,
+    entry2: ChallengeParticipant
+  ): boolean {
     // Compare based on current progress
     return Math.abs(entry1.currentProgress - entry2.currentProgress) < 0.01; // Within 0.01 is considered tie
   }
@@ -247,7 +493,9 @@ export class ChallengeCompletionService {
    * Manually trigger completion for a specific challenge
    * Useful for testing or admin purposes
    */
-  async manuallyCompleteChallenge(challengeId: string): Promise<CompletionResult> {
+  async manuallyCompleteChallenge(
+    challengeId: string
+  ): Promise<CompletionResult> {
     console.log(`🔧 Manually completing challenge: ${challengeId}`);
     return this.completeChallenge(challengeId);
   }
@@ -287,8 +535,11 @@ export class ChallengeCompletionService {
    * Payments are direct between users, not held in escrow
    */
   async checkPaymentTimeouts(): Promise<void> {
-    console.log('⚠️ checkPaymentTimeouts is deprecated - no escrow in new payment flow');
+    console.log(
+      '⚠️ checkPaymentTimeouts is deprecated - no escrow in new payment flow'
+    );
   }
 }
 
-export const challengeCompletionService = ChallengeCompletionService.getInstance();
+export const challengeCompletionService =
+  ChallengeCompletionService.getInstance();

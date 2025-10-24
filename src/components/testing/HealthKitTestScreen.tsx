@@ -47,7 +47,7 @@ export const HealthKitTestScreen: React.FC = () => {
     const healthKitStatus = healthKitService.getStatus();
     setStatus({
       ...healthKitStatus,
-      lastSyncAt: healthKitStatus.lastSyncAt || undefined
+      lastSyncAt: healthKitStatus.lastSyncAt || undefined,
     });
 
     if (!healthKitStatus.available) {
@@ -70,7 +70,7 @@ export const HealthKitTestScreen: React.FC = () => {
         addLog('HealthKit permissions granted successfully!', 'success');
         setStatus({
           ...healthKitService.getStatus(),
-          lastSyncAt: healthKitService.getStatus().lastSyncAt || undefined
+          lastSyncAt: healthKitService.getStatus().lastSyncAt || undefined,
         });
       } else {
         addLog(`Permission failed: ${result.error}`, 'error');
@@ -122,7 +122,7 @@ export const HealthKitTestScreen: React.FC = () => {
 
         setStatus({
           ...healthKitService.getStatus(),
-          lastSyncAt: healthKitService.getStatus().lastSyncAt || undefined
+          lastSyncAt: healthKitService.getStatus().lastSyncAt || undefined,
         });
       } else {
         addLog(`Sync failed: ${result.error}`, 'error');
@@ -147,7 +147,7 @@ export const HealthKitTestScreen: React.FC = () => {
         addLog('Re-authorization successful!', 'success');
         setStatus({
           ...healthKitService.getStatus(),
-          lastSyncAt: healthKitService.getStatus().lastSyncAt || undefined
+          lastSyncAt: healthKitService.getStatus().lastSyncAt || undefined,
         });
       } else {
         addLog(`Re-authorization failed: ${result.error}`, 'error');
@@ -170,7 +170,7 @@ export const HealthKitTestScreen: React.FC = () => {
     const healthKitStatus = healthKitService.getStatus();
     setStatus({
       ...healthKitStatus,
-      lastSyncAt: healthKitStatus.lastSyncAt || undefined
+      lastSyncAt: healthKitStatus.lastSyncAt || undefined,
     });
     addLog('Status refreshed');
   };

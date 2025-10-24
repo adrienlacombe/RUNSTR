@@ -45,13 +45,17 @@ class LocationPermissionService {
       const foregroundStatus = await Location.getForegroundPermissionsAsync();
       const backgroundStatus = await Location.getBackgroundPermissionsAsync();
 
-      const hasRequestedBefore = await AsyncStorage.getItem(PERMISSION_CHECK_KEY);
+      const hasRequestedBefore = await AsyncStorage.getItem(
+        PERMISSION_CHECK_KEY
+      );
 
       return {
         foreground: this.mapExpoStatus(foregroundStatus.status),
         background: this.mapExpoStatus(backgroundStatus.status),
         canRequestBackground: foregroundStatus.status === 'granted',
-        shouldShowSettings: hasRequestedBefore === 'true' && foregroundStatus.status !== 'granted',
+        shouldShowSettings:
+          hasRequestedBefore === 'true' &&
+          foregroundStatus.status !== 'granted',
       };
     } catch (error) {
       console.error('Error checking permission status:', error);
@@ -108,7 +112,9 @@ class LocationPermissionService {
       // Check if foreground is granted first
       const foregroundStatus = await Location.getForegroundPermissionsAsync();
       if (foregroundStatus.status !== 'granted') {
-        console.warn('Cannot request background permission without foreground permission');
+        console.warn(
+          'Cannot request background permission without foreground permission'
+        );
         return false;
       }
 
@@ -120,7 +126,9 @@ class LocationPermissionService {
       }
 
       // Check if we've already requested background permission
-      const hasRequestedBackground = await AsyncStorage.getItem(BACKGROUND_PERMISSION_KEY);
+      const hasRequestedBackground = await AsyncStorage.getItem(
+        BACKGROUND_PERMISSION_KEY
+      );
 
       if (hasRequestedBackground === 'true' && Platform.OS === 'ios') {
         // On iOS, we can only request once, then user must go to settings
@@ -167,7 +175,7 @@ class LocationPermissionService {
 
     // Step 2: Request background permission (optional, continues if denied)
     // We delay the background request slightly to avoid iOS dialog conflicts
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const backgroundGranted = await this.requestBackgroundPermission();
 
     return {
@@ -190,7 +198,9 @@ class LocationPermissionService {
   /**
    * Map Expo permission status to our internal status
    */
-  private mapExpoStatus(status: Location.PermissionStatus): LocationPermissionStatus {
+  private mapExpoStatus(
+    status: Location.PermissionStatus
+  ): LocationPermissionStatus {
     switch (status) {
       case Location.PermissionStatus.GRANTED:
         return 'granted';
@@ -248,4 +258,5 @@ class LocationPermissionService {
   }
 }
 
-export const locationPermissionService = LocationPermissionService.getInstance();
+export const locationPermissionService =
+  LocationPermissionService.getInstance();

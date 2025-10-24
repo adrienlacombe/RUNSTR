@@ -49,7 +49,8 @@ export class BatteryOptimizationService {
   private currentMode: BatteryMode = 'high_accuracy';
   private batteryLevel: number = 100;
   private isCharging: boolean = false;
-  private listeners: Set<(mode: BatteryMode, level: number) => void> = new Set();
+  private listeners: Set<(mode: BatteryMode, level: number) => void> =
+    new Set();
   private batterySubscription: Battery.PowerState | null = null;
 
   // Battery warning thresholds
@@ -80,9 +81,12 @@ export class BatteryOptimizationService {
       // Validate and clamp battery level to 0-100 range
       const rawLevel = Math.round((batteryState || 1) * 100);
       this.batteryLevel = Math.max(0, Math.min(100, rawLevel));
-      this.isCharging = powerState.batteryState === Battery.BatteryState.CHARGING;
+      this.isCharging =
+        powerState.batteryState === Battery.BatteryState.CHARGING;
 
-      console.log(`🔋 Battery initialized: ${this.batteryLevel}% (charging: ${this.isCharging})`);
+      console.log(
+        `🔋 Battery initialized: ${this.batteryLevel}% (charging: ${this.isCharging})`
+      );
 
       // Determine initial mode
       this.updateModeBasedOnBattery();
@@ -133,7 +137,9 @@ export class BatteryOptimizationService {
   /**
    * Get location options for current battery mode
    */
-  getLocationOptions(activityType: 'running' | 'walking' | 'cycling'): Location.LocationTaskOptions {
+  getLocationOptions(
+    activityType: 'running' | 'walking' | 'cycling'
+  ): Location.LocationTaskOptions {
     const config = BATTERY_CONFIGS[this.currentMode];
 
     // Adjust based on activity type
@@ -156,7 +162,7 @@ export class BatteryOptimizationService {
     const activityNames = {
       running: 'Run',
       walking: 'Walk',
-      cycling: 'Ride'
+      cycling: 'Ride',
     };
 
     return {
@@ -173,7 +179,9 @@ export class BatteryOptimizationService {
       // Android-specific: Foreground service to prevent Doze Mode from stopping tracking
       foregroundService: {
         notificationTitle: 'RUNSTR - Activity Tracking',
-        notificationBody: `Tracking your ${activityNames[activityType].toLowerCase()} in progress`,
+        notificationBody: `Tracking your ${activityNames[
+          activityType
+        ].toLowerCase()} in progress`,
         notificationColor: '#FF6B35', // RUNSTR orange color
       },
     };
@@ -196,7 +204,10 @@ export class BatteryOptimizationService {
   /**
    * Get battery warning if applicable
    */
-  getBatteryWarning(): { level: 'critical' | 'low' | 'medium' | null; message: string | null } {
+  getBatteryWarning(): {
+    level: 'critical' | 'low' | 'medium' | null;
+    message: string | null;
+  } {
     if (this.isCharging) {
       return { level: null, message: null };
     }
@@ -266,7 +277,7 @@ export class BatteryOptimizationService {
    * Notify listeners of changes
    */
   private notifyListeners(): void {
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener) => {
       listener(this.currentMode, this.batteryLevel);
     });
   }
@@ -306,7 +317,9 @@ export class BatteryOptimizationService {
     }
 
     // Check if we've already prompted the user
-    const hasPrompted = await AsyncStorage.getItem(BATTERY_EXEMPTION_PROMPT_KEY);
+    const hasPrompted = await AsyncStorage.getItem(
+      BATTERY_EXEMPTION_PROMPT_KEY
+    );
 
     // Note: We can't directly check Android battery optimization status without native module
     // For now, we track whether we've prompted the user
@@ -340,8 +353,8 @@ export class BatteryOptimizationService {
       Alert.alert(
         'Background Tracking Required',
         'To accurately track your workouts while using other apps (like music players), RUNSTR needs to be exempted from battery optimization.\n\n' +
-        'This allows GPS to continue working when the app is in the background.\n\n' +
-        'You will be taken to Android settings to enable "Unrestricted" battery mode for RUNSTR.',
+          'This allows GPS to continue working when the app is in the background.\n\n' +
+          'You will be taken to Android settings to enable "Unrestricted" battery mode for RUNSTR.',
         [
           {
             text: 'Not Now',
@@ -349,7 +362,10 @@ export class BatteryOptimizationService {
             onPress: async () => {
               console.log('⚠️ User declined battery optimization exemption');
               // Still mark as prompted so we don't spam them
-              await AsyncStorage.setItem(BATTERY_EXEMPTION_PROMPT_KEY, 'declined');
+              await AsyncStorage.setItem(
+                BATTERY_EXEMPTION_PROMPT_KEY,
+                'declined'
+              );
               resolve(false);
             },
           },
@@ -358,12 +374,16 @@ export class BatteryOptimizationService {
             onPress: async () => {
               try {
                 // Mark as prompted
-                await AsyncStorage.setItem(BATTERY_EXEMPTION_PROMPT_KEY, 'true');
+                await AsyncStorage.setItem(
+                  BATTERY_EXEMPTION_PROMPT_KEY,
+                  'true'
+                );
 
                 // Open Android battery optimization settings
                 // Note: This opens the battery optimization settings screen
                 // User needs to find RUNSTR and select "Unrestricted"
-                const url = 'android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS';
+                const url =
+                  'android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS';
                 const canOpen = await Linking.canOpenURL(url);
 
                 if (canOpen) {
@@ -373,7 +393,9 @@ export class BatteryOptimizationService {
                 } else {
                   // Fallback to general settings
                   await Linking.openSettings();
-                  console.log('⚠️ Opened general settings (specific battery optimization not available)');
+                  console.log(
+                    '⚠️ Opened general settings (specific battery optimization not available)'
+                  );
                   resolve(true);
                 }
               } catch (error) {
@@ -401,11 +423,11 @@ export class BatteryOptimizationService {
     Alert.alert(
       'Background Tracking Issue Detected',
       'RUNSTR may have been paused by Android battery optimization.\n\n' +
-      'To fix this:\n' +
-      '1. Open Settings > Apps > RUNSTR\n' +
-      '2. Tap Battery\n' +
-      '3. Select "Unrestricted"\n\n' +
-      'This ensures tracking continues while using other apps.',
+        'To fix this:\n' +
+        '1. Open Settings > Apps > RUNSTR\n' +
+        '2. Tap Battery\n' +
+        '3. Select "Unrestricted"\n\n' +
+        'This ensures tracking continues while using other apps.',
       [
         { text: 'Dismiss', style: 'cancel' },
         {

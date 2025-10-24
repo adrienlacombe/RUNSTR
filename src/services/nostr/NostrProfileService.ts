@@ -218,7 +218,9 @@ export class NostrProfileService {
       // ✅ ANDROID FIX: Don't fail immediately if not connected - try anyway
       // Degraded NDK instance can still work with cached events
       if (!GlobalNDKService.isConnected()) {
-        console.warn('⚠️ No connected relays - will try with degraded instance and return fallback if fetch fails');
+        console.warn(
+          '⚠️ No connected relays - will try with degraded instance and return fallback if fetch fails'
+        );
       }
 
       // Query profile events (kind 0) from relays
@@ -315,7 +317,11 @@ export class NostrProfileService {
     try {
       const pubkey = this.npubToHex(identifier);
 
-      console.log(`🔍 Fetching profile for: ${identifier.slice(0, 20)}... (attempt ${retryCount + 1})`);
+      console.log(
+        `🔍 Fetching profile for: ${identifier.slice(0, 20)}... (attempt ${
+          retryCount + 1
+        })`
+      );
 
       // Check cache first (unless force refresh)
       if (!forceRefresh) {
@@ -358,13 +364,24 @@ export class NostrProfileService {
         } else {
           // Retry once if no profile found and this is first attempt
           if (retryCount === 0) {
-            console.log(`🔄 No profile found, retrying once for: ${identifier.slice(0, 20)}...`);
+            console.log(
+              `🔄 No profile found, retrying once for: ${identifier.slice(
+                0,
+                20
+              )}...`
+            );
             this.pendingRequests.delete(pubkey);
-            await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay before retry
-            return await this.getProfile(identifier, forceRefresh, retryCount + 1);
+            await new Promise((resolve) => setTimeout(resolve, 500)); // Brief delay before retry
+            return await this.getProfile(
+              identifier,
+              forceRefresh,
+              retryCount + 1
+            );
           }
 
-          console.log(`⚠️ No profile found after retry for: ${identifier.slice(0, 20)}...`);
+          console.log(
+            `⚠️ No profile found after retry for: ${identifier.slice(0, 20)}...`
+          );
           return null;
         }
       } finally {
@@ -375,8 +392,10 @@ export class NostrProfileService {
 
       // Retry once on error if this is first attempt
       if (retryCount === 0) {
-        console.log(`🔄 Error occurred, retrying once for: ${identifier.slice(0, 20)}...`);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay before retry
+        console.log(
+          `🔄 Error occurred, retrying once for: ${identifier.slice(0, 20)}...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Brief delay before retry
         return await this.getProfile(identifier, forceRefresh, retryCount + 1);
       }
 

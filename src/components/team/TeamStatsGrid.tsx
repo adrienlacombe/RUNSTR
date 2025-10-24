@@ -53,7 +53,10 @@ export const TeamStatsGrid: React.FC<TeamStatsGridProps> = ({ stats }) => {
 
   return (
     <View style={styles.statsGrid}>
-      <StatItem label="MEMBERS" value={formatMemberCount(safeStats.memberCount)} />
+      <StatItem
+        label="MEMBERS"
+        value={formatMemberCount(safeStats.memberCount)}
+      />
       <StatItem
         label="ACTIVE EVENTS"
         value={formatEventCount(safeStats.activeEvents)}

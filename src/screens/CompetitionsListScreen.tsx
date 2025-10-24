@@ -14,7 +14,7 @@ import {
   RefreshControl,
   SafeAreaView,
   FlatList,
-  Modal
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,9 +28,14 @@ import { EventParticipationStore } from '../services/event/EventParticipationSto
 
 type RootStackParamList = {
   ChallengeLeaderboard: { challengeId: string };
-  EnhancedTeamScreen: { team: any; userIsMember?: boolean; currentUserNpub?: string; userIsCaptain?: boolean };
+  EnhancedTeamScreen: {
+    team: any;
+    userIsMember?: boolean;
+    currentUserNpub?: string;
+    userIsCaptain?: boolean;
+  };
   LeagueLeaderboard: { leagueId: string };
-  EventLeaderboard: { eventId: string };
+  EventDetail: { eventId: string; eventData?: any };
   ChallengeWizard: undefined;
   // Add other screens as needed
 };
@@ -43,7 +48,9 @@ export const CompetitionsListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<TabType>('events');
   const [competitions, setCompetitions] = useState<UserCompetition[]>([]);
-  const [filteredCompetitions, setFilteredCompetitions] = useState<UserCompetition[]>([]);
+  const [filteredCompetitions, setFilteredCompetitions] = useState<
+    UserCompetition[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showOpenChallengeWizard, setShowOpenChallengeWizard] = useState(false);
@@ -74,7 +81,7 @@ export const CompetitionsListScreen: React.FC = () => {
       const localEvents = await EventParticipationStore.getParticipations();
 
       // Convert to UserCompetition format
-      const localCompetitions: UserCompetition[] = localEvents.map(event => ({
+      const localCompetitions: UserCompetition[] = localEvents.map((event) => ({
         id: event.eventId,
         name: event.eventName,
         type: 'event',
@@ -97,12 +104,14 @@ export const CompetitionsListScreen: React.FC = () => {
         discoveryService.clearCache(userIdentifiers.hexPubkey);
       }
 
-      const userCompetitions = await discoveryService.getUserCompetitions(userIdentifiers.hexPubkey);
+      const userCompetitions = await discoveryService.getUserCompetitions(
+        userIdentifiers.hexPubkey
+      );
 
       // Merge local + Nostr (dedupe by ID)
       const merged = [...localCompetitions];
-      userCompetitions.forEach(comp => {
-        if (!merged.some(m => m.id === comp.id)) {
+      userCompetitions.forEach((comp) => {
+        if (!merged.some((m) => m.id === comp.id)) {
           merged.push(comp);
         }
       });
@@ -118,8 +127,9 @@ export const CompetitionsListScreen: React.FC = () => {
 
   const filterCompetitions = () => {
     // Map tab to competition type (remove 's' from plural)
-    const type: UserCompetition['type'] = activeTab === 'events' ? 'event' : 'challenge';
-    setFilteredCompetitions(competitions.filter(c => c.type === type));
+    const type: UserCompetition['type'] =
+      activeTab === 'events' ? 'event' : 'challenge';
+    setFilteredCompetitions(competitions.filter((c) => c.type === type));
   };
 
   const handleCompetitionPress = (competition: UserCompetition) => {
@@ -128,17 +138,19 @@ export const CompetitionsListScreen: React.FC = () => {
       case 'team':
         // Need to fetch team data for navigation
         navigation.navigate('EnhancedTeamScreen', {
-          team: { id: competition.id, name: competition.name }
+          team: { id: competition.id, name: competition.name },
         });
         break;
       case 'league':
         navigation.navigate('LeagueLeaderboard', { leagueId: competition.id });
         break;
       case 'event':
-        navigation.navigate('EventLeaderboard', { eventId: competition.id });
+        navigation.navigate('EventDetail', { eventId: competition.id });
         break;
       case 'challenge':
-        navigation.navigate('ChallengeLeaderboard', { challengeId: competition.id });
+        navigation.navigate('ChallengeLeaderboard', {
+          challengeId: competition.id,
+        });
         break;
     }
   };
@@ -200,7 +212,12 @@ export const CompetitionsListScreen: React.FC = () => {
         <View style={styles.competitionInfo}>
           <Text style={styles.competitionName}>{item.name}</Text>
           <View style={styles.competitionMeta}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor() + '20' }]}>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: getStatusColor() + '20' },
+              ]}
+            >
               <Text style={[styles.statusText, { color: getStatusColor() }]}>
                 {item.status.toUpperCase()}
               </Text>
@@ -210,12 +227,10 @@ export const CompetitionsListScreen: React.FC = () => {
                 <Text style={styles.pendingBadgeText}>PENDING APPROVAL</Text>
               </View>
             )}
-            <Text style={styles.participantCount}>
-              {item.participantCount} participant{item.participantCount !== 1 ? 's' : ''}
-            </Text>
             {item.wager && (
               <Text style={styles.wager}>
-                <Ionicons name="flash" size={12} color="#FF9D42" /> {item.wager} sats
+                <Ionicons name="flash" size={12} color="#FF9D42" /> {item.wager}{' '}
+                sats
               </Text>
             )}
           </View>
@@ -236,7 +251,10 @@ export const CompetitionsListScreen: React.FC = () => {
           : 'Join a team or event to see them here'}
       </Text>
       {activeTab === 'challenges' && (
-        <TouchableOpacity style={styles.createButton} onPress={handleCreateChallenge}>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={handleCreateChallenge}
+        >
           <Text style={styles.createButtonText}>Create Challenge</Text>
         </TouchableOpacity>
       )}
@@ -289,7 +307,11 @@ export const CompetitionsListScreen: React.FC = () => {
               colors={['#fff']}
             />
           }
-          contentContainerStyle={filteredCompetitions.length === 0 ? styles.emptyListContainer : styles.listContent}
+          contentContainerStyle={
+            filteredCompetitions.length === 0
+              ? styles.emptyListContainer
+              : styles.listContent
+          }
         />
       )}
 

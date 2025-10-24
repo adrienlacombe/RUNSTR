@@ -37,14 +37,54 @@ export interface LevelMilestone {
 
 // Predefined milestones
 export const LEVEL_MILESTONES: LevelMilestone[] = [
-  { level: 1, title: 'Beginner', description: 'Just getting started', icon: 'walk-outline' },
-  { level: 5, title: 'Rookie', description: '5 levels completed', icon: 'bicycle-outline' },
-  { level: 10, title: 'Athlete', description: '10 levels completed', icon: 'bicycle-outline' },
-  { level: 20, title: 'Veteran', description: '20 levels completed', icon: 'barbell-outline' },
-  { level: 30, title: 'Champion', description: '30 levels completed', icon: 'trophy-outline' },
-  { level: 50, title: 'Legend', description: '50 levels completed', icon: 'flame-outline' },
-  { level: 75, title: 'Master', description: '75 levels completed', icon: 'star-outline' },
-  { level: 100, title: 'Elite', description: '100 levels completed', icon: 'medal-outline' },
+  {
+    level: 1,
+    title: 'Beginner',
+    description: 'Just getting started',
+    icon: 'walk-outline',
+  },
+  {
+    level: 5,
+    title: 'Rookie',
+    description: '5 levels completed',
+    icon: 'bicycle-outline',
+  },
+  {
+    level: 10,
+    title: 'Athlete',
+    description: '10 levels completed',
+    icon: 'bicycle-outline',
+  },
+  {
+    level: 20,
+    title: 'Veteran',
+    description: '20 levels completed',
+    icon: 'barbell-outline',
+  },
+  {
+    level: 30,
+    title: 'Champion',
+    description: '30 levels completed',
+    icon: 'trophy-outline',
+  },
+  {
+    level: 50,
+    title: 'Legend',
+    description: '50 levels completed',
+    icon: 'flame-outline',
+  },
+  {
+    level: 75,
+    title: 'Master',
+    description: '75 levels completed',
+    icon: 'star-outline',
+  },
+  {
+    level: 100,
+    title: 'Elite',
+    description: '100 levels completed',
+    icon: 'medal-outline',
+  },
 ];
 
 // XP Constants

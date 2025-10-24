@@ -29,17 +29,22 @@ interface CompetitionParticipantsSectionProps {
   onParticipantUpdate?: () => void;
 }
 
-export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSectionProps> = ({
+export const CompetitionParticipantsSection: React.FC<
+  CompetitionParticipantsSectionProps
+> = ({
   competitionId,
   competitionName,
   requireApproval,
   onParticipantUpdate,
 }) => {
   const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([]);
-  const [participantList, setParticipantList] = useState<CompetitionParticipantList | null>(null);
+  const [participantList, setParticipantList] =
+    useState<CompetitionParticipantList | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null); // Track which request is being processed
-  const [expandedSection, setExpandedSection] = useState<'pending' | 'approved' | null>(null);
+  const [expandedSection, setExpandedSection] = useState<
+    'pending' | 'approved' | null
+  >(null);
 
   const participantService = NostrCompetitionParticipantService.getInstance();
 
@@ -60,7 +65,9 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
 
       // Load pending requests if approval is required
       if (requireApproval) {
-        const requests = await participantService.getPendingJoinRequests(competitionId);
+        const requests = await participantService.getPendingJoinRequests(
+          competitionId
+        );
         setPendingRequests(requests);
       }
     } catch (error) {
@@ -91,7 +98,10 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
       );
 
       if (result.success) {
-        Alert.alert('Success', `${request.userName || 'User'} has been approved!`);
+        Alert.alert(
+          'Success',
+          `${request.userName || 'User'} has been approved!`
+        );
         // Refresh data
         await loadParticipantData();
         onParticipantUpdate?.();
@@ -127,7 +137,10 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
       );
 
       if (result.success) {
-        Alert.alert('Success', `Request from ${request.userName || 'User'} has been rejected.`);
+        Alert.alert(
+          'Success',
+          `Request from ${request.userName || 'User'} has been rejected.`
+        );
         // Refresh data
         await loadParticipantData();
         onParticipantUpdate?.();
@@ -142,10 +155,15 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
     }
   };
 
-  const handleRemoveParticipant = async (participantPubkey: string, participantName?: string) => {
+  const handleRemoveParticipant = async (
+    participantPubkey: string,
+    participantName?: string
+  ) => {
     Alert.alert(
       'Remove Participant',
-      `Are you sure you want to remove ${participantName || 'this participant'} from the competition?`,
+      `Are you sure you want to remove ${
+        participantName || 'this participant'
+      } from the competition?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -157,7 +175,10 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
             try {
               const authData = await getAuthenticationData();
               if (!authData || !authData.nsec) {
-                Alert.alert('Error', 'Authentication required. Please log in again.');
+                Alert.alert(
+                  'Error',
+                  'Authentication required. Please log in again.'
+                );
                 return;
               }
 
@@ -170,14 +191,20 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
               );
 
               if (result.success) {
-                Alert.alert('Success', `${participantName || 'Participant'} has been removed.`);
+                Alert.alert(
+                  'Success',
+                  `${participantName || 'Participant'} has been removed.`
+                );
                 await loadParticipantData();
                 onParticipantUpdate?.();
               } else {
                 throw new Error(result.error || 'Failed to remove participant');
               }
             } catch (error) {
-              Alert.alert('Error', 'Failed to remove participant. Please try again.');
+              Alert.alert(
+                'Error',
+                'Failed to remove participant. Please try again.'
+              );
               console.error('Error removing participant:', error);
             } finally {
               setIsProcessing(null);
@@ -197,7 +224,8 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
     );
   }
 
-  const approvedParticipants = participantList?.participants.filter(p => p.status === 'approved') || [];
+  const approvedParticipants =
+    participantList?.participants.filter((p) => p.status === 'approved') || [];
   const hasPendingRequests = pendingRequests.length > 0;
   const hasApprovedParticipants = approvedParticipants.length > 0;
 
@@ -215,7 +243,11 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
         <View style={styles.subsection}>
           <TouchableOpacity
             style={styles.subsectionHeader}
-            onPress={() => setExpandedSection(expandedSection === 'pending' ? null : 'pending')}
+            onPress={() =>
+              setExpandedSection(
+                expandedSection === 'pending' ? null : 'pending'
+              )
+            }
             activeOpacity={0.7}
           >
             <View style={styles.subsectionTitleRow}>
@@ -238,10 +270,14 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
                       {request.userName || 'Unknown User'}
                     </Text>
                     {request.message && (
-                      <Text style={styles.requestMessage}>{request.message}</Text>
+                      <Text style={styles.requestMessage}>
+                        {request.message}
+                      </Text>
                     )}
                     <Text style={styles.requestTime}>
-                      {new Date(request.requestedAt * 1000).toLocaleDateString()}
+                      {new Date(
+                        request.requestedAt * 1000
+                      ).toLocaleDateString()}
                     </Text>
                   </View>
 
@@ -253,7 +289,10 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
                       activeOpacity={0.7}
                     >
                       {isProcessing === request.id ? (
-                        <ActivityIndicator size="small" color={theme.colors.text} />
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.text}
+                        />
                       ) : (
                         <Text style={styles.actionButtonText}>Approve</Text>
                       )}
@@ -280,12 +319,18 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
         <View style={styles.subsection}>
           <TouchableOpacity
             style={styles.subsectionHeader}
-            onPress={() => setExpandedSection(expandedSection === 'approved' ? null : 'approved')}
+            onPress={() =>
+              setExpandedSection(
+                expandedSection === 'approved' ? null : 'approved'
+              )
+            }
             activeOpacity={0.7}
           >
             <View style={styles.subsectionTitleRow}>
               <Text style={styles.subsectionTitle}>Approved Participants</Text>
-              <Text style={styles.participantCount}>{approvedParticipants.length}</Text>
+              <Text style={styles.participantCount}>
+                {approvedParticipants.length}
+              </Text>
             </View>
             <Text style={styles.expandIcon}>
               {expandedSection === 'approved' ? '−' : '+'}
@@ -295,19 +340,30 @@ export const CompetitionParticipantsSection: React.FC<CompetitionParticipantsSec
           {expandedSection === 'approved' && (
             <ScrollView style={styles.participantsList}>
               {approvedParticipants.map((participant) => (
-                <View key={participant.hexPubkey} style={styles.participantItem}>
+                <View
+                  key={participant.hexPubkey}
+                  style={styles.participantItem}
+                >
                   <ZappableUserRow
                     npub={participant.npub || ''}
                     fallbackName={participant.name || 'Unknown'}
                   />
                   <TouchableOpacity
                     style={styles.removeButton}
-                    onPress={() => handleRemoveParticipant(participant.hexPubkey, participant.name)}
+                    onPress={() =>
+                      handleRemoveParticipant(
+                        participant.hexPubkey,
+                        participant.name
+                      )
+                    }
                     disabled={isProcessing === participant.hexPubkey}
                     activeOpacity={0.7}
                   >
                     {isProcessing === participant.hexPubkey ? (
-                      <ActivityIndicator size="small" color={theme.colors.error} />
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.error}
+                      />
                     ) : (
                       <Text style={styles.removeButtonText}>Remove</Text>
                     )}

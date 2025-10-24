@@ -133,7 +133,6 @@ export class ExpoNotificationProvider {
     });
   }
 
-
   // Setup notification event listeners
   private setupNotificationListeners(): void {
     // Handle notification received while app is in foreground
@@ -324,7 +323,6 @@ export class ExpoNotificationProvider {
     const { status } = await Notifications.getPermissionsAsync();
     return status === 'granted';
   }
-
 
   // Cleanup method
   cleanup(): void {

@@ -19,7 +19,10 @@ interface JoinRequestCardProps {
   request: JoinRequest;
   teamId: string;
   captainPubkey: string;
-  onApprove: (requestId: string, requesterPubkey: string) => void | Promise<void>;
+  onApprove: (
+    requestId: string,
+    requesterPubkey: string
+  ) => void | Promise<void>;
   onDeny?: (requestId: string) => void;
   onReject?: () => void; // Alias for onDeny (used by EventJoinRequestsSection)
   style?: any;
@@ -62,7 +65,10 @@ export const JoinRequestCard: React.FC<JoinRequestCardProps> = ({
               // Get current member list
               const listService = NostrListService.getInstance();
               const memberListDTag = `${teamId}-members`;
-              const currentList = await listService.getList(captainPubkey, memberListDTag);
+              const currentList = await listService.getList(
+                captainPubkey,
+                memberListDTag
+              );
 
               if (!currentList) {
                 throw new Error('Team member list not found');
@@ -91,18 +97,26 @@ export const JoinRequestCard: React.FC<JoinRequestCardProps> = ({
 
               // Sign and publish the updated list
               const protocolHandler = new NostrProtocolHandler();
-              const signedEvent = await protocolHandler.signEvent(eventTemplate, privateKey);
+              const signedEvent = await protocolHandler.signEvent(
+                eventTemplate,
+                privateKey
+              );
 
               // Publish using GlobalNDK
               const ndk = await GlobalNDKService.getInstance();
               const ndkEvent = new NDKEvent(ndk, signedEvent);
               await ndkEvent.publish();
 
-              console.log(`✅ Added member to team list: ${request.requesterPubkey}`);
+              console.log(
+                `✅ Added member to team list: ${request.requesterPubkey}`
+              );
 
               // Update cache
               const listId = `${captainPubkey}:${memberListDTag}`;
-              const updatedMembers = [...currentList.members, request.requesterPubkey];
+              const updatedMembers = [
+                ...currentList.members,
+                request.requesterPubkey,
+              ];
               listService.updateCachedList(listId, updatedMembers);
 
               // Invalidate team member cache to force refresh

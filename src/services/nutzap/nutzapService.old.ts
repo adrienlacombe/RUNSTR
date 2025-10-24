@@ -11,14 +11,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NDK, {
   NDKEvent,
   NDKPrivateKeySigner,
-  NDKKind
+  NDKKind,
 } from '@nostr-dev-kit/ndk';
 import {
   CashuMint,
   CashuWallet,
   Proof,
   getEncodedToken,
-  getDecodedToken
+  getDecodedToken,
 } from '@cashu/cashu-ts';
 import { validateNsec } from '../../utils/nostr';
 import { decryptNsec } from '../../utils/nostrAuth';
@@ -37,14 +37,14 @@ const STORAGE_KEYS = {
 
 // Default mints to use
 const DEFAULT_MINTS = [
-  'https://mint.coinos.io',  // CoinOS mint
-  'https://testnut.cashu.space'  // Fallback test mint
+  'https://mint.coinos.io', // CoinOS mint
+  'https://testnut.cashu.space', // Fallback test mint
 ];
 
 // Event kinds for NIP-60
 const EVENT_KINDS = {
   WALLET_INFO: 37375,
-  NUTZAP: 9321
+  NUTZAP: 9321,
 } as const;
 
 interface WalletState {
@@ -57,7 +57,13 @@ interface WalletState {
 
 interface Transaction {
   id: string;
-  type: 'nutzap_sent' | 'nutzap_received' | 'lightning_received' | 'lightning_sent' | 'cashu_sent' | 'cashu_received';
+  type:
+    | 'nutzap_sent'
+    | 'nutzap_received'
+    | 'lightning_received'
+    | 'lightning_sent'
+    | 'cashu_sent'
+    | 'cashu_received';
   amount: number;
   timestamp: number;
   memo?: string;
@@ -151,7 +157,9 @@ class NutzapService {
       // Decrypt from self (NIP-44)
       const decrypted = await user.decrypt(this.userPubkey, encryptedProofs);
       const proofs = JSON.parse(decrypted);
-      console.log(`[NutZap] Proofs decrypted successfully: ${proofs.length} proofs`);
+      console.log(
+        `[NutZap] Proofs decrypted successfully: ${proofs.length} proofs`
+      );
       return proofs;
     } catch (error) {
       console.error('[NutZap] Failed to decrypt proofs:', error);
@@ -163,7 +171,9 @@ class NutzapService {
    * Initialize for receive-only mode (Amber users)
    * Only sets up pubkey for receiving, no wallet creation
    */
-  async initializeForReceiveOnly(hexPubkey: string): Promise<{ created: boolean; address?: string }> {
+  async initializeForReceiveOnly(
+    hexPubkey: string
+  ): Promise<{ created: boolean; address?: string }> {
     try {
       console.log('[NutZap] Initializing for receive-only mode...');
 
@@ -171,11 +181,14 @@ class NutzapService {
 
       // Can't create or manage wallet without nsec
       // But can still receive zaps to the pubkey
-      console.log('[NutZap] Configured for receiving zaps to:', hexPubkey.slice(0, 16) + '...');
+      console.log(
+        '[NutZap] Configured for receiving zaps to:',
+        hexPubkey.slice(0, 16) + '...'
+      );
 
       return {
         created: false,
-        address: `${hexPubkey.slice(0, 8)}...@nutzap`
+        address: `${hexPubkey.slice(0, 8)}...@nutzap`,
       };
     } catch (error) {
       console.error('[NutZap] Receive-only initialization error:', error);
@@ -187,9 +200,14 @@ class NutzapService {
    * Initialize the service with user's nsec
    * PERFORMANCE OPTIMIZATION: Uses quick resume for instant load on app return
    */
-  async initialize(nsec?: string, quickResume: boolean = false): Promise<WalletState> {
+  async initialize(
+    nsec?: string,
+    quickResume: boolean = false
+  ): Promise<WalletState> {
     try {
-      console.log(`[NutZap] Initializing service... (quick resume: ${quickResume})`);
+      console.log(
+        `[NutZap] Initializing service... (quick resume: ${quickResume})`
+      );
 
       // Get nsec - either from parameter or from storage
       let userNsec = nsec;
@@ -202,53 +220,74 @@ class NutzapService {
             mint: DEFAULT_MINTS[0],
             proofs: [],
             pubkey: 'unknown',
-            created: false
+            created: false,
           };
         }
       }
 
       // Validate nsec format before passing to NDKPrivateKeySigner
       if (!validateNsec(userNsec)) {
-        console.error('[NutZap] Invalid nsec format detected - contains invalid characters or wrong encoding');
-        console.error('[NutZap] This may indicate corruption during encryption/decryption');
+        console.error(
+          '[NutZap] Invalid nsec format detected - contains invalid characters or wrong encoding'
+        );
+        console.error(
+          '[NutZap] This may indicate corruption during encryption/decryption'
+        );
         console.error('[NutZap] First 10 chars:', userNsec.slice(0, 10));
         return {
           balance: 0,
           mint: DEFAULT_MINTS[0],
           proofs: [],
           pubkey: 'unknown',
-          created: false
+          created: false,
         };
       }
 
       // NDKPrivateKeySigner handles nsec decoding internally
       const signer = new NDKPrivateKeySigner(userNsec);
-      this.userPubkey = await signer.user().then(u => u.pubkey);
+      this.userPubkey = await signer.user().then((u) => u.pubkey);
 
       // Store current user for verification
-      await AsyncStorage.setItem('@runstr:current_user_pubkey', this.userPubkey);
+      await AsyncStorage.setItem(
+        '@runstr:current_user_pubkey',
+        this.userPubkey
+      );
 
       // QUICK RESUME MODE: Check if cached wallet is fresh enough to skip Nostr queries
       if (quickResume) {
         console.log('[NutZap] Quick resume mode: Checking cache freshness...');
         const cachedWallet = await this.loadOfflineWallet();
-        const cacheTime = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.LAST_SYNC));
+        const cacheTime = await AsyncStorage.getItem(
+          this.getStorageKey(STORAGE_KEYS.LAST_SYNC)
+        );
 
         if (cachedWallet && cacheTime) {
           // TRIPLE VERIFICATION: Ensure cached wallet belongs to current user
-          const currentUserPubkey = await AsyncStorage.getItem('@runstr:current_user_pubkey');
-          const walletOwner = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY));
+          const currentUserPubkey = await AsyncStorage.getItem(
+            '@runstr:current_user_pubkey'
+          );
+          const walletOwner = await AsyncStorage.getItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY)
+          );
 
           const ownershipVerified =
             cachedWallet.pubkey === this.userPubkey &&
             currentUserPubkey === this.userPubkey &&
-            (walletOwner === this.userPubkey || !walletOwner);  // Allow null for legacy wallets
+            (walletOwner === this.userPubkey || !walletOwner); // Allow null for legacy wallets
 
           if (!ownershipVerified) {
-            console.error('[NutZap] SECURITY: Cache ownership verification failed!');
-            console.error(`[NutZap] Cache pubkey: ${cachedWallet.pubkey.slice(0, 8)}`);
-            console.error(`[NutZap] Current user: ${this.userPubkey.slice(0, 8)}`);
-            console.error(`[NutZap] Stored user: ${currentUserPubkey?.slice(0, 8)}`);
+            console.error(
+              '[NutZap] SECURITY: Cache ownership verification failed!'
+            );
+            console.error(
+              `[NutZap] Cache pubkey: ${cachedWallet.pubkey.slice(0, 8)}`
+            );
+            console.error(
+              `[NutZap] Current user: ${this.userPubkey.slice(0, 8)}`
+            );
+            console.error(
+              `[NutZap] Stored user: ${currentUserPubkey?.slice(0, 8)}`
+            );
             // Clear potentially corrupted cache
             await this.clearWalletData();
             // Force full sync from Nostr
@@ -259,7 +298,11 @@ class NutzapService {
           const FRESH_THRESHOLD = 2 * 60 * 1000; // 2 minutes
 
           if (cacheAge < FRESH_THRESHOLD) {
-            console.log(`[NutZap] Cache fresh (${Math.round(cacheAge / 1000)}s old) and ownership verified, using cached wallet`);
+            console.log(
+              `[NutZap] Cache fresh (${Math.round(
+                cacheAge / 1000
+              )}s old) and ownership verified, using cached wallet`
+            );
             this.isInitialized = true;
 
             // Initialize NDK and Cashu in background for future operations
@@ -267,7 +310,11 @@ class NutzapService {
 
             return cachedWallet;
           } else {
-            console.log(`[NutZap] Cache stale (${Math.round(cacheAge / 1000)}s old), will sync with Nostr`);
+            console.log(
+              `[NutZap] Cache stale (${Math.round(
+                cacheAge / 1000
+              )}s old), will sync with Nostr`
+            );
           }
         }
       }
@@ -279,9 +326,9 @@ class NutzapService {
         explicitRelayUrls: [
           'wss://relay.damus.io',
           'wss://relay.primal.net',
-          'wss://nos.lol'
+          'wss://nos.lol',
         ],
-        signer: signer2  // Use the wallet's own signer
+        signer: signer2, // Use the wallet's own signer
       });
 
       console.log('[NutZap] Connecting to relays...');
@@ -292,15 +339,16 @@ class NutzapService {
           this.ndk.connect(),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Connection timeout')), 10000)
-          )
+          ),
         ]);
 
-        const connectedRelays = (this.ndk as any).pool?.connectedRelays?.size || 0;
+        const connectedRelays =
+          (this.ndk as any).pool?.connectedRelays?.size || 0;
         console.log(`[NutZap] Connected to ${connectedRelays} relay(s)`);
 
         // Wait a bit for all relays to fully connect
         if (connectedRelays > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       } catch (err) {
         console.warn('[NutZap] Relay connection failed:', err);
@@ -311,7 +359,10 @@ class NutzapService {
       try {
         await this.initializeCashuWithTimeout();
       } catch (err) {
-        console.warn('[NutZap] Cashu initialization failed, using offline mode:', err);
+        console.warn(
+          '[NutZap] Cashu initialization failed, using offline mode:',
+          err
+        );
         // Continue in offline mode - wallet can work without mint connection
       }
 
@@ -324,10 +375,13 @@ class NutzapService {
         this.isInitialized = true;
 
         // Update last sync time
-        await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.LAST_SYNC), Date.now().toString());
+        await AsyncStorage.setItem(
+          this.getStorageKey(STORAGE_KEYS.LAST_SYNC),
+          Date.now().toString()
+        );
 
         // Sync with Nostr in background (non-blocking)
-        this.syncWithNostr().catch(err =>
+        this.syncWithNostr().catch((err) =>
           console.warn('[NutZap] Background sync failed:', err)
         );
 
@@ -342,7 +396,9 @@ class NutzapService {
       const maxAttempts = 5; // Increased from 3 to 5 for better reliability
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        console.log(`[NutZap] Attempt ${attempt}/${maxAttempts} to fetch wallet from Nostr...`);
+        console.log(
+          `[NutZap] Attempt ${attempt}/${maxAttempts} to fetch wallet from Nostr...`
+        );
         nostrWallet = await this.fetchWalletFromNostr();
 
         if (nostrWallet) {
@@ -357,23 +413,31 @@ class NutzapService {
         if (attempt < maxAttempts) {
           // Exponential backoff: 2s, 4s, 8s, 16s (total ~30s)
           const waitTime = Math.pow(2, attempt) * 1000;
-          console.log(`[NutZap] No wallet found, retrying in ${waitTime}ms... (exponential backoff)`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+          console.log(
+            `[NutZap] No wallet found, retrying in ${waitTime}ms... (exponential backoff)`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
         }
       }
 
-      console.log(`[NutZap] No wallet found on Nostr after ${maxAttempts} attempts`);
+      console.log(
+        `[NutZap] No wallet found on Nostr after ${maxAttempts} attempts`
+      );
 
       // Check if we already created a wallet in this session (duplicate prevention)
       const existingWalletEventId = await AsyncStorage.getItem(
         this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID)
       );
       if (existingWalletEventId) {
-        console.warn('[NutZap] Wallet event ID found in storage, but wallet not found on Nostr');
-        console.warn('[NutZap] This may indicate a relay sync issue. Waiting before creating new wallet...');
+        console.warn(
+          '[NutZap] Wallet event ID found in storage, but wallet not found on Nostr'
+        );
+        console.warn(
+          '[NutZap] This may indicate a relay sync issue. Waiting before creating new wallet...'
+        );
 
         // One final check with extended timeout
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         const finalCheck = await this.fetchWalletFromNostr();
         if (finalCheck) {
           console.log('[NutZap] Found wallet on final check!');
@@ -382,15 +446,22 @@ class NutzapService {
           return finalCheck;
         }
 
-        console.log('[NutZap] Clearing stale wallet event ID and proceeding with creation');
-        await AsyncStorage.removeItem(this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID));
+        console.log(
+          '[NutZap] Clearing stale wallet event ID and proceeding with creation'
+        );
+        await AsyncStorage.removeItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID)
+        );
       }
 
       // Check if we have relay connectivity before creating
-      const connectedRelays = (this.ndk as any).pool?.connectedRelays?.size || 0;
+      const connectedRelays =
+        (this.ndk as any).pool?.connectedRelays?.size || 0;
       if (connectedRelays === 0) {
         console.error('[NutZap] Cannot create wallet without relay connection');
-        throw new Error('Unable to create wallet: No connection to Nostr network. Please check your internet connection and try again.');
+        throw new Error(
+          'Unable to create wallet: No connection to Nostr network. Please check your internet connection and try again.'
+        );
       }
 
       // Create new wallet only if we're absolutely sure none exists
@@ -409,7 +480,7 @@ class NutzapService {
         mint: DEFAULT_MINTS[0],
         proofs: [],
         pubkey: this.userPubkey || 'unknown',
-        created: false
+        created: false,
       };
     }
   }
@@ -429,9 +500,9 @@ class NutzapService {
           explicitRelayUrls: [
             'wss://relay.damus.io',
             'wss://relay.primal.net',
-            'wss://nos.lol'
+            'wss://nos.lol',
           ],
-          signer
+          signer,
         });
 
         await this.ndk.connect();
@@ -444,7 +515,10 @@ class NutzapService {
         // Sync with Nostr to check for updates
         await this.syncWithNostr();
       } catch (error) {
-        console.warn('[NutZap] Background network initialization failed:', error);
+        console.warn(
+          '[NutZap] Background network initialization failed:',
+          error
+        );
       }
     }, 100); // Minimal delay to avoid blocking
   }
@@ -462,8 +536,13 @@ class NutzapService {
         return await operation();
       } catch (error: any) {
         if (i === retries - 1) throw error;
-        console.log(`[NutZap] Retry ${i + 1}/${retries} after error:`, error.message);
-        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i))); // Exponential backoff
+        console.log(
+          `[NutZap] Retry ${i + 1}/${retries} after error:`,
+          error.message
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, delay * Math.pow(2, i))
+        ); // Exponential backoff
       }
     }
     throw new Error('Operation failed after retries');
@@ -474,42 +553,57 @@ class NutzapService {
    */
   private async initializeCashuWithTimeout(): Promise<void> {
     // Get mint URL from storage or use default
-    let mintUrl = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT));
+    let mintUrl = await AsyncStorage.getItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_MINT)
+    );
     if (!mintUrl) {
       mintUrl = DEFAULT_MINTS[0];
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT), mintUrl);
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_MINT),
+        mintUrl
+      );
     }
 
     // Try to connect to mints in order until one works
     let lastError: any;
-    const mintsToTry = mintUrl === DEFAULT_MINTS[0]
-      ? DEFAULT_MINTS
-      : [mintUrl, ...DEFAULT_MINTS];
+    const mintsToTry =
+      mintUrl === DEFAULT_MINTS[0]
+        ? DEFAULT_MINTS
+        : [mintUrl, ...DEFAULT_MINTS];
 
     for (const tryMintUrl of mintsToTry) {
       try {
         console.log(`[NutZap] Attempting to connect to mint: ${tryMintUrl}`);
         this.cashuMint = new CashuMint(tryMintUrl);
 
-        await this.withRetry(async () => {
-          const keysPromise = this.cashuMint!.getKeys();
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Mint connection timeout')), 10000)
-          );
-          await Promise.race([keysPromise, timeoutPromise]);
-        }, 2, 2000); // 2 retries with 2 second initial delay
+        await this.withRetry(
+          async () => {
+            const keysPromise = this.cashuMint!.getKeys();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error('Mint connection timeout')),
+                10000
+              )
+            );
+            await Promise.race([keysPromise, timeoutPromise]);
+          },
+          2,
+          2000
+        ); // 2 retries with 2 second initial delay
 
         console.log('[NutZap] Successfully connected to mint:', tryMintUrl);
 
         // Save the working mint
         if (tryMintUrl !== mintUrl) {
-          await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT), tryMintUrl);
+          await AsyncStorage.setItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_MINT),
+            tryMintUrl
+          );
         }
 
         // Create wallet instance
         this.cashuWallet = new CashuWallet(this.cashuMint, { unit: 'sat' });
         return; // Success!
-
       } catch (error) {
         console.error(`[NutZap] Failed to connect to ${tryMintUrl}:`, error);
         lastError = error;
@@ -533,7 +627,9 @@ class NutzapService {
     }
 
     // Load proofs from pubkey-specific storage
-    const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+    const proofsStr = await AsyncStorage.getItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+    );
 
     if (!proofsStr) {
       console.log('[NutZap] No local wallet found for user');
@@ -543,7 +639,10 @@ class NutzapService {
     const proofs = JSON.parse(proofsStr);
 
     // Get mint URL from pubkey-specific storage
-    const mintUrl = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT)) || DEFAULT_MINTS[0];
+    const mintUrl =
+      (await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_MINT)
+      )) || DEFAULT_MINTS[0];
 
     // Calculate balance from proofs
     const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
@@ -555,7 +654,7 @@ class NutzapService {
       mint: mintUrl,
       proofs,
       pubkey: this.userPubkey,
-      created: false
+      created: false,
     };
   }
 
@@ -586,10 +685,22 @@ class NutzapService {
    */
   private async saveWalletLocally(wallet: WalletState): Promise<void> {
     try {
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(wallet.proofs));
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT), wallet.mint);
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), wallet.pubkey);
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.LAST_SYNC), Date.now().toString());
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+        JSON.stringify(wallet.proofs)
+      );
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_MINT),
+        wallet.mint
+      );
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+        wallet.pubkey
+      );
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.LAST_SYNC),
+        Date.now().toString()
+      );
       console.log('[NutZap] Wallet saved to local storage for user');
     } catch (error) {
       console.error('[NutZap] Failed to save wallet locally:', error);
@@ -619,7 +730,7 @@ class NutzapService {
       const walletEvents = await this.ndk.fetchEvents({
         kinds: [EVENT_KINDS.WALLET_INFO as NDKKind],
         authors: [this.userPubkey],
-        '#d': [this.getWalletDTag()]
+        '#d': [this.getWalletDTag()],
       });
 
       if (walletEvents.size === 0) {
@@ -627,17 +738,17 @@ class NutzapService {
         const walletEvent = new NDKEvent(this.ndk);
         walletEvent.kind = EVENT_KINDS.WALLET_INFO as NDKKind;
         walletEvent.content = JSON.stringify({
-          owner: this.userPubkey,  // Explicit ownership verification
+          owner: this.userPubkey, // Explicit ownership verification
           mints: [this.cashuMint?.mintUrl || DEFAULT_MINTS[0]],
           name: 'RUNSTR Wallet',
           unit: 'sat',
-          balance: 0
+          balance: 0,
         });
         walletEvent.tags = [
-          ['d', this.getWalletDTag()],  // Deterministic d-tag
+          ['d', this.getWalletDTag()], // Deterministic d-tag
           ['mint', this.cashuMint?.mintUrl || DEFAULT_MINTS[0]],
           ['name', 'RUNSTR Wallet'],
-          ['unit', 'sat']
+          ['unit', 'sat'],
         ];
 
         await walletEvent.publish();
@@ -659,8 +770,12 @@ class NutzapService {
    * Consolidate multiple wallets into a single wallet
    * Merges proofs from all wallet events and creates new consolidated wallet
    */
-  private async consolidateWallets(walletEvents: NDKEvent[]): Promise<WalletState> {
-    console.log(`[NutZap] Consolidating ${walletEvents.length} wallet events...`);
+  private async consolidateWallets(
+    walletEvents: NDKEvent[]
+  ): Promise<WalletState> {
+    console.log(
+      `[NutZap] Consolidating ${walletEvents.length} wallet events...`
+    );
 
     const allProofs: Proof[] = [];
     let consolidatedMint = DEFAULT_MINTS[0];
@@ -672,7 +787,12 @@ class NutzapService {
 
         // Verify ownership
         if (content.owner && content.owner !== this.userPubkey) {
-          console.warn(`[NutZap] Skipping wallet with mismatched owner: ${content.owner?.slice(0, 8)}...`);
+          console.warn(
+            `[NutZap] Skipping wallet with mismatched owner: ${content.owner?.slice(
+              0,
+              8
+            )}...`
+          );
           continue;
         }
 
@@ -681,9 +801,19 @@ class NutzapService {
           try {
             const proofs = await this.decryptProofs(content.encrypted_proofs);
             allProofs.push(...proofs);
-            console.log(`[NutZap] Recovered ${proofs.length} proofs from event ${event.id.slice(0, 8)}...`);
+            console.log(
+              `[NutZap] Recovered ${
+                proofs.length
+              } proofs from event ${event.id.slice(0, 8)}...`
+            );
           } catch (error) {
-            console.warn(`[NutZap] Could not decrypt proofs from event ${event.id.slice(0, 8)}:`, error);
+            console.warn(
+              `[NutZap] Could not decrypt proofs from event ${event.id.slice(
+                0,
+                8
+              )}:`,
+              error
+            );
           }
         }
 
@@ -692,17 +822,28 @@ class NutzapService {
           consolidatedMint = content.mints[0];
         }
       } catch (error) {
-        console.warn(`[NutZap] Error processing wallet event ${event.id.slice(0, 8)}:`, error);
+        console.warn(
+          `[NutZap] Error processing wallet event ${event.id.slice(0, 8)}:`,
+          error
+        );
       }
     }
 
     // Calculate consolidated balance
     const consolidatedBalance = allProofs.reduce((sum, p) => sum + p.amount, 0);
-    console.log(`[NutZap] Consolidated balance: ${consolidatedBalance} sats from ${allProofs.length} proofs`);
+    console.log(
+      `[NutZap] Consolidated balance: ${consolidatedBalance} sats from ${allProofs.length} proofs`
+    );
 
     // Save consolidated proofs locally
-    await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(allProofs));
-    await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+    await AsyncStorage.setItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+      JSON.stringify(allProofs)
+    );
+    await AsyncStorage.setItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+      this.userPubkey
+    );
 
     // Create new consolidated wallet event to replace old ones
     if (this.ndk) {
@@ -718,17 +859,20 @@ class NutzapService {
           balance: consolidatedBalance,
           encrypted_proofs: encryptedProofs || undefined,
           last_updated: Date.now(),
-          consolidated: true
+          consolidated: true,
         });
         consolidatedEvent.tags = [
           ['d', this.getWalletDTag()],
           ['mint', consolidatedMint],
           ['name', 'RUNSTR Wallet (Consolidated)'],
-          ['unit', 'sat']
+          ['unit', 'sat'],
         ];
 
         // Store event ID atomically
-        await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID), consolidatedEvent.id);
+        await AsyncStorage.setItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID),
+          consolidatedEvent.id
+        );
 
         // Publish consolidated wallet
         await consolidatedEvent.publish();
@@ -743,7 +887,7 @@ class NutzapService {
       mint: consolidatedMint,
       proofs: allProofs,
       pubkey: this.userPubkey,
-      created: false
+      created: false,
     };
   }
 
@@ -752,7 +896,9 @@ class NutzapService {
    */
   private async fetchWalletFromNostr(): Promise<WalletState | null> {
     if (!this.ndk || !this.userPubkey) {
-      console.warn('[NutZap] Cannot fetch wallet - NDK or pubkey not initialized');
+      console.warn(
+        '[NutZap] Cannot fetch wallet - NDK or pubkey not initialized'
+      );
       return null;
     }
 
@@ -764,70 +910,106 @@ class NutzapService {
     }
 
     try {
-      console.log(`[NutZap] Querying ${connectedRelays} relay(s) for wallet events...`);
+      console.log(
+        `[NutZap] Querying ${connectedRelays} relay(s) for wallet events...`
+      );
 
       // Query for wallet info events (NIP-60) with proper EOSE handling
-      const walletEvents = await this.ndk.fetchEvents({
-        kinds: [EVENT_KINDS.WALLET_INFO as NDKKind],
-        authors: [this.userPubkey],
-        '#d': [this.getWalletDTag()]  // Deterministic d-tag
-      }, {
-        closeOnEose: true,      // Wait for End Of Stored Events from relays
-        groupable: false         // Don't group events, we want all of them
-      });
+      const walletEvents = await this.ndk.fetchEvents(
+        {
+          kinds: [EVENT_KINDS.WALLET_INFO as NDKKind],
+          authors: [this.userPubkey],
+          '#d': [this.getWalletDTag()], // Deterministic d-tag
+        },
+        {
+          closeOnEose: true, // Wait for End Of Stored Events from relays
+          groupable: false, // Don't group events, we want all of them
+        }
+      );
 
       if (walletEvents.size > 0) {
         // Sort events by created_at and use most recent
-        const sortedEvents = Array.from(walletEvents)
-          .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+        const sortedEvents = Array.from(walletEvents).sort(
+          (a, b) => (b.created_at || 0) - (a.created_at || 0)
+        );
 
         const latestEvent = sortedEvents[0];
         const content = JSON.parse(latestEvent.content);
-        console.log('[NutZap] Found wallet event (using most recent):', content);
+        console.log(
+          '[NutZap] Found wallet event (using most recent):',
+          content
+        );
 
         // CRITICAL: Verify wallet ownership
         if (content.owner && content.owner !== this.userPubkey) {
-          console.error(`[NutZap] SECURITY: Wallet owner mismatch! Expected ${this.userPubkey.slice(0, 8)}..., got ${content.owner?.slice(0, 8)}...`);
+          console.error(
+            `[NutZap] SECURITY: Wallet owner mismatch! Expected ${this.userPubkey.slice(
+              0,
+              8
+            )}..., got ${content.owner?.slice(0, 8)}...`
+          );
           return null;
         }
 
         // Check for duplicate wallets and consolidate if found
         if (walletEvents.size > 1) {
-          console.warn(`[NutZap] WARNING: Found ${walletEvents.size} wallet events for user. Consolidating balances...`);
+          console.warn(
+            `[NutZap] WARNING: Found ${walletEvents.size} wallet events for user. Consolidating balances...`
+          );
           // Trigger wallet consolidation to merge all proofs
           return await this.consolidateWallets(sortedEvents);
         }
 
         // Store the wallet event ID for duplicate prevention
-        await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID), latestEvent.id);
+        await AsyncStorage.setItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID),
+          latestEvent.id
+        );
 
         // Try to decrypt proofs from Nostr backup first
         let proofs: Proof[] = [];
 
         if (content.encrypted_proofs) {
-          console.log('[NutZap] Found encrypted proofs in wallet event, attempting to decrypt...');
+          console.log(
+            '[NutZap] Found encrypted proofs in wallet event, attempting to decrypt...'
+          );
           try {
             proofs = await this.decryptProofs(content.encrypted_proofs);
             if (proofs.length > 0) {
-              console.log(`[NutZap] Successfully restored ${proofs.length} proofs from Nostr backup`);
+              console.log(
+                `[NutZap] Successfully restored ${proofs.length} proofs from Nostr backup`
+              );
               // Save decrypted proofs to local storage for offline access
-              await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(proofs));
+              await AsyncStorage.setItem(
+                this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+                JSON.stringify(proofs)
+              );
             }
           } catch (error) {
-            console.warn('[NutZap] Failed to decrypt proofs from Nostr, trying local cache:', error);
+            console.warn(
+              '[NutZap] Failed to decrypt proofs from Nostr, trying local cache:',
+              error
+            );
           }
         }
 
         // If no proofs from Nostr, try local cache as fallback
         if (proofs.length === 0) {
-          const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+          const proofsStr = await AsyncStorage.getItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+          );
           proofs = proofsStr ? JSON.parse(proofsStr) : [];
           if (proofs.length > 0) {
-            console.log(`[NutZap] Using ${proofs.length} proofs from local cache`);
+            console.log(
+              `[NutZap] Using ${proofs.length} proofs from local cache`
+            );
           }
         }
 
-        const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+        const balance = proofs.reduce(
+          (sum: number, p: Proof) => sum + p.amount,
+          0
+        );
 
         // Store mint URL from Nostr event
         const mintUrl = content.mints?.[0] || DEFAULT_MINTS[0];
@@ -839,13 +1021,12 @@ class NutzapService {
           mint: mintUrl,
           proofs,
           pubkey: this.userPubkey,
-          created: false
+          created: false,
         };
       }
 
       console.log('[NutZap] No wallet events found on Nostr for user');
       return null;
-
     } catch (error) {
       // Distinguish between network errors and actual "no wallet" scenarios
       console.error('[NutZap] Error fetching wallet from Nostr:', error);
@@ -853,8 +1034,13 @@ class NutzapService {
         console.error('[NutZap] Error details:', error.message);
 
         // Check if it's a network/timeout error
-        if (error.message.includes('timeout') || error.message.includes('network')) {
-          console.error('[NutZap] Network error - wallet might exist but cannot verify');
+        if (
+          error.message.includes('timeout') ||
+          error.message.includes('network')
+        ) {
+          console.error(
+            '[NutZap] Network error - wallet might exist but cannot verify'
+          );
           throw error; // Re-throw network errors so caller knows it's not "wallet doesn't exist"
         }
       }
@@ -870,21 +1056,27 @@ class NutzapService {
     if (!this.ndk || !this.userPubkey) return null;
 
     try {
-      console.log('[NutZap] Extended search: Querying ALL relays with extended timeout...');
+      console.log(
+        '[NutZap] Extended search: Querying ALL relays with extended timeout...'
+      );
 
       // Query all possible event types for wallet
-      const walletEvents = await this.ndk.fetchEvents({
-        kinds: [EVENT_KINDS.WALLET_INFO as NDKKind],
-        authors: [this.userPubkey],
-        '#d': [this.getWalletDTag()]  // Deterministic d-tag
-      }, {
-        closeOnEose: true
-      });
+      const walletEvents = await this.ndk.fetchEvents(
+        {
+          kinds: [EVENT_KINDS.WALLET_INFO as NDKKind],
+          authors: [this.userPubkey],
+          '#d': [this.getWalletDTag()], // Deterministic d-tag
+        },
+        {
+          closeOnEose: true,
+        }
+      );
 
       if (walletEvents.size > 0) {
         console.log('[NutZap] Extended search found wallet!');
-        const latestEvent = Array.from(walletEvents)
-          .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+        const latestEvent = Array.from(walletEvents).sort(
+          (a, b) => (b.created_at || 0) - (a.created_at || 0)
+        )[0];
 
         const content = JSON.parse(latestEvent.content);
         const mintUrl = content.mints?.[0] || DEFAULT_MINTS[0];
@@ -895,30 +1087,42 @@ class NutzapService {
         if (content.encrypted_proofs) {
           try {
             proofs = await this.decryptProofs(content.encrypted_proofs);
-            console.log(`[NutZap] Extended search: Restored ${proofs.length} proofs from Nostr`);
+            console.log(
+              `[NutZap] Extended search: Restored ${proofs.length} proofs from Nostr`
+            );
             // Save to local storage
             if (proofs.length > 0) {
-              await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(proofs));
+              await AsyncStorage.setItem(
+                this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+                JSON.stringify(proofs)
+              );
             }
           } catch (error) {
-            console.warn('[NutZap] Extended search: Failed to decrypt proofs, using local cache');
+            console.warn(
+              '[NutZap] Extended search: Failed to decrypt proofs, using local cache'
+            );
           }
         }
 
         // Fallback to local cache if needed
         if (proofs.length === 0) {
-          const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+          const proofsStr = await AsyncStorage.getItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+          );
           proofs = proofsStr ? JSON.parse(proofsStr) : [];
         }
 
-        const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+        const balance = proofs.reduce(
+          (sum: number, p: Proof) => sum + p.amount,
+          0
+        );
 
         return {
           balance,
           mint: mintUrl,
           proofs,
           pubkey: this.userPubkey,
-          created: false
+          created: false,
         };
       }
 
@@ -956,7 +1160,8 @@ class NutzapService {
    * Create a new wallet for the user
    */
   private async createWallet(): Promise<WalletState> {
-    if (!this.ndk || !this.cashuMint) throw new Error('Service not initialized');
+    if (!this.ndk || !this.cashuMint)
+      throw new Error('Service not initialized');
 
     console.log('[NutZap] Creating new wallet with encrypted backup...');
 
@@ -967,40 +1172,51 @@ class NutzapService {
     const walletEvent = new NDKEvent(this.ndk);
     walletEvent.kind = EVENT_KINDS.WALLET_INFO as NDKKind;
     walletEvent.content = JSON.stringify({
-      owner: this.userPubkey,  // Explicit ownership for verification
+      owner: this.userPubkey, // Explicit ownership for verification
       mints: [this.cashuMint.mintUrl],
       name: 'RUNSTR Wallet',
       unit: 'sat',
       balance: 0,
       encrypted_proofs: encryptedProofs || undefined, // Only include if encryption succeeded
-      last_updated: Date.now()
+      last_updated: Date.now(),
     });
     walletEvent.tags = [
-      ['d', this.getWalletDTag()],  // Deterministic d-tag
+      ['d', this.getWalletDTag()], // Deterministic d-tag
       ['mint', this.cashuMint.mintUrl],
       ['name', 'RUNSTR Wallet'],
-      ['unit', 'sat']
+      ['unit', 'sat'],
     ];
 
     // ATOMIC: Store event ID BEFORE publishing to prevent crash-induced duplicates
     // This ensures even if app crashes during publish, we won't create another wallet
-    await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID), walletEvent.id);
+    await AsyncStorage.setItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_EVENT_ID),
+      walletEvent.id
+    );
     console.log('[NutZap] Stored wallet event ID atomically before publish');
 
     // Publish wallet event to Nostr
     await walletEvent.publish();
-    console.log('[NutZap] Published wallet event to Nostr with encrypted backup');
+    console.log(
+      '[NutZap] Published wallet event to Nostr with encrypted backup'
+    );
 
     // Initialize empty proofs array with pubkey-specific storage
-    await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify([]));
-    await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+    await AsyncStorage.setItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+      JSON.stringify([])
+    );
+    await AsyncStorage.setItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+      this.userPubkey
+    );
 
     return {
       balance: 0,
       mint: this.cashuMint.mintUrl,
       proofs: [],
       pubkey: this.userPubkey,
-      created: true
+      created: true,
     };
   }
 
@@ -1012,7 +1228,9 @@ class NutzapService {
     const mintUrl = content.mints?.[0] || DEFAULT_MINTS[0];
 
     // Load proofs from pubkey-specific local storage
-    const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+    const proofsStr = await AsyncStorage.getItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+    );
     const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
     // Calculate balance from proofs
@@ -1023,7 +1241,7 @@ class NutzapService {
       mint: mintUrl,
       proofs,
       pubkey: this.userPubkey,
-      created: false
+      created: false,
     };
   }
 
@@ -1045,13 +1263,21 @@ class NutzapService {
       const recipientHex = npubToHex(recipientPubkey) || recipientPubkey;
 
       // Load current proofs (pubkey-specific)
-      const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const proofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
       // Check balance
-      const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+      const balance = proofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
       if (balance < amount) {
-        return { success: false, error: `Insufficient balance. You have ${balance} sats` };
+        return {
+          success: false,
+          error: `Insufficient balance. You have ${balance} sats`,
+        };
       }
 
       // Select proofs for amount
@@ -1061,11 +1287,13 @@ class NutzapService {
 
       // Create token for recipient
       const token = getEncodedToken({
-        token: [{
-          mint: this.cashuMint!.mintUrl,
-          proofs: send
-        }],
-        memo
+        token: [
+          {
+            mint: this.cashuMint!.mintUrl,
+            proofs: send,
+          },
+        ],
+        memo,
       });
 
       // Create nutzap event (NIP-61)
@@ -1076,15 +1304,21 @@ class NutzapService {
         ['p', recipientHex],
         ['amount', amount.toString()],
         ['unit', 'sat'],
-        ['proof', token]
+        ['proof', token],
       ];
 
       // Publish nutzap
       await nutzapEvent.publish();
 
       // Update local proofs (keep change) with pubkey-specific storage
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(keep));
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+        JSON.stringify(keep)
+      );
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+        this.userPubkey
+      );
 
       // Save transaction
       await this.saveTransaction({
@@ -1095,14 +1329,15 @@ class NutzapService {
         recipient: recipientHex,
       });
 
-      console.log(`[NutZap] Sent ${amount} sats to ${recipientHex.slice(0, 8)}...`);
+      console.log(
+        `[NutZap] Sent ${amount} sats to ${recipientHex.slice(0, 8)}...`
+      );
       return { success: true };
-
     } catch (error) {
       console.error('[NutZap] Send failed:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to send nutzap'
+        error: error instanceof Error ? error.message : 'Failed to send nutzap',
       };
     }
   }
@@ -1114,7 +1349,9 @@ class NutzapService {
     try {
       // Ensure wallet is initialized
       if (!this.isInitialized || !this.cashuWallet) {
-        console.log('[NutZap] Wallet not ready for claiming, attempting to initialize...');
+        console.log(
+          '[NutZap] Wallet not ready for claiming, attempting to initialize...'
+        );
         await this.initialize();
 
         if (!this.cashuWallet) {
@@ -1135,7 +1372,7 @@ class NutzapService {
       const fetchPromise = this.ndk.fetchEvents({
         kinds: [EVENT_KINDS.NUTZAP as NDKKind],
         '#p': [this.userPubkey],
-        since: Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60) // Last 7 days
+        since: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60, // Last 7 days
       });
 
       const timeoutPromise = new Promise<Set<NDKEvent>>((resolve) =>
@@ -1151,8 +1388,8 @@ class NutzapService {
       for (const event of nutzapEvents) {
         try {
           // Find proof tag
-          const proofTag = event.tags.find(t => t[0] === 'proof');
-          const amountTag = event.tags.find(t => t[0] === 'amount');
+          const proofTag = event.tags.find((t) => t[0] === 'proof');
+          const amountTag = event.tags.find((t) => t[0] === 'amount');
 
           if (proofTag && amountTag) {
             const token = proofTag[1];
@@ -1168,7 +1405,9 @@ class NutzapService {
             try {
               // Ensure wallet is still connected before attempting receive
               if (!this.cashuWallet) {
-                console.warn('[NutZap] Wallet disconnected during claim process');
+                console.warn(
+                  '[NutZap] Wallet disconnected during claim process'
+                );
                 continue;
               }
 
@@ -1178,15 +1417,28 @@ class NutzapService {
                 setTimeout(() => reject(new Error('Receive timeout')), 3000)
               );
 
-              const proofs = await Promise.race([receivePromise, receiveTimeout]) as Proof[];
+              const proofs = (await Promise.race([
+                receivePromise,
+                receiveTimeout,
+              ])) as Proof[];
 
               if (proofs && proofs.length > 0) {
                 // Add to our proofs with pubkey-specific storage
-                const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-                const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+                const existingProofsStr = await AsyncStorage.getItem(
+                  this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+                );
+                const existingProofs = existingProofsStr
+                  ? JSON.parse(existingProofsStr)
+                  : [];
                 const newProofs = [...existingProofs, ...proofs];
-                await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(newProofs));
-                await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+                await AsyncStorage.setItem(
+                  this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+                  JSON.stringify(newProofs)
+                );
+                await AsyncStorage.setItem(
+                  this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+                  this.userPubkey
+                );
 
                 // Save transaction
                 await this.saveTransaction({
@@ -1199,19 +1451,29 @@ class NutzapService {
 
                 claimedAmount += amount;
                 processedTokens.add(token);
-                console.log(`[NutZap] Successfully claimed ${amount} sats from ${event.pubkey.slice(0, 8)}...`);
+                console.log(
+                  `[NutZap] Successfully claimed ${amount} sats from ${event.pubkey.slice(
+                    0,
+                    8
+                  )}...`
+                );
               }
             } catch (receiveError: any) {
               // Handle specific receive errors
-              if (receiveError.message?.includes('already spent') ||
-                  receiveError.message?.includes('already claimed') ||
-                  receiveError.message?.includes('Token already spent')) {
+              if (
+                receiveError.message?.includes('already spent') ||
+                receiveError.message?.includes('already claimed') ||
+                receiveError.message?.includes('Token already spent')
+              ) {
                 console.log('[NutZap] Token already claimed, skipping...');
                 processedTokens.add(token); // Mark as processed to avoid retrying
               } else if (receiveError.message?.includes('timeout')) {
                 console.log('[NutZap] Receive timeout, will retry later');
               } else {
-                console.log('[NutZap] Could not claim token:', receiveError.message);
+                console.log(
+                  '[NutZap] Could not claim token:',
+                  receiveError.message
+                );
               }
             }
           }
@@ -1222,15 +1484,18 @@ class NutzapService {
       }
 
       if (claimedAmount > 0) {
-        console.log(`[NutZap] Successfully claimed ${claimedAmount} sats total`);
+        console.log(
+          `[NutZap] Successfully claimed ${claimedAmount} sats total`
+        );
       } else if (totalAmount > 0) {
-        console.log(`[NutZap] Found ${totalAmount} sats in nutzaps but none could be claimed (may be already claimed)`);
+        console.log(
+          `[NutZap] Found ${totalAmount} sats in nutzaps but none could be claimed (may be already claimed)`
+        );
       } else {
         console.log('[NutZap] No incoming nutzaps found');
       }
 
       return { claimed: claimedAmount, total: totalAmount };
-
     } catch (error: any) {
       console.error('[NutZap] Claim process failed:', error.message);
       return { claimed: 0, total: 0 };
@@ -1241,7 +1506,9 @@ class NutzapService {
    * Get current balance
    */
   async getBalance(): Promise<number> {
-    const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+    const proofsStr = await AsyncStorage.getItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+    );
     const proofs = proofsStr ? JSON.parse(proofsStr) : [];
     return proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
   }
@@ -1249,14 +1516,18 @@ class NutzapService {
   /**
    * Save transaction to history (pubkey-specific)
    */
-  private async saveTransaction(transaction: Omit<Transaction, 'id'>): Promise<void> {
+  private async saveTransaction(
+    transaction: Omit<Transaction, 'id'>
+  ): Promise<void> {
     try {
-      const historyStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.TX_HISTORY));
+      const historyStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.TX_HISTORY)
+      );
       const history: Transaction[] = historyStr ? JSON.parse(historyStr) : [];
 
       const newTransaction: Transaction = {
         id: Date.now().toString() + Math.random().toString(36).substring(7),
-        ...transaction
+        ...transaction,
       };
 
       history.unshift(newTransaction);
@@ -1264,8 +1535,13 @@ class NutzapService {
       // Keep only last 100 transactions
       const trimmedHistory = history.slice(0, 100);
 
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.TX_HISTORY), JSON.stringify(trimmedHistory));
-      console.log(`[NutZap] Transaction saved: ${transaction.type} - ${transaction.amount} sats`);
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.TX_HISTORY),
+        JSON.stringify(trimmedHistory)
+      );
+      console.log(
+        `[NutZap] Transaction saved: ${transaction.type} - ${transaction.amount} sats`
+      );
     } catch (error) {
       console.error('[NutZap] Error saving transaction:', error);
     }
@@ -1276,7 +1552,9 @@ class NutzapService {
    */
   async getTransactionHistory(limit: number = 50): Promise<Transaction[]> {
     try {
-      const historyStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.TX_HISTORY));
+      const historyStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.TX_HISTORY)
+      );
       const history: Transaction[] = historyStr ? JSON.parse(historyStr) : [];
       return history.slice(0, limit);
     } catch (error) {
@@ -1305,17 +1583,26 @@ class NutzapService {
         // Try to get the npub as userId for decryption (matches encryption in nostrAuth.ts)
         const npub = await AsyncStorage.getItem('@runstr:npub');
         if (npub) {
-          console.log('[NutZap] Attempting to decrypt nsec with npub (32-char key):', npub.slice(0, 15) + '...');
+          console.log(
+            '[NutZap] Attempting to decrypt nsec with npub (32-char key):',
+            npub.slice(0, 15) + '...'
+          );
           // Use decryptNsec from nostrAuth.ts which uses 32-char key (matches encryptNsec)
           const nsec = decryptNsec(encryptedNsec, npub);
 
           // Validate the decrypted nsec before returning
           if (validateNsec(nsec)) {
-            console.log('[NutZap] Successfully decrypted nsec from secure storage');
+            console.log(
+              '[NutZap] Successfully decrypted nsec from secure storage'
+            );
             return nsec;
           } else {
-            console.warn('[NutZap] Decrypted nsec failed validation - encrypted data may be corrupted');
-            console.warn('[NutZap] User should log out and log back in to re-encrypt with correct method');
+            console.warn(
+              '[NutZap] Decrypted nsec failed validation - encrypted data may be corrupted'
+            );
+            console.warn(
+              '[NutZap] User should log out and log back in to re-encrypt with correct method'
+            );
           }
         }
       } catch (error) {
@@ -1336,7 +1623,10 @@ class NutzapService {
   /**
    * Create Lightning invoice for receiving funds
    */
-  async createLightningInvoice(amount: number, memo: string = 'RUNSTR Wallet Deposit'): Promise<{ pr: string; hash: string }> {
+  async createLightningInvoice(
+    amount: number,
+    memo: string = 'RUNSTR Wallet Deposit'
+  ): Promise<{ pr: string; hash: string }> {
     try {
       // Ensure wallet is properly initialized
       if (!this.isInitialized || !this.cashuWallet) {
@@ -1344,7 +1634,9 @@ class NutzapService {
         await this.initialize();
 
         if (!this.cashuWallet) {
-          throw new Error('Failed to initialize wallet. Please check your internet connection and try again.');
+          throw new Error(
+            'Failed to initialize wallet. Please check your internet connection and try again.'
+          );
         }
       }
 
@@ -1354,7 +1646,9 @@ class NutzapService {
       if (!this.cashuMint) {
         await this.initializeCashuWithTimeout();
         if (!this.cashuMint) {
-          throw new Error('Unable to connect to mint. Please check your internet connection.');
+          throw new Error(
+            'Unable to connect to mint. Please check your internet connection.'
+          );
         }
       }
 
@@ -1362,33 +1656,48 @@ class NutzapService {
       let mintQuote: any;
 
       try {
-        mintQuote = await this.withRetry(async () => {
-          const quotePromise = this.cashuWallet!.createMintQuote(amount);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Invoice generation timed out')), 10000)
-          );
-          return await Promise.race([quotePromise, timeoutPromise]);
-        }, 2, 3000); // 2 retries with 3 second initial delay
+        mintQuote = await this.withRetry(
+          async () => {
+            const quotePromise = this.cashuWallet!.createMintQuote(amount);
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error('Invoice generation timed out')),
+                10000
+              )
+            );
+            return await Promise.race([quotePromise, timeoutPromise]);
+          },
+          2,
+          3000
+        ); // 2 retries with 3 second initial delay
       } catch (error) {
-        console.error('[NutZap] Failed to create mint quote after retries:', error);
+        console.error(
+          '[NutZap] Failed to create mint quote after retries:',
+          error
+        );
 
         // For CoinOS, try direct API call if standard method fails
         console.log('[NutZap] Trying alternative CoinOS API method...');
         try {
-          const response = await fetch(`${this.cashuMint!.mintUrl}/v1/mint/quote/bolt11`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amount,
-              unit: 'sat'
-            })
-          });
+          const response = await fetch(
+            `${this.cashuMint!.mintUrl}/v1/mint/quote/bolt11`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount,
+                unit: 'sat',
+              }),
+            }
+          );
 
           if (response.ok) {
             const data = await response.json();
             if (data.request && data.quote) {
               mintQuote = data;
-              console.log('[NutZap] Successfully generated invoice via direct API');
+              console.log(
+                '[NutZap] Successfully generated invoice via direct API'
+              );
             }
           }
         } catch (apiError) {
@@ -1396,37 +1705,55 @@ class NutzapService {
         }
 
         if (!mintQuote || !mintQuote.request) {
-          throw new Error('Unable to generate invoice. Please check your connection and try again.');
+          throw new Error(
+            'Unable to generate invoice. Please check your connection and try again.'
+          );
         }
       }
 
       if (!mintQuote || !mintQuote.request) {
-        throw new Error('Failed to generate invoice. Invalid response from mint.');
+        throw new Error(
+          'Failed to generate invoice. Invalid response from mint.'
+        );
       }
 
       // Store quote hash for later checking
-      await AsyncStorage.setItem(`@runstr:quote:${mintQuote.quote}`, JSON.stringify({
-        amount,
-        created: Date.now(),
-        memo
-      }));
+      await AsyncStorage.setItem(
+        `@runstr:quote:${mintQuote.quote}`,
+        JSON.stringify({
+          amount,
+          created: Date.now(),
+          memo,
+        })
+      );
 
-      console.log('[NutZap] Lightning invoice created:', mintQuote.request.substring(0, 30) + '...');
+      console.log(
+        '[NutZap] Lightning invoice created:',
+        mintQuote.request.substring(0, 30) + '...'
+      );
       return { pr: mintQuote.request, hash: mintQuote.quote };
-
     } catch (error: any) {
       console.error('[NutZap] Create invoice failed:', error);
 
       // Provide user-friendly error messages
       if (error.message?.includes('timeout')) {
         throw new Error('Invoice generation timed out. Please try again.');
-      } else if (error.message?.includes('network') || error.message?.includes('connection')) {
-        throw new Error('Network error. Please check your internet connection.');
+      } else if (
+        error.message?.includes('network') ||
+        error.message?.includes('connection')
+      ) {
+        throw new Error(
+          'Network error. Please check your internet connection.'
+        );
       } else if (error.message?.includes('mint')) {
-        throw new Error('Unable to connect to mint service. Please try again later.');
+        throw new Error(
+          'Unable to connect to mint service. Please try again later.'
+        );
       }
 
-      throw new Error(error.message || 'Failed to generate invoice. Please try again.');
+      throw new Error(
+        error.message || 'Failed to generate invoice. Please try again.'
+      );
     }
   }
 
@@ -1443,7 +1770,9 @@ class NutzapService {
       console.log('[NutZap] Checking payment status for quote:', quoteHash);
 
       // Get quote details from storage
-      const quoteData = await AsyncStorage.getItem(`@runstr:quote:${quoteHash}`);
+      const quoteData = await AsyncStorage.getItem(
+        `@runstr:quote:${quoteHash}`
+      );
       if (!quoteData) {
         console.error('[NutZap] Quote not found in storage');
         return false;
@@ -1471,12 +1800,22 @@ class NutzapService {
 
         if (proofs && proofs.length > 0) {
           // Add new proofs to existing ones (pubkey-specific)
-          const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-          const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+          const existingProofsStr = await AsyncStorage.getItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+          );
+          const existingProofs = existingProofsStr
+            ? JSON.parse(existingProofsStr)
+            : [];
           const updatedProofs = [...existingProofs, ...proofs];
 
-          await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(updatedProofs));
-          await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+          await AsyncStorage.setItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+            JSON.stringify(updatedProofs)
+          );
+          await AsyncStorage.setItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+            this.userPubkey
+          );
 
           // Clean up quote from storage
           await AsyncStorage.removeItem(`@runstr:quote:${quoteHash}`);
@@ -1489,7 +1828,9 @@ class NutzapService {
             memo: 'Lightning deposit',
           });
 
-          console.log(`[NutZap] Successfully minted ${proofs.length} proofs totaling ${amount} sats`);
+          console.log(
+            `[NutZap] Successfully minted ${proofs.length} proofs totaling ${amount} sats`
+          );
           return true;
         }
       } catch (mintError: any) {
@@ -1499,7 +1840,6 @@ class NutzapService {
       }
 
       return false;
-
     } catch (error) {
       console.error('[NutZap] Check payment failed:', error);
       return false;
@@ -1509,7 +1849,10 @@ class NutzapService {
   /**
    * Fallback minting method when standard minting fails
    */
-  private async fallbackMint(quoteHash: string, amount: number): Promise<boolean> {
+  private async fallbackMint(
+    quoteHash: string,
+    amount: number
+  ): Promise<boolean> {
     try {
       console.log('[NutZap] Attempting fallback mint...');
 
@@ -1523,7 +1866,7 @@ class NutzapService {
       const endpoints = [
         `${mintUrl}/mint/bolt11/${quoteHash}`,
         `${mintUrl}/v1/mint/bolt11`,
-        `${mintUrl}/mint`
+        `${mintUrl}/mint`,
       ];
 
       for (const endpoint of endpoints) {
@@ -1534,19 +1877,22 @@ class NutzapService {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              Accept: 'application/json',
             },
             body: JSON.stringify({
               quote: quoteHash,
-              outputs: [{ amount, id: quoteHash }]
-            })
+              outputs: [{ amount, id: quoteHash }],
+            }),
           });
 
           console.log(`[NutZap] Response status: ${response.status}`);
 
           if (response.ok) {
             const data = await response.json();
-            console.log('[NutZap] Fallback response:', JSON.stringify(data, null, 2));
+            console.log(
+              '[NutZap] Fallback response:',
+              JSON.stringify(data, null, 2)
+            );
 
             if (data.signatures || data.promises || data.outputs) {
               const items = data.signatures || data.promises || data.outputs;
@@ -1554,15 +1900,25 @@ class NutzapService {
                 amount: amount,
                 secret: `manual_${Date.now()}_${index}`,
                 C: item.C_ || item.C || item.signature,
-                id: item.id || quoteHash
+                id: item.id || quoteHash,
               }));
 
               // Store proofs with pubkey-specific storage
-              const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-              const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+              const existingProofsStr = await AsyncStorage.getItem(
+                this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+              );
+              const existingProofs = existingProofsStr
+                ? JSON.parse(existingProofsStr)
+                : [];
               const newProofs = [...existingProofs, ...proofs];
-              await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(newProofs));
-              await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+              await AsyncStorage.setItem(
+                this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+                JSON.stringify(newProofs)
+              );
+              await AsyncStorage.setItem(
+                this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+                this.userPubkey
+              );
 
               // Save transaction
               await this.saveTransaction({
@@ -1594,9 +1950,15 @@ class NutzapService {
   /**
    * Fetch Lightning invoice from a Lightning address (LNURL)
    */
-  async fetchInvoiceFromLightningAddress(address: string, amountSats: number, memo?: string): Promise<{ invoice: string; error?: string }> {
+  async fetchInvoiceFromLightningAddress(
+    address: string,
+    amountSats: number,
+    memo?: string
+  ): Promise<{ invoice: string; error?: string }> {
     try {
-      console.log(`[NutZap] Fetching invoice from Lightning address: ${address}`);
+      console.log(
+        `[NutZap] Fetching invoice from Lightning address: ${address}`
+      );
 
       // Parse the Lightning address
       const [username, domain] = address.split('@');
@@ -1616,13 +1978,17 @@ class NutzapService {
       const lnurlData = await response.json();
 
       // Check if amount is within limits
-      const minSendable = lnurlData.minSendable ? Math.ceil(lnurlData.minSendable / 1000) : 1;
-      const maxSendable = lnurlData.maxSendable ? Math.floor(lnurlData.maxSendable / 1000) : 1000000;
+      const minSendable = lnurlData.minSendable
+        ? Math.ceil(lnurlData.minSendable / 1000)
+        : 1;
+      const maxSendable = lnurlData.maxSendable
+        ? Math.floor(lnurlData.maxSendable / 1000)
+        : 1000000;
 
       if (amountSats < minSendable || amountSats > maxSendable) {
         return {
           invoice: '',
-          error: `Amount must be between ${minSendable} and ${maxSendable} sats`
+          error: `Amount must be between ${minSendable} and ${maxSendable} sats`,
         };
       }
 
@@ -1635,23 +2001,34 @@ class NutzapService {
 
       const invoiceResponse = await fetch(callbackUrl.toString());
       if (!invoiceResponse.ok) {
-        return { invoice: '', error: 'Failed to get invoice from Lightning address' };
+        return {
+          invoice: '',
+          error: 'Failed to get invoice from Lightning address',
+        };
       }
 
       const invoiceData = await invoiceResponse.json();
 
       if (!invoiceData.pr) {
-        return { invoice: '', error: 'No invoice returned from Lightning address' };
+        return {
+          invoice: '',
+          error: 'No invoice returned from Lightning address',
+        };
       }
 
-      console.log('[NutZap] Successfully fetched invoice from Lightning address');
+      console.log(
+        '[NutZap] Successfully fetched invoice from Lightning address'
+      );
       return { invoice: invoiceData.pr };
-
     } catch (error) {
-      console.error('[NutZap] Error fetching invoice from Lightning address:', error);
+      console.error(
+        '[NutZap] Error fetching invoice from Lightning address:',
+        error
+      );
       return {
         invoice: '',
-        error: error instanceof Error ? error.message : 'Failed to fetch invoice'
+        error:
+          error instanceof Error ? error.message : 'Failed to fetch invoice',
       };
     }
   }
@@ -1659,25 +2036,31 @@ class NutzapService {
   /**
    * Pay a Lightning invoice or Lightning address using ecash tokens
    */
-  async payLightningInvoice(invoiceOrAddress: string, amountSats?: number, memo?: string): Promise<{ success: boolean; fee?: number; error?: string }> {
+  async payLightningInvoice(
+    invoiceOrAddress: string,
+    amountSats?: number,
+    memo?: string
+  ): Promise<{ success: boolean; fee?: number; error?: string }> {
     try {
       // Check if wallet is initialized, try to initialize if not
       if (!this.cashuWallet || !this.isInitialized) {
-        console.log('[NutZap] Wallet not initialized, attempting to initialize...');
+        console.log(
+          '[NutZap] Wallet not initialized, attempting to initialize...'
+        );
         try {
           await this.initialize();
         } catch (initError) {
           console.error('[NutZap] Failed to initialize wallet:', initError);
           return {
             success: false,
-            error: 'Wallet not initialized. Please try again.'
+            error: 'Wallet not initialized. Please try again.',
           };
         }
 
         if (!this.cashuWallet) {
           return {
             success: false,
-            error: 'Unable to initialize wallet. Please check your connection.'
+            error: 'Unable to initialize wallet. Please check your connection.',
           };
         }
       }
@@ -1689,17 +2072,23 @@ class NutzapService {
         if (!amountSats || amountSats <= 0) {
           return {
             success: false,
-            error: 'Amount is required for Lightning address payments'
+            error: 'Amount is required for Lightning address payments',
           };
         }
 
         console.log('[NutZap] Detected Lightning address, fetching invoice...');
-        const invoiceResult = await this.fetchInvoiceFromLightningAddress(invoiceOrAddress, amountSats, memo);
+        const invoiceResult = await this.fetchInvoiceFromLightningAddress(
+          invoiceOrAddress,
+          amountSats,
+          memo
+        );
 
         if (invoiceResult.error || !invoiceResult.invoice) {
           return {
             success: false,
-            error: invoiceResult.error || 'Failed to fetch invoice from Lightning address'
+            error:
+              invoiceResult.error ||
+              'Failed to fetch invoice from Lightning address',
           };
         }
 
@@ -1709,11 +2098,16 @@ class NutzapService {
       console.log('[NutZap] Preparing to pay Lightning invoice...');
 
       // Get current proofs (pubkey-specific)
-      const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const proofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
       // Check if we have sufficient balance
-      const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+      const balance = proofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
 
       // Get melt quote to determine amount and fees
       const meltQuote = await this.cashuWallet.createMeltQuote(invoice);
@@ -1727,7 +2121,7 @@ class NutzapService {
       if (balance < totalNeeded) {
         return {
           success: false,
-          error: `Insufficient balance. Need ${totalNeeded} sats, have ${balance} sats`
+          error: `Insufficient balance. Need ${totalNeeded} sats, have ${balance} sats`,
         };
       }
 
@@ -1735,7 +2129,10 @@ class NutzapService {
       const { change } = await this.cashuWallet.meltTokens(meltQuote, proofs);
 
       // Update proofs with change (pubkey-specific)
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(change || []));
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+        JSON.stringify(change || [])
+      );
 
       // Save transaction
       await this.saveTransaction({
@@ -1746,14 +2143,15 @@ class NutzapService {
         fee: meltQuote.fee_reserve,
       });
 
-      console.log(`[NutZap] Successfully paid Lightning invoice. Fee: ${meltQuote.fee_reserve} sats`);
+      console.log(
+        `[NutZap] Successfully paid Lightning invoice. Fee: ${meltQuote.fee_reserve} sats`
+      );
       return { success: true, fee: meltQuote.fee_reserve };
-
     } catch (error) {
       console.error('[NutZap] Lightning payment failed:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Payment failed'
+        error: error instanceof Error ? error.message : 'Payment failed',
       };
     }
   }
@@ -1765,7 +2163,9 @@ class NutzapService {
     try {
       // Check if wallet is initialized, try to initialize if not
       if (!this.cashuWallet || !this.isInitialized) {
-        console.log('[NutZap] Wallet not initialized, attempting to initialize...');
+        console.log(
+          '[NutZap] Wallet not initialized, attempting to initialize...'
+        );
         await this.initialize();
 
         if (!this.cashuWallet) {
@@ -1774,28 +2174,43 @@ class NutzapService {
       }
 
       // Load current proofs (pubkey-specific)
-      const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const proofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
       // Check balance
-      const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+      const balance = proofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
       if (balance < amount) {
-        throw new Error(`Insufficient balance. Have ${balance} sats, need ${amount} sats`);
+        throw new Error(
+          `Insufficient balance. Have ${balance} sats, need ${amount} sats`
+        );
       }
 
       // Create token for the amount
-      const { send, returnChange } = await this.cashuWallet.send(amount, proofs);
+      const { send, returnChange } = await this.cashuWallet.send(
+        amount,
+        proofs
+      );
 
       // Update stored proofs with change (pubkey-specific)
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(returnChange || []));
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+        JSON.stringify(returnChange || [])
+      );
 
       // Encode the token
       const token = getEncodedToken({
-        token: [{
-          mint: this.cashuMint!.mintUrl,
-          proofs: send
-        }],
-        memo
+        token: [
+          {
+            mint: this.cashuMint!.mintUrl,
+            proofs: send,
+          },
+        ],
+        memo,
       });
 
       // Save transaction
@@ -1809,7 +2224,6 @@ class NutzapService {
 
       console.log(`[NutZap] Generated Cashu token for ${amount} sats`);
       return token;
-
     } catch (error) {
       console.error('[NutZap] Token generation failed:', error);
       throw error;
@@ -1819,7 +2233,10 @@ class NutzapService {
   /**
    * Manual recovery method for paid invoices when minting fails
    */
-  async manualRecoverPaidInvoice(quoteHash: string, amountSats: number): Promise<boolean> {
+  async manualRecoverPaidInvoice(
+    quoteHash: string,
+    amountSats: number
+  ): Promise<boolean> {
     try {
       console.log(`[NutZap] Manual recovery for paid invoice ${quoteHash}...`);
 
@@ -1828,14 +2245,21 @@ class NutzapService {
         amount: amountSats,
         secret: `recovered_${quoteHash}_${Date.now()}`,
         C: `temp_${quoteHash}`,
-        id: quoteHash
+        id: quoteHash,
       };
 
       // Store the proof (pubkey-specific)
-      const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-      const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+      const existingProofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
+      const existingProofs = existingProofsStr
+        ? JSON.parse(existingProofsStr)
+        : [];
       const newProofs = [...existingProofs, proof];
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(newProofs));
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+        JSON.stringify(newProofs)
+      );
 
       // Save transaction history
       await this.saveTransaction({
@@ -1873,7 +2297,9 @@ class NutzapService {
         console.log('[DEBUG] Invoice is paid! Attempting to mint...');
 
         // Get amount from storage
-        const quoteData = await AsyncStorage.getItem(`@runstr:quote:${quoteHash}`);
+        const quoteData = await AsyncStorage.getItem(
+          `@runstr:quote:${quoteHash}`
+        );
         if (quoteData) {
           const { amount } = JSON.parse(quoteData);
           console.log('[DEBUG] Amount to mint:', amount);
@@ -1890,7 +2316,10 @@ class NutzapService {
           }
         }
       } else {
-        console.log('[DEBUG] Invoice not paid yet. Current state:', quote.state);
+        console.log(
+          '[DEBUG] Invoice not paid yet. Current state:',
+          quote.state
+        );
       }
     } catch (error) {
       console.error('[DEBUG] Error checking payment:', error);
@@ -1900,7 +2329,9 @@ class NutzapService {
   /**
    * Receive a Cashu token string
    */
-  async receiveCashuToken(token: string): Promise<{ amount: number; error?: string }> {
+  async receiveCashuToken(
+    token: string
+  ): Promise<{ amount: number; error?: string }> {
     try {
       if (!this.cashuWallet) {
         throw new Error('Wallet not initialized');
@@ -1929,13 +2360,23 @@ class NutzapService {
 
         if (proofs && proofs.length > 0) {
           // Add to our proofs (pubkey-specific)
-          const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-          const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+          const existingProofsStr = await AsyncStorage.getItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+          );
+          const existingProofs = existingProofsStr
+            ? JSON.parse(existingProofsStr)
+            : [];
           const newProofs = [...existingProofs, ...proofs];
-          await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(newProofs));
+          await AsyncStorage.setItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+            JSON.stringify(newProofs)
+          );
 
           // Calculate amount received
-          const amount = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+          const amount = proofs.reduce(
+            (sum: number, p: Proof) => sum + p.amount,
+            0
+          );
 
           // Save transaction
           await this.saveTransaction({
@@ -1945,28 +2386,34 @@ class NutzapService {
             memo: decoded.memo,
           });
 
-          console.log(`[NutZap] Successfully received ${amount} sats from Cashu token`);
+          console.log(
+            `[NutZap] Successfully received ${amount} sats from Cashu token`
+          );
           return { amount };
         }
 
         return { amount: 0, error: 'No valid proofs in token' };
-
       } catch (receiveError: any) {
         // Handle specific error cases
-        if (receiveError.message?.includes('already spent') ||
-            receiveError.message?.includes('already claimed')) {
+        if (
+          receiveError.message?.includes('already spent') ||
+          receiveError.message?.includes('already claimed')
+        ) {
           return { amount: 0, error: 'Token has already been claimed' };
         }
 
         console.error('[NutZap] Token receive error:', receiveError);
-        return { amount: 0, error: receiveError.message || 'Failed to receive token' };
+        return {
+          amount: 0,
+          error: receiveError.message || 'Failed to receive token',
+        };
       }
-
     } catch (error) {
       console.error('[NutZap] Receive token failed:', error);
       return {
         amount: 0,
-        error: error instanceof Error ? error.message : 'Failed to receive token'
+        error:
+          error instanceof Error ? error.message : 'Failed to receive token',
       };
     }
   }

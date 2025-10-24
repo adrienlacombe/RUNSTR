@@ -14,7 +14,10 @@ import { PasswordNotice } from '../components/onboarding/PasswordNotice';
 import { WalletSetupStep } from '../components/onboarding/WalletSetupStep';
 import { PermissionRequestStep } from '../components/onboarding/PermissionRequestStep';
 import OnboardingCacheService from '../services/cache/OnboardingCacheService';
-import { nostrProfilePublisher, type EditableProfile } from '../services/nostr/NostrProfilePublisher';
+import {
+  nostrProfilePublisher,
+  type EditableProfile,
+} from '../services/nostr/NostrProfilePublisher';
 import { theme } from '../styles/theme';
 
 const STORAGE_KEYS = {
@@ -30,9 +33,13 @@ interface OnboardingScreenProps {
   };
 }
 
-export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ route }) => {
+export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
+  route,
+}) => {
   const navigation = useNavigation<any>();
-  const [currentStep, setCurrentStep] = useState<'slides' | 'profile' | 'password' | 'wallet' | 'permissions'>('slides');
+  const [currentStep, setCurrentStep] = useState<
+    'slides' | 'profile' | 'password' | 'wallet' | 'permissions'
+  >('slides');
   const [isLoading, setIsLoading] = useState(false);
   const [userPassword, setUserPassword] = useState<string>('');
   const [profileData, setProfileData] = useState<Partial<EditableProfile>>({});
@@ -49,11 +56,16 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ route }) => 
       }
 
       if (nsec) {
-        console.log('[Onboarding] Password loaded successfully:', nsec.slice(0, 10) + '...');
+        console.log(
+          '[Onboarding] Password loaded successfully:',
+          nsec.slice(0, 10) + '...'
+        );
         setUserPassword(nsec || '');
       } else {
         console.error('[Onboarding] ⚠️ No nsec found in params or storage!');
-        console.error('[Onboarding] This screen should only be accessed after signup.');
+        console.error(
+          '[Onboarding] This screen should only be accessed after signup.'
+        );
         console.error('[Onboarding] Redirecting to login screen...');
 
         // Safeguard: If no nsec is available, user shouldn't be in onboarding
@@ -144,7 +156,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ route }) => 
       // Clear the new signup flag (onboarding complete)
       await AsyncStorage.removeItem('@runstr:is_new_signup');
 
-      console.log('[Onboarding] ✅ Onboarding flags set, App.tsx will auto-navigate to MainTabs');
+      console.log(
+        '[Onboarding] ✅ Onboarding flags set, App.tsx will auto-navigate to MainTabs'
+      );
 
       // Don't navigate - App.tsx will detect the flag change and show MainTabs automatically
       // This prevents navigation errors since MainTabs isn't in this navigator's stack

@@ -37,16 +37,17 @@ export interface Season1Config {
 
 // Constants
 export const SEASON_1_CONFIG: Season1Config = {
-  startDate: '2025-07-11T00:00:00Z',  // Official RUNSTR Season 1 start
-  endDate: '2025-10-09T23:59:59Z',    // Official RUNSTR Season 1 end
+  startDate: '2025-07-11T00:00:00Z', // Official RUNSTR Season 1 start
+  endDate: '2025-10-09T23:59:59Z', // Official RUNSTR Season 1 end
   prizePool: 200000,
-  adminPubkey: 'f241654d23b2aede8275dedd1eba1791e292d9ee0d887752e68a404debc888cc',
+  adminPubkey:
+    'f241654d23b2aede8275dedd1eba1791e292d9ee0d887752e68a404debc888cc',
   participantListDTag: 'runstr-season-1-participants',
   prizeDistribution: {
     first: 33.333, // 66,667 sats per category
     second: 16.667, // 33,333 sats per category
-    third: 8.333,   // 16,667 sats per category
-  }
+    third: 8.333, // 16,667 sats per category
+  },
 };
 
 // Helper to calculate prize for a rank and category
@@ -56,11 +57,17 @@ export const calculatePrize = (rank: number): number => {
 
   switch (rank) {
     case 1:
-      return Math.floor(categoryPrize * (SEASON_1_CONFIG.prizeDistribution.first / 100) * 3);
+      return Math.floor(
+        categoryPrize * (SEASON_1_CONFIG.prizeDistribution.first / 100) * 3
+      );
     case 2:
-      return Math.floor(categoryPrize * (SEASON_1_CONFIG.prizeDistribution.second / 100) * 3);
+      return Math.floor(
+        categoryPrize * (SEASON_1_CONFIG.prizeDistribution.second / 100) * 3
+      );
     case 3:
-      return Math.floor(categoryPrize * (SEASON_1_CONFIG.prizeDistribution.third / 100) * 3);
+      return Math.floor(
+        categoryPrize * (SEASON_1_CONFIG.prizeDistribution.third / 100) * 3
+      );
     default:
       return 0;
   }

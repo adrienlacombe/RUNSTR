@@ -27,11 +27,11 @@ interface WorkoutCardProps {
   children?: React.ReactNode;
 }
 
-export const WorkoutCard: React.FC<WorkoutCardProps> = ({ 
-  workout, 
-  showPostButton, 
-  onPostToNostr, 
-  children 
+export const WorkoutCard: React.FC<WorkoutCardProps> = ({
+  workout,
+  showPostButton,
+  onPostToNostr,
+  children,
 }) => {
   const formatDistance = (meters?: number): string =>
     !meters
@@ -63,13 +63,14 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
     const displayMinutes = minutes.toString().padStart(2, '0');
     const timeStr = `${displayHours}:${displayMinutes} ${ampm}`;
 
-    const dayStr = diffDays === 0
-      ? 'Today'
-      : diffDays === 1
-      ? 'Yesterday'
-      : diffDays < 7
-      ? `${diffDays} days ago`
-      : date.toLocaleDateString();
+    const dayStr =
+      diffDays === 0
+        ? 'Today'
+        : diffDays === 1
+        ? 'Yesterday'
+        : diffDays < 7
+        ? `${diffDays} days ago`
+        : date.toLocaleDateString();
 
     return `${dayStr} at ${timeStr}`;
   };

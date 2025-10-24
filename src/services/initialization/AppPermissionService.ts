@@ -49,9 +49,11 @@ export class AppPermissionService {
     }
 
     // Check location permissions (foreground + background)
-    const locationStatus = await locationPermissionService.checkPermissionStatus();
+    const locationStatus =
+      await locationPermissionService.checkPermissionStatus();
     const locationGranted =
-      locationStatus.foreground === 'granted' && locationStatus.background === 'granted';
+      locationStatus.foreground === 'granted' &&
+      locationStatus.background === 'granted';
 
     // Check notification permission (Android 13+)
     let notificationGranted = true;
@@ -101,14 +103,18 @@ export class AppPermissionService {
 
       // Step 1: Request location permissions (foreground first, then background)
       console.log('[AppPermissionService] Requesting location permissions...');
-      const foregroundGranted = await locationPermissionService.requestForegroundPermission();
+      const foregroundGranted =
+        await locationPermissionService.requestForegroundPermission();
 
       if (!foregroundGranted) {
-        console.error('[AppPermissionService] Foreground location permission denied');
+        console.error(
+          '[AppPermissionService] Foreground location permission denied'
+        );
         return false;
       }
 
-      const backgroundGranted = await locationPermissionService.requestBackgroundPermission();
+      const backgroundGranted =
+        await locationPermissionService.requestBackgroundPermission();
 
       if (!backgroundGranted) {
         console.warn(
@@ -121,19 +127,26 @@ export class AppPermissionService {
       const apiLevel = Device.platformApiLevel || 0;
 
       if (apiLevel >= 33) {
-        console.log('[AppPermissionService] Requesting notification permission...');
+        console.log(
+          '[AppPermissionService] Requesting notification permission...'
+        );
         const { status } = await Notifications.requestPermissionsAsync();
 
         if (status !== 'granted') {
-          console.error('[AppPermissionService] Notification permission denied');
+          console.error(
+            '[AppPermissionService] Notification permission denied'
+          );
           return false;
         }
       }
 
       // Step 3: Request battery optimization exemption
-      console.log('[AppPermissionService] Requesting battery optimization exemption...');
+      console.log(
+        '[AppPermissionService] Requesting battery optimization exemption...'
+      );
       const batteryService = BatteryOptimizationService.getInstance();
-      const batteryGranted = await batteryService.requestBatteryOptimizationExemption();
+      const batteryGranted =
+        await batteryService.requestBatteryOptimizationExemption();
 
       if (!batteryGranted) {
         console.warn(
@@ -142,10 +155,15 @@ export class AppPermissionService {
         // Continue anyway - user can enable later
       }
 
-      console.log('[AppPermissionService] ✅ All permissions requested successfully');
+      console.log(
+        '[AppPermissionService] ✅ All permissions requested successfully'
+      );
       return true;
     } catch (error) {
-      console.error('[AppPermissionService] Error requesting permissions:', error);
+      console.error(
+        '[AppPermissionService] Error requesting permissions:',
+        error
+      );
       return false;
     }
   }
@@ -161,16 +179,25 @@ export class AppPermissionService {
   }> {
     if (Platform.OS !== 'android') {
       return {
-        location: { granted: true, foreground: 'granted', background: 'granted' },
+        location: {
+          granted: true,
+          foreground: 'granted',
+          background: 'granted',
+        },
         notification: { granted: true, status: 'granted', required: false },
         battery: { granted: true, prompted: true },
       };
     }
 
-    const locationStatus = await locationPermissionService.checkPermissionStatus();
+    const locationStatus =
+      await locationPermissionService.checkPermissionStatus();
     const apiLevel = Device.platformApiLevel || 0;
 
-    let notificationStatus = { granted: true, status: 'granted', required: false };
+    let notificationStatus = {
+      granted: true,
+      status: 'granted',
+      required: false,
+    };
     if (apiLevel >= 33) {
       const { status } = await Notifications.getPermissionsAsync();
       notificationStatus = {
@@ -186,7 +213,8 @@ export class AppPermissionService {
     return {
       location: {
         granted:
-          locationStatus.foreground === 'granted' && locationStatus.background === 'granted',
+          locationStatus.foreground === 'granted' &&
+          locationStatus.background === 'granted',
         foreground: locationStatus.foreground,
         background: locationStatus.background,
       },

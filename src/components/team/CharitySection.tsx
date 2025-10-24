@@ -57,7 +57,10 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
 
             const amount = parseInt(amountText, 10);
             if (isNaN(amount) || amount <= 0) {
-              Alert.alert('Invalid Amount', 'Please enter a valid number of sats.');
+              Alert.alert(
+                'Invalid Amount',
+                'Please enter a valid number of sats.'
+              );
               return;
             }
 
@@ -71,7 +74,8 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
               if (!result.success || !result.invoice) {
                 Alert.alert(
                   'Invoice Generation Failed',
-                  result.error || 'Unable to generate invoice. Please try again.'
+                  result.error ||
+                    'Unable to generate invoice. Please try again.'
                 );
                 return;
               }
@@ -82,7 +86,10 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
               setCharityName(charity.name);
               setShowPaymentModal(true);
             } catch (error) {
-              console.error('[CharitySection] Error generating invoice:', error);
+              console.error(
+                '[CharitySection] Error generating invoice:',
+                error
+              );
               Alert.alert(
                 'Error',
                 'Failed to generate invoice. Please try again.'
@@ -135,9 +142,16 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
 
           {/* Learn More Link */}
           {charity.website && (
-            <TouchableOpacity onPress={handleLearnMore} style={styles.learnMoreButton}>
+            <TouchableOpacity
+              onPress={handleLearnMore}
+              style={styles.learnMoreButton}
+            >
               <Text style={styles.learnMoreText}>Learn more</Text>
-              <Ionicons name="open-outline" size={14} color={theme.colors.textMuted} />
+              <Ionicons
+                name="open-outline"
+                size={14}
+                color={theme.colors.textMuted}
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -149,9 +163,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
           activeOpacity={0.7}
         >
           <Ionicons name="flash" size={20} color="#000000" />
-          <Text style={styles.zapButtonText}>
-            Zap
-          </Text>
+          <Text style={styles.zapButtonText}>Zap</Text>
         </TouchableOpacity>
       </View>
 

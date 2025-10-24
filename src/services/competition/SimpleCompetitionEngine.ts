@@ -6,7 +6,10 @@
 
 import { NostrListService } from '../nostr/NostrListService';
 import NostrCompetitionParticipantService from '../nostr/NostrCompetitionParticipantService';
-import type { NostrLeagueDefinition, NostrEventDefinition } from '../../types/nostrCompetition';
+import type {
+  NostrLeagueDefinition,
+  NostrEventDefinition,
+} from '../../types/nostrCompetition';
 import type { NostrWorkout } from '../../types/nostrWorkout';
 import { LocalNotificationTrigger } from '../notifications/LocalNotificationTrigger';
 import { NotificationCache } from '../../utils/notificationCache';
@@ -78,7 +81,9 @@ export class SimpleCompetitionEngine {
     competition: NostrLeagueDefinition | NostrEventDefinition,
     teamId: string
   ): Promise<SimpleLeaderboard> {
-    console.log(`🏆 SimpleCompetitionEngine: Computing leaderboard for ${competition.name}`);
+    console.log(
+      `🏆 SimpleCompetitionEngine: Computing leaderboard for ${competition.name}`
+    );
 
     // Check cache first
     const cached = this.getCachedLeaderboard(competition.id);
@@ -89,26 +94,39 @@ export class SimpleCompetitionEngine {
 
     try {
       // Step 1: Get competition participants (or fall back to team members)
-      const memberIds = await this.getCompetitionParticipants(competition.id, teamId, competition.captainPubkey);
+      const memberIds = await this.getCompetitionParticipants(
+        competition.id,
+        teamId,
+        competition.captainPubkey
+      );
       console.log(`👥 Found ${memberIds.length} participants`);
 
       if (memberIds.length === 0) {
-        return this.createEmptyLeaderboard(competition, 'No participants found');
+        return this.createEmptyLeaderboard(
+          competition,
+          'No participants found'
+        );
       }
 
       // Step 2: Get competition date range
       const dateRange = this.getCompetitionDateRange(competition);
-      console.log(`📅 Competition range: ${dateRange.startDate.toDateString()} → ${dateRange.endDate.toDateString()}`);
+      console.log(
+        `📅 Competition range: ${dateRange.startDate.toDateString()} → ${dateRange.endDate.toDateString()}`
+      );
 
       // Step 3: Get member workouts using nuclear approach
-      const memberWorkouts = await this.getMemberWorkouts(memberIds, dateRange, competition.activityType);
+      const memberWorkouts = await this.getMemberWorkouts(
+        memberIds,
+        dateRange,
+        competition.activityType
+      );
       console.log(`📊 Found workouts for ${memberWorkouts.size} participants`);
 
       // Step 4: Apply wizard-defined scoring rules
       const scoringRules: ScoringRules = {
         goalType: this.getGoalTypeFromCompetition(competition),
         activityType: competition.activityType,
-        competitionType: competition.competitionType
+        competitionType: competition.competitionType,
       };
 
       const participants = this.calculateRankings(memberWorkouts, scoringRules);
@@ -133,12 +151,16 @@ export class SimpleCompetitionEngine {
       // Check for position changes and trigger notifications
       await this.checkAndNotifyPositionChanges(competition, leaderboard);
 
-      console.log(`✅ Leaderboard computed: ${participants.length} participants, ${leaderboard.totalWorkouts} workouts`);
+      console.log(
+        `✅ Leaderboard computed: ${participants.length} participants, ${leaderboard.totalWorkouts} workouts`
+      );
       return leaderboard;
-
     } catch (error) {
       console.error(`❌ Failed to compute leaderboard:`, error);
-      return this.createEmptyLeaderboard(competition, 'Failed to load leaderboard data');
+      return this.createEmptyLeaderboard(
+        competition,
+        'Failed to load leaderboard data'
+      );
     }
   }
 
@@ -153,10 +175,15 @@ export class SimpleCompetitionEngine {
     try {
       // For events, use the event-specific participant list (kind 30000)
       const eventDTag = `event-${competitionId}-participants`;
-      const eventParticipants = await this.nostrListService.getListMembers(captainPubkey, eventDTag);
+      const eventParticipants = await this.nostrListService.getListMembers(
+        captainPubkey,
+        eventDTag
+      );
 
       if (eventParticipants && eventParticipants.length > 0) {
-        console.log(`📋 Using event participant list: ${eventParticipants.length} participants`);
+        console.log(
+          `📋 Using event participant list: ${eventParticipants.length} participants`
+        );
         return eventParticipants;
       }
 
@@ -173,30 +200,39 @@ export class SimpleCompetitionEngine {
   /**
    * Get team members using proven NostrListService (fallback method)
    */
-  private async getTeamMembers(teamId: string, captainPubkey: string): Promise<string[]> {
+  private async getTeamMembers(
+    teamId: string,
+    captainPubkey: string
+  ): Promise<string[]> {
     try {
       // Use the proven NostrListService pattern
       // Teams use dTag pattern like 'team-members' or similar
-      const membersList = await this.nostrListService.getListMembers(captainPubkey, `${teamId}-members`);
-      
+      const membersList = await this.nostrListService.getListMembers(
+        captainPubkey,
+        `${teamId}-members`
+      );
+
       if (membersList.length === 0) {
         // Fallback: try alternate dTag patterns
         const alternativePatterns = [
           `${teamId}`,
           `team-${teamId}`,
           `members-${teamId}`,
-          'team-members'
+          'team-members',
         ];
-        
+
         for (const pattern of alternativePatterns) {
-          const fallbackMembers = await this.nostrListService.getListMembers(captainPubkey, pattern);
+          const fallbackMembers = await this.nostrListService.getListMembers(
+            captainPubkey,
+            pattern
+          );
           if (fallbackMembers.length > 0) {
             console.log(`📋 Found members using pattern: ${pattern}`);
             return fallbackMembers;
           }
         }
       }
-      
+
       return membersList;
     } catch (error) {
       console.error('❌ Failed to get team members:', error);
@@ -213,15 +249,24 @@ export class SimpleCompetitionEngine {
     activityType: string
   ): Promise<Map<string, NostrWorkout[]>> {
     const memberWorkouts = new Map<string, NostrWorkout[]>();
-    
+
     console.log(`🔍 Fetching workouts for ${memberIds.length} members...`);
 
     // Fetch workouts for each member in parallel
     const fetchPromises = memberIds.map(async (pubkey) => {
       try {
-        const workouts = await this.fetchUserWorkouts(pubkey, dateRange, activityType);
+        const workouts = await this.fetchUserWorkouts(
+          pubkey,
+          dateRange,
+          activityType
+        );
         memberWorkouts.set(pubkey, workouts);
-        console.log(`📊 Found ${workouts.length} workouts for member ${pubkey.substring(0, 8)}...`);
+        console.log(
+          `📊 Found ${workouts.length} workouts for member ${pubkey.substring(
+            0,
+            8
+          )}...`
+        );
       } catch (error) {
         console.error(`❌ Failed to fetch workouts for ${pubkey}:`, error);
         memberWorkouts.set(pubkey, []);
@@ -231,9 +276,12 @@ export class SimpleCompetitionEngine {
     await Promise.all(fetchPromises);
 
     const totalWorkouts = Array.from(memberWorkouts.values()).reduce(
-      (sum, workouts) => sum + workouts.length, 0
+      (sum, workouts) => sum + workouts.length,
+      0
     );
-    console.log(`✅ Fetched ${totalWorkouts} total workouts across all members`);
+    console.log(
+      `✅ Fetched ${totalWorkouts} total workouts across all members`
+    );
 
     return memberWorkouts;
   }
@@ -242,17 +290,17 @@ export class SimpleCompetitionEngine {
    * Fetch user workouts using nuclear approach (simplified from WorkoutMergeService)
    */
   private async fetchUserWorkouts(
-    pubkey: string, 
-    dateRange: DateRange, 
+    pubkey: string,
+    dateRange: DateRange,
     activityType: string
   ): Promise<NostrWorkout[]> {
     try {
       console.log(`🚀 Nuclear workout fetch for ${pubkey.substring(0, 8)}...`);
-      
+
       // Use NDK nuclear approach like WorkoutMergeService
       const { nip19 } = await import('nostr-tools');
       const NDK = await import('@nostr-dev-kit/ndk');
-      
+
       let hexPubkey = pubkey;
       if (pubkey.startsWith('npub1')) {
         const decoded = nip19.decode(pubkey);
@@ -270,11 +318,11 @@ export class SimpleCompetitionEngine {
         authors: [hexPubkey],
         since: Math.floor(dateRange.startDate.getTime() / 1000),
         until: Math.floor(dateRange.endDate.getTime() / 1000),
-        limit: 100
+        limit: 100,
       };
 
       const subscription = ndk.subscribe(filter, {
-        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY
+        cacheUsage: NDK.NDKSubscriptionCacheUsage?.ONLY_RELAY,
       });
 
       subscription.on('event', (event: any) => {
@@ -284,12 +332,12 @@ export class SimpleCompetitionEngine {
       });
 
       // Wait for events
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       subscription.stop();
 
       // Parse events into workouts
       const workouts: NostrWorkout[] = [];
-      
+
       for (const event of events) {
         try {
           const workout = this.parseWorkoutEvent(event, pubkey);
@@ -301,8 +349,10 @@ export class SimpleCompetitionEngine {
         }
       }
 
-      return workouts.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-
+      return workouts.sort(
+        (a, b) =>
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
     } catch (error) {
       console.error('❌ Nuclear workout fetch failed:', error);
       return [];
@@ -318,13 +368,13 @@ export class SimpleCompetitionEngine {
     let duration = 0;
     let distance = 0;
     let calories = 0;
-    
+
     // Extract data from tags
     for (const tag of tags) {
       if (tag[0] === 'exercise' && tag[1]) workoutType = tag[1];
       if (tag[0] === 'type' && tag[1]) workoutType = tag[1];
       if (tag[0] === 'activity' && tag[1]) workoutType = tag[1];
-      
+
       if (tag[0] === 'duration' && tag[1]) {
         const timeStr = tag[1];
         const parts = timeStr.split(':').map((p: string) => parseInt(p));
@@ -334,7 +384,7 @@ export class SimpleCompetitionEngine {
           duration = parts[0] * 60 + parts[1]; // M:S
         }
       }
-      
+
       if (tag[0] === 'distance' && tag[1]) distance = parseFloat(tag[1]) || 0;
       if (tag[0] === 'calories' && tag[1]) calories = parseInt(tag[1]) || 0;
     }
@@ -344,7 +394,9 @@ export class SimpleCompetitionEngine {
       userId: userId,
       type: workoutType as any,
       startTime: new Date(event.created_at * 1000).toISOString(),
-      endTime: new Date((event.created_at + Math.max(duration, 60)) * 1000).toISOString(),
+      endTime: new Date(
+        (event.created_at + Math.max(duration, 60)) * 1000
+      ).toISOString(),
       duration: duration,
       distance: distance,
       calories: calories,
@@ -352,23 +404,26 @@ export class SimpleCompetitionEngine {
       nostrEventId: event.id,
       nostrPubkey: event.pubkey,
       sourceApp: 'simple_competition_engine',
-      tags: event.tags || []
+      tags: event.tags || [],
     };
   }
 
   /**
    * Check if workout matches activity type
    */
-  private matchesActivityType(workout: NostrWorkout, activityType: string): boolean {
+  private matchesActivityType(
+    workout: NostrWorkout,
+    activityType: string
+  ): boolean {
     const type = activityType.toLowerCase();
     const workoutType = workout.type.toLowerCase();
-    
+
     if (type.includes('any') || type.includes('all')) return true;
     if (type.includes('run') && workoutType.includes('run')) return true;
     if (type.includes('walk') && workoutType.includes('walk')) return true;
     if (type.includes('cycl') && workoutType.includes('cycl')) return true;
     if (type.includes('bike') && workoutType.includes('bike')) return true;
-    
+
     return workoutType.includes(type) || type.includes(workoutType);
   }
 
@@ -382,7 +437,11 @@ export class SimpleCompetitionEngine {
     const participants: SimpleParticipant[] = [];
 
     memberWorkouts.forEach((workouts, pubkey) => {
-      const participant = this.calculateParticipantScore(pubkey, workouts, scoringRules);
+      const participant = this.calculateParticipantScore(
+        pubkey,
+        workouts,
+        scoringRules
+      );
       participants.push(participant);
     });
 
@@ -412,16 +471,17 @@ export class SimpleCompetitionEngine {
     const paces: number[] = [];
 
     // Aggregate workout data
-    workouts.forEach(workout => {
+    workouts.forEach((workout) => {
       if (workout.distance) totalDistance += workout.distance;
       if (workout.duration) totalDuration += workout.duration;
       if (workout.calories) totalCalories += workout.calories;
-      
+
       // Calculate pace for running/walking workouts (min/km)
       if (workout.distance && workout.duration && workout.distance > 0) {
         const paceSecondsPerKm = workout.duration / (workout.distance / 1000);
         const paceMinPerKm = paceSecondsPerKm / 60;
-        if (paceMinPerKm > 0 && paceMinPerKm < 30) { // Sanity check
+        if (paceMinPerKm > 0 && paceMinPerKm < 30) {
+          // Sanity check
           paces.push(paceMinPerKm);
         }
       }
@@ -432,30 +492,36 @@ export class SimpleCompetitionEngine {
       case 'distance':
         score = totalDistance; // Total distance in meters
         break;
-      
+
       case 'speed':
         if (paces.length > 0) {
-          const averagePace = paces.reduce((sum, pace) => sum + pace, 0) / paces.length;
+          const averagePace =
+            paces.reduce((sum, pace) => sum + pace, 0) / paces.length;
           score = 1000 / averagePace; // Inverse of pace (faster = higher score)
         }
         break;
-      
+
       case 'duration':
         score = totalDuration; // Total active time in seconds
         break;
-      
+
       case 'consistency':
         score = workouts.length; // Number of workouts
         break;
-      
+
       default:
         score = totalDistance; // Default to distance
     }
 
-    const averagePace = paces.length > 0 ? paces.reduce((sum, pace) => sum + pace, 0) / paces.length : 0;
+    const averagePace =
+      paces.length > 0
+        ? paces.reduce((sum, pace) => sum + pace, 0) / paces.length
+        : 0;
     const bestPace = paces.length > 0 ? Math.min(...paces) : 0;
-    const lastActivity = workouts.length > 0 ? 
-      Math.max(...workouts.map(w => new Date(w.startTime).getTime())) : 0;
+    const lastActivity =
+      workouts.length > 0
+        ? Math.max(...workouts.map((w) => new Date(w.startTime).getTime()))
+        : 0;
 
     return {
       pubkey,
@@ -465,7 +531,8 @@ export class SimpleCompetitionEngine {
       totalDistance: Math.round(totalDistance),
       totalDuration: Math.round(totalDuration),
       workoutCount: workouts.length,
-      averagePace: averagePace > 0 ? Math.round(averagePace * 100) / 100 : undefined,
+      averagePace:
+        averagePace > 0 ? Math.round(averagePace * 100) / 100 : undefined,
       bestPace: bestPace > 0 ? Math.round(bestPace * 100) / 100 : undefined,
       totalCalories: Math.round(totalCalories),
       lastActivity: lastActivity || undefined,
@@ -491,7 +558,8 @@ export class SimpleCompetitionEngine {
 
       // Find current user in the leaderboard
       const currentUserEntry = leaderboard.participants.find(
-        p => p.pubkey === currentUserPubkey || p.pubkey.includes(currentUserPubkey)
+        (p) =>
+          p.pubkey === currentUserPubkey || p.pubkey.includes(currentUserPubkey)
       );
 
       if (!currentUserEntry) {
@@ -504,7 +572,9 @@ export class SimpleCompetitionEngine {
       const totalParticipants = leaderboard.participants.length;
 
       // Get previous position from cache
-      const previousPosition = await NotificationCache.getLastPosition(competition.id);
+      const previousPosition = await NotificationCache.getLastPosition(
+        competition.id
+      );
 
       // Update position in cache
       await NotificationCache.updatePosition(
@@ -524,7 +594,9 @@ export class SimpleCompetitionEngine {
           totalParticipants
         );
 
-        console.log(`📱 Notified position change: #${previousPosition} → #${currentPosition} in ${competitionName}`);
+        console.log(
+          `📱 Notified position change: #${previousPosition} → #${currentPosition} in ${competitionName}`
+        );
       }
     } catch (error) {
       console.error('Failed to check position changes:', error);
@@ -535,33 +607,70 @@ export class SimpleCompetitionEngine {
   /**
    * Helper methods
    */
-  private getCompetitionDateRange(competition: NostrLeagueDefinition | NostrEventDefinition): DateRange {
+  private getCompetitionDateRange(
+    competition: NostrLeagueDefinition | NostrEventDefinition
+  ): DateRange {
     if (this.isLeague(competition)) {
       return {
         startDate: new Date(competition.startDate),
-        endDate: new Date(competition.endDate)
+        endDate: new Date(competition.endDate),
       };
     } else {
       const eventDate = new Date(competition.eventDate);
       return {
-        startDate: new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), 0, 0, 0),
-        endDate: new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), 23, 59, 59)
+        startDate: new Date(
+          eventDate.getFullYear(),
+          eventDate.getMonth(),
+          eventDate.getDate(),
+          0,
+          0,
+          0
+        ),
+        endDate: new Date(
+          eventDate.getFullYear(),
+          eventDate.getMonth(),
+          eventDate.getDate(),
+          23,
+          59,
+          59
+        ),
       };
     }
   }
 
-  private getGoalTypeFromCompetition(competition: NostrLeagueDefinition | NostrEventDefinition): 'distance' | 'speed' | 'duration' | 'consistency' {
+  private getGoalTypeFromCompetition(
+    competition: NostrLeagueDefinition | NostrEventDefinition
+  ): 'distance' | 'speed' | 'duration' | 'consistency' {
     const competitionType = competition.competitionType.toLowerCase();
-    
-    if (competitionType.includes('distance') || competitionType.includes('total')) return 'distance';
-    if (competitionType.includes('speed') || competitionType.includes('pace') || competitionType.includes('fast')) return 'speed';
-    if (competitionType.includes('duration') || competitionType.includes('time')) return 'duration';
-    if (competitionType.includes('consistency') || competitionType.includes('frequency')) return 'consistency';
-    
+
+    if (
+      competitionType.includes('distance') ||
+      competitionType.includes('total')
+    )
+      return 'distance';
+    if (
+      competitionType.includes('speed') ||
+      competitionType.includes('pace') ||
+      competitionType.includes('fast')
+    )
+      return 'speed';
+    if (
+      competitionType.includes('duration') ||
+      competitionType.includes('time')
+    )
+      return 'duration';
+    if (
+      competitionType.includes('consistency') ||
+      competitionType.includes('frequency')
+    )
+      return 'consistency';
+
     return 'distance'; // Default
   }
 
-  private isLeague(competition: NostrLeagueDefinition | NostrEventDefinition): competition is NostrLeagueDefinition {
+  private isLeague(
+    competition: NostrLeagueDefinition | NostrEventDefinition
+  ): competition is NostrLeagueDefinition {
     return 'duration' in competition;
   }
 
@@ -585,7 +694,7 @@ export class SimpleCompetitionEngine {
     reason: string
   ): SimpleLeaderboard {
     console.log(`📋 Creating empty leaderboard: ${reason}`);
-    
+
     return {
       competitionId: competition.id || 'unknown',
       type: this.isLeague(competition as any) ? 'league' : 'event',
@@ -603,7 +712,9 @@ export class SimpleCompetitionEngine {
   /**
    * Cache management
    */
-  private getCachedLeaderboard(competitionId: string): SimpleLeaderboard | null {
+  private getCachedLeaderboard(
+    competitionId: string
+  ): SimpleLeaderboard | null {
     const cached = this.cache.get(competitionId);
     if (!cached) return null;
 
@@ -617,7 +728,10 @@ export class SimpleCompetitionEngine {
     return cached;
   }
 
-  private cacheLeaderboard(competitionId: string, leaderboard: SimpleLeaderboard): void {
+  private cacheLeaderboard(
+    competitionId: string,
+    leaderboard: SimpleLeaderboard
+  ): void {
     this.cache.set(competitionId, leaderboard);
   }
 

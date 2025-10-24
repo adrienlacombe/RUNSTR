@@ -1,6 +1,6 @@
 /**
  * WorkoutAnalyticsService - Performance Calculations & Analytics
- * 
+ *
  * Analyzes workout data to calculate meaningful performance metrics:
  * - Best times for standard distances (5K, 10K, half marathon, marathon)
  * - Current and longest workout streaks
@@ -122,9 +122,13 @@ export class WorkoutAnalyticsService {
   /**
    * Main analytics calculation - processes all workout data
    */
-  async calculatePerformanceAnalytics(workouts: UnifiedWorkout[]): Promise<PerformanceAnalytics> {
+  async calculatePerformanceAnalytics(
+    workouts: UnifiedWorkout[]
+  ): Promise<PerformanceAnalytics> {
     const startTime = Date.now();
-    console.log(`📊 WorkoutAnalyticsService: Analyzing ${workouts.length} workouts...`);
+    console.log(
+      `📊 WorkoutAnalyticsService: Analyzing ${workouts.length} workouts...`
+    );
 
     if (workouts.length === 0) {
       return this.getEmptyAnalytics();
@@ -132,7 +136,8 @@ export class WorkoutAnalyticsService {
 
     // Sort workouts by date (newest first) for consistent processing
     const sortedWorkouts = [...workouts].sort(
-      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
 
     // Calculate all analytics components in parallel
@@ -146,7 +151,7 @@ export class WorkoutAnalyticsService {
       recentPRs,
       milestones,
       effortStats,
-      dataDateRange
+      dataDateRange,
     ] = await Promise.all([
       this.calculatePersonalRecords(sortedWorkouts),
       this.calculateStreaks(sortedWorkouts),
@@ -157,7 +162,7 @@ export class WorkoutAnalyticsService {
       this.findRecentPRs(sortedWorkouts, 90), // Last 90 days
       this.calculateMilestones(sortedWorkouts),
       this.calculateEffortStats(sortedWorkouts),
-      this.getDataDateRange(sortedWorkouts)
+      this.getDataDateRange(sortedWorkouts),
     ]);
 
     const analytics: PerformanceAnalytics = {
@@ -172,11 +177,13 @@ export class WorkoutAnalyticsService {
       effortStats,
       totalWorkoutsAnalyzed: sortedWorkouts.length,
       dataDateRange,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Analytics calculated in ${duration}ms: ${personalRecords.length} PRs, ${streak.current} day streak`);
+    console.log(
+      `✅ Analytics calculated in ${duration}ms: ${personalRecords.length} PRs, ${streak.current} day streak`
+    );
 
     return analytics;
   }
@@ -184,20 +191,25 @@ export class WorkoutAnalyticsService {
   /**
    * Calculate personal records for standard distances
    */
-  private async calculatePersonalRecords(workouts: UnifiedWorkout[]): Promise<PersonalRecord[]> {
+  private async calculatePersonalRecords(
+    workouts: UnifiedWorkout[]
+  ): Promise<PersonalRecord[]> {
     const records: PersonalRecord[] = [];
 
     // Only process running workouts with distance
-    const runningWorkouts = workouts.filter(w => 
-      (w.type === 'running' || w.type === 'walking') && 
-      w.distance && w.distance > 0 && w.duration > 0
+    const runningWorkouts = workouts.filter(
+      (w) =>
+        (w.type === 'running' || w.type === 'walking') &&
+        w.distance &&
+        w.distance > 0 &&
+        w.duration > 0
     );
 
     for (const targetDistance of STANDARD_DISTANCES) {
       // Find workouts within 5% of target distance (to account for GPS variations)
       const tolerance = targetDistance.meters * 0.05;
-      const candidateWorkouts = runningWorkouts.filter(w => 
-        Math.abs(w.distance! - targetDistance.meters) <= tolerance
+      const candidateWorkouts = runningWorkouts.filter(
+        (w) => Math.abs(w.distance! - targetDistance.meters) <= tolerance
       );
 
       if (candidateWorkouts.length === 0) continue;
@@ -218,7 +230,7 @@ export class WorkoutAnalyticsService {
         date: bestWorkout.startTime.split('T')[0], // Extract date
         pace,
         paceDisplay: this.formatPace(pace),
-        workout: bestWorkout
+        workout: bestWorkout,
       };
 
       records.push(record);
@@ -230,18 +242,20 @@ export class WorkoutAnalyticsService {
   /**
    * Calculate current and longest workout streaks
    */
-  private async calculateStreaks(workouts: UnifiedWorkout[]): Promise<WorkoutStreak> {
+  private async calculateStreaks(
+    workouts: UnifiedWorkout[]
+  ): Promise<WorkoutStreak> {
     if (workouts.length === 0) {
       return { current: 0, longest: 0 };
     }
 
     // Get unique workout dates (in local timezone)
     const workoutDates = new Set(
-      workouts.map(w => new Date(w.startTime).toLocaleDateString())
+      workouts.map((w) => new Date(w.startTime).toLocaleDateString())
     );
 
     const sortedDates = Array.from(workoutDates).sort();
-    
+
     let currentStreak = 0;
     let longestStreak = 0;
     let longestPeriod: { start: string; end: string } | undefined;
@@ -250,7 +264,7 @@ export class WorkoutAnalyticsService {
     // Calculate current streak (working backwards from today)
     const today = new Date().toLocaleDateString();
     let checkDate = new Date();
-    
+
     while (workoutDates.has(checkDate.toLocaleDateString())) {
       currentStreak++;
       checkDate.setDate(checkDate.getDate() - 1);
@@ -259,12 +273,14 @@ export class WorkoutAnalyticsService {
     // Calculate longest streak
     let tempStreak = 1;
     let tempStart = sortedDates[0];
-    
+
     for (let i = 1; i < sortedDates.length; i++) {
       const prevDate = new Date(sortedDates[i - 1]);
       const currDate = new Date(sortedDates[i]);
-      const daysDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const daysDiff = Math.floor(
+        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
       if (daysDiff === 1) {
         // Consecutive days
         tempStreak++;
@@ -274,41 +290,45 @@ export class WorkoutAnalyticsService {
           longestStreak = tempStreak;
           longestPeriod = {
             start: tempStart,
-            end: sortedDates[i - 1]
+            end: sortedDates[i - 1],
           };
         }
         tempStreak = 1;
         tempStart = sortedDates[i];
       }
     }
-    
+
     // Check final streak
     if (tempStreak > longestStreak) {
       longestStreak = tempStreak;
       longestPeriod = {
         start: tempStart,
-        end: sortedDates[sortedDates.length - 1]
+        end: sortedDates[sortedDates.length - 1],
       };
     }
 
     return {
       current: currentStreak,
       longest: longestStreak,
-      longestPeriod
+      longestPeriod,
     };
   }
 
   /**
    * Calculate volume statistics for specified period
    */
-  private async calculateVolumeStats(workouts: UnifiedWorkout[], period: 'thisYear' | 'thisMonth'): Promise<VolumeStats> {
+  private async calculateVolumeStats(
+    workouts: UnifiedWorkout[],
+    period: 'thisYear' | 'thisMonth'
+  ): Promise<VolumeStats> {
     const now = new Date();
-    const startDate = period === 'thisYear' 
-      ? new Date(now.getFullYear(), 0, 1) // Start of this year
-      : new Date(now.getFullYear(), now.getMonth(), 1); // Start of this month
+    const startDate =
+      period === 'thisYear'
+        ? new Date(now.getFullYear(), 0, 1) // Start of this year
+        : new Date(now.getFullYear(), now.getMonth(), 1); // Start of this month
 
-    const periodWorkouts = workouts.filter(w => 
-      new Date(w.startTime) >= startDate
+    const periodWorkouts = workouts.filter(
+      (w) => new Date(w.startTime) >= startDate
     );
 
     if (periodWorkouts.length === 0) {
@@ -318,15 +338,20 @@ export class WorkoutAnalyticsService {
         totalWorkouts: 0,
         averageDistance: 0,
         averageDuration: 0,
-        workoutsPerWeek: 0
+        workoutsPerWeek: 0,
       };
     }
 
-    const totalDistance = periodWorkouts.reduce((sum, w) => sum + (w.distance || 0), 0);
+    const totalDistance = periodWorkouts.reduce(
+      (sum, w) => sum + (w.distance || 0),
+      0
+    );
     const totalTime = periodWorkouts.reduce((sum, w) => sum + w.duration, 0);
-    
+
     // Calculate time period for rate calculations
-    const daysSinceStart = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysSinceStart = Math.floor(
+      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
     const weeksInPeriod = Math.max(1, daysSinceStart / 7);
 
     return {
@@ -335,41 +360,60 @@ export class WorkoutAnalyticsService {
       totalWorkouts: periodWorkouts.length,
       averageDistance: totalDistance / periodWorkouts.length,
       averageDuration: totalTime / periodWorkouts.length,
-      workoutsPerWeek: periodWorkouts.length / weeksInPeriod
+      workoutsPerWeek: periodWorkouts.length / weeksInPeriod,
     };
   }
 
   /**
    * Calculate year-over-year comparison
    */
-  private async calculateYearComparison(workouts: UnifiedWorkout[]): Promise<YearComparison> {
+  private async calculateYearComparison(
+    workouts: UnifiedWorkout[]
+  ): Promise<YearComparison> {
     const thisYear = await this.calculateVolumeStats(workouts, 'thisYear');
-    
+
     // Calculate last year stats
     const now = new Date();
     const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
     const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
-    
-    const lastYearWorkouts = workouts.filter(w => {
+
+    const lastYearWorkouts = workouts.filter((w) => {
       const workoutDate = new Date(w.startTime);
       return workoutDate >= lastYearStart && workoutDate <= lastYearEnd;
     });
-    
-    const lastYear = await this.calculateVolumeStatsFromWorkouts(lastYearWorkouts);
-    
+
+    const lastYear = await this.calculateVolumeStatsFromWorkouts(
+      lastYearWorkouts
+    );
+
     // Calculate improvements (percentage change)
-    const distanceImprovement = lastYear.totalDistance > 0 
-      ? ((thisYear.totalDistance - lastYear.totalDistance) / lastYear.totalDistance) * 100 
-      : 0;
-    
-    const workoutsImprovement = lastYear.totalWorkouts > 0
-      ? ((thisYear.totalWorkouts - lastYear.totalWorkouts) / lastYear.totalWorkouts) * 100
-      : 0;
-    
+    const distanceImprovement =
+      lastYear.totalDistance > 0
+        ? ((thisYear.totalDistance - lastYear.totalDistance) /
+            lastYear.totalDistance) *
+          100
+        : 0;
+
+    const workoutsImprovement =
+      lastYear.totalWorkouts > 0
+        ? ((thisYear.totalWorkouts - lastYear.totalWorkouts) /
+            lastYear.totalWorkouts) *
+          100
+        : 0;
+
     // Calculate average pace improvement (negative means faster)
-    const thisYearPace = thisYear.totalDistance > 0 ? thisYear.totalTime / (thisYear.totalDistance / 1000) : 0;
-    const lastYearPace = lastYear.totalDistance > 0 ? lastYear.totalTime / (lastYear.totalDistance / 1000) : 0;
-    const paceImprovement = lastYearPace > 0 ? ((thisYearPace - lastYearPace) / lastYearPace) * 100 : 0;
+    const thisYearPace =
+      thisYear.totalDistance > 0
+        ? thisYear.totalTime / (thisYear.totalDistance / 1000)
+        : 0;
+    const lastYearPace =
+      lastYear.totalDistance > 0
+        ? lastYear.totalTime / (lastYear.totalDistance / 1000)
+        : 0;
+    const paceImprovement =
+      lastYearPace > 0
+        ? ((thisYearPace - lastYearPace) / lastYearPace) * 100
+        : 0;
 
     return {
       thisYear,
@@ -377,15 +421,17 @@ export class WorkoutAnalyticsService {
       improvement: {
         distance: distanceImprovement,
         workouts: workoutsImprovement,
-        avgPace: paceImprovement
-      }
+        avgPace: paceImprovement,
+      },
     };
   }
 
   /**
    * Helper to calculate volume stats from workout array
    */
-  private async calculateVolumeStatsFromWorkouts(workouts: UnifiedWorkout[]): Promise<VolumeStats> {
+  private async calculateVolumeStatsFromWorkouts(
+    workouts: UnifiedWorkout[]
+  ): Promise<VolumeStats> {
     if (workouts.length === 0) {
       return {
         totalDistance: 0,
@@ -393,20 +439,23 @@ export class WorkoutAnalyticsService {
         totalWorkouts: 0,
         averageDistance: 0,
         averageDuration: 0,
-        workoutsPerWeek: 0
+        workoutsPerWeek: 0,
       };
     }
 
-    const totalDistance = workouts.reduce((sum, w) => sum + (w.distance || 0), 0);
+    const totalDistance = workouts.reduce(
+      (sum, w) => sum + (w.distance || 0),
+      0
+    );
     const totalTime = workouts.reduce((sum, w) => sum + w.duration, 0);
-    
+
     return {
       totalDistance,
       totalTime,
       totalWorkouts: workouts.length,
       averageDistance: totalDistance / workouts.length,
       averageDuration: totalTime / workouts.length,
-      workoutsPerWeek: workouts.length / 52 // Approximate for year data
+      workoutsPerWeek: workouts.length / 52, // Approximate for year data
     };
   }
 
@@ -414,28 +463,36 @@ export class WorkoutAnalyticsService {
    * Calculate activity type breakdown
    */
   private async calculateActivityBreakdown(workouts: UnifiedWorkout[]) {
-    const breakdown = new Map<WorkoutType, {
-      count: number;
-      totalDistance: number;
-      totalTime: number;
-      totalPaceTime: number; // For pace calculation
-    }>();
+    const breakdown = new Map<
+      WorkoutType,
+      {
+        count: number;
+        totalDistance: number;
+        totalTime: number;
+        totalPaceTime: number; // For pace calculation
+      }
+    >();
 
-    workouts.forEach(workout => {
+    workouts.forEach((workout) => {
       const current = breakdown.get(workout.type) || {
         count: 0,
         totalDistance: 0,
         totalTime: 0,
-        totalPaceTime: 0
+        totalPaceTime: 0,
       };
 
       current.count++;
       current.totalDistance += workout.distance || 0;
       current.totalTime += workout.duration;
-      
+
       // Only add to pace calculation if it's a distance-based activity
-      if (workout.distance && workout.distance > 0 && 
-          (workout.type === 'running' || workout.type === 'walking' || workout.type === 'cycling')) {
+      if (
+        workout.distance &&
+        workout.distance > 0 &&
+        (workout.type === 'running' ||
+          workout.type === 'walking' ||
+          workout.type === 'cycling')
+      ) {
         current.totalPaceTime += workout.duration;
       }
 
@@ -443,31 +500,39 @@ export class WorkoutAnalyticsService {
     });
 
     const total = workouts.length;
-    return Array.from(breakdown.entries()).map(([type, stats]) => ({
-      type,
-      count: stats.count,
-      percentage: (stats.count / total) * 100,
-      totalDistance: stats.totalDistance,
-      totalTime: stats.totalTime,
-      avgPace: stats.totalDistance > 0 ? stats.totalPaceTime / (stats.totalDistance / 1000) : undefined
-    })).sort((a, b) => b.count - a.count);
+    return Array.from(breakdown.entries())
+      .map(([type, stats]) => ({
+        type,
+        count: stats.count,
+        percentage: (stats.count / total) * 100,
+        totalDistance: stats.totalDistance,
+        totalTime: stats.totalTime,
+        avgPace:
+          stats.totalDistance > 0
+            ? stats.totalPaceTime / (stats.totalDistance / 1000)
+            : undefined,
+      }))
+      .sort((a, b) => b.count - a.count);
   }
 
   /**
    * Find recent personal records
    */
-  private async findRecentPRs(workouts: UnifiedWorkout[], daysBack: number): Promise<PersonalRecord[]> {
+  private async findRecentPRs(
+    workouts: UnifiedWorkout[],
+    daysBack: number
+  ): Promise<PersonalRecord[]> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
 
-    const recentWorkouts = workouts.filter(w =>
-      new Date(w.startTime) >= cutoffDate
+    const recentWorkouts = workouts.filter(
+      (w) => new Date(w.startTime) >= cutoffDate
     );
 
     // For now, return a subset of all PRs that were achieved recently
     // In a full implementation, this would track historical bests vs recent achievements
     const allPRs = await this.calculatePersonalRecords(workouts);
-    return allPRs.filter(pr => new Date(pr.date) >= cutoffDate).slice(0, 3);
+    return allPRs.filter((pr) => new Date(pr.date) >= cutoffDate).slice(0, 3);
   }
 
   /**
@@ -475,7 +540,9 @@ export class WorkoutAnalyticsService {
    */
   private async calculateEffortStats(workouts: UnifiedWorkout[]) {
     // Import activityMetricsService to calculate effort scores
-    const { activityMetricsService } = await import('../activity/ActivityMetricsService');
+    const { activityMetricsService } = await import(
+      '../activity/ActivityMetricsService'
+    );
 
     if (workouts.length === 0) {
       return {
@@ -488,8 +555,8 @@ export class WorkoutAnalyticsService {
 
     // Calculate effort scores for all workouts
     const effortScores = workouts
-      .filter(w => w.distance && w.distance > 0 && w.duration > 0)
-      .map(w => {
+      .filter((w) => w.distance && w.distance > 0 && w.duration > 0)
+      .map((w) => {
         const activityType = ['running', 'walking', 'cycling'].includes(w.type)
           ? (w.type as 'running' | 'walking' | 'cycling')
           : 'running';
@@ -520,18 +587,22 @@ export class WorkoutAnalyticsService {
     );
 
     // Highest effort
-    const highestEffort = Math.max(...effortScores.map(e => e.score));
+    const highestEffort = Math.max(...effortScores.map((e) => e.score));
 
     // This month average
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonthScores = effortScores.filter(e => e.date >= monthStart);
-    const thisMonthAverage = thisMonthScores.length > 0
-      ? Math.round(thisMonthScores.reduce((sum, e) => sum + e.score, 0) / thisMonthScores.length)
-      : 0;
+    const thisMonthScores = effortScores.filter((e) => e.date >= monthStart);
+    const thisMonthAverage =
+      thisMonthScores.length > 0
+        ? Math.round(
+            thisMonthScores.reduce((sum, e) => sum + e.score, 0) /
+              thisMonthScores.length
+          )
+        : 0;
 
     // Hard workouts count (effort >= 60)
-    const hardWorkouts = effortScores.filter(e => e.score >= 60).length;
+    const hardWorkouts = effortScores.filter((e) => e.score >= 60).length;
 
     return {
       averageEffort,
@@ -553,15 +624,18 @@ export class WorkoutAnalyticsService {
     }> = [];
 
     // Total distance milestones
-    const totalDistance = workouts.reduce((sum, w) => sum + (w.distance || 0), 0);
+    const totalDistance = workouts.reduce(
+      (sum, w) => sum + (w.distance || 0),
+      0
+    );
     const distanceKm = Math.floor(totalDistance / 1000);
-    
+
     if (distanceKm >= 1000) {
       milestones.push({
         type: 'distance',
         value: distanceKm,
         description: `${distanceKm.toLocaleString()}km total distance`,
-        achievedDate: new Date().toISOString().split('T')[0]
+        achievedDate: new Date().toISOString().split('T')[0],
       });
     }
 
@@ -571,7 +645,7 @@ export class WorkoutAnalyticsService {
         type: 'workouts',
         value: workouts.length,
         description: `${workouts.length} workouts completed`,
-        achievedDate: new Date().toISOString().split('T')[0]
+        achievedDate: new Date().toISOString().split('T')[0],
       });
     }
 
@@ -587,10 +661,10 @@ export class WorkoutAnalyticsService {
       return { earliest: today, latest: today };
     }
 
-    const dates = workouts.map(w => w.startTime.split('T')[0]).sort();
+    const dates = workouts.map((w) => w.startTime.split('T')[0]).sort();
     return {
       earliest: dates[0],
-      latest: dates[dates.length - 1]
+      latest: dates[dates.length - 1],
     };
   }
 
@@ -599,7 +673,7 @@ export class WorkoutAnalyticsService {
    */
   private getEmptyAnalytics(): PerformanceAnalytics {
     const today = new Date().toISOString().split('T')[0];
-    
+
     return {
       personalRecords: [],
       streak: { current: 0, longest: 0 },
@@ -609,7 +683,7 @@ export class WorkoutAnalyticsService {
         totalWorkouts: 0,
         averageDistance: 0,
         averageDuration: 0,
-        workoutsPerWeek: 0
+        workoutsPerWeek: 0,
       },
       thisMonth: {
         totalDistance: 0,
@@ -617,7 +691,7 @@ export class WorkoutAnalyticsService {
         totalWorkouts: 0,
         averageDistance: 0,
         averageDuration: 0,
-        workoutsPerWeek: 0
+        workoutsPerWeek: 0,
       },
       yearComparison: {
         thisYear: {
@@ -626,7 +700,7 @@ export class WorkoutAnalyticsService {
           totalWorkouts: 0,
           averageDistance: 0,
           averageDuration: 0,
-          workoutsPerWeek: 0
+          workoutsPerWeek: 0,
         },
         lastYear: {
           totalDistance: 0,
@@ -634,9 +708,9 @@ export class WorkoutAnalyticsService {
           totalWorkouts: 0,
           averageDistance: 0,
           averageDuration: 0,
-          workoutsPerWeek: 0
+          workoutsPerWeek: 0,
         },
-        improvement: { distance: 0, workouts: 0, avgPace: 0 }
+        improvement: { distance: 0, workouts: 0, avgPace: 0 },
       },
       activityBreakdown: [],
       recentPRs: [],
@@ -649,7 +723,7 @@ export class WorkoutAnalyticsService {
       },
       totalWorkoutsAnalyzed: 0,
       dataDateRange: { earliest: today, latest: today },
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
   }
 
@@ -660,9 +734,11 @@ export class WorkoutAnalyticsService {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds
+        .toString()
+        .padStart(2, '0')}`;
     } else {
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }

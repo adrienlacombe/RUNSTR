@@ -18,7 +18,10 @@ import { theme } from '../../styles/theme';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import EventEligibilityService from '../../services/competition/eventEligibilityService';
-import type { EligibleEvent, EventAutoEntryResult } from '../../services/competition/eventEligibilityService';
+import type {
+  EligibleEvent,
+  EventAutoEntryResult,
+} from '../../services/competition/eventEligibilityService';
 import type { NostrWorkout } from '../../types/nostrWorkout';
 import { CustomAlert } from '../ui/CustomAlert';
 
@@ -44,14 +47,20 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
   const [suggestedEvents, setSuggestedEvents] = useState<EligibleEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EligibleEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EligibleEvent | null>(
+    null
+  );
   const fadeAnim = new Animated.Value(0);
 
   const [alertState, setAlertState] = useState<{
     visible: boolean;
     title: string;
     message: string;
-    buttons?: Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>;
+    buttons?: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
   }>({
     visible: false,
     title: '',
@@ -80,7 +89,10 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
     setIsLoading(true);
     try {
       console.log(`🔍 Loading event suggestions for workout: ${workout.type}`);
-      const events = await EventEligibilityService.getSuggestedEvents(workout, userTeams);
+      const events = await EventEligibilityService.getSuggestedEvents(
+        workout,
+        userTeams
+      );
       setSuggestedEvents(events);
       console.log(`💡 Found ${events.length} suggested events`);
     } catch (error) {
@@ -124,7 +136,13 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
           message: result.requiresApproval
             ? `Your entry to "${event.eventName}" is pending captain approval.`
             : `You're now competing in "${event.eventName}"!`,
-          buttons: [{ text: 'Great!', onPress: () => onEntryComplete(result), style: 'default' }],
+          buttons: [
+            {
+              text: 'Great!',
+              onPress: () => onEntryComplete(result),
+              style: 'default',
+            },
+          ],
         });
       } else {
         setAlertState({
@@ -133,7 +151,6 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
           message: result.message,
         });
       }
-
     } catch (error) {
       console.error('❌ Event entry failed:', error);
       setAlertState({
@@ -155,16 +172,20 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
 
   const formatWorkoutSummary = (workout: NostrWorkout): string => {
     const parts = [workout.type];
-    if (workout.distance) parts.push(`${(workout.distance / 1000).toFixed(1)}km`);
+    if (workout.distance)
+      parts.push(`${(workout.distance / 1000).toFixed(1)}km`);
     if (workout.duration) parts.push(`${workout.duration}min`);
     if (workout.calories) parts.push(`${workout.calories}cal`);
     return parts.join(' • ');
   };
 
   const getEligibilityBadge = (score: number) => {
-    if (score >= 90) return { text: 'Perfect Match', color: theme.colors.orangeBright }; // Bright orange
-    if (score >= 70) return { text: 'Great Match', color: theme.colors.orangeDeep }; // Deep orange
-    if (score >= 50) return { text: 'Good Match', color: theme.colors.orangeBurnt }; // Burnt orange
+    if (score >= 90)
+      return { text: 'Perfect Match', color: theme.colors.orangeBright }; // Bright orange
+    if (score >= 70)
+      return { text: 'Great Match', color: theme.colors.orangeDeep }; // Deep orange
+    if (score >= 50)
+      return { text: 'Good Match', color: theme.colors.orangeBurnt }; // Burnt orange
     return { text: 'Possible Match', color: theme.colors.textMuted };
   };
 
@@ -190,13 +211,23 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
             <Text style={styles.eventCardTitle} numberOfLines={1}>
               {event.eventName}
             </Text>
-            <View style={[styles.eligibilityBadge, { backgroundColor: eligibilityBadge.color + '20' }]}>
-              <Text style={[styles.eligibilityBadgeText, { color: eligibilityBadge.color }]}>
+            <View
+              style={[
+                styles.eligibilityBadge,
+                { backgroundColor: eligibilityBadge.color + '20' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.eligibilityBadgeText,
+                  { color: eligibilityBadge.color },
+                ]}
+              >
                 {eligibilityBadge.text}
               </Text>
             </View>
           </View>
-          
+
           <Text style={styles.eventCardActivity}>
             {event.activityType} • {event.competitionType}
           </Text>
@@ -204,15 +235,13 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
 
         <View style={styles.eventCardDetails}>
           <Text style={styles.eventCardReason}>{event.matchReason}</Text>
-          
+
           <View style={styles.eventCardMeta}>
             <Text style={styles.eventCardMetaText}>
               Ends {new Date(event.endDate).toLocaleDateString()}
             </Text>
             {event.entryFeeSats && event.entryFeeSats > 0 && (
-              <Text style={styles.eventCardFee}>
-                {event.entryFeeSats} sats
-              </Text>
+              <Text style={styles.eventCardFee}>{event.entryFeeSats} sats</Text>
             )}
           </View>
         </View>
@@ -225,7 +254,7 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
             disabled={isEntering}
             style={styles.quickEntryButton}
           />
-          
+
           {event.requiresApproval && (
             <Text style={styles.approvalNote}>Requires captain approval</Text>
           )}
@@ -261,7 +290,6 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
       <View style={styles.modalOverlay}>
         <Animated.View style={[styles.modalContainer, { opacity: fadeAnim }]}>
           <View style={styles.modalContent}>
-            
             {/* Header */}
             <View style={styles.modalHeader}>
               <View style={styles.headerTitleRow}>
@@ -274,7 +302,7 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
                   <Text style={styles.closeButtonText}>✕</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <Text style={styles.workoutSummary}>
                 {formatWorkoutSummary(workout)}
               </Text>
@@ -287,12 +315,15 @@ export const AutoEntryPrompt: React.FC<AutoEntryPromptProps> = ({
             >
               {isLoading ? (
                 <View style={styles.loadingState}>
-                  <Text style={styles.loadingText}>Finding eligible events...</Text>
+                  <Text style={styles.loadingText}>
+                    Finding eligible events...
+                  </Text>
                 </View>
               ) : suggestedEvents.length > 0 ? (
                 <View style={styles.eventsContainer}>
                   <Text style={styles.suggestionsHeader}>
-                    Found {suggestedEvents.length} eligible event{suggestedEvents.length !== 1 ? 's' : ''}
+                    Found {suggestedEvents.length} eligible event
+                    {suggestedEvents.length !== 1 ? 's' : ''}
                   </Text>
                   {suggestedEvents.map(renderEventCard)}
                 </View>

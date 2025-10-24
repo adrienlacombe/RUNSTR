@@ -1,9 +1,9 @@
 /**
  * OptimizedWebSocketManager - Mobile-Optimized WebSocket Pool Management
- * 
+ *
  * PROBLEM: React Native WebSocket buffer overflow causes 85% event loss
  * SOLUTION: Connection limiting, mobile timeouts, enhanced cleanup
- * 
+ *
  * Key Optimizations:
  * - Maximum 2 concurrent connections (prevents buffer overflow)
  * - Platform-specific timeouts (6-8s vs 10-12s)
@@ -14,7 +14,11 @@
 
 import { Platform } from 'react-native';
 import type { Event, Filter } from 'nostr-tools';
-import { NostrWebSocketConnection, type ConnectionConfig, type ConnectionState } from './NostrWebSocketConnection';
+import {
+  NostrWebSocketConnection,
+  type ConnectionConfig,
+  type ConnectionState,
+} from './NostrWebSocketConnection';
 
 // Mobile-optimized configuration
 const MOBILE_CONFIG = Platform.select({
@@ -38,7 +42,7 @@ const MOBILE_CONFIG = Platform.select({
     queryTimeout: 7000,
     bufferSize: 48 * 1024,
     backoffDelays: [150, 400, 800, 1800, 4000],
-  }
+  },
 });
 
 export interface OptimizedQueryResult {
@@ -80,12 +84,12 @@ interface QueuedQuery {
 
 export class OptimizedWebSocketManager {
   private static instance: OptimizedWebSocketManager;
-  
+
   // Connection pool management
   private connectionPool = new Map<string, PooledConnection>();
   private activeQueries = new Set<string>();
   private queryQueue: QueuedQuery[] = [];
-  
+
   // Metrics and monitoring
   private metrics: ConnectionPoolMetrics = {
     activeConnections: 0,
@@ -94,9 +98,9 @@ export class OptimizedWebSocketManager {
     avgResponseTime: 0,
     totalEventsReceived: 0,
     totalEventsDropped: 0,
-    lastCleanup: new Date()
+    lastCleanup: new Date(),
   };
-  
+
   // Cleanup and resource management
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private readonly CLEANUP_INTERVAL = 30000; // 30 seconds
@@ -117,16 +121,27 @@ export class OptimizedWebSocketManager {
   /**
    * MAIN QUERY METHOD: Optimized WebSocket Query with Connection Pooling
    */
-  async queryRelay(relay: string, filter: Filter): Promise<OptimizedQueryResult> {
+  async queryRelay(
+    relay: string,
+    filter: Filter
+  ): Promise<OptimizedQueryResult> {
     const startTime = Date.now();
-    const queryId = `${relay}_${startTime}_${Math.random().toString(36).substr(2, 6)}`;
+    const queryId = `${relay}_${startTime}_${Math.random()
+      .toString(36)
+      .substr(2, 6)}`;
 
-    console.log(`🚀 OptimizedWebSocketManager: Querying ${relay.replace('wss://', '')} (${this.connectionPool.size} pooled)`);
+    console.log(
+      `🚀 OptimizedWebSocketManager: Querying ${relay.replace('wss://', '')} (${
+        this.connectionPool.size
+      } pooled)`
+    );
 
     try {
       // Check if we need to queue this query (connection limit reached)
       if (this.activeQueries.size >= this.MAX_POOL_SIZE) {
-        console.log(`⏳ Queue query for ${relay} (${this.activeQueries.size}/${this.MAX_POOL_SIZE} active)`);
+        console.log(
+          `⏳ Queue query for ${relay} (${this.activeQueries.size}/${this.MAX_POOL_SIZE} active)`
+        );
         return await this.queueQuery(relay, filter, startTime);
       }
 
@@ -134,10 +149,14 @@ export class OptimizedWebSocketManager {
 
       // Try to get pooled connection first
       let pooledConnection = this.getPooledConnection(relay);
-      
+
       if (pooledConnection && this.isConnectionHealthy(pooledConnection)) {
         console.log(`♻️ Using pooled connection for ${relay}`);
-        const result = await this.executeQueryOnConnection(pooledConnection, filter, startTime);
+        const result = await this.executeQueryOnConnection(
+          pooledConnection,
+          filter,
+          startTime
+        );
         result.connectionMethod = 'pooled';
         this.updateMetrics(result);
         this.activeQueries.delete(queryId);
@@ -148,9 +167,13 @@ export class OptimizedWebSocketManager {
       // Create fresh connection if no healthy pooled connection
       console.log(`🆕 Creating fresh connection for ${relay}`);
       const freshConnection = await this.createFreshConnection(relay);
-      
+
       if (freshConnection) {
-        const result = await this.executeQueryOnConnection(freshConnection, filter, startTime);
+        const result = await this.executeQueryOnConnection(
+          freshConnection,
+          filter,
+          startTime
+        );
         result.connectionMethod = 'fresh';
         this.updateMetrics(result);
         this.activeQueries.delete(queryId);
@@ -160,32 +183,33 @@ export class OptimizedWebSocketManager {
 
       // All connection attempts failed
       const failureTime = Date.now() - startTime;
-      console.warn(`❌ All connection attempts failed for ${relay} after ${failureTime}ms`);
-      
+      console.warn(
+        `❌ All connection attempts failed for ${relay} after ${failureTime}ms`
+      );
+
       this.activeQueries.delete(queryId);
       this.processQueue();
-      
+
       return {
         success: false,
         events: [],
         relay,
         responseTime: failureTime,
         connectionMethod: 'failed',
-        error: 'Failed to establish connection'
+        error: 'Failed to establish connection',
       };
-
     } catch (error) {
       console.error(`💥 OptimizedWebSocketManager query error:`, error);
       this.activeQueries.delete(queryId);
       this.processQueue();
-      
+
       return {
         success: false,
         events: [],
         relay,
         responseTime: Date.now() - startTime,
         connectionMethod: 'failed',
-        error: `Query exception: ${error}`
+        error: `Query exception: ${error}`,
       };
     }
   }
@@ -211,22 +235,39 @@ export class OptimizedWebSocketManager {
       connection.subscribe(subscriptionId, [filter], (event: Event) => {
         if (queryCompleted) {
           eventsDropped++;
-          console.warn(`🚨 Event received after query completion (dropped): ${event.id?.slice(0, 8)}`);
+          console.warn(
+            `🚨 Event received after query completion (dropped): ${event.id?.slice(
+              0,
+              8
+            )}`
+          );
           return;
         }
-        
+
         events.push(event);
-        console.log(`📥 Event from ${relay}: ${event.id?.slice(0, 8)} (${events.length} total)`);
+        console.log(
+          `📥 Event from ${relay}: ${event.id?.slice(0, 8)} (${
+            events.length
+          } total)`
+        );
       });
 
       // Mobile-optimized timeout
       setTimeout(() => {
         if (queryCompleted) return;
         queryCompleted = true;
-        
-        console.log(`⏰ Query timeout for ${relay} after ${timeoutMs}ms: ${events.length} events`);
+
+        console.log(
+          `⏰ Query timeout for ${relay} after ${timeoutMs}ms: ${events.length} events`
+        );
         connection.unsubscribe(subscriptionId);
-        this.completeQuery(pooledConnection, events, eventsDropped, startTime, resolve);
+        this.completeQuery(
+          pooledConnection,
+          events,
+          eventsDropped,
+          startTime,
+          resolve
+        );
       }, timeoutMs);
     });
   }
@@ -247,7 +288,7 @@ export class OptimizedWebSocketManager {
     // Update connection metrics
     pooledConnection.lastUsed = new Date();
     pooledConnection.queryCount++;
-    
+
     if (success) {
       pooledConnection.consecutiveFailures = 0;
     } else {
@@ -256,7 +297,9 @@ export class OptimizedWebSocketManager {
 
     // Mark connection for cleanup if too many failures
     if (pooledConnection.consecutiveFailures >= 3) {
-      console.log(`🧹 Marking connection for cleanup due to failures: ${pooledConnection.relay}`);
+      console.log(
+        `🧹 Marking connection for cleanup due to failures: ${pooledConnection.relay}`
+      );
       pooledConnection.isActive = false;
     }
 
@@ -266,7 +309,7 @@ export class OptimizedWebSocketManager {
       relay: pooledConnection.relay,
       responseTime,
       connectionMethod: 'pooled',
-      eventsDropped: eventsDropped > 0 ? eventsDropped : undefined
+      eventsDropped: eventsDropped > 0 ? eventsDropped : undefined,
     });
   }
 
@@ -275,14 +318,17 @@ export class OptimizedWebSocketManager {
    */
   private getPooledConnection(relay: string): PooledConnection | null {
     const pooled = this.connectionPool.get(relay);
-    
+
     if (!pooled || !pooled.isActive) {
       return null;
     }
 
     // Check if connection is too old or has too many failures
     const timeSinceLastUse = Date.now() - pooled.lastUsed.getTime();
-    if (timeSinceLastUse > this.MAX_IDLE_TIME || pooled.consecutiveFailures >= 3) {
+    if (
+      timeSinceLastUse > this.MAX_IDLE_TIME ||
+      pooled.consecutiveFailures >= 3
+    ) {
       console.log(`🧹 Removing stale/failed connection: ${relay}`);
       this.removePooledConnection(relay);
       return null;
@@ -294,7 +340,9 @@ export class OptimizedWebSocketManager {
   /**
    * Create fresh connection with mobile optimizations
    */
-  private async createFreshConnection(relay: string): Promise<PooledConnection | null> {
+  private async createFreshConnection(
+    relay: string
+  ): Promise<PooledConnection | null> {
     try {
       // Clean up existing connection if any
       this.removePooledConnection(relay);
@@ -306,17 +354,19 @@ export class OptimizedWebSocketManager {
         pingInterval: 30000, // 30s ping
         maxReconnectAttempts: 2, // Limited reconnect attempts
         reconnectDelay: MOBILE_CONFIG!.backoffDelays[0],
-        enablePing: true
+        enablePing: true,
       };
 
-      console.log(`🔧 Creating connection with mobile config: ${JSON.stringify({
-        timeout: config.connectionTimeout,
-        maxReconnects: config.maxReconnectAttempts,
-        bufferSize: MOBILE_CONFIG!.bufferSize
-      })}`);
+      console.log(
+        `🔧 Creating connection with mobile config: ${JSON.stringify({
+          timeout: config.connectionTimeout,
+          maxReconnects: config.maxReconnectAttempts,
+          bufferSize: MOBILE_CONFIG!.bufferSize,
+        })}`
+      );
 
       const connection = new NostrWebSocketConnection(config);
-      
+
       // Wait for connection to establish
       await this.waitForConnection(connection, config.connectionTimeout);
 
@@ -326,7 +376,7 @@ export class OptimizedWebSocketManager {
         lastUsed: new Date(),
         queryCount: 0,
         isActive: true,
-        consecutiveFailures: 0
+        consecutiveFailures: 0,
       };
 
       // Add to pool if we have space
@@ -334,14 +384,18 @@ export class OptimizedWebSocketManager {
         this.connectionPool.set(relay, pooledConnection);
         this.metrics.totalConnections++;
         this.metrics.activeConnections = this.connectionPool.size;
-        
-        console.log(`✅ Added connection to pool: ${relay} (${this.connectionPool.size}/${this.MAX_POOL_SIZE})`);
+
+        console.log(
+          `✅ Added connection to pool: ${relay} (${this.connectionPool.size}/${this.MAX_POOL_SIZE})`
+        );
       }
 
       return pooledConnection;
-
     } catch (error) {
-      console.error(`❌ Failed to create fresh connection for ${relay}:`, error);
+      console.error(
+        `❌ Failed to create fresh connection for ${relay}:`,
+        error
+      );
       return null;
     }
   }
@@ -349,7 +403,10 @@ export class OptimizedWebSocketManager {
   /**
    * Wait for WebSocket connection to establish
    */
-  private async waitForConnection(connection: NostrWebSocketConnection, timeoutMs: number): Promise<void> {
+  private async waitForConnection(
+    connection: NostrWebSocketConnection,
+    timeoutMs: number
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`Connection timeout after ${timeoutMs}ms`));
@@ -376,27 +433,33 @@ export class OptimizedWebSocketManager {
    */
   private isConnectionHealthy(pooled: PooledConnection): boolean {
     const state = pooled.connection.getState();
-    return state === 'connected' && pooled.isActive && pooled.consecutiveFailures < 3;
+    return (
+      state === 'connected' && pooled.isActive && pooled.consecutiveFailures < 3
+    );
   }
 
   /**
    * Queue query when connection limit reached
    */
-  private async queueQuery(relay: string, filter: Filter, startTime: number): Promise<OptimizedQueryResult> {
+  private async queueQuery(
+    relay: string,
+    filter: Filter,
+    startTime: number
+  ): Promise<OptimizedQueryResult> {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        const index = this.queryQueue.findIndex(q => q.resolve === resolve);
+        const index = this.queryQueue.findIndex((q) => q.resolve === resolve);
         if (index !== -1) {
           this.queryQueue.splice(index, 1);
         }
-        
+
         resolve({
           success: false,
           events: [],
           relay,
           responseTime: Date.now() - startTime,
           connectionMethod: 'failed',
-          error: 'Query queue timeout'
+          error: 'Query queue timeout',
         });
       }, MOBILE_CONFIG!.queryTimeout * 2); // Double timeout for queued queries
 
@@ -405,10 +468,12 @@ export class OptimizedWebSocketManager {
         filter,
         resolve,
         startTime,
-        timeout
+        timeout,
       });
 
-      console.log(`📋 Queued query for ${relay} (${this.queryQueue.length} in queue)`);
+      console.log(
+        `📋 Queued query for ${relay} (${this.queryQueue.length} in queue)`
+      );
     });
   }
 
@@ -416,7 +481,10 @@ export class OptimizedWebSocketManager {
    * Process queued queries when connections become available
    */
   private processQueue(): void {
-    if (this.queryQueue.length === 0 || this.activeQueries.size >= this.MAX_POOL_SIZE) {
+    if (
+      this.queryQueue.length === 0 ||
+      this.activeQueries.size >= this.MAX_POOL_SIZE
+    ) {
       return;
     }
 
@@ -424,20 +492,20 @@ export class OptimizedWebSocketManager {
     if (!nextQuery) return;
 
     clearTimeout(nextQuery.timeout);
-    
+
     console.log(`🔄 Processing queued query for ${nextQuery.relay}`);
-    
+
     // Execute queued query
     this.queryRelay(nextQuery.relay, nextQuery.filter)
-      .then(result => nextQuery.resolve(result))
-      .catch(error => {
+      .then((result) => nextQuery.resolve(result))
+      .catch((error) => {
         nextQuery.resolve({
           success: false,
           events: [],
           relay: nextQuery.relay,
           responseTime: Date.now() - nextQuery.startTime,
           connectionMethod: 'failed',
-          error: `Queued query failed: ${error}`
+          error: `Queued query failed: ${error}`,
         });
       });
   }
@@ -453,7 +521,7 @@ export class OptimizedWebSocketManager {
       } catch (error) {
         console.warn(`Warning during connection cleanup for ${relay}:`, error);
       }
-      
+
       this.connectionPool.delete(relay);
       this.metrics.activeConnections = this.connectionPool.size;
       console.log(`🧹 Removed pooled connection: ${relay}`);
@@ -471,11 +539,15 @@ export class OptimizedWebSocketManager {
 
     // Update success rate and response time (simple running average)
     const totalQueries = this.metrics.totalConnections + 1;
-    const currentSuccessRate = this.metrics.successRate * this.metrics.totalConnections;
-    this.metrics.successRate = (currentSuccessRate + (result.success ? 1 : 0)) / totalQueries;
+    const currentSuccessRate =
+      this.metrics.successRate * this.metrics.totalConnections;
+    this.metrics.successRate =
+      (currentSuccessRate + (result.success ? 1 : 0)) / totalQueries;
 
-    const currentAvgTime = this.metrics.avgResponseTime * this.metrics.totalConnections;
-    this.metrics.avgResponseTime = (currentAvgTime + result.responseTime) / totalQueries;
+    const currentAvgTime =
+      this.metrics.avgResponseTime * this.metrics.totalConnections;
+    this.metrics.avgResponseTime =
+      (currentAvgTime + result.responseTime) / totalQueries;
   }
 
   /**
@@ -496,10 +568,12 @@ export class OptimizedWebSocketManager {
 
     for (const [relay, pooled] of this.connectionPool.entries()) {
       const timeSinceLastUse = now - pooled.lastUsed.getTime();
-      
-      if (!pooled.isActive || 
-          timeSinceLastUse > this.MAX_IDLE_TIME || 
-          pooled.consecutiveFailures >= 3) {
+
+      if (
+        !pooled.isActive ||
+        timeSinceLastUse > this.MAX_IDLE_TIME ||
+        pooled.consecutiveFailures >= 3
+      ) {
         connectionsToRemove.push(relay);
       }
     }
@@ -509,9 +583,11 @@ export class OptimizedWebSocketManager {
     }
 
     this.metrics.lastCleanup = new Date();
-    
+
     if (connectionsToRemove.length > 0) {
-      console.log(`🧹 Cleanup completed: removed ${connectionsToRemove.length} connections`);
+      console.log(
+        `🧹 Cleanup completed: removed ${connectionsToRemove.length} connections`
+      );
     }
   }
 
@@ -527,20 +603,20 @@ export class OptimizedWebSocketManager {
    */
   cleanup(): void {
     console.log('🧹 OptimizedWebSocketManager: Force cleanup started');
-    
+
     for (const relay of this.connectionPool.keys()) {
       this.removePooledConnection(relay);
     }
-    
+
     this.activeQueries.clear();
-    this.queryQueue.forEach(q => clearTimeout(q.timeout));
+    this.queryQueue.forEach((q) => clearTimeout(q.timeout));
     this.queryQueue = [];
-    
+
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
-    
+
     console.log('🧹 OptimizedWebSocketManager: Force cleanup completed');
   }
 }

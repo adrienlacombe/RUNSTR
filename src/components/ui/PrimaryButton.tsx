@@ -4,7 +4,13 @@
  */
 
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
 import { theme } from '../../styles/theme';
 
 interface PrimaryButtonProps {
@@ -29,7 +35,13 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       activeOpacity={0.7}
       disabled={disabled}
     >
-      <Text style={[styles.buttonText, disabled && styles.buttonTextDisabled, textStyle]}>
+      <Text
+        style={[
+          styles.buttonText,
+          disabled && styles.buttonTextDisabled,
+          textStyle,
+        ]}
+      >
         {text}
       </Text>
     </TouchableOpacity>

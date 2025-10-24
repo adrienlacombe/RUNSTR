@@ -36,7 +36,9 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           name="search-outline"
           size={16}
           color={
-            activeScreen === 'team' ? theme.colors.orangeBright : theme.colors.textMuted
+            activeScreen === 'team'
+              ? theme.colors.orangeBright
+              : theme.colors.textMuted
           }
         />
         <Text

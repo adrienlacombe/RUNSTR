@@ -46,7 +46,10 @@ export class PaymentRouter {
    * Pay Lightning invoice
    * Routes to NWC if enabled, otherwise Cashu
    */
-  static async payInvoice(invoice: string, amount?: number): Promise<PaymentResult> {
+  static async payInvoice(
+    invoice: string,
+    amount?: number
+  ): Promise<PaymentResult> {
     try {
       console.log('[PaymentRouter] Routing payment...', {
         nwcEnabled: FEATURES.ENABLE_NWC_WALLET,
@@ -125,7 +128,9 @@ export class PaymentRouter {
       } else if (FEATURES.ENABLE_CASHU_WALLET) {
         // Cashu doesn't support invoice creation the same way
         // For now, return error - this could be enhanced later
-        console.log('[PaymentRouter] ⚠️ Cashu wallet does not support invoice creation');
+        console.log(
+          '[PaymentRouter] ⚠️ Cashu wallet does not support invoice creation'
+        );
         return {
           success: false,
           error: 'Invoice creation not supported with Cashu wallet',
@@ -140,7 +145,8 @@ export class PaymentRouter {
       console.error('[PaymentRouter] Invoice creation error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Invoice creation failed',
+        error:
+          error instanceof Error ? error.message : 'Invoice creation failed',
       };
     }
   }
@@ -161,7 +167,9 @@ export class PaymentRouter {
         const walletCore = WalletCore.getInstance();
         // WalletCore doesn't have async getBalance, uses store
         // This would need adjustment based on actual implementation
-        console.log('[PaymentRouter] Cashu balance check - needs implementation');
+        console.log(
+          '[PaymentRouter] Cashu balance check - needs implementation'
+        );
         return {
           balance: 0,
           error: 'Balance check not implemented for Cashu',

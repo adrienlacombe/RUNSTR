@@ -9,7 +9,7 @@ import { SEASON_1_CONFIG } from '../../types/season';
 import type {
   Season1Participant,
   Season1Leaderboard,
-  SeasonActivityType
+  SeasonActivityType,
 } from '../../types/season';
 
 // Import static Season 1 results
@@ -40,19 +40,23 @@ class Season1Service {
    * Get participant list from static data (instant, no Nostr query)
    */
   async fetchParticipantList(): Promise<string[]> {
-    console.log('[Season1] ⚡ Using static Season 1 results (instant, no fetching)');
+    console.log(
+      '[Season1] ⚡ Using static Season 1 results (instant, no fetching)'
+    );
 
     // Extract all unique participant pubkeys from the static data
     const participants = new Set<string>();
 
-    Object.values(season1Results.leaderboards).forEach(leaderboard => {
+    Object.values(season1Results.leaderboards).forEach((leaderboard) => {
       leaderboard.participants.forEach((p: any) => {
         participants.add(p.pubkey);
       });
     });
 
     const participantArray = Array.from(participants);
-    console.log(`[Season1] ✅ Loaded ${participantArray.length} participants from static data`);
+    console.log(
+      `[Season1] ✅ Loaded ${participantArray.length} participants from static data`
+    );
 
     return participantArray;
   }
@@ -65,18 +69,24 @@ class Season1Service {
     workouts: any[];
     profiles: Map<string, any>;
   }> {
-    console.log('[Season1] ⚡ Skipping workout/profile fetch - using static leaderboard data');
+    console.log(
+      '[Season1] ⚡ Skipping workout/profile fetch - using static leaderboard data'
+    );
     return {
       workouts: [], // Not needed - we have final results
-      profiles: new Map() // Not needed - names/pictures in static data
+      profiles: new Map(), // Not needed - names/pictures in static data
     };
   }
 
   /**
    * Get leaderboard from static data (instant, no calculations needed)
    */
-  async fetchLeaderboard(activityType: SeasonActivityType): Promise<Season1Leaderboard> {
-    console.log(`[Season1] ⚡ Loading ${activityType} leaderboard from static data (instant!)`);
+  async fetchLeaderboard(
+    activityType: SeasonActivityType
+  ): Promise<Season1Leaderboard> {
+    console.log(
+      `[Season1] ⚡ Loading ${activityType} leaderboard from static data (instant!)`
+    );
 
     try {
       // Get the static leaderboard for the requested activity type
@@ -108,7 +118,9 @@ class Season1Service {
         totalParticipants: leaderboardData.totalParticipants,
       };
 
-      console.log(`[Season1] ✅ ${activityType} leaderboard loaded instantly with ${result.participants.length} participants`);
+      console.log(
+        `[Season1] ✅ ${activityType} leaderboard loaded instantly with ${result.participants.length} participants`
+      );
 
       // Optional: Cache in AsyncStorage for offline access
       await AsyncStorage.setItem(
@@ -117,13 +129,14 @@ class Season1Service {
       ).catch(() => {}); // Ignore cache errors
 
       return result;
-
     } catch (error) {
       console.error('[Season1] Error loading static leaderboard:', error);
 
       // Try to load from AsyncStorage as fallback
       try {
-        const cached = await AsyncStorage.getItem(`${CACHE_KEYS.PARTICIPANTS}_${activityType}`);
+        const cached = await AsyncStorage.getItem(
+          `${CACHE_KEYS.PARTICIPANTS}_${activityType}`
+        );
         if (cached) {
           return JSON.parse(cached);
         }
@@ -149,13 +162,20 @@ class Season1Service {
     const normalized = type.toLowerCase().trim();
 
     // Check for running variations
-    if (normalized.includes('run') || normalized.includes('jog')) return 'running';
+    if (normalized.includes('run') || normalized.includes('jog'))
+      return 'running';
 
     // Check for walking variations
-    if (normalized.includes('walk') || normalized.includes('hike')) return 'walking';
+    if (normalized.includes('walk') || normalized.includes('hike'))
+      return 'walking';
 
     // Check for cycling variations
-    if (normalized.includes('cycl') || normalized.includes('bike') || normalized.includes('ride')) return 'cycling';
+    if (
+      normalized.includes('cycl') ||
+      normalized.includes('bike') ||
+      normalized.includes('ride')
+    )
+      return 'cycling';
 
     // Additional cardio types that might map to running
     if (normalized === 'cardio' || normalized === 'treadmill') return 'running';
@@ -198,7 +218,9 @@ class Season1Service {
         this.fetchLeaderboard('cycling'),
         this.fetchLeaderboard('walking'),
       ]);
-      console.log('[Season1] ✅ All Season 1 leaderboards loaded instantly from static data');
+      console.log(
+        '[Season1] ✅ All Season 1 leaderboards loaded instantly from static data'
+      );
       this.staticDataLoaded = true;
     } catch (error) {
       console.error('[Season1] Prefetch error:', error);

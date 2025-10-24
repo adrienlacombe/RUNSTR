@@ -14,14 +14,16 @@ jest.mock('expo-intent-launcher');
 jest.mock('@react-native-async-storage/async-storage');
 jest.mock('react-native', () => ({
   Platform: {
-    OS: 'android'
-  }
+    OS: 'android',
+  },
 }));
 
 describe('AmberNDKSigner', () => {
   let signer: AmberNDKSigner;
-  const mockPubkey = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-  const mockSignature = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+  const mockPubkey =
+    '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+  const mockSignature =
+    'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,7 +39,7 @@ describe('AmberNDKSigner', () => {
       // Mock successful get_public_key
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       // Initialize signer to get pubkey
@@ -45,20 +47,22 @@ describe('AmberNDKSigner', () => {
 
       // Mock successful sign_event
       let capturedIntent: any;
-      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce((action, options) => {
-        capturedIntent = options;
-        return Promise.resolve({
-          resultCode: IntentLauncher.ResultCode.Success,
-          extra: { signature: mockSignature }
-        });
-      });
+      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
+        (action, options) => {
+          capturedIntent = options;
+          return Promise.resolve({
+            resultCode: IntentLauncher.ResultCode.Success,
+            extra: { signature: mockSignature },
+          });
+        }
+      );
 
       const event: NostrEvent = {
         kind: 1,
         content: 'Test post',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await signer.sign(event);
@@ -72,27 +76,29 @@ describe('AmberNDKSigner', () => {
       // Mock successful get_public_key
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
 
       // Mock successful sign_event
       let capturedIntent: any;
-      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce((action, options) => {
-        capturedIntent = options;
-        return Promise.resolve({
-          resultCode: IntentLauncher.ResultCode.Success,
-          extra: { signature: mockSignature }
-        });
-      });
+      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
+        (action, options) => {
+          capturedIntent = options;
+          return Promise.resolve({
+            resultCode: IntentLauncher.ResultCode.Success,
+            extra: { signature: mockSignature },
+          });
+        }
+      );
 
       const event: NostrEvent = {
         kind: 1301,
         content: 'Test workout',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await signer.sign(event);
@@ -105,26 +111,28 @@ describe('AmberNDKSigner', () => {
     test('sign_event includes type parameter', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
 
       let capturedIntent: any;
-      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce((action, options) => {
-        capturedIntent = options;
-        return Promise.resolve({
-          resultCode: IntentLauncher.ResultCode.Success,
-          extra: { signature: mockSignature }
-        });
-      });
+      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
+        (action, options) => {
+          capturedIntent = options;
+          return Promise.resolve({
+            resultCode: IntentLauncher.ResultCode.Success,
+            extra: { signature: mockSignature },
+          });
+        }
+      );
 
       const event: NostrEvent = {
         kind: 1,
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await signer.sign(event);
@@ -134,13 +142,15 @@ describe('AmberNDKSigner', () => {
 
     test('get_public_key does NOT include current_user', async () => {
       let capturedIntent: any;
-      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce((action, options) => {
-        capturedIntent = options;
-        return Promise.resolve({
-          resultCode: IntentLauncher.ResultCode.Success,
-          extra: { result: mockPubkey }
-        });
-      });
+      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
+        (action, options) => {
+          capturedIntent = options;
+          return Promise.resolve({
+            resultCode: IntentLauncher.ResultCode.Success,
+            extra: { result: mockPubkey },
+          });
+        }
+      );
 
       await signer.requestPublicKey();
 
@@ -152,26 +162,28 @@ describe('AmberNDKSigner', () => {
     test('event encoded in URI per NIP-55', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
 
       let capturedIntent: any;
-      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce((action, options) => {
-        capturedIntent = options;
-        return Promise.resolve({
-          resultCode: IntentLauncher.ResultCode.Success,
-          extra: { signature: mockSignature }
-        });
-      });
+      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
+        (action, options) => {
+          capturedIntent = options;
+          return Promise.resolve({
+            resultCode: IntentLauncher.ResultCode.Success,
+            extra: { signature: mockSignature },
+          });
+        }
+      );
 
       const event: NostrEvent = {
         kind: 1,
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await signer.sign(event);
@@ -184,26 +196,28 @@ describe('AmberNDKSigner', () => {
     test('unsigned event does NOT include id or sig fields', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
 
       let capturedUri: string = '';
-      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce((action, options) => {
-        capturedUri = options.data;
-        return Promise.resolve({
-          resultCode: IntentLauncher.ResultCode.Success,
-          extra: { signature: mockSignature }
-        });
-      });
+      (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
+        (action, options) => {
+          capturedUri = options.data;
+          return Promise.resolve({
+            resultCode: IntentLauncher.ResultCode.Success,
+            extra: { signature: mockSignature },
+          });
+        }
+      );
 
       const event: NostrEvent = {
         kind: 1,
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await signer.sign(event);
@@ -233,7 +247,9 @@ describe('AmberNDKSigner', () => {
       // Fast-forward 61 seconds
       jest.advanceTimersByTime(61000);
 
-      await expect(requestPromise).rejects.toThrow(/timed out after 60 seconds/);
+      await expect(requestPromise).rejects.toThrow(
+        /timed out after 60 seconds/
+      );
 
       jest.useRealTimers();
     });
@@ -242,12 +258,17 @@ describe('AmberNDKSigner', () => {
       jest.useFakeTimers();
 
       (IntentLauncher.startActivityAsync as jest.Mock).mockImplementationOnce(
-        () => new Promise((resolve) => {
-          setTimeout(() => resolve({
-            resultCode: IntentLauncher.ResultCode.Success,
-            extra: { result: mockPubkey }
-          }), 5000); // Respond after 5 seconds
-        })
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  resultCode: IntentLauncher.ResultCode.Success,
+                  extra: { result: mockPubkey },
+                }),
+              5000
+            ); // Respond after 5 seconds
+          })
       );
 
       const requestPromise = signer.requestPublicKey();
@@ -264,14 +285,22 @@ describe('AmberNDKSigner', () => {
   describe('Error Detection', () => {
     test('detects "Amber not installed" error', async () => {
       const installError = new Error('No Activity found to handle Intent');
-      (IntentLauncher.startActivityAsync as jest.Mock).mockRejectedValue(installError);
+      (IntentLauncher.startActivityAsync as jest.Mock).mockRejectedValue(
+        installError
+      );
 
-      await expect(signer.requestPublicKey()).rejects.toThrow(/Amber app not found/);
+      await expect(signer.requestPublicKey()).rejects.toThrow(
+        /Amber app not found/
+      );
 
       // Reset mock for second test
       jest.clearAllMocks();
-      (IntentLauncher.startActivityAsync as jest.Mock).mockRejectedValue(installError);
-      await expect(signer.requestPublicKey()).rejects.toThrow(/Google Play Store/);
+      (IntentLauncher.startActivityAsync as jest.Mock).mockRejectedValue(
+        installError
+      );
+      await expect(signer.requestPublicKey()).rejects.toThrow(
+        /Google Play Store/
+      );
     });
 
     test('detects ActivityNotFoundException', async () => {
@@ -279,19 +308,21 @@ describe('AmberNDKSigner', () => {
         new Error('ActivityNotFoundException: No app can perform this action')
       );
 
-      await expect(signer.requestPublicKey()).rejects.toThrow(/Amber app not found/);
+      await expect(signer.requestPublicKey()).rejects.toThrow(
+        /Amber app not found/
+      );
     });
 
     test('detects user rejection', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
 
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
-        resultCode: IntentLauncher.ResultCode.Canceled
+        resultCode: IntentLauncher.ResultCode.Canceled,
       });
 
       const event: NostrEvent = {
@@ -299,7 +330,7 @@ describe('AmberNDKSigner', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await expect(signer.sign(event)).rejects.toThrow(/canceled/i);
@@ -308,7 +339,7 @@ describe('AmberNDKSigner', () => {
     test('detects missing signature in response', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
@@ -316,7 +347,7 @@ describe('AmberNDKSigner', () => {
       // Response with success but no signature
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: {} // No signature field
+        extra: {}, // No signature field
       });
 
       const event: NostrEvent = {
@@ -324,17 +355,21 @@ describe('AmberNDKSigner', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
-      await expect(signer.sign(event)).rejects.toThrow(/Amber did not return a signature/);
+      await expect(signer.sign(event)).rejects.toThrow(
+        /Amber did not return a signature/
+      );
     });
 
     test('throws error on non-Android platform', async () => {
       // Mock iOS platform
       (Platform as any).OS = 'ios';
 
-      await expect(signer.requestPublicKey()).rejects.toThrow(/only available on Android/);
+      await expect(signer.requestPublicKey()).rejects.toThrow(
+        /only available on Android/
+      );
 
       // Restore Android
       (Platform as any).OS = 'android';
@@ -345,7 +380,7 @@ describe('AmberNDKSigner', () => {
     test('extracts pubkey from extra.result', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       const pubkey = await signer.requestPublicKey();
@@ -355,7 +390,7 @@ describe('AmberNDKSigner', () => {
     test('extracts pubkey from extra.pubkey fallback', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { pubkey: mockPubkey }
+        extra: { pubkey: mockPubkey },
       });
 
       const pubkey = await signer.requestPublicKey();
@@ -365,14 +400,14 @@ describe('AmberNDKSigner', () => {
     test('extracts signature from extra.signature', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
 
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { signature: mockSignature }
+        extra: { signature: mockSignature },
       });
 
       const event: NostrEvent = {
@@ -380,7 +415,7 @@ describe('AmberNDKSigner', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       const sig = await signer.sign(event);
@@ -390,7 +425,7 @@ describe('AmberNDKSigner', () => {
     test('extracts signature from signed event object', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
@@ -402,12 +437,12 @@ describe('AmberNDKSigner', () => {
         kind: 1,
         tags: [],
         content: 'Test',
-        sig: mockSignature
+        sig: mockSignature,
       };
 
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { event: JSON.stringify(signedEvent) }
+        extra: { event: JSON.stringify(signedEvent) },
       });
 
       const event: NostrEvent = {
@@ -415,7 +450,7 @@ describe('AmberNDKSigner', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       const sig = await signer.sign(event);
@@ -425,7 +460,7 @@ describe('AmberNDKSigner', () => {
     test('caches event ID when Amber returns full signed event', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.blockUntilReady();
@@ -438,12 +473,12 @@ describe('AmberNDKSigner', () => {
         kind: 1,
         tags: [],
         content: 'Test',
-        sig: mockSignature
+        sig: mockSignature,
       };
 
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { event: JSON.stringify(signedEvent) }
+        extra: { event: JSON.stringify(signedEvent) },
       });
 
       const event: NostrEvent = {
@@ -451,7 +486,7 @@ describe('AmberNDKSigner', () => {
         content: 'Test',
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: mockPubkey
+        pubkey: mockPubkey,
       } as NostrEvent;
 
       await signer.sign(event);
@@ -462,11 +497,12 @@ describe('AmberNDKSigner', () => {
 
   describe('Pubkey Handling', () => {
     test('pads 63-character hex pubkey to 64 characters', async () => {
-      const unpaddedPubkey = '234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'; // 63 chars
+      const unpaddedPubkey =
+        '234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'; // 63 chars
 
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: unpaddedPubkey }
+        extra: { result: unpaddedPubkey },
       });
 
       const pubkey = await signer.requestPublicKey();
@@ -477,12 +513,13 @@ describe('AmberNDKSigner', () => {
     });
 
     test('decodes npub to hex', async () => {
-      const npub = 'npub1z3s4jf4h5g5d7v9f3s4j5h6g7f8d9s0a1s2d3f4g5h6j7k8l9m0n1p2q3'; // Example
+      const npub =
+        'npub1z3s4jf4h5g5d7v9f3s4j5h6g7f8d9s0a1s2d3f4g5h6j7k8l9m0n1p2q3'; // Example
 
       // Mock successful response with npub
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey } // We'll still return hex for simplicity
+        extra: { result: mockPubkey }, // We'll still return hex for simplicity
       });
 
       const pubkey = await signer.requestPublicKey();
@@ -492,12 +529,15 @@ describe('AmberNDKSigner', () => {
     test('caches pubkey in AsyncStorage', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       await signer.requestPublicKey();
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@runstr:amber_pubkey', mockPubkey);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        '@runstr:amber_pubkey',
+        mockPubkey
+      );
     });
 
     test('retrieves cached pubkey on subsequent calls', async () => {
@@ -516,7 +556,7 @@ describe('AmberNDKSigner', () => {
     test('blockUntilReady fetches pubkey if not cached', async () => {
       (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValueOnce({
         resultCode: IntentLauncher.ResultCode.Success,
-        extra: { result: mockPubkey }
+        extra: { result: mockPubkey },
       });
 
       const user = await signer.blockUntilReady();

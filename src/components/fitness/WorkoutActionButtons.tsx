@@ -80,7 +80,8 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
       setAlertState({
         visible: true,
         title: 'Competition Entry Failed',
-        message: 'Could not enter workout into competition. Please check your connection and try again.',
+        message:
+          'Could not enter workout into competition. Please check your connection and try again.',
       });
     }
   };
@@ -94,7 +95,9 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
     setModalState({ showSocialShare: true });
   };
 
-  const handlePostToNostr = async (platform: 'nostr' | 'twitter' | 'instagram') => {
+  const handlePostToNostr = async (
+    platform: 'nostr' | 'twitter' | 'instagram'
+  ) => {
     if (platform !== 'nostr') {
       // For now, only Nostr is implemented
       return;
@@ -153,10 +156,7 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
       >
         <View style={styles.buttonContent}>
           {loading ? (
-            <ActivityIndicator
-              size="small"
-              color="#000000"
-            />
+            <ActivityIndicator size="small" color="#000000" />
           ) : (
             <Text style={textStyle}>
               {success ? (variant === 'save' ? 'Competing!' : 'Shared!') : text}

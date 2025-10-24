@@ -214,7 +214,9 @@ export class NostrNotificationEventHandler {
   /**
    * Handle competition announcement (kind 1101)
    */
-  private async handleCompetitionAnnouncement(nostrEvent: Event): Promise<void> {
+  private async handleCompetitionAnnouncement(
+    nostrEvent: Event
+  ): Promise<void> {
     const competitionEvent = this.parseCompetitionAnnouncement(nostrEvent);
     if (!competitionEvent) return;
 
@@ -267,10 +269,9 @@ export class NostrNotificationEventHandler {
 
       // Publish to unified store for current user only
       const userStore = useUserStore.getState();
-      const isCurrentUser = userStore.user && (
-        userStore.user.id === userId ||
-        userStore.user.npub === userId
-      );
+      const isCurrentUser =
+        userStore.user &&
+        (userStore.user.id === userId || userStore.user.npub === userId);
 
       if (isCurrentUser) {
         const metadata: CompetitionNotificationMetadata = {
@@ -365,10 +366,10 @@ export class NostrNotificationEventHandler {
 
       // Publish to unified store for current user only
       const userStore = useUserStore.getState();
-      const isCurrentUser = userStore.user && (
-        userStore.user.id === result.npub ||
-        userStore.user.npub === result.npub
-      );
+      const isCurrentUser =
+        userStore.user &&
+        (userStore.user.id === result.npub ||
+          userStore.user.npub === result.npub);
 
       if (isCurrentUser) {
         const metadata: CompetitionNotificationMetadata = {
@@ -411,7 +412,9 @@ export class NostrNotificationEventHandler {
   /**
    * Handle competition starting soon (kind 1103)
    */
-  private async handleCompetitionStartingSoon(nostrEvent: Event): Promise<void> {
+  private async handleCompetitionStartingSoon(
+    nostrEvent: Event
+  ): Promise<void> {
     const competitionEvent = this.parseCompetitionStartingSoon(nostrEvent);
     if (!competitionEvent) return;
 
@@ -466,10 +469,9 @@ export class NostrNotificationEventHandler {
 
       // Publish to unified store for current user only
       const userStore = useUserStore.getState();
-      const isCurrentUser = userStore.user && (
-        userStore.user.id === userId ||
-        userStore.user.npub === userId
-      );
+      const isCurrentUser =
+        userStore.user &&
+        (userStore.user.id === userId || userStore.user.npub === userId);
 
       if (isCurrentUser) {
         const metadata: CompetitionNotificationMetadata = {
@@ -650,7 +652,7 @@ export class NostrNotificationEventHandler {
     }>
   > {
     // All users get notifications now - no preference checking
-    return npubs.map(npub => ({ userId: npub }));
+    return npubs.map((npub) => ({ userId: npub }));
   }
 
   private getOrdinal(num: number): string {

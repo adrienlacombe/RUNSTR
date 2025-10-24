@@ -31,8 +31,10 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
   onComplete,
 }) => {
   const [isRequesting, setIsRequesting] = useState(false);
-  const [locationState, setLocationState] = useState<PermissionState>('pending');
-  const [notificationState, setNotificationState] = useState<PermissionState>('pending');
+  const [locationState, setLocationState] =
+    useState<PermissionState>('pending');
+  const [notificationState, setNotificationState] =
+    useState<PermissionState>('pending');
   const [batteryState, setBatteryState] = useState<PermissionState>('pending');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -93,8 +95,13 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
         setBatteryState('error');
       }
     } catch (error) {
-      console.error('[PermissionRequestModal] Error requesting permissions:', error);
-      setErrorMessage('An error occurred. Please try again or enable permissions in Settings.');
+      console.error(
+        '[PermissionRequestModal] Error requesting permissions:',
+        error
+      );
+      setErrorMessage(
+        'An error occurred. Please try again or enable permissions in Settings.'
+      );
       setLocationState('error');
       setNotificationState('error');
       setBatteryState('error');
@@ -106,17 +113,34 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
   const getStateIcon = (state: PermissionState) => {
     switch (state) {
       case 'granted':
-        return <Ionicons name="checkmark-circle" size={24} color={theme.colors.orangeBright} />;
+        return (
+          <Ionicons
+            name="checkmark-circle"
+            size={24}
+            color={theme.colors.orangeBright}
+          />
+        );
       case 'error':
         return <Ionicons name="close-circle" size={24} color="#ff4444" />;
       case 'requesting':
-        return <ActivityIndicator size="small" color={theme.colors.orangeBright} />;
+        return (
+          <ActivityIndicator size="small" color={theme.colors.orangeBright} />
+        );
       default:
-        return <Ionicons name="radio-button-off" size={24} color={theme.colors.textSecondary} />;
+        return (
+          <Ionicons
+            name="radio-button-off"
+            size={24}
+            color={theme.colors.textSecondary}
+          />
+        );
     }
   };
 
-  const allGranted = locationState === 'granted' && notificationState === 'granted' && batteryState === 'granted';
+  const allGranted =
+    locationState === 'granted' &&
+    notificationState === 'granted' &&
+    batteryState === 'granted';
 
   return (
     <Modal
@@ -130,10 +154,15 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
-            <Ionicons name="shield-checkmark" size={48} color={theme.colors.orangeBright} />
+            <Ionicons
+              name="shield-checkmark"
+              size={48}
+              color={theme.colors.orangeBright}
+            />
             <Text style={styles.title}>PERMISSIONS REQUIRED</Text>
             <Text style={styles.subtitle}>
-              RUNSTR needs these permissions to track your workouts accurately, even when using other apps like music players.
+              RUNSTR needs these permissions to track your workouts accurately,
+              even when using other apps like music players.
             </Text>
           </View>
 
@@ -168,7 +197,9 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
               <View style={styles.permissionItem}>
                 {getStateIcon(batteryState)}
                 <View style={styles.permissionText}>
-                  <Text style={styles.permissionTitle}>Battery Optimization</Text>
+                  <Text style={styles.permissionTitle}>
+                    Battery Optimization
+                  </Text>
                   <Text style={styles.permissionDescription}>
                     Prevent Android from stopping tracking in background
                   </Text>
@@ -190,13 +221,19 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
             {!allGranted ? (
               <>
                 <TouchableOpacity
-                  style={[styles.primaryButton, isRequesting && styles.primaryButtonDisabled]}
+                  style={[
+                    styles.primaryButton,
+                    isRequesting && styles.primaryButtonDisabled,
+                  ]}
                   onPress={handleRequestPermissions}
                   disabled={isRequesting}
                   activeOpacity={0.7}
                 >
                   {isRequesting ? (
-                    <ActivityIndicator size="small" color={theme.colors.background} />
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.colors.background}
+                    />
                   ) : (
                     <>
                       <Ionicons
@@ -205,7 +242,9 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
                         color={theme.colors.background}
                         style={styles.buttonIcon}
                       />
-                      <Text style={styles.primaryButtonText}>GRANT PERMISSIONS</Text>
+                      <Text style={styles.primaryButtonText}>
+                        GRANT PERMISSIONS
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -223,7 +262,9 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
                       color={theme.colors.text}
                       style={styles.buttonIcon}
                     />
-                    <Text style={styles.secondaryButtonText}>OPEN SETTINGS</Text>
+                    <Text style={styles.secondaryButtonText}>
+                      OPEN SETTINGS
+                    </Text>
                   </TouchableOpacity>
                 ) : null}
               </>
@@ -246,9 +287,14 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
 
           {/* Privacy Notice */}
           <View style={styles.privacyNotice}>
-            <Ionicons name="lock-closed" size={16} color={theme.colors.textSecondary} />
+            <Ionicons
+              name="lock-closed"
+              size={16}
+              color={theme.colors.textSecondary}
+            />
             <Text style={styles.privacyText}>
-              Your data stays on your device. We never sell or share your information.
+              Your data stays on your device. We never sell or share your
+              information.
             </Text>
           </View>
         </View>

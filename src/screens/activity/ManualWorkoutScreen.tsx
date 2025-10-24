@@ -30,10 +30,30 @@ const WORKOUT_PRESETS: WorkoutPreset[] = [
   { id: 'pullups', name: 'Pullups', icon: 'fitness', category: 'strength' },
   { id: 'situps', name: 'Situps', icon: 'fitness', category: 'strength' },
   { id: 'yoga', name: 'Yoga', icon: 'body', category: 'flexibility' },
-  { id: 'meditation', name: 'Meditation', icon: 'leaf', category: 'mindfulness' },
-  { id: 'treadmill', name: 'Treadmill', icon: 'speedometer', category: 'cardio' },
-  { id: 'weights', name: 'Weight Training', icon: 'barbell', category: 'strength' },
-  { id: 'stretching', name: 'Stretching', icon: 'body', category: 'flexibility' },
+  {
+    id: 'meditation',
+    name: 'Meditation',
+    icon: 'leaf',
+    category: 'mindfulness',
+  },
+  {
+    id: 'treadmill',
+    name: 'Treadmill',
+    icon: 'speedometer',
+    category: 'cardio',
+  },
+  {
+    id: 'weights',
+    name: 'Weight Training',
+    icon: 'barbell',
+    category: 'strength',
+  },
+  {
+    id: 'stretching',
+    name: 'Stretching',
+    icon: 'body',
+    category: 'flexibility',
+  },
 ];
 
 export const ManualWorkoutScreen: React.FC = () => {
@@ -52,33 +72,37 @@ export const ManualWorkoutScreen: React.FC = () => {
 
   const handleSave = async () => {
     const workoutType = selectedPreset
-      ? WORKOUT_PRESETS.find(p => p.id === selectedPreset)?.name
+      ? WORKOUT_PRESETS.find((p) => p.id === selectedPreset)?.name
       : customType;
 
     if (!workoutType) {
-      Alert.alert('Error', 'Please select a workout type or enter a custom one');
+      Alert.alert(
+        'Error',
+        'Please select a workout type or enter a custom one'
+      );
       return;
     }
 
     // Map preset names to WorkoutType
     const workoutTypeMapping: Record<string, WorkoutType> = {
-      'Pushups': 'strength_training',
-      'Pullups': 'strength_training',
-      'Situps': 'strength_training',
-      'Yoga': 'yoga',
-      'Meditation': 'other',
-      'Treadmill': 'running',
+      Pushups: 'strength_training',
+      Pullups: 'strength_training',
+      Situps: 'strength_training',
+      Yoga: 'yoga',
+      Meditation: 'other',
+      Treadmill: 'running',
       'Weight Training': 'strength_training',
-      'Stretching': 'other',
+      Stretching: 'other',
     };
 
     const mappedType = workoutTypeMapping[workoutType] || 'other';
 
     try {
       // Preserve specific exercise name in notes for better publishing
-      const exerciseNotes = workoutType !== mappedType
-        ? `${workoutType}${notes ? ': ' + notes : ''}`
-        : notes;
+      const exerciseNotes =
+        workoutType !== mappedType
+          ? `${workoutType}${notes ? ': ' + notes : ''}`
+          : notes;
 
       // Save workout to local storage
       const workoutId = await LocalWorkoutStorageService.saveManualWorkout({
@@ -90,7 +114,9 @@ export const ManualWorkoutScreen: React.FC = () => {
         notes: exerciseNotes,
       });
 
-      console.log(`✅ Manual workout saved locally: ${workoutId} (${workoutType})`);
+      console.log(
+        `✅ Manual workout saved locally: ${workoutId} (${workoutType})`
+      );
 
       Alert.alert(
         'Workout Saved!',
@@ -99,11 +125,9 @@ export const ManualWorkoutScreen: React.FC = () => {
       );
     } catch (error) {
       console.error('❌ Failed to save manual workout:', error);
-      Alert.alert(
-        'Save Failed',
-        'Failed to save workout. Please try again.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Save Failed', 'Failed to save workout. Please try again.', [
+        { text: 'OK' },
+      ]);
     }
   };
 
@@ -122,7 +146,7 @@ export const ManualWorkoutScreen: React.FC = () => {
       {/* Preset Workouts */}
       <Text style={styles.sectionTitle}>Select Workout Type</Text>
       <View style={styles.presetsGrid}>
-        {WORKOUT_PRESETS.map(preset => (
+        {WORKOUT_PRESETS.map((preset) => (
           <TouchableOpacity
             key={preset.id}
             style={[
@@ -134,7 +158,11 @@ export const ManualWorkoutScreen: React.FC = () => {
             <Ionicons
               name={preset.icon}
               size={24}
-              color={selectedPreset === preset.id ? theme.colors.background : theme.colors.text}
+              color={
+                selectedPreset === preset.id
+                  ? theme.colors.background
+                  : theme.colors.text
+              }
             />
             <Text
               style={[

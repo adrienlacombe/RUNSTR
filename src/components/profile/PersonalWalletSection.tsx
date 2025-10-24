@@ -59,11 +59,9 @@ export const PersonalWalletSection: React.FC<PersonalWalletSectionProps> = ({
     const result = await claimNutzaps();
     if (result.claimed > 0) {
       setLastClaimTime(new Date());
-      Alert.alert(
-        'Payment Received!',
-        `Received ${result.claimed} sats`,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Payment Received!', `Received ${result.claimed} sats`, [
+        { text: 'OK' },
+      ]);
     }
   };
 
@@ -120,24 +118,16 @@ export const PersonalWalletSection: React.FC<PersonalWalletSectionProps> = ({
           <View style={styles.balanceMain}>
             <Text style={styles.balanceLabel}>Balance</Text>
             <View style={styles.balanceRow}>
-              <Text style={styles.balanceAmount}>
-                {formatBalance(balance)}
-              </Text>
+              <Text style={styles.balanceAmount}>{formatBalance(balance)}</Text>
               <Text style={styles.balanceUnit}>sats</Text>
             </View>
-            <Text style={styles.balanceUsd}>
-              ≈ ${getUsdValue(balance)} USD
-            </Text>
+            <Text style={styles.balanceUsd}>≈ ${getUsdValue(balance)} USD</Text>
           </View>
-
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={onSendPress}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={onSendPress}>
             <Ionicons name="arrow-up" size={20} color={theme.colors.text} />
             <Text style={styles.actionText}>Send</Text>
           </TouchableOpacity>
@@ -164,7 +154,11 @@ export const PersonalWalletSection: React.FC<PersonalWalletSectionProps> = ({
       <View style={styles.infoCard}>
         {lastClaimTime && (
           <View style={styles.infoRow}>
-            <Ionicons name="checkmark-circle" size={16} color={theme.colors.statusConnected} />
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={theme.colors.statusConnected}
+            />
             <Text style={styles.infoText}>
               Last checked: {lastClaimTime.toLocaleTimeString()}
             </Text>
@@ -202,7 +196,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
   },
-
 
   errorText: {
     marginTop: 8,

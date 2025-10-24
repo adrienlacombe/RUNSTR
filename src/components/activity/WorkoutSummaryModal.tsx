@@ -19,7 +19,7 @@ import workoutPublishingService from '../../services/nostr/workoutPublishingServ
 import type { PublishableWorkout } from '../../services/nostr/workoutPublishingService';
 import type { Split } from '../../services/activity/SplitTrackingService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SocialShareModal } from '../fitness/SocialShareModal';
+import { EnhancedSocialShareModal } from '../profile/shared/EnhancedSocialShareModal';
 import TTSAnnouncementService from '../../services/activity/TTSAnnouncementService';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
@@ -27,6 +27,8 @@ import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService
 import { CustomAlert } from '../ui/CustomAlert';
 import { RewardEarnedModal } from '../rewards/RewardEarnedModal';
 import routeStorageService from '../../services/routes/RouteStorageService';
+import { nostrProfileService } from '../../services/nostr/NostrProfileService';
+import type { NostrProfile } from '../../services/nostr/NostrProfileService';
 
 interface GPSCoordinate {
   latitude: number;
@@ -66,6 +68,10 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSavingRoute, setIsSavingRoute] = useState(false);
   const [routeSaved, setRouteSaved] = useState(false);
+  const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
+  const [userId, setUserId] = useState<string>('');
+  const [preparedWorkout, setPreparedWorkout] =
+    useState<PublishableWorkout | null>(null);
 
   // Reward modal state
   const [showRewardModal, setShowRewardModal] = useState(false);
@@ -80,6 +86,29 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
     title: '',
     message: '',
   });
+
+  // Load user profile and ID for social cards
+  useEffect(() => {
+    const loadProfileAndId = async () => {
+      try {
+        const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+        const npub = await AsyncStorage.getItem('@runstr:npub');
+        const activeUserId = npub || pubkey || '';
+        setUserId(activeUserId);
+
+        if (pubkey) {
+          const profile = await nostrProfileService.getProfile(pubkey);
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+      }
+    };
+
+    if (visible) {
+      loadProfileAndId();
+    }
+  }, [visible]);
 
   // TTS Announcement when modal opens
   useEffect(() => {
@@ -124,6 +153,11 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
   };
 
   const formatSplitTime = (seconds: number): string => {
+    // Guard against NaN/invalid values
+    if (!isFinite(seconds) || seconds < 0) {
+      return '--:--';
+    }
+
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -185,86 +219,12 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
       };
     };
 
-  const handleShowSocialModal = () => {
-    setShowSocialModal(true);
-  };
-
-  const handlePostToFeed = async (
-    platform: 'nostr' | 'twitter' | 'instagram'
-  ) => {
-    if (platform !== 'nostr') {
-      // Only Nostr is implemented for now
-      return;
-    }
-
-    setIsPosting(true);
-    try {
-      // Get signer (works for both nsec and Amber)
-      const signer = await UnifiedSigningService.getInstance().getSigner();
-      const npub = await AsyncStorage.getItem('@runstr:npub');
-
-      if (!signer) {
-        setAlertState({
-          visible: true,
-          title: 'Error',
-          message: 'No authentication found. Please login first.',
-        });
-        return;
-      }
-
-      const publishableWorkout = await createPublishableWorkout();
-      if (!publishableWorkout) return;
-
-      // Post as kind 1 social event (works with both nsec and Amber)
-      const result = await workoutPublishingService.postWorkoutToSocial(
-        publishableWorkout,
-        signer,
-        npub || 'unknown',
-        {
-          includeStats: true,
-          includeMotivation: true,
-          cardTemplate: 'achievement',
-        }
-      );
-
-      if (result.success) {
-        setPosted(true);
-
-        // Mark as synced in local storage if this was a local workout
-        if (workout.localWorkoutId && result.eventId) {
-          try {
-            await LocalWorkoutStorageService.markAsSynced(
-              workout.localWorkoutId,
-              result.eventId
-            );
-            console.log(`✅ Marked local workout ${workout.localWorkoutId} as synced`);
-          } catch (syncError) {
-            console.warn('⚠️ Failed to mark workout as synced:', syncError);
-            // Non-critical - workout is still on Nostr
-          }
-        }
-
-        setAlertState({
-          visible: true,
-          title: 'Shared! 🎉',
-          message: 'Your workout has been shared to your feed!',
-        });
-      } else {
-        setAlertState({
-          visible: true,
-          title: 'Error',
-          message: `Failed to post: ${result.error}`,
-        });
-      }
-    } catch (error) {
-      console.error('Error posting workout:', error);
-      setAlertState({
-        visible: true,
-        title: 'Error',
-        message: 'Failed to post workout to feed',
-      });
-    } finally {
-      setIsPosting(false);
+  const handleShowSocialModal = async () => {
+    // Prepare workout for social sharing
+    const publishableWorkout = await createPublishableWorkout();
+    if (publishableWorkout) {
+      setPreparedWorkout(publishableWorkout);
+      setShowSocialModal(true);
     }
   };
 
@@ -304,7 +264,9 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
               workout.localWorkoutId,
               result.eventId
             );
-            console.log(`✅ Marked local workout ${workout.localWorkoutId} as synced`);
+            console.log(
+              `✅ Marked local workout ${workout.localWorkoutId} as synced`
+            );
           } catch (syncError) {
             console.warn('⚠️ Failed to mark workout as synced:', syncError);
             // Non-critical - workout is still on Nostr
@@ -351,7 +313,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
       setAlertState({
         visible: true,
         title: 'No GPS Data',
-        message: 'This workout doesn\'t have GPS tracking data. Only workouts with GPS can be saved as routes.',
+        message:
+          "This workout doesn't have GPS tracking data. Only workouts with GPS can be saved as routes.",
       });
       return;
     }
@@ -359,12 +322,13 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
     setIsSavingRoute(true);
     try {
       // Generate default route name based on workout
-      const activityName = workout.type.charAt(0).toUpperCase() + workout.type.slice(1);
+      const activityName =
+        workout.type.charAt(0).toUpperCase() + workout.type.slice(1);
       const distanceKm = (workout.distance / 1000).toFixed(1);
       const defaultName = `${activityName} ${distanceKm}km`;
 
       // Convert GPS coordinates to RouteStorageService format
-      const coordinates = workout.gpsCoordinates.map(coord => ({
+      const coordinates = workout.gpsCoordinates.map((coord) => ({
         latitude: coord.latitude,
         longitude: coord.longitude,
         altitude: coord.altitude,
@@ -470,7 +434,9 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
             </View>
             {workout.type === 'running' && (
               <View style={styles.statCard}>
-                <Text style={styles.statValue}>{activityMetricsService.formatPace(workout.pace)}</Text>
+                <Text style={styles.statValue}>
+                  {activityMetricsService.formatPace(workout.pace)}
+                </Text>
                 <Text style={styles.statLabel}>Pace</Text>
               </View>
             )}
@@ -504,36 +470,6 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
             )}
           </View>
 
-          {/* Effort Score Banner */}
-          {(() => {
-            const effortScore = activityMetricsService.calculateEffortScore(
-              workout.type,
-              workout.distance,
-              workout.duration,
-              workout.elevation || 0,
-              workout.pace
-            );
-            const effortLevel = activityMetricsService.getEffortLevel(effortScore);
-
-            return (
-              <View style={[styles.effortBanner, { backgroundColor: effortLevel.color + '20' }]}>
-                <View style={styles.effortScoreContainer}>
-                  <Text style={styles.effortEmoji}>{effortLevel.emoji}</Text>
-                  <View style={styles.effortTextContainer}>
-                    <Text style={[styles.effortScore, { color: effortLevel.color }]}>
-                      {effortScore}
-                    </Text>
-                    <Text style={[styles.effortLabel, { color: effortLevel.color }]}>
-                      Effort Score
-                    </Text>
-                  </View>
-                  <Text style={[styles.effortLevel, { color: effortLevel.color }]}>
-                    {effortLevel.label}
-                  </Text>
-                </View>
-              </View>
-            );
-          })()}
 
           {/* Splits Section */}
           {workout.type === 'running' &&
@@ -578,7 +514,11 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
                             />
                           )}
                           {comparison === 'average' && (
-                            <Ionicons name="remove" size={16} color={theme.colors.textMuted} />
+                            <Ionicons
+                              name="remove"
+                              size={16}
+                              color={theme.colors.textMuted}
+                            />
                           )}
                         </View>
                       </View>
@@ -586,7 +526,10 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
                   })}
                 </ScrollView>
                 <Text style={styles.splitsFooter}>
-                  Average Pace: {activityMetricsService.formatPace(getAverageSplitPace() || 0)}
+                  Average Pace:{' '}
+                  {activityMetricsService.formatPace(
+                    getAverageSplitPace() || 0
+                  )}
                 </Text>
               </View>
             )}
@@ -687,7 +630,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
             </Text>
             {workout.gpsCoordinates && workout.gpsCoordinates.length > 0 && (
               <Text style={styles.infoText}>
-                <Text style={styles.infoBold}>Save Route:</Text> Save this GPS track to reuse later
+                <Text style={styles.infoBold}>Save Route:</Text> Save this GPS
+                track to reuse later
               </Text>
             )}
           </View>
@@ -699,10 +643,21 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
         </View>
       </View>
 
-      <SocialShareModal
+      <EnhancedSocialShareModal
         visible={showSocialModal}
-        onClose={() => setShowSocialModal(false)}
-        onSelectPlatform={handlePostToFeed}
+        workout={preparedWorkout}
+        userId={userId}
+        userAvatar={userProfile?.picture}
+        userName={userProfile?.name || userProfile?.display_name}
+        onClose={() => {
+          setShowSocialModal(false);
+          setPreparedWorkout(null);
+        }}
+        onSuccess={() => {
+          setPosted(true);
+          setShowSocialModal(false);
+          setPreparedWorkout(null);
+        }}
       />
 
       {/* Reward Earned Modal */}
@@ -931,42 +886,5 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: 8,
     textAlign: 'center',
-  },
-  effortBanner: {
-    borderRadius: theme.borderRadius.medium,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  effortScoreContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  effortEmoji: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  effortTextContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  effortScore: {
-    fontSize: 36,
-    fontWeight: theme.typography.weights.bold,
-    marginBottom: 2,
-  },
-  effortLabel: {
-    fontSize: 11,
-    fontWeight: theme.typography.weights.semiBold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  effortLevel: {
-    fontSize: 18,
-    fontWeight: theme.typography.weights.bold,
-    textTransform: 'uppercase',
-    marginLeft: 12,
   },
 });

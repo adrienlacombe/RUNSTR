@@ -7,17 +7,17 @@
  * All possible notification types in the app
  */
 export type UnifiedNotificationType =
-  | 'challenge_request'        // Kind 1105: Someone challenges you
-  | 'challenge_accepted'       // Kind 1106: Your challenge was accepted
-  | 'challenge_declined'       // Kind 1107: Your challenge was declined
+  | 'challenge_request' // Kind 1105: Someone challenges you
+  | 'challenge_accepted' // Kind 1106: Your challenge was accepted
+  | 'challenge_declined' // Kind 1107: Your challenge was declined
   | 'competition_announcement' // Kind 1101: New competition created
-  | 'competition_reminder'     // Kind 1103: Competition starting soon
-  | 'competition_results'      // Kind 1102: Competition results posted
-  | 'incoming_zap'             // Kind 9735: Received Bitcoin zap
-  | 'team_join_request'        // Custom: User wants to join your team (captain only)
-  | 'event_join_request'       // Kind 1105: User wants to join your event (captain only)
-  | 'workout_comment'          // Kind 1: Comment on your workout post
-  | 'workout_zap';             // Kind 9735: Zap on your workout post
+  | 'competition_reminder' // Kind 1103: Competition starting soon
+  | 'competition_results' // Kind 1102: Competition results posted
+  | 'incoming_zap' // Kind 9735: Received Bitcoin zap
+  | 'team_join_request' // Custom: User wants to join your team (captain only)
+  | 'event_join_request' // Kind 1105: User wants to join your event (captain only)
+  | 'workout_comment' // Kind 1: Comment on your workout post
+  | 'workout_zap'; // Kind 9735: Zap on your workout post
 
 /**
  * Action types that can be taken from notifications
@@ -174,7 +174,10 @@ export interface NotificationStorage {
 /**
  * Notification subscriber callback
  */
-export type NotificationSubscriber = (notifications: UnifiedNotification[], unreadCount: number) => void;
+export type NotificationSubscriber = (
+  notifications: UnifiedNotification[],
+  unreadCount: number
+) => void;
 
 /**
  * Notification filter options

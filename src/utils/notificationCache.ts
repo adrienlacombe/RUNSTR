@@ -92,7 +92,8 @@ export class NotificationCache {
       const entry = notified[competitionId];
       if (!entry) return false;
 
-      const hoursSinceNotified = (Date.now() - entry.notifiedAt) / (1000 * 60 * 60);
+      const hoursSinceNotified =
+        (Date.now() - entry.notifiedAt) / (1000 * 60 * 60);
       return hoursSinceNotified < 24;
     } catch (error) {
       console.error('Failed to check notified competitions:', error);
@@ -116,7 +117,10 @@ export class NotificationCache {
         competitionName,
       };
 
-      await AsyncStorage.setItem(NOTIFIED_COMPETITIONS_KEY, JSON.stringify(notified));
+      await AsyncStorage.setItem(
+        NOTIFIED_COMPETITIONS_KEY,
+        JSON.stringify(notified)
+      );
     } catch (error) {
       console.error('Failed to mark competition as notified:', error);
     }
@@ -138,7 +142,7 @@ export class NotificationCache {
 
       // Only send alerts at specific intervals: 24h, 12h, 6h, 3h, 1h
       const alertIntervals = [24, 12, 6, 3, 1];
-      const nearestInterval = alertIntervals.find(h => h <= hoursLeft) || 1;
+      const nearestInterval = alertIntervals.find((h) => h <= hoursLeft) || 1;
 
       // Check if we've already sent alert for this interval
       return !entry.hoursWarned.includes(nearestInterval);
@@ -160,7 +164,7 @@ export class NotificationCache {
       const alerts: EndingAlerts = cached ? JSON.parse(cached) : {};
 
       const alertIntervals = [24, 12, 6, 3, 1];
-      const nearestInterval = alertIntervals.find(h => h <= hoursLeft) || 1;
+      const nearestInterval = alertIntervals.find((h) => h <= hoursLeft) || 1;
 
       if (!alerts[competitionId]) {
         alerts[competitionId] = {
@@ -201,23 +205,28 @@ export class NotificationCache {
    */
   static async cleanOldEntries(): Promise<void> {
     try {
-      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
       // Clean position cache
       const positionCache = await AsyncStorage.getItem(POSITION_CACHE_KEY);
       if (positionCache) {
         const positions: PositionCache = JSON.parse(positionCache);
-        const cleaned = Object.entries(positions).reduce((acc, [key, value]) => {
-          if (value.lastChecked > sevenDaysAgo) {
-            acc[key] = value;
-          }
-          return acc;
-        }, {} as PositionCache);
+        const cleaned = Object.entries(positions).reduce(
+          (acc, [key, value]) => {
+            if (value.lastChecked > sevenDaysAgo) {
+              acc[key] = value;
+            }
+            return acc;
+          },
+          {} as PositionCache
+        );
         await AsyncStorage.setItem(POSITION_CACHE_KEY, JSON.stringify(cleaned));
       }
 
       // Clean notified competitions
-      const notifiedCache = await AsyncStorage.getItem(NOTIFIED_COMPETITIONS_KEY);
+      const notifiedCache = await AsyncStorage.getItem(
+        NOTIFIED_COMPETITIONS_KEY
+      );
       if (notifiedCache) {
         const notified: NotifiedCompetitions = JSON.parse(notifiedCache);
         const cleaned = Object.entries(notified).reduce((acc, [key, value]) => {
@@ -226,7 +235,10 @@ export class NotificationCache {
           }
           return acc;
         }, {} as NotifiedCompetitions);
-        await AsyncStorage.setItem(NOTIFIED_COMPETITIONS_KEY, JSON.stringify(cleaned));
+        await AsyncStorage.setItem(
+          NOTIFIED_COMPETITIONS_KEY,
+          JSON.stringify(cleaned)
+        );
       }
 
       console.log('Cleaned old notification cache entries');

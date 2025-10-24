@@ -101,7 +101,9 @@ export const TeamMembersSection: React.FC<TeamMembersSectionProps> = ({
                 key={member.id}
                 style={[
                   styles.zappableMemberRow,
-                  index === members.length - 1 ? styles.lastMemberItem : undefined
+                  index === members.length - 1
+                    ? styles.lastMemberItem
+                    : undefined,
                 ]}
               >
                 <ZappableUserRow
@@ -126,7 +128,9 @@ export const TeamMembersSection: React.FC<TeamMembersSectionProps> = ({
                 onEdit={handleEditMember}
                 onKick={handleKickMember}
                 style={
-                  index === members.length - 1 ? styles.lastMemberItem : undefined
+                  index === members.length - 1
+                    ? styles.lastMemberItem
+                    : undefined
                 }
               />
             );
@@ -139,7 +143,9 @@ export const TeamMembersSection: React.FC<TeamMembersSectionProps> = ({
                 onEdit={undefined}
                 onKick={undefined}
                 style={
-                  index === members.length - 1 ? styles.lastMemberItem : undefined
+                  index === members.length - 1
+                    ? styles.lastMemberItem
+                    : undefined
                 }
               />
             );

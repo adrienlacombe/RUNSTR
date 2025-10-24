@@ -35,17 +35,13 @@ interface EventTransactionHistoryProps {
   eventId: string;
   eventName: string;
   eventStartDate: number; // Unix timestamp
-  entryFee: number;       // Amount in sats
+  entryFee: number; // Amount in sats
   style?: any;
 }
 
-export const EventTransactionHistory: React.FC<EventTransactionHistoryProps> = ({
-  eventId,
-  eventName,
-  eventStartDate,
-  entryFee,
-  style,
-}) => {
+export const EventTransactionHistory: React.FC<
+  EventTransactionHistoryProps
+> = ({ eventId, eventName, eventStartDate, entryFee, style }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasNWC, setHasNWC] = useState(false);
@@ -156,13 +152,20 @@ export const EventTransactionHistory: React.FC<EventTransactionHistoryProps> = (
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={24} color="#FF5252" />
               <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity onPress={loadTransactions} style={styles.retryButton}>
+              <TouchableOpacity
+                onPress={loadTransactions}
+                style={styles.retryButton}
+              >
                 <Text style={styles.retryText}>Retry</Text>
               </TouchableOpacity>
             </View>
           ) : transactions.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="receipt-outline" size={32} color={theme.colors.textMuted} />
+              <Ionicons
+                name="receipt-outline"
+                size={32}
+                color={theme.colors.textMuted}
+              />
               <Text style={styles.emptyText}>No payments received yet</Text>
               <Text style={styles.emptySubtext}>
                 Payments matching {formatAmount(entryFee)} will appear here
@@ -181,7 +184,10 @@ export const EventTransactionHistory: React.FC<EventTransactionHistoryProps> = (
               }
             >
               {transactions.map((tx, index) => (
-                <View key={tx.payment_hash || index} style={styles.transactionCard}>
+                <View
+                  key={tx.payment_hash || index}
+                  style={styles.transactionCard}
+                >
                   <View style={styles.transactionHeader}>
                     <View style={styles.transactionIcon}>
                       <Ionicons name="arrow-down" size={16} color="#4CAF50" />
@@ -195,12 +201,19 @@ export const EventTransactionHistory: React.FC<EventTransactionHistoryProps> = (
                       </Text>
                     </View>
                     <View style={styles.verifiedBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={14}
+                        color="#4CAF50"
+                      />
                       <Text style={styles.verifiedText}>Verified</Text>
                     </View>
                   </View>
                   {tx.description && (
-                    <Text style={styles.transactionDescription} numberOfLines={1}>
+                    <Text
+                      style={styles.transactionDescription}
+                      numberOfLines={1}
+                    >
                       {tx.description}
                     </Text>
                   )}

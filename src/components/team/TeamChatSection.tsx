@@ -34,7 +34,7 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
   teamName,
   userPubkey,
   captainPubkey,
-  isCaptain
+  isCaptain,
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const subscriptionRef = useRef<NDKSubscription | null>(null);
@@ -57,7 +57,10 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
   const checkAccess = async () => {
     try {
       const teamMemberCache = TeamMemberCache.getInstance();
-      const members = await teamMemberCache.getTeamMembers(teamId, captainPubkey);
+      const members = await teamMemberCache.getTeamMembers(
+        teamId,
+        captainPubkey
+      );
       const isMember = members.includes(userPubkey) || isCaptain;
 
       setHasAccess(isMember);
@@ -81,7 +84,9 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
         setChannelId(channel.id!);
       } else if (isCaptain) {
         // Auto-create chat for captain if it doesn't exist (handles existing teams)
-        console.log('[TeamChat] 🔨 No chat found, auto-creating for captain...');
+        console.log(
+          '[TeamChat] 🔨 No chat found, auto-creating for captain...'
+        );
         setAutoCreating(true);
 
         try {
@@ -91,11 +96,20 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
             captainPubkey
           );
           setChannelId(newChannel.id!);
-          console.log('[TeamChat] ✅ Chat auto-created successfully:', newChannel.id);
+          console.log(
+            '[TeamChat] ✅ Chat auto-created successfully:',
+            newChannel.id
+          );
         } catch (createError) {
-          console.error('[TeamChat] ❌ Failed to auto-create chat:', createError);
+          console.error(
+            '[TeamChat] ❌ Failed to auto-create chat:',
+            createError
+          );
           console.error('[TeamChat] Error details:', {
-            message: createError instanceof Error ? createError.message : String(createError),
+            message:
+              createError instanceof Error
+                ? createError.message
+                : String(createError),
             teamId,
             teamName,
             captainPubkey: captainPubkey?.slice(0, 20) + '...',
@@ -126,7 +140,7 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
         if (cancelled) return;
 
         setMessages(initialMessages);
-        setMessageIds(new Set(initialMessages.map(m => m.id!)));
+        setMessageIds(new Set(initialMessages.map((m) => m.id!)));
 
         // Subscribe to real-time updates
         subscriptionRef.current = chatService.subscribeToChannel(
@@ -135,7 +149,7 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
             if (cancelled) return;
 
             // Efficient deduplication with Set
-            setMessageIds(prev => {
+            setMessageIds((prev) => {
               if (prev.has(event.id!)) return prev;
 
               const newSet = new Set(prev);
@@ -143,9 +157,11 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
               return newSet;
             });
 
-            setMessages(prev => {
-              if (prev.some(m => m.id === event.id)) return prev;
-              return [...prev, event].sort((a, b) => a.created_at! - b.created_at!);
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === event.id)) return prev;
+              return [...prev, event].sort(
+                (a, b) => a.created_at! - b.created_at!
+              );
             });
 
             // Auto-scroll to bottom for new messages
@@ -193,21 +209,21 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
       content,
       pubkey: userPubkey,
       created_at: Math.floor(Date.now() / 1000),
-      tags: [['e', channelId, '', 'root']]
+      tags: [['e', channelId, '', 'root']],
     } as NDKEvent;
 
-    setMessages(prev => [...prev, tempMessage]);
-    setMessageIds(prev => new Set(prev).add(tempId));
+    setMessages((prev) => [...prev, tempMessage]);
+    setMessageIds((prev) => new Set(prev).add(tempId));
 
     try {
       const event = await chatService.sendMessage(channelId, content, teamId);
 
       // Replace temp with real event
-      setMessages(prev =>
-        prev.map(msg => msg.id === tempId ? event : msg)
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? event : msg))
       );
 
-      setMessageIds(prev => {
+      setMessageIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(tempId);
         newSet.add(event.id!);
@@ -222,14 +238,17 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
       console.error('Failed to send message:', error);
 
       // Rollback optimistic update
-      setMessages(prev => prev.filter(msg => msg.id !== tempId));
-      setMessageIds(prev => {
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      setMessageIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(tempId);
         return newSet;
       });
 
-      Alert.alert('Send Failed', 'Message could not be sent. Please try again.');
+      Alert.alert(
+        'Send Failed',
+        'Message could not be sent. Please try again.'
+      );
     } finally {
       setSending(false);
     }
@@ -251,14 +270,14 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
 
       // Filter out duplicates
       const newMessages = olderMessages.filter(
-        msg => !messageIds.has(msg.id!)
+        (msg) => !messageIds.has(msg.id!)
       );
 
       if (newMessages.length > 0) {
-        setMessages(prev => [...newMessages, ...prev]);
-        setMessageIds(prev => {
+        setMessages((prev) => [...newMessages, ...prev]);
+        setMessageIds((prev) => {
           const newSet = new Set(prev);
-          newMessages.forEach(msg => newSet.add(msg.id!));
+          newMessages.forEach((msg) => newSet.add(msg.id!));
           return newSet;
         });
       }
@@ -346,10 +365,7 @@ export const TeamChatSection: React.FC<TeamChatSectionProps> = ({
   // Chat interface
   return (
     <View style={styles.container}>
-      <ChatHeader
-        teamName={teamName}
-        memberCount={memberCount}
-      />
+      <ChatHeader teamName={teamName} memberCount={memberCount} />
 
       <FlatList
         ref={flatListRef}

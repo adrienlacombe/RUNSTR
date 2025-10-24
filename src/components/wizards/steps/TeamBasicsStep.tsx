@@ -84,7 +84,8 @@ export const TeamBasicsStep: React.FC<TeamBasicsStepProps> = ({
       <View style={styles.formGroup}>
         <Text style={styles.formLabel}>Support a Charity (Optional)</Text>
         <Text style={styles.formHelperText}>
-          Select a charity that your team will support. Members can zap the charity directly from your team page.
+          Select a charity that your team will support. Members can zap the
+          charity directly from your team page.
         </Text>
         <View style={styles.pickerContainer}>
           <Picker
@@ -94,7 +95,7 @@ export const TeamBasicsStep: React.FC<TeamBasicsStepProps> = ({
             itemStyle={styles.pickerItem}
           >
             <Picker.Item label="No charity selected" value="none" />
-            {CHARITIES.map(charity => (
+            {CHARITIES.map((charity) => (
               <Picker.Item
                 key={charity.id}
                 label={charity.name}

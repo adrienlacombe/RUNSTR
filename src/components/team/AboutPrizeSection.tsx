@@ -51,7 +51,10 @@ export const AboutPrizeSection: React.FC<AboutPrizeSectionProps> = ({
           <CaptainDashboardButton
             onPress={() => {
               console.log('🎖️ Captain Dashboard button clicked!');
-              console.log('🎖️ Calling onCaptainDashboard, type:', typeof onCaptainDashboard);
+              console.log(
+                '🎖️ Calling onCaptainDashboard, type:',
+                typeof onCaptainDashboard
+              );
               if (onCaptainDashboard) {
                 console.log('🎖️ onCaptainDashboard exists, calling it now...');
                 onCaptainDashboard();

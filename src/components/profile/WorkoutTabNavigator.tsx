@@ -49,7 +49,12 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           onPress={() => setActiveTab('public')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.tabText, activeTab === 'public' && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'public' && styles.tabTextActive,
+            ]}
+          >
             Public
           </Text>
           {activeTab === 'public' && <View style={styles.tabIndicator} />}
@@ -60,7 +65,12 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           onPress={() => setActiveTab('private')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.tabText, activeTab === 'private' && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'private' && styles.tabTextActive,
+            ]}
+          >
             Local
           </Text>
           {activeTab === 'private' && <View style={styles.tabIndicator} />}
@@ -71,7 +81,12 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           onPress={() => setActiveTab('apple')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.tabText, activeTab === 'apple' && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'apple' && styles.tabTextActive,
+            ]}
+          >
             Apple
           </Text>
           {activeTab === 'apple' && <View style={styles.tabIndicator} />}

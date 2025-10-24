@@ -72,7 +72,10 @@ export const ReviewLaunchStep: React.FC<ReviewLaunchStepProps> = ({
         return;
       }
 
-      console.log('✅ Retrieved auth data for:', authData.npub.slice(0, 20) + '...');
+      console.log(
+        '✅ Retrieved auth data for:',
+        authData.npub.slice(0, 20) + '...'
+      );
 
       // Decode nsec to get private key
       let privateKey: string;
@@ -85,7 +88,10 @@ export const ReviewLaunchStep: React.FC<ReviewLaunchStepProps> = ({
         }
       } catch (e) {
         console.error('Failed to decode nsec:', e);
-        Alert.alert('Error', 'Invalid authentication data. Please log in again.');
+        Alert.alert(
+          'Error',
+          'Invalid authentication data. Please log in again.'
+        );
         setIsLaunching(false);
         return;
       }

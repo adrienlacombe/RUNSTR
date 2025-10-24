@@ -88,15 +88,19 @@ class ActivityMetricsService {
   /**
    * Calculate pace (time per distance)
    */
-  calculatePace(distanceMeters: number, durationSeconds: number): number | undefined {
+  calculatePace(
+    distanceMeters: number,
+    durationSeconds: number
+  ): number | undefined {
     if (distanceMeters <= 0 || durationSeconds <= 0) {
       return undefined;
     }
 
     const distanceKm = distanceMeters / 1000;
-    const distanceUnits = this.unitSystem === 'imperial'
-      ? distanceKm * 0.621371 // Convert to miles
-      : distanceKm;
+    const distanceUnits =
+      this.unitSystem === 'imperial'
+        ? distanceKm * 0.621371 // Convert to miles
+        : distanceKm;
 
     if (distanceUnits <= 0) {
       return undefined;
@@ -183,7 +187,9 @@ class ActivityMetricsService {
     const secs = Math.floor(seconds % 60);
 
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}`;
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }
@@ -275,9 +281,10 @@ class ActivityMetricsService {
     }
 
     // Always set elevation with fallback to 0
-    formatted.elevation = metrics.elevationGain !== undefined
-      ? this.formatElevation(metrics.elevationGain)
-      : '0 m';
+    formatted.elevation =
+      metrics.elevationGain !== undefined
+        ? this.formatElevation(metrics.elevationGain)
+        : '0 m';
 
     return formatted;
   }
@@ -289,12 +296,12 @@ class ActivityMetricsService {
     if (this.unitSystem === 'imperial') {
       return {
         value: meters * 0.000621371,
-        unit: 'mi'
+        unit: 'mi',
       };
     }
     return {
       value: meters / 1000,
-      unit: 'km'
+      unit: 'km',
     };
   }
 
@@ -318,7 +325,7 @@ class ActivityMetricsService {
     const speedKmh = (distanceKm / durationMinutes) * 60;
 
     // Base score from distance and time (0-40 points)
-    let baseScore = Math.min(40, (distanceKm * 5) + (durationMinutes * 0.5));
+    let baseScore = Math.min(40, distanceKm * 5 + durationMinutes * 0.5);
 
     // Intensity score from speed (0-30 points)
     let intensityScore = 0;

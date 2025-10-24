@@ -4,8 +4,15 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import * as TaskManager from 'expo-task-manager';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,20 +20,26 @@ import { theme } from '../../styles/theme';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
-import type { TrackingSession } from '../../services/activity/SimpleLocationTrackingService';
+import type { TrackingSession, Split } from '../../services/activity/SimpleLocationTrackingService';
 import type { FormattedMetrics } from '../../services/activity/ActivityMetricsService';
-import { GPSStatusIndicator, type GPSSignalStrength } from '../../components/activity/GPSStatusIndicator';
+import {
+  GPSStatusIndicator,
+  type GPSSignalStrength,
+} from '../../components/activity/GPSStatusIndicator';
 import { BatteryWarning } from '../../components/activity/BatteryWarning';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { BACKGROUND_LOCATION_TASK } from '../../services/activity/BackgroundLocationTask';
+import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
+import { appPermissionService } from '../../services/initialization/AppPermissionService';
 
 // Constants
 const TIMER_INTERVAL_MS = 1000; // Update timer every second
 const METRICS_UPDATE_INTERVAL_MS = 1000; // Update metrics every second for running
 const MIN_WORKOUT_DISTANCE_METERS = 10; // Minimum distance to show workout summary
 const ZOMBIE_SESSION_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 hours
-const ANDROID_BACKGROUND_WARNING_KEY = '@runstr:android_background_warning_shown';
+const ANDROID_BACKGROUND_WARNING_KEY =
+  '@runstr:android_background_warning_shown';
 
 interface MetricCardProps {
   label: string;
@@ -37,7 +50,12 @@ interface MetricCardProps {
 const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon }) => (
   <View style={styles.metricCard}>
     {icon && (
-      <Ionicons name={icon} size={20} color={theme.colors.textMuted} style={styles.metricIcon} />
+      <Ionicons
+        name={icon}
+        size={20}
+        color={theme.colors.textMuted}
+        style={styles.metricIcon}
+      />
     )}
     <Text style={styles.metricValue}>{value}</Text>
     <Text style={styles.metricLabel}>{label}</Text>
@@ -45,6 +63,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon }) => (
 );
 
 export const RunningTrackerScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [metrics, setMetrics] = useState<FormattedMetrics>({
@@ -58,6 +77,7 @@ export const RunningTrackerScreen: React.FC = () => {
   const [gpsAccuracy, setGpsAccuracy] = useState<number | undefined>();
   const [isBackgroundTracking, setIsBackgroundTracking] = useState(false);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
     distance: number;
@@ -72,7 +92,11 @@ export const RunningTrackerScreen: React.FC = () => {
   const [alertConfig, setAlertConfig] = useState<{
     title: string;
     message: string;
-    buttons: Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
   }>({
     title: '',
     message: '',
@@ -81,9 +105,9 @@ export const RunningTrackerScreen: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const metricsUpdateRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
-  const pauseStartTimeRef = useRef<number>(0);  // When pause started
-  const totalPausedTimeRef = useRef<number>(0);  // Cumulative pause duration in ms
-  const isPausedRef = useRef<boolean>(false);  // Ref to avoid stale closure in timer
+  const pauseStartTimeRef = useRef<number>(0); // When pause started
+  const totalPausedTimeRef = useRef<number>(0); // Cumulative pause duration in ms
+  const isPausedRef = useRef<boolean>(false); // Ref to avoid stale closure in timer
 
   useEffect(() => {
     return () => {
@@ -96,48 +120,33 @@ export const RunningTrackerScreen: React.FC = () => {
   const startTracking = async () => {
     console.log('[RunningTrackerScreen] Starting tracking...');
 
-    // Android-specific: Show background tracking tips on first run
-    if (Platform.OS === 'android') {
-      const hasSeenWarning = await AsyncStorage.getItem(ANDROID_BACKGROUND_WARNING_KEY);
+    // First check if we have required permissions
+    const permissionStatus = await appPermissionService.checkAllPermissions();
 
-      if (!hasSeenWarning) {
-        setAlertConfig({
-          title: 'Background Tracking Tips',
-          message: 'To ensure accurate tracking while using other apps (like music players):\n\n' +
-            '• Keep the RUNSTR notification visible\n' +
-            '• Don\'t force-close the app\n' +
-            '• Music and other apps can run normally\n' +
-            '• If tracking stops, check battery optimization settings',
-          buttons: [
-            {
-              text: 'Got it',
-              style: 'default',
-              onPress: async () => {
-                await AsyncStorage.setItem(ANDROID_BACKGROUND_WARNING_KEY, 'true');
-                proceedWithTracking();
-              },
-            },
-          ],
-        });
-        setAlertVisible(true);
-        return; // Wait for user acknowledgment
-      }
+    if (!permissionStatus.location) {
+      // Show permission request modal
+      console.log('[RunningTrackerScreen] Missing permissions, showing modal');
+      setShowPermissionModal(true);
+      return;
     }
 
-    // If iOS or warning already shown, proceed directly
+    // Permissions granted, proceed with tracking
     proceedWithTracking();
   };
 
   const proceedWithTracking = async () => {
     try {
       // Simple permission and start flow
-      const started = await simpleLocationTrackingService.startTracking('running');
+      const started = await simpleLocationTrackingService.startTracking(
+        'running'
+      );
       if (started) {
         initializeTracking();
       }
     } catch (error) {
       // Get detailed error message from service
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       // Show detailed error with helpful context
       setAlertConfig({
@@ -145,19 +154,26 @@ export const RunningTrackerScreen: React.FC = () => {
         message: errorMessage,
         buttons: [
           { text: 'OK', style: 'default' },
-          ...(Platform.OS === 'android' ? [{
-            text: 'Settings',
-            style: 'default' as const,
-            onPress: () => {
-              // Open Android app settings
-              const { Linking } = require('react-native');
-              Linking.openSettings();
-            }
-          }] : [])
+          ...(Platform.OS === 'android'
+            ? [
+                {
+                  text: 'Settings',
+                  style: 'default' as const,
+                  onPress: () => {
+                    // Open Android app settings
+                    const { Linking } = require('react-native');
+                    Linking.openSettings();
+                  },
+                },
+              ]
+            : []),
         ],
       });
       setAlertVisible(true);
-      console.error('[RunningTrackerScreen] Failed to start tracking:', errorMessage);
+      console.error(
+        '[RunningTrackerScreen] Failed to start tracking:',
+        errorMessage
+      );
     }
   };
 
@@ -173,7 +189,9 @@ export const RunningTrackerScreen: React.FC = () => {
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
         const now = Date.now();
-        const totalElapsed = Math.floor((now - startTimeRef.current - totalPausedTimeRef.current) / 1000);
+        const totalElapsed = Math.floor(
+          (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
+        );
         setElapsedTime(totalElapsed);
       }
     }, TIMER_INTERVAL_MS);
@@ -184,31 +202,47 @@ export const RunningTrackerScreen: React.FC = () => {
 
       // Calculate current elapsed time from refs INSIDE the interval callback
       const now = Date.now();
-      const currentElapsed = Math.floor((now - startTimeRef.current - totalPausedTimeRef.current) / 1000);
+      const currentElapsed = Math.floor(
+        (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
+      );
       const formattedDuration = formatElapsedTime(currentElapsed);
 
       if (session) {
         const currentMetrics = {
           distance: session.distance,
           duration: currentElapsed,
-          pace: activityMetricsService.calculatePace(session.distance, currentElapsed),
+          pace: activityMetricsService.calculatePace(
+            session.distance,
+            currentElapsed
+          ),
           elevationGain: session.elevationGain,
         };
 
-        const formatted = activityMetricsService.getFormattedMetrics(currentMetrics, 'running');
+        const formatted = activityMetricsService.getFormattedMetrics(
+          currentMetrics,
+          'running'
+        );
         formatted.duration = formattedDuration;
 
         setMetrics(formatted);
         setGpsSignal(simpleLocationTrackingService.getGPSSignalStrength());
-        setGpsAccuracy(session.positions[session.positions.length - 1]?.accuracy);
+        setGpsAccuracy(
+          session.positions[session.positions.length - 1]?.accuracy
+        );
         setIsBackgroundTracking(false); // Simple service doesn't differentiate
       } else if (isTracking) {
-        setMetrics(prev => ({
+        setMetrics((prev) => ({
           ...prev,
           duration: formattedDuration,
         }));
       }
     }, METRICS_UPDATE_INTERVAL_MS);
+  };
+
+  const handlePermissionsGranted = () => {
+    // Permissions were granted, close modal and start tracking
+    setShowPermissionModal(false);
+    proceedWithTracking();
   };
 
   const formatElapsedTime = (seconds: number): string => {
@@ -217,25 +251,26 @@ export const RunningTrackerScreen: React.FC = () => {
     const secs = Math.floor(seconds % 60);
 
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}`;
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
-
 
   const pauseTracking = async () => {
     if (!isPaused) {
       await simpleLocationTrackingService.pauseTracking();
       setIsPaused(true);
       isPausedRef.current = true;
-      pauseStartTimeRef.current = Date.now();  // Store when pause started
+      pauseStartTimeRef.current = Date.now(); // Store when pause started
     }
   };
 
   const resumeTracking = async () => {
     if (isPaused) {
-      const pauseDuration = Date.now() - pauseStartTimeRef.current;  // Calculate how long we were paused
-      totalPausedTimeRef.current += pauseDuration;  // Add to cumulative total
+      const pauseDuration = Date.now() - pauseStartTimeRef.current; // Calculate how long we were paused
+      totalPausedTimeRef.current += pauseDuration; // Add to cumulative total
       await simpleLocationTrackingService.resumeTracking();
       setIsPaused(false);
       isPausedRef.current = false;
@@ -257,7 +292,8 @@ export const RunningTrackerScreen: React.FC = () => {
     setIsTracking(false);
     setIsPaused(false);
 
-    if (session && session.distance > MIN_WORKOUT_DISTANCE_METERS) { // Only show summary if moved at least 10 meters
+    if (session && session.distance > MIN_WORKOUT_DISTANCE_METERS) {
+      // Only show summary if moved at least 10 meters
       showWorkoutSummary(session);
     } else {
       // Reset metrics
@@ -272,8 +308,15 @@ export const RunningTrackerScreen: React.FC = () => {
   };
 
   const showWorkoutSummary = async (session: TrackingSession) => {
-    const calories = activityMetricsService.estimateCalories('running', session.distance, elapsedTime);
-    const pace = activityMetricsService.calculatePace(session.distance, elapsedTime);
+    const calories = activityMetricsService.estimateCalories(
+      'running',
+      session.distance,
+      elapsedTime
+    );
+    const pace = activityMetricsService.calculatePace(
+      session.distance,
+      elapsedTime
+    );
 
     // Save workout to local storage BEFORE showing modal
     // This ensures data persists even if user dismisses modal
@@ -351,30 +394,76 @@ export const RunningTrackerScreen: React.FC = () => {
       {/* Metrics Display */}
       <View style={styles.metricsContainer}>
         <View style={styles.metricsRow}>
-          <MetricCard label="Distance" value={metrics.distance} icon="navigate" />
-          <MetricCard label="Duration" value={formatElapsedTime(elapsedTime)} icon="time" />
+          <MetricCard
+            label="Distance"
+            value={metrics.distance}
+            icon="navigate"
+          />
+          <MetricCard
+            label="Duration"
+            value={formatElapsedTime(elapsedTime)}
+            icon="time"
+          />
         </View>
         <View style={styles.metricsRow}>
-          <MetricCard label="Pace" value={metrics.pace ?? '--:--'} icon="speedometer" />
-          <MetricCard label="Elevation" value={metrics.elevation ?? '0 m'} icon="trending-up" />
+          <MetricCard
+            label="Pace"
+            value={metrics.pace ?? '--:--'}
+            icon="speedometer"
+          />
+          <MetricCard
+            label="Elevation"
+            value={metrics.elevation ?? '0 m'}
+            icon="trending-up"
+          />
         </View>
       </View>
 
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
         {!isTracking ? (
-          <TouchableOpacity style={styles.startButton} onPress={startTracking}>
-            <Text style={styles.startButtonText}>Start Run</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.routesButton}
+              onPress={() =>
+                navigation.navigate('SavedRoutes' as any, {
+                  activityType: 'running',
+                })
+              }
+            >
+              <Ionicons
+                name="map-outline"
+                size={20}
+                color={theme.colors.text}
+              />
+              <Text style={styles.routesButtonText}>Routes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={startTracking}
+            >
+              <Text style={styles.startButtonText}>Start Run</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <>
             {!isPaused ? (
-              <TouchableOpacity style={styles.pauseButton} onPress={pauseTracking}>
+              <TouchableOpacity
+                style={styles.pauseButton}
+                onPress={pauseTracking}
+              >
                 <Ionicons name="pause" size={30} color={theme.colors.text} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.resumeButton} onPress={resumeTracking}>
-                <Ionicons name="play" size={30} color={theme.colors.background} />
+              <TouchableOpacity
+                style={styles.resumeButton}
+                onPress={resumeTracking}
+              >
+                <Ionicons
+                  name="play"
+                  size={30}
+                  color={theme.colors.background}
+                />
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.stopButton} onPress={stopTracking}>
@@ -403,6 +492,12 @@ export const RunningTrackerScreen: React.FC = () => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onClose={() => setAlertVisible(false)}
+      />
+
+      {/* Permission Request Modal */}
+      <PermissionRequestModal
+        visible={showPermissionModal}
+        onComplete={handlePermissionsGranted}
       />
     </View>
   );
@@ -457,6 +552,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 40,
     gap: 20,
+  },
+  routesButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  routesButtonText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    letterSpacing: 0.5,
   },
   startButton: {
     backgroundColor: theme.colors.text,

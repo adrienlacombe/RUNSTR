@@ -7,7 +7,14 @@ export interface ChallengeMetadata {
   id: string;
   name: string;
   description?: string;
-  activity: 'running' | 'walking' | 'cycling' | 'hiking' | 'swimming' | 'rowing' | 'workout';
+  activity:
+    | 'running'
+    | 'walking'
+    | 'cycling'
+    | 'hiking'
+    | 'swimming'
+    | 'rowing'
+    | 'workout';
   metric: 'distance' | 'duration' | 'count' | 'calories' | 'pace';
   target?: string; // Target value (e.g., "5000" for 5K meters)
   wager: number; // Amount in satoshis
@@ -29,14 +36,14 @@ export interface ChallengeMetadata {
 }
 
 export enum ChallengeStatus {
-  PENDING = 'pending',     // Waiting for acceptance
+  PENDING = 'pending', // Waiting for acceptance
   AWAITING_CREATOR_PAYMENT = 'awaiting_creator_payment', // Creator needs to pay
   AWAITING_ACCEPTER_PAYMENT = 'awaiting_accepter_payment', // Accepter needs to pay
-  ACTIVE = 'active',       // Challenge accepted and ongoing (both paid)
+  ACTIVE = 'active', // Challenge accepted and ongoing (both paid)
   COMPLETED = 'completed', // Challenge finished
-  DECLINED = 'declined',   // Challenge rejected
-  EXPIRED = 'expired',     // Challenge expired without response
-  CANCELLED = 'cancelled'  // Challenge cancelled by creator
+  DECLINED = 'declined', // Challenge rejected
+  EXPIRED = 'expired', // Challenge expired without response
+  CANCELLED = 'cancelled', // Challenge cancelled by creator
 }
 
 export enum PaymentStatus {
@@ -63,7 +70,7 @@ export interface ChallengeParticipant {
   avatar?: string;
   currentProgress: number; // Current value for the metric
   lastWorkoutAt?: number; // Unix timestamp of last workout
-  workoutCount: number;   // Number of workouts contributed
+  workoutCount: number; // Number of workouts contributed
 }
 
 export interface ChallengeLeaderboard {
@@ -76,7 +83,7 @@ export interface ChallengeLeaderboard {
   startsAt: number;
   expiresAt: number;
   leader?: string; // Pubkey of current leader
-  tied: boolean;   // Whether participants are tied
+  tied: boolean; // Whether participants are tied
 }
 
 export interface UserCompetition {
@@ -113,9 +120,9 @@ export interface DiscoveredNostrUser {
 }
 
 export enum UserActivityStatus {
-  ACTIVE = 'active',     // Active within 30 days
+  ACTIVE = 'active', // Active within 30 days
   INACTIVE = 'inactive', // No activity in 30+ days
-  NEW = 'new'           // No recorded activity
+  NEW = 'new', // No recorded activity
 }
 
 // Activity Configuration Types
@@ -126,9 +133,36 @@ export interface ActivityConfiguration {
   wagerAmount: number;
 }
 
-export type ActivityType = 'running' | 'walking' | 'cycling' | 'hiking' | 'swimming' | 'rowing' | 'strength' | 'treadmill' | 'meditation' | 'yoga' | 'pushups' | 'pullups' | 'situps' | 'weights' | 'workout';
+export type ActivityType =
+  | 'running'
+  | 'walking'
+  | 'cycling'
+  | 'hiking'
+  | 'swimming'
+  | 'rowing'
+  | 'strength'
+  | 'treadmill'
+  | 'meditation'
+  | 'yoga'
+  | 'pushups'
+  | 'pullups'
+  | 'situps'
+  | 'weights'
+  | 'workout';
 
-export type MetricType = 'distance' | 'duration' | 'count' | 'calories' | 'pace' | 'reps' | 'sets' | 'elevation' | 'laps' | 'poses' | 'sessions' | 'weight';
+export type MetricType =
+  | 'distance'
+  | 'duration'
+  | 'count'
+  | 'calories'
+  | 'pace'
+  | 'reps'
+  | 'sets'
+  | 'elevation'
+  | 'laps'
+  | 'poses'
+  | 'sessions'
+  | 'weight';
 
 export type DurationOption = 3 | 7 | 14 | 30; // Days
 

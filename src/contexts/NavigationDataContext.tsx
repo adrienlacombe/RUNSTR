@@ -82,7 +82,9 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
     try {
       // ✅ OPTIMIZATION: If AuthContext already loaded user, use it immediately
       if (currentUser) {
-        console.log('✅ NavigationData: Using user from AuthContext (skip refetch)');
+        console.log(
+          '✅ NavigationData: Using user from AuthContext (skip refetch)'
+        );
         setUser(currentUser);
         setIsLoading(false);
         return currentUser;
@@ -99,10 +101,12 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
         CacheKeys.USER_PROFILE(hexPubkey),
         async () => {
           // Fetcher function - called if cache miss or expired
-          const directUser = await DirectNostrProfileService.getCurrentUserProfile();
+          const directUser =
+            await DirectNostrProfileService.getCurrentUserProfile();
           if (directUser) return directUser as UserWithWallet;
 
-          const fallbackUser = await DirectNostrProfileService.getFallbackProfile();
+          const fallbackUser =
+            await DirectNostrProfileService.getFallbackProfile();
           return fallbackUser as UserWithWallet;
         },
         {
@@ -227,7 +231,9 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
         async () => {
           // Fetcher - builds user teams from memberships + discovered teams
           const membershipService = TeamMembershipService.getInstance();
-          const localMemberships = await membershipService.getLocalMemberships(hexPubkey);
+          const localMemberships = await membershipService.getLocalMemberships(
+            hexPubkey
+          );
 
           const teamService = getNostrTeamService();
           let discoveredTeams = teamService.getDiscoveredTeams();
@@ -314,7 +320,11 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
         }
       );
 
-      console.log(`✅ getAllUserTeams: Returning ${teams?.length || 0} teams (with background refresh)`);
+      console.log(
+        `✅ getAllUserTeams: Returning ${
+          teams?.length || 0
+        } teams (with background refresh)`
+      );
       setIsLoadingTeam(false);
       return teams || [];
     } catch (error) {
@@ -354,8 +364,12 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
         console.log(`✅ Profile: Found ${allTeams.length} team(s) for user`);
 
         // Filter out pending teams - only show teams where user is captain or verified member
-        teams = allTeams.filter(team => team.role === 'captain' || team.role === 'member');
-        console.log(`✅ Profile: Filtered to ${teams.length} verified team(s) (excluding pending)`);
+        teams = allTeams.filter(
+          (team) => team.role === 'captain' || team.role === 'member'
+        );
+        console.log(
+          `✅ Profile: Filtered to ${teams.length} verified team(s) (excluding pending)`
+        );
 
         // Get primary team ID from user preferences
         const userIdentifiers = await getUserNostrIdentifiers();
@@ -450,14 +464,20 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
 
     // ✅ OPTIMIZATION 1: Instant return if recently loaded
     if (teamsLoaded && timeSinceLastLoad < MIN_RELOAD_INTERVAL) {
-      console.log('⚡ Teams recently loaded, using cached data (instant return)');
+      console.log(
+        '⚡ Teams recently loaded, using cached data (instant return)'
+      );
       return;
     }
 
     // ✅ OPTIMIZATION 2: Synchronous cache check for instant display
-    const cachedTeams = unifiedCache.getCached<any[]>(CacheKeys.DISCOVERED_TEAMS);
+    const cachedTeams = unifiedCache.getCached<any[]>(
+      CacheKeys.DISCOVERED_TEAMS
+    );
     if (cachedTeams && cachedTeams.length > 0) {
-      console.log(`⚡ Using ${cachedTeams.length} cached teams (instant display)`);
+      console.log(
+        `⚡ Using ${cachedTeams.length} cached teams (instant display)`
+      );
       setAvailableTeams(cachedTeams);
       setTeamsLoaded(true);
       setTeamsLastLoaded(now);
@@ -466,26 +486,31 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       if (timeSinceLastLoad > 2 * 60 * 1000) {
         console.log('🔄 Triggering background team refresh');
         // Don't await - let it run in background
-        unifiedCache.get<any[]>(
-          CacheKeys.DISCOVERED_TEAMS,
-          async () => {
-            const teamService = getNostrTeamService();
-            await teamService.discoverFitnessTeams();
-            return Array.from(teamService.getDiscoveredTeams().values());
-          },
-          {
-            ttl: CacheTTL.DISCOVERED_TEAMS,
-            backgroundRefresh: true,
-            persist: true,
-          }
-        ).then((updatedTeams) => {
-          if (updatedTeams && updatedTeams.length > 0) {
-            console.log(`✅ Background refresh complete: ${updatedTeams.length} teams`);
-            setAvailableTeams(updatedTeams);
-          }
-        }).catch((err) => {
-          console.warn('Background team refresh failed:', err);
-        });
+        unifiedCache
+          .get<any[]>(
+            CacheKeys.DISCOVERED_TEAMS,
+            async () => {
+              const teamService = getNostrTeamService();
+              await teamService.discoverFitnessTeams();
+              return Array.from(teamService.getDiscoveredTeams().values());
+            },
+            {
+              ttl: CacheTTL.DISCOVERED_TEAMS,
+              backgroundRefresh: true,
+              persist: true,
+            }
+          )
+          .then((updatedTeams) => {
+            if (updatedTeams && updatedTeams.length > 0) {
+              console.log(
+                `✅ Background refresh complete: ${updatedTeams.length} teams`
+              );
+              setAvailableTeams(updatedTeams);
+            }
+          })
+          .catch((err) => {
+            console.warn('Background team refresh failed:', err);
+          });
       }
 
       return; // Return immediately with cached data
@@ -635,7 +660,9 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       // ✅ Check if already cached in UnifiedNostrCache
       const cachedCompetitions = unifiedCache.getCached(CacheKeys.COMPETITIONS);
       if (cachedCompetitions) {
-        console.log('✅ Leagues already cached in UnifiedNostrCache, skipping prefetch');
+        console.log(
+          '✅ Leagues already cached in UnifiedNostrCache, skipping prefetch'
+        );
         setLeaguesPrefetched(true);
         return;
       }
@@ -644,7 +671,9 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       // This is just a fallback check. The actual prefetching happens in:
       // src/services/nostr/NostrPrefetchService.ts -> prefetchCompetitions()
 
-      console.log('⚠️ Competitions not in cache - should have been prefetched by SplashInit');
+      console.log(
+        '⚠️ Competitions not in cache - should have been prefetched by SplashInit'
+      );
       setLeaguesPrefetched(true);
     } catch (error) {
       console.error('❌ Failed to prefetch leagues:', error);
@@ -688,7 +717,9 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
     const init = async () => {
       // Skip initialization if AuthContext already loaded user
       if (currentUser) {
-        console.log('✅ NavigationData: Skipping init (AuthContext already loaded user)');
+        console.log(
+          '✅ NavigationData: Skipping init (AuthContext already loaded user)'
+        );
         setUser(currentUser);
         setIsLoading(false);
         return;
@@ -708,16 +739,24 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
         const { hexPubkey } = identifiers;
 
         // Read from cache (INSTANT - no fetching)
-        const cachedProfile = unifiedCache.getCached(CacheKeys.USER_PROFILE(hexPubkey));
-        const cachedTeams = unifiedCache.getCached(CacheKeys.USER_TEAMS(hexPubkey));
-        const cachedDiscoveredTeams = unifiedCache.getCached(CacheKeys.DISCOVERED_TEAMS);
-        const cachedWalletInfo = unifiedCache.getCached(CacheKeys.WALLET_INFO(hexPubkey));
+        const cachedProfile = unifiedCache.getCached(
+          CacheKeys.USER_PROFILE(hexPubkey)
+        );
+        const cachedTeams = unifiedCache.getCached(
+          CacheKeys.USER_TEAMS(hexPubkey)
+        );
+        const cachedDiscoveredTeams = unifiedCache.getCached(
+          CacheKeys.DISCOVERED_TEAMS
+        );
+        const cachedWalletInfo = unifiedCache.getCached(
+          CacheKeys.WALLET_INFO(hexPubkey)
+        );
 
         console.log('📦 NavigationDataProvider: Cache status:', {
           profile: !!cachedProfile,
           teams: cachedTeams?.length || 0,
           discoveredTeams: cachedDiscoveredTeams?.length || 0,
-          wallet: !!cachedWalletInfo
+          wallet: !!cachedWalletInfo,
         });
 
         // Set user from cached profile
@@ -787,30 +826,34 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
 
         // UI is immediately ready - no fetching!
         setIsLoading(false);
-        console.log('✅ NavigationDataProvider: Instant load complete from cache!');
+        console.log(
+          '✅ NavigationDataProvider: Instant load complete from cache!'
+        );
 
         // Subscribe to cache updates for reactive data
         const unsubscribers = [
-          unifiedCache.subscribe(CacheKeys.USER_PROFILE(hexPubkey), (profile) => {
-            console.log('🔄 Profile updated from cache');
-            setUser(profile);
-          }),
+          unifiedCache.subscribe(
+            CacheKeys.USER_PROFILE(hexPubkey),
+            (profile) => {
+              console.log('🔄 Profile updated from cache');
+              setUser(profile);
+            }
+          ),
           unifiedCache.subscribe(CacheKeys.USER_TEAMS(hexPubkey), (teams) => {
             console.log('🔄 Teams updated from cache');
             // Update profile data with new teams
-            setProfileData(prev => prev ? { ...prev, teams } : null);
+            setProfileData((prev) => (prev ? { ...prev, teams } : null));
           }),
           unifiedCache.subscribe(CacheKeys.DISCOVERED_TEAMS, (teams) => {
             console.log('🔄 Discovered teams updated from cache');
             setAvailableTeams(teams);
-          })
+          }),
         ];
 
         // Cleanup subscriptions on unmount
         return () => {
-          unsubscribers.forEach(unsub => unsub());
+          unsubscribers.forEach((unsub) => unsub());
         };
-
       } catch (error) {
         console.error('❌ NavigationDataProvider: Init error:', error);
         setIsLoading(false);

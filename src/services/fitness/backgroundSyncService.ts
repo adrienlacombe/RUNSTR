@@ -72,17 +72,17 @@ export class BackgroundSyncService {
    * Update sync configuration - allows users to customize sync behavior
    * Recommended settings:
    * - Low battery usage: intervalMinutes: 60, foregroundSyncThresholdMinutes: 30
-   * - Balanced (default): intervalMinutes: 30, foregroundSyncThresholdMinutes: 15  
+   * - Balanced (default): intervalMinutes: 30, foregroundSyncThresholdMinutes: 15
    * - Frequent sync: intervalMinutes: 15, foregroundSyncThresholdMinutes: 10
    */
   updateSyncConfiguration(config: Partial<SyncConfiguration>): void {
     this.syncConfig = { ...this.syncConfig, ...config };
-    
+
     // Restart periodic sync if interval changed
     if (config.intervalMinutes && this.syncInterval) {
       this.startPeriodicSync();
     }
-    
+
     console.log('BackgroundSync: Configuration updated', this.syncConfig);
   }
 
@@ -177,7 +177,8 @@ export class BackgroundSyncService {
         if (nextAppState === 'active' && this.syncConfig.syncOnAppForeground) {
           // App came to foreground - sync if it's been a while
           const timeSinceLastSync = Date.now() - this.lastSyncTime;
-          const thresholdMs = this.syncConfig.foregroundSyncThresholdMinutes * 60 * 1000;
+          const thresholdMs =
+            this.syncConfig.foregroundSyncThresholdMinutes * 60 * 1000;
           if (timeSinceLastSync > thresholdMs) {
             this.performBackgroundSync('foreground');
           }
@@ -283,7 +284,9 @@ export class BackgroundSyncService {
       if (workoutsProcessed > 0) {
         // const unprocessedWorkouts = await this.getUnprocessedWorkouts(user.id);
         // Pure Nostr: Workouts are already processed as kind 1301 events
-        console.log(`BackgroundSync: ${workoutsProcessed} workouts synced to Nostr`);
+        console.log(
+          `BackgroundSync: ${workoutsProcessed} workouts synced to Nostr`
+        );
       }
 
       // Update last sync time

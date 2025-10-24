@@ -30,14 +30,17 @@ const categorizeTeam = (team: DiscoveryTeam): string => {
 
   if (content.includes('running') || content.includes('run')) return 'Running';
   if (content.includes('cycling') || content.includes('bike')) return 'Cycling';
-  if (content.includes('gym') || content.includes('workout') || content.includes('fitness')) return 'Gym';
+  if (
+    content.includes('gym') ||
+    content.includes('workout') ||
+    content.includes('fitness')
+  )
+    return 'Gym';
   if (content.includes('walking') || content.includes('walk')) return 'Walking';
   if (content.includes('swimming')) return 'Swimming';
   if (content.includes('ruck')) return 'Rucking';
   return 'Fitness';
 };
-
-
 
 interface TeamCardProps {
   team: DiscoveryTeam;
@@ -58,7 +61,8 @@ export const TeamCard: React.FC<TeamCardProps> = ({
   currentUserNpub,
   showCategory = false,
 }) => {
-  const [buttonState, setButtonState] = useState<MembershipButtonState>('loading');
+  const [buttonState, setButtonState] =
+    useState<MembershipButtonState>('loading');
   const [userRank, setUserRank] = useState<number | null>(null);
   const membershipService = TeamMembershipService.getInstance();
 
@@ -70,21 +74,20 @@ export const TeamCard: React.FC<TeamCardProps> = ({
   }, [onPress, team]);
 
   // ✅ PERFORMANCE: Memoize expensive captain check
-  const isCaptain = useMemo(() =>
-    isTeamCaptain(currentUserNpub, team),
+  const isCaptain = useMemo(
+    () => isTeamCaptain(currentUserNpub, team),
     [currentUserNpub, team]
   );
 
   // ✅ PERFORMANCE: Memoize team category calculation
-  const teamCategory = useMemo(() =>
-    categorizeTeam(team),
-    [team]
-  );
+  const teamCategory = useMemo(() => categorizeTeam(team), [team]);
 
   // Cache captain status when we detect it correctly
   useEffect(() => {
     if (team.id && currentUserNpub && isCaptain !== undefined) {
-      console.log(`🎯 TeamCard: Caching captain status for ${team.name}: ${isCaptain}`);
+      console.log(
+        `🎯 TeamCard: Caching captain status for ${team.name}: ${isCaptain}`
+      );
       CaptainCache.setCaptainStatus(team.id, isCaptain);
     }
   }, [team.id, currentUserNpub, isCaptain]);
@@ -97,46 +100,50 @@ export const TeamCard: React.FC<TeamCardProps> = ({
   // Fetch user's rank in this team
   // ✅ PERFORMANCE: Memoize expensive rank fetching function
   const fetchUserRank = useCallback(async () => {
-      if (!team?.id || !currentUserNpub || buttonState !== 'member') return;
+    if (!team?.id || !currentUserNpub || buttonState !== 'member') return;
 
-      try {
-        // Only fetch if user is a member
-        const competitionId = `${team.id}-default-streak`;
-        const parameters = {
-          activityType: 'Any' as any,
-          competitionType: 'Most Consistent' as any,
-          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date().toISOString(),
-          scoringFrequency: 'daily' as const,
-        };
+    try {
+      // Only fetch if user is a member
+      const competitionId = `${team.id}-default-streak`;
+      const parameters = {
+        activityType: 'Any' as any,
+        competitionType: 'Most Consistent' as any,
+        startDate: new Date(
+          Date.now() - 30 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        endDate: new Date().toISOString(),
+        scoringFrequency: 'daily' as const,
+      };
 
-        // Get team members
-        const memberCache = TeamMemberCache.getInstance();
-        const members = await memberCache.getTeamMembers(team.id, team.captainId);
-        const participants = members.map(pubkey => ({
-          npub: pubkey,
-          name: pubkey.slice(0, 8) + '...',
-          isActive: true,
-        }));
+      // Get team members
+      const memberCache = TeamMemberCache.getInstance();
+      const members = await memberCache.getTeamMembers(team.id, team.captainId);
+      const participants = members.map((pubkey) => ({
+        npub: pubkey,
+        name: pubkey.slice(0, 8) + '...',
+        isActive: true,
+      }));
 
-        if (participants.length > 0) {
-          const result = await leagueRankingService.calculateLeagueRankings(
-            competitionId,
-            participants,
-            parameters
+      if (participants.length > 0) {
+        const result = await leagueRankingService.calculateLeagueRankings(
+          competitionId,
+          participants,
+          parameters
+        );
+
+        if (result.rankings && result.rankings.length > 0) {
+          const userEntry = result.rankings.find(
+            (r) => r.npub === currentUserNpub
           );
-
-          if (result.rankings && result.rankings.length > 0) {
-            const userEntry = result.rankings.find(r => r.npub === currentUserNpub);
-            if (userEntry && userEntry.rank <= 10) {
-              setUserRank(userEntry.rank);
-            }
+          if (userEntry && userEntry.rank <= 10) {
+            setUserRank(userEntry.rank);
           }
         }
-      } catch (error) {
-        console.log('Could not fetch user rank for team:', error);
       }
-    }, [team?.id, currentUserNpub, buttonState]);
+    } catch (error) {
+      console.log('Could not fetch user rank for team:', error);
+    }
+  }, [team?.id, currentUserNpub, buttonState]);
 
   useEffect(() => {
     fetchUserRank();
@@ -195,7 +202,9 @@ export const TeamCard: React.FC<TeamCardProps> = ({
 
       // CRITICAL: Refresh teams cache so My Teams screen updates immediately
       try {
-        const nostrPrefetchService = (await import('../../services/nostr/NostrPrefetchService')).default;
+        const nostrPrefetchService = (
+          await import('../../services/nostr/NostrPrefetchService')
+        ).default;
         await nostrPrefetchService.refreshUserTeamsCache();
         console.log('✅ Teams cache refreshed after join');
       } catch (cacheError) {
@@ -342,7 +351,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginBottom: 8,
   },
-
 
   prizeRow: {
     flexDirection: 'row',

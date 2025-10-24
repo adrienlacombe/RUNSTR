@@ -21,33 +21,36 @@ export class NostrCacheService {
     PROFILE: '@runstr:cache:profile:',
     WORKOUTS: '@runstr:cache:workouts:',
     TEAMS: '@runstr:cache:teams',
-    RELAY_STATUS: '@runstr:cache:relay_status'
+    RELAY_STATUS: '@runstr:cache:relay_status',
   } as const;
 
   // Cache TTL settings (milliseconds)
   private static readonly TTL = {
     MEMORY: {
-      PROFILE: 30 * 60 * 1000,      // 30 minutes
-      WORKOUTS: 30 * 60 * 1000,     // 30 minutes (increased from 5 minutes)
-      TEAMS: 30 * 60 * 1000,        // 30 minutes (increased from 10 minutes)
+      PROFILE: 30 * 60 * 1000, // 30 minutes
+      WORKOUTS: 30 * 60 * 1000, // 30 minutes (increased from 5 minutes)
+      TEAMS: 30 * 60 * 1000, // 30 minutes (increased from 10 minutes)
     },
     PERSISTENT: {
-      PROFILE: 2 * 60 * 60 * 1000,  // 2 hours
+      PROFILE: 2 * 60 * 60 * 1000, // 2 hours
       WORKOUTS: 2 * 60 * 60 * 1000, // 2 hours (increased from 30 minutes)
-      TEAMS: 2 * 60 * 60 * 1000,    // 2 hours (increased from 1 hour)
-    }
+      TEAMS: 2 * 60 * 60 * 1000, // 2 hours (increased from 1 hour)
+    },
   } as const;
 
   /**
    * Get cached profile data with fallback chain
    */
   static async getCachedProfile<T>(npub: string): Promise<T | null> {
-    console.log('🔍 NostrCache: Getting cached profile for', npub.slice(0, 20) + '...');
+    console.log(
+      '🔍 NostrCache: Getting cached profile for',
+      npub.slice(0, 20) + '...'
+    );
 
     // Level 1: Check memory cache (instant)
     const memoryKey = `profile:${npub}`;
     const memCached = this.memoryCache.get(memoryKey);
-    
+
     if (memCached && !this.isExpired(memCached)) {
       console.log('⚡ NostrCache: Memory cache hit for profile');
       return memCached.data;
@@ -55,10 +58,12 @@ export class NostrCacheService {
 
     // Level 2: Check persistent cache (fast)
     try {
-      const persistentCached = await AsyncStorage.getItem(this.CACHE_KEYS.PROFILE + npub);
+      const persistentCached = await AsyncStorage.getItem(
+        this.CACHE_KEYS.PROFILE + npub
+      );
       if (persistentCached) {
         const parsed: CacheEntry<T> = JSON.parse(persistentCached);
-        
+
         if (!this.isExpired(parsed)) {
           console.log('💾 NostrCache: Persistent cache hit for profile');
           // Promote to memory cache
@@ -69,7 +74,10 @@ export class NostrCacheService {
         }
       }
     } catch (error) {
-      console.warn('NostrCache: Error reading persistent profile cache:', error);
+      console.warn(
+        'NostrCache: Error reading persistent profile cache:',
+        error
+      );
     }
 
     console.log('❌ NostrCache: No valid cached profile found');
@@ -80,19 +88,22 @@ export class NostrCacheService {
    * Cache profile data in both memory and persistent storage
    */
   static async setCachedProfile<T>(npub: string, data: T): Promise<void> {
-    console.log('💾 NostrCache: Caching profile for', npub.slice(0, 20) + '...');
-    
+    console.log(
+      '💾 NostrCache: Caching profile for',
+      npub.slice(0, 20) + '...'
+    );
+
     const now = Date.now();
     const memoryEntry: CacheEntry<T> = {
       data,
       timestamp: now,
-      expiresAt: now + this.TTL.MEMORY.PROFILE
+      expiresAt: now + this.TTL.MEMORY.PROFILE,
     };
-    
+
     const persistentEntry: CacheEntry<T> = {
       data,
-      timestamp: now, 
-      expiresAt: now + this.TTL.PERSISTENT.PROFILE
+      timestamp: now,
+      expiresAt: now + this.TTL.PERSISTENT.PROFILE,
     };
 
     // Set memory cache
@@ -106,7 +117,10 @@ export class NostrCacheService {
       );
       console.log('✅ NostrCache: Profile cached successfully');
     } catch (error) {
-      console.warn('NostrCache: Error setting persistent profile cache:', error);
+      console.warn(
+        'NostrCache: Error setting persistent profile cache:',
+        error
+      );
     }
   }
 
@@ -114,12 +128,15 @@ export class NostrCacheService {
    * Get cached workout data with fallback chain
    */
   static async getCachedWorkouts<T>(npub: string): Promise<T[]> {
-    console.log('🔍 NostrCache: Getting cached workouts for', npub.slice(0, 20) + '...');
+    console.log(
+      '🔍 NostrCache: Getting cached workouts for',
+      npub.slice(0, 20) + '...'
+    );
 
     // Level 1: Memory cache
     const memoryKey = `workouts:${npub}`;
     const memCached = this.memoryCache.get(memoryKey);
-    
+
     if (memCached && !this.isExpired(memCached)) {
       console.log('⚡ NostrCache: Memory cache hit for workouts');
       return memCached.data;
@@ -127,10 +144,12 @@ export class NostrCacheService {
 
     // Level 2: Persistent cache
     try {
-      const persistentCached = await AsyncStorage.getItem(this.CACHE_KEYS.WORKOUTS + npub);
+      const persistentCached = await AsyncStorage.getItem(
+        this.CACHE_KEYS.WORKOUTS + npub
+      );
       if (persistentCached) {
         const parsed: CacheEntry<T[]> = JSON.parse(persistentCached);
-        
+
         if (!this.isExpired(parsed)) {
           console.log('💾 NostrCache: Persistent cache hit for workouts');
           this.memoryCache.set(memoryKey, parsed);
@@ -138,7 +157,10 @@ export class NostrCacheService {
         }
       }
     } catch (error) {
-      console.warn('NostrCache: Error reading persistent workout cache:', error);
+      console.warn(
+        'NostrCache: Error reading persistent workout cache:',
+        error
+      );
     }
 
     console.log('❌ NostrCache: No valid cached workouts found');
@@ -149,19 +171,24 @@ export class NostrCacheService {
    * Cache workout data in both memory and persistent storage
    */
   static async setCachedWorkouts<T>(npub: string, data: T[]): Promise<void> {
-    console.log('💾 NostrCache: Caching', data.length, 'workouts for', npub.slice(0, 20) + '...');
+    console.log(
+      '💾 NostrCache: Caching',
+      data.length,
+      'workouts for',
+      npub.slice(0, 20) + '...'
+    );
 
     const now = Date.now();
     const memoryEntry: CacheEntry<T[]> = {
       data,
       timestamp: now,
-      expiresAt: now + this.TTL.MEMORY.WORKOUTS
+      expiresAt: now + this.TTL.MEMORY.WORKOUTS,
     };
 
     const persistentEntry: CacheEntry<T[]> = {
       data,
       timestamp: now,
-      expiresAt: now + this.TTL.PERSISTENT.WORKOUTS
+      expiresAt: now + this.TTL.PERSISTENT.WORKOUTS,
     };
 
     // Set memory cache (always succeeds)
@@ -171,17 +198,21 @@ export class NostrCacheService {
     // Set persistent cache with circular reference detection
     try {
       const jsonString = JSON.stringify(persistentEntry);
-      await AsyncStorage.setItem(
-        this.CACHE_KEYS.WORKOUTS + npub,
-        jsonString
-      );
+      await AsyncStorage.setItem(this.CACHE_KEYS.WORKOUTS + npub, jsonString);
       console.log('✅ NostrCache: Workouts cached persistently');
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('circular')) {
-        console.error('❌ NostrCache: Circular reference detected in workout data - persistent cache skipped');
-        console.error('   Memory cache is still available. Check workout objects for NDK event references.');
+        console.error(
+          '❌ NostrCache: Circular reference detected in workout data - persistent cache skipped'
+        );
+        console.error(
+          '   Memory cache is still available. Check workout objects for NDK event references.'
+        );
       } else {
-        console.warn('⚠️ NostrCache: Error setting persistent workout cache:', error);
+        console.warn(
+          '⚠️ NostrCache: Error setting persistent workout cache:',
+          error
+        );
       }
     }
   }
@@ -194,7 +225,7 @@ export class NostrCacheService {
 
     // Level 1: Memory cache
     const memCached = this.memoryCache.get('teams');
-    
+
     if (memCached && !this.isExpired(memCached)) {
       console.log('⚡ NostrCache: Memory cache hit for teams');
       return memCached.data;
@@ -202,10 +233,12 @@ export class NostrCacheService {
 
     // Level 2: Persistent cache
     try {
-      const persistentCached = await AsyncStorage.getItem(this.CACHE_KEYS.TEAMS);
+      const persistentCached = await AsyncStorage.getItem(
+        this.CACHE_KEYS.TEAMS
+      );
       if (persistentCached) {
         const parsed: CacheEntry<T[]> = JSON.parse(persistentCached);
-        
+
         if (!this.isExpired(parsed)) {
           console.log('💾 NostrCache: Persistent cache hit for teams');
           this.memoryCache.set('teams', parsed);
@@ -225,18 +258,18 @@ export class NostrCacheService {
    */
   static async setCachedTeams<T>(data: T[]): Promise<void> {
     console.log('💾 NostrCache: Caching', data.length, 'teams');
-    
+
     const now = Date.now();
     const memoryEntry: CacheEntry<T[]> = {
       data,
       timestamp: now,
-      expiresAt: now + this.TTL.MEMORY.TEAMS
+      expiresAt: now + this.TTL.MEMORY.TEAMS,
     };
-    
+
     const persistentEntry: CacheEntry<T[]> = {
       data,
       timestamp: now,
-      expiresAt: now + this.TTL.PERSISTENT.TEAMS
+      expiresAt: now + this.TTL.PERSISTENT.TEAMS,
     };
 
     // Set memory cache
@@ -274,20 +307,22 @@ export class NostrCacheService {
    */
   static async clearAllCache(): Promise<void> {
     console.log('🧹 NostrCache: Clearing all cache data');
-    
+
     // Clear memory cache
     this.memoryCache.clear();
 
     // Clear persistent cache
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const cacheKeys = keys.filter(key => 
-        key.startsWith('@runstr:cache:')
-      );
-      
+      const cacheKeys = keys.filter((key) => key.startsWith('@runstr:cache:'));
+
       if (cacheKeys.length > 0) {
         await AsyncStorage.multiRemove(cacheKeys);
-        console.log('✅ NostrCache: Removed', cacheKeys.length, 'persistent cache entries');
+        console.log(
+          '✅ NostrCache: Removed',
+          cacheKeys.length,
+          'persistent cache entries'
+        );
       }
     } catch (error) {
       console.warn('NostrCache: Error clearing persistent cache:', error);
@@ -303,7 +338,7 @@ export class NostrCacheService {
   } {
     return {
       memoryEntries: this.memoryCache.size,
-      memoryKeys: Array.from(this.memoryCache.keys())
+      memoryKeys: Array.from(this.memoryCache.keys()),
     };
   }
 
@@ -311,16 +346,22 @@ export class NostrCacheService {
    * Force refresh cache entry (delete existing cache)
    */
   static async forceRefreshProfile(npub: string): Promise<void> {
-    console.log('🔄 NostrCache: Force refreshing profile cache for', npub.slice(0, 20) + '...');
-    
+    console.log(
+      '🔄 NostrCache: Force refreshing profile cache for',
+      npub.slice(0, 20) + '...'
+    );
+
     // Remove from memory
     this.memoryCache.delete(`profile:${npub}`);
-    
+
     // Remove from persistent storage
     try {
       await AsyncStorage.removeItem(this.CACHE_KEYS.PROFILE + npub);
     } catch (error) {
-      console.warn('NostrCache: Error removing persistent profile cache:', error);
+      console.warn(
+        'NostrCache: Error removing persistent profile cache:',
+        error
+      );
     }
   }
 
@@ -328,16 +369,22 @@ export class NostrCacheService {
    * Force refresh workout cache
    */
   static async forceRefreshWorkouts(npub: string): Promise<void> {
-    console.log('🔄 NostrCache: Force refreshing workouts cache for', npub.slice(0, 20) + '...');
-    
+    console.log(
+      '🔄 NostrCache: Force refreshing workouts cache for',
+      npub.slice(0, 20) + '...'
+    );
+
     // Remove from memory
     this.memoryCache.delete(`workouts:${npub}`);
-    
+
     // Remove from persistent storage
     try {
       await AsyncStorage.removeItem(this.CACHE_KEYS.WORKOUTS + npub);
     } catch (error) {
-      console.warn('NostrCache: Error removing persistent workouts cache:', error);
+      console.warn(
+        'NostrCache: Error removing persistent workouts cache:',
+        error
+      );
     }
   }
 }

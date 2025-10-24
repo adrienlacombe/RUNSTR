@@ -23,7 +23,7 @@ export async function findAllWallets(): Promise<WalletSnapshot[]> {
     const wallets: WalletSnapshot[] = [];
 
     // Find all wallet_proofs keys
-    const proofKeys = allKeys.filter(key => key.includes('wallet_proofs'));
+    const proofKeys = allKeys.filter((key) => key.includes('wallet_proofs'));
 
     console.log('[Recovery] Found wallet proof keys:', proofKeys);
 
@@ -33,14 +33,17 @@ export async function findAllWallets(): Promise<WalletSnapshot[]> {
 
       try {
         const proofs = JSON.parse(proofsStr);
-        const balance = proofs.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const balance = proofs.reduce(
+          (sum: number, p: any) => sum + (p.amount || 0),
+          0
+        );
 
         // Extract pubkey from key (format: @runstr:wallet_proofs:PUBKEY)
         const pubkey = proofKey.split(':').pop() || 'unknown';
 
         // Try to get mint
         const mintKey = proofKey.replace('wallet_proofs', 'wallet_mint');
-        const mint = await AsyncStorage.getItem(mintKey) || 'unknown';
+        const mint = (await AsyncStorage.getItem(mintKey)) || 'unknown';
 
         wallets.push({
           storageKey: proofKey,
@@ -48,10 +51,15 @@ export async function findAllWallets(): Promise<WalletSnapshot[]> {
           balance,
           proofCount: proofs.length,
           proofs,
-          mint
+          mint,
         });
 
-        console.log(`[Recovery] Found wallet: ${pubkey.slice(0, 16)}... Balance: ${balance} sats`);
+        console.log(
+          `[Recovery] Found wallet: ${pubkey.slice(
+            0,
+            16
+          )}... Balance: ${balance} sats`
+        );
       } catch (err) {
         console.error('[Recovery] Error parsing proofs:', err);
       }
@@ -67,7 +75,9 @@ export async function findAllWallets(): Promise<WalletSnapshot[]> {
 /**
  * Consolidate all wallets into one under current pubkey
  */
-export async function consolidateWallets(targetPubkey: string): Promise<{ success: boolean; totalRecovered: number }> {
+export async function consolidateWallets(
+  targetPubkey: string
+): Promise<{ success: boolean; totalRecovered: number }> {
   try {
     const allWallets = await findAllWallets();
 
@@ -83,14 +93,22 @@ export async function consolidateWallets(targetPubkey: string): Promise<{ succes
     for (const wallet of allWallets) {
       allProofs.push(...wallet.proofs);
       totalBalance += wallet.balance;
-      console.log(`[Recovery] Collecting ${wallet.balance} sats from ${wallet.pubkey.slice(0, 16)}...`);
+      console.log(
+        `[Recovery] Collecting ${
+          wallet.balance
+        } sats from ${wallet.pubkey.slice(0, 16)}...`
+      );
     }
 
     // Save consolidated proofs under target pubkey
     const targetKey = `@runstr:wallet_proofs:${targetPubkey}`;
     await AsyncStorage.setItem(targetKey, JSON.stringify(allProofs));
 
-    console.log(`[Recovery] Consolidated ${allProofs.length} proofs (${totalBalance} sats) to ${targetPubkey.slice(0, 16)}...`);
+    console.log(
+      `[Recovery] Consolidated ${
+        allProofs.length
+      } proofs (${totalBalance} sats) to ${targetPubkey.slice(0, 16)}...`
+    );
 
     return { success: true, totalRecovered: totalBalance };
   } catch (error) {

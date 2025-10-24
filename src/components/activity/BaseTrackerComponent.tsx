@@ -14,10 +14,19 @@ interface MetricCardProps {
   icon?: keyof typeof Ionicons.glyphMap;
 }
 
-export const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon }) => (
+export const MetricCard: React.FC<MetricCardProps> = ({
+  label,
+  value,
+  icon,
+}) => (
   <View style={styles.metricCard}>
     {icon && (
-      <Ionicons name={icon} size={20} color={theme.colors.textMuted} style={styles.metricIcon} />
+      <Ionicons
+        name={icon}
+        size={20}
+        color={theme.colors.textMuted}
+        style={styles.metricIcon}
+      />
     )}
     <Text style={styles.metricValue}>{value}</Text>
     <Text style={styles.metricLabel}>{label}</Text>
@@ -26,10 +35,26 @@ export const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon }) =>
 
 interface BaseTrackerProps {
   metrics: {
-    primary: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap };
-    secondary: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap };
-    tertiary: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap };
-    quaternary: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap };
+    primary: {
+      label: string;
+      value: string;
+      icon?: keyof typeof Ionicons.glyphMap;
+    };
+    secondary: {
+      label: string;
+      value: string;
+      icon?: keyof typeof Ionicons.glyphMap;
+    };
+    tertiary: {
+      label: string;
+      value: string;
+      icon?: keyof typeof Ionicons.glyphMap;
+    };
+    quaternary: {
+      label: string;
+      value: string;
+      icon?: keyof typeof Ionicons.glyphMap;
+    };
   };
   isTracking: boolean;
   isPaused: boolean;
@@ -38,6 +63,7 @@ interface BaseTrackerProps {
   onResume: () => void;
   onStop: () => void;
   startButtonText: string;
+  onRoutesPress?: () => void; // Optional Routes button handler
 }
 
 export const BaseTrackerComponent: React.FC<BaseTrackerProps> = ({
@@ -49,6 +75,7 @@ export const BaseTrackerComponent: React.FC<BaseTrackerProps> = ({
   onResume,
   onStop,
   startButtonText,
+  onRoutesPress,
 }) => {
   return (
     <View style={styles.container}>
@@ -67,9 +94,24 @@ export const BaseTrackerComponent: React.FC<BaseTrackerProps> = ({
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
         {!isTracking ? (
-          <TouchableOpacity style={styles.startButton} onPress={onStart}>
-            <Text style={styles.startButtonText}>{startButtonText}</Text>
-          </TouchableOpacity>
+          <>
+            {onRoutesPress && (
+              <TouchableOpacity
+                style={styles.routesButton}
+                onPress={onRoutesPress}
+              >
+                <Ionicons
+                  name="map-outline"
+                  size={20}
+                  color={theme.colors.text}
+                />
+                <Text style={styles.routesButtonText}>Routes</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.startButton} onPress={onStart}>
+              <Text style={styles.startButtonText}>{startButtonText}</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <>
             {!isPaused ? (
@@ -78,7 +120,11 @@ export const BaseTrackerComponent: React.FC<BaseTrackerProps> = ({
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.resumeButton} onPress={onResume}>
-                <Ionicons name="play" size={30} color={theme.colors.background} />
+                <Ionicons
+                  name="play"
+                  size={30}
+                  color={theme.colors.background}
+                />
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.stopButton} onPress={onStop}>
@@ -135,6 +181,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 40,
     gap: 20,
+  },
+  routesButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  routesButtonText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    letterSpacing: 0.5,
   },
   startButton: {
     backgroundColor: theme.colors.text,

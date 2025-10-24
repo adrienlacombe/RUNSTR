@@ -17,11 +17,11 @@ import type { LocationPoint } from '../services/activity/SimpleLocationTrackingS
 
 // Constants from proven reference implementation
 export const GPS_VALIDATION_CONSTANTS = {
-  MINIMUM_ACCURACY: 20,              // meters - reject poor GPS signals
-  SPEED_THRESHOLD: 18,               // m/s (~65 km/h) - for cycling support
-  MINIMUM_DISTANCE: 0.5,             // meters - filter GPS jitter
-  MAXIMUM_DISTANCE_PER_POINT: 50,    // meters - reject GPS jumps
-  MINIMUM_TIME_DIFF: 0.2,            // seconds - prevent duplicate points
+  MINIMUM_ACCURACY: 20, // meters - reject poor GPS signals
+  SPEED_THRESHOLD: 18, // m/s (~65 km/h) - for cycling support
+  MINIMUM_DISTANCE: 0.5, // meters - filter GPS jitter
+  MAXIMUM_DISTANCE_PER_POINT: 50, // meters - reject GPS jumps
+  MINIMUM_TIME_DIFF: 0.2, // seconds - prevent duplicate points
 } as const;
 
 /**
@@ -30,13 +30,19 @@ export const GPS_VALIDATION_CONSTANTS = {
  * @param p2 Second location point
  * @returns Distance in meters
  */
-export function calculateDistance(p1: LocationPoint, p2: LocationPoint): number {
+export function calculateDistance(
+  p1: LocationPoint,
+  p2: LocationPoint
+): number {
   // Input validation
-  if (!p1 || !p2 ||
-      typeof p1.latitude !== 'number' ||
-      typeof p1.longitude !== 'number' ||
-      typeof p2.latitude !== 'number' ||
-      typeof p2.longitude !== 'number') {
+  if (
+    !p1 ||
+    !p2 ||
+    typeof p1.latitude !== 'number' ||
+    typeof p1.longitude !== 'number' ||
+    typeof p2.latitude !== 'number' ||
+    typeof p2.longitude !== 'number'
+  ) {
     console.warn('[GPS] Invalid coordinates provided to calculateDistance');
     return 0;
   }
@@ -79,11 +85,13 @@ export function calculateDistance(p1: LocationPoint, p2: LocationPoint): number 
  *
  * @param location Current GPS point to validate
  * @param lastLocation Previous GPS point (optional for first point)
+ * @param sessionStartTime Optional session start time for grace period
  * @returns true if point should be accepted, false if rejected
  */
 export function filterLocation(
   location: LocationPoint,
-  lastLocation: LocationPoint | null
+  lastLocation: LocationPoint | null,
+  sessionStartTime?: number
 ): boolean {
   if (!location) {
     console.warn('[GPS] Invalid location data provided to filterLocation');
@@ -91,9 +99,19 @@ export function filterLocation(
   }
 
   // Check for minimum accuracy (reject poor GPS signals)
-  if (location.accuracy && location.accuracy > GPS_VALIDATION_CONSTANTS.MINIMUM_ACCURACY) {
+  // Apply grace period for first 30 seconds to allow GPS warmup
+  const gracePeriodMs = 30000; // 30 seconds
+  const isInGracePeriod =
+    sessionStartTime && location.timestamp - sessionStartTime < gracePeriodMs;
+  const accuracyThreshold = isInGracePeriod
+    ? 50 // Relaxed threshold during grace period
+    : GPS_VALIDATION_CONSTANTS.MINIMUM_ACCURACY;
+
+  if (location.accuracy && location.accuracy > accuracyThreshold) {
     console.warn(
-      `[GPS] Rejected: poor accuracy (${location.accuracy.toFixed(1)}m > ${GPS_VALIDATION_CONSTANTS.MINIMUM_ACCURACY}m)`
+      `[GPS] Rejected: poor accuracy (${location.accuracy.toFixed(1)}m > ${accuracyThreshold}m)${
+        isInGracePeriod ? ' [grace period]' : ''
+      }`
     );
     return false;
   }
@@ -108,7 +126,11 @@ export function filterLocation(
 
   // Reject points that are too close in time (likely duplicates)
   if (timeDiff < GPS_VALIDATION_CONSTANTS.MINIMUM_TIME_DIFF) {
-    console.log(`[GPS] Rejected: too soon (${timeDiff.toFixed(2)}s < ${GPS_VALIDATION_CONSTANTS.MINIMUM_TIME_DIFF}s)`);
+    console.log(
+      `[GPS] Rejected: too soon (${timeDiff.toFixed(2)}s < ${
+        GPS_VALIDATION_CONSTANTS.MINIMUM_TIME_DIFF
+      }s)`
+    );
     return false;
   }
 
@@ -119,7 +141,9 @@ export function filterLocation(
   // Reject unrealistic speeds (GPS jumps)
   if (speed > GPS_VALIDATION_CONSTANTS.SPEED_THRESHOLD) {
     console.warn(
-      `[GPS] Rejected: unrealistic speed (${speed.toFixed(1)} m/s > ${GPS_VALIDATION_CONSTANTS.SPEED_THRESHOLD} m/s, distance=${distance.toFixed(1)}m in ${timeDiff.toFixed(1)}s)`
+      `[GPS] Rejected: unrealistic speed (${speed.toFixed(1)} m/s > ${
+        GPS_VALIDATION_CONSTANTS.SPEED_THRESHOLD
+      } m/s, distance=${distance.toFixed(1)}m in ${timeDiff.toFixed(1)}s)`
     );
     return false;
   }
@@ -132,7 +156,9 @@ export function filterLocation(
   // Reject large GPS jumps (teleportation)
   if (distance > GPS_VALIDATION_CONSTANTS.MAXIMUM_DISTANCE_PER_POINT) {
     console.warn(
-      `[GPS] Rejected: jump too large (${distance.toFixed(1)}m > ${GPS_VALIDATION_CONSTANTS.MAXIMUM_DISTANCE_PER_POINT}m)`
+      `[GPS] Rejected: jump too large (${distance.toFixed(1)}m > ${
+        GPS_VALIDATION_CONSTANTS.MAXIMUM_DISTANCE_PER_POINT
+      }m)`
     );
     return false;
   }
@@ -155,7 +181,10 @@ export function validateSegment(
   accuracy?: number
 ): boolean {
   // Check accuracy if provided
-  if (accuracy !== undefined && accuracy > GPS_VALIDATION_CONSTANTS.MINIMUM_ACCURACY) {
+  if (
+    accuracy !== undefined &&
+    accuracy > GPS_VALIDATION_CONSTANTS.MINIMUM_ACCURACY
+  ) {
     return false;
   }
 
@@ -165,8 +194,10 @@ export function validateSegment(
   }
 
   // Check distance bounds
-  if (distance < GPS_VALIDATION_CONSTANTS.MINIMUM_DISTANCE ||
-      distance > GPS_VALIDATION_CONSTANTS.MAXIMUM_DISTANCE_PER_POINT) {
+  if (
+    distance < GPS_VALIDATION_CONSTANTS.MINIMUM_DISTANCE ||
+    distance > GPS_VALIDATION_CONSTANTS.MAXIMUM_DISTANCE_PER_POINT
+  ) {
     return false;
   }
 

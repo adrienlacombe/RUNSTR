@@ -51,7 +51,10 @@ export class NostrCompetitionService {
    * Supports both direct privateKeyHex (nsec users) and NDKSigner (Amber users)
    */
   static async createLeague(
-    leagueData: Omit<NostrLeagueDefinition, 'id' | 'captainPubkey' | 'createdAt' | 'updatedAt' | 'status'>,
+    leagueData: Omit<
+      NostrLeagueDefinition,
+      'id' | 'captainPubkey' | 'createdAt' | 'updatedAt' | 'status'
+    >,
     captainPrivateKeyOrSigner: string | NDKSigner
   ): Promise<CompetitionPublishResult> {
     try {
@@ -60,7 +63,10 @@ export class NostrCompetitionService {
       const isSigner = typeof captainPrivateKeyOrSigner !== 'string';
 
       // Generate unique competition ID
-      const competitionId = NostrCompetitionService.generateCompetitionId('league', leagueData.name);
+      const competitionId = NostrCompetitionService.generateCompetitionId(
+        'league',
+        leagueData.name
+      );
       const now = Math.floor(Date.now() / 1000);
 
       // Get captain's public key based on auth method
@@ -70,7 +76,9 @@ export class NostrCompetitionService {
         captainPubkey = user.pubkey;
       } else {
         const privateKeyBytes = new Uint8Array(
-          captainPrivateKeyOrSigner.match(/.{2}/g)?.map((byte) => parseInt(byte, 16)) || []
+          captainPrivateKeyOrSigner
+            .match(/.{2}/g)
+            ?.map((byte) => parseInt(byte, 16)) || []
         );
         captainPubkey = getPublicKey(privateKeyBytes);
       }
@@ -108,7 +116,10 @@ export class NostrCompetitionService {
       }
 
       // Add prize pool tag if defined
-      if (leagueData.prizePoolSats !== undefined && leagueData.prizePoolSats !== null) {
+      if (
+        leagueData.prizePoolSats !== undefined &&
+        leagueData.prizePoolSats !== null
+      ) {
         tags.push(['prize_pool', leagueData.prizePoolSats.toString()]);
       }
 
@@ -133,10 +144,13 @@ export class NostrCompetitionService {
           captainPrivateKeyOrSigner as string
         );
       }
-      const publishResult = await service.relayManager.publishEvent(signedEvent);
+      const publishResult = await service.relayManager.publishEvent(
+        signedEvent
+      );
 
       // Check if any relays were successful
-      const hasSuccess = publishResult.successful && publishResult.successful.length > 0;
+      const hasSuccess =
+        publishResult.successful && publishResult.successful.length > 0;
 
       if (hasSuccess) {
         console.log('✅ League published successfully:', competitionId);
@@ -148,14 +162,19 @@ export class NostrCompetitionService {
         };
       } else {
         const failedRelays = publishResult.failed || [];
-        throw new Error(`Failed to publish league to relays: ${failedRelays.length} failed`);
+        throw new Error(
+          `Failed to publish league to relays: ${failedRelays.length} failed`
+        );
       }
     } catch (error) {
       console.error('❌ Failed to create league:', error);
       return {
         eventId: '',
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error creating league',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Unknown error creating league',
       };
     }
   }
@@ -165,7 +184,10 @@ export class NostrCompetitionService {
    * Supports both direct privateKeyHex (nsec users) and NDKSigner (Amber users)
    */
   static async createEvent(
-    eventData: Omit<NostrEventDefinition, 'id' | 'captainPubkey' | 'createdAt' | 'updatedAt' | 'status'>,
+    eventData: Omit<
+      NostrEventDefinition,
+      'id' | 'captainPubkey' | 'createdAt' | 'updatedAt' | 'status'
+    >,
     captainPrivateKeyOrSigner: string | NDKSigner
   ): Promise<CompetitionPublishResult> {
     try {
@@ -174,7 +196,10 @@ export class NostrCompetitionService {
       const isSigner = typeof captainPrivateKeyOrSigner !== 'string';
 
       // Generate unique competition ID
-      const competitionId = NostrCompetitionService.generateCompetitionId('event', eventData.name);
+      const competitionId = NostrCompetitionService.generateCompetitionId(
+        'event',
+        eventData.name
+      );
       const now = Math.floor(Date.now() / 1000);
 
       // Get captain's public key based on auth method
@@ -184,7 +209,9 @@ export class NostrCompetitionService {
         captainPubkey = user.pubkey;
       } else {
         const privateKeyBytes = new Uint8Array(
-          captainPrivateKeyOrSigner.match(/.{2}/g)?.map((byte) => parseInt(byte, 16)) || []
+          captainPrivateKeyOrSigner
+            .match(/.{2}/g)
+            ?.map((byte) => parseInt(byte, 16)) || []
         );
         captainPubkey = getPublicKey(privateKeyBytes);
       }
@@ -224,7 +251,10 @@ export class NostrCompetitionService {
       }
 
       // Add prize pool tag if defined
-      if (eventData.prizePoolSats !== undefined && eventData.prizePoolSats !== null) {
+      if (
+        eventData.prizePoolSats !== undefined &&
+        eventData.prizePoolSats !== null
+      ) {
         tags.push(['prize_pool', eventData.prizePoolSats.toString()]);
       }
 
@@ -262,10 +292,13 @@ export class NostrCompetitionService {
           captainPrivateKeyOrSigner as string
         );
       }
-      const publishResult = await service.relayManager.publishEvent(signedEvent);
+      const publishResult = await service.relayManager.publishEvent(
+        signedEvent
+      );
 
       // Check if any relays were successful
-      const hasSuccess = publishResult.successful && publishResult.successful.length > 0;
+      const hasSuccess =
+        publishResult.successful && publishResult.successful.length > 0;
 
       if (hasSuccess) {
         console.log('✅ Event published successfully:', competitionId);
@@ -277,14 +310,19 @@ export class NostrCompetitionService {
         };
       } else {
         const failedRelays = publishResult.failed || [];
-        throw new Error(`Failed to publish event to relays: ${failedRelays.length} failed`);
+        throw new Error(
+          `Failed to publish event to relays: ${failedRelays.length} failed`
+        );
       }
     } catch (error) {
       console.error('❌ Failed to create event:', error);
       return {
         eventId: '',
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error creating event',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Unknown error creating event',
       };
     }
   }
@@ -305,7 +343,7 @@ export class NostrCompetitionService {
       const leagues: NostrLeagueDefinition[] = [];
       const events: NostrEventDefinition[] = [];
       const errors: string[] = [];
-      
+
       // Create Nostr filter
       const nostrFilter = {
         kinds: filter.kinds,
@@ -314,7 +352,9 @@ export class NostrCompetitionService {
         until: filter.until,
         limit: filter.limit,
         ...(filter['#team'] && { '#team': filter['#team'] }),
-        ...(filter['#activity_type'] && { '#activity_type': filter['#activity_type'] }),
+        ...(filter['#activity_type'] && {
+          '#activity_type': filter['#activity_type'],
+        }),
         ...(filter['#status'] && { '#status': filter['#status'] }),
       };
 
@@ -324,9 +364,10 @@ export class NostrCompetitionService {
         (event: Event, relayUrl: string) => {
           try {
             // ✅ RUNSTR event validation: Check for required tags BEFORE parsing
-            const hasRequiredTags = event.tags.some(t => t[0] === 'team') &&
-                                   event.tags.some(t => t[0] === 'activity_type') &&
-                                   event.tags.some(t => t[0] === 'name');
+            const hasRequiredTags =
+              event.tags.some((t) => t[0] === 'team') &&
+              event.tags.some((t) => t[0] === 'activity_type') &&
+              event.tags.some((t) => t[0] === 'name');
 
             if (!hasRequiredTags) {
               // Skip non-RUNSTR events silently (no error logging)
@@ -335,11 +376,15 @@ export class NostrCompetitionService {
 
             if (event.kind === 30100) {
               // Parse league
-              const leagueData = JSON.parse(event.content) as NostrLeagueDefinition;
+              const leagueData = JSON.parse(
+                event.content
+              ) as NostrLeagueDefinition;
               leagues.push(leagueData);
             } else if (event.kind === 30101) {
               // Parse event
-              const eventData = JSON.parse(event.content) as NostrEventDefinition;
+              const eventData = JSON.parse(
+                event.content
+              ) as NostrEventDefinition;
               events.push(eventData);
             }
           } catch (error) {
@@ -350,13 +395,15 @@ export class NostrCompetitionService {
       );
 
       // Wait for results
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Clean up subscription
       this.relayManager.unsubscribe(subscriptionId);
 
       const skippedCount = errors.length;
-      console.log(`✅ Found ${leagues.length} leagues and ${events.length} RUNSTR events (skipped ${skippedCount} non-RUNSTR events)`);
+      console.log(
+        `✅ Found ${leagues.length} leagues and ${events.length} RUNSTR events (skipped ${skippedCount} non-RUNSTR events)`
+      );
 
       return {
         leagues,
@@ -372,7 +419,9 @@ export class NostrCompetitionService {
         events: [],
         totalCount: 0,
         syncedAt: new Date().toISOString(),
-        errors: [error instanceof Error ? error.message : 'Unknown query error'],
+        errors: [
+          error instanceof Error ? error.message : 'Unknown query error',
+        ],
       };
     }
   }
@@ -389,19 +438,19 @@ export class NostrCompetitionService {
       kinds: [30100, 30101],
       '#team': [teamId],
       '#status': ['upcoming', 'active'],
-      since: now - (30 * 24 * 60 * 60), // Last 30 days
+      since: now - 30 * 24 * 60 * 60, // Last 30 days
       limit: 100,
     });
 
     // Filter by date for active competitions
     const nowDate = new Date();
-    const activeLeagues = result.leagues.filter(league => {
+    const activeLeagues = result.leagues.filter((league) => {
       const startDate = new Date(league.startDate);
       const endDate = new Date(league.endDate);
       return startDate <= nowDate && nowDate <= endDate;
     });
 
-    const activeEvents = result.events.filter(event => {
+    const activeEvents = result.events.filter((event) => {
       const eventDate = new Date(event.eventDate);
       const eventStart = new Date(eventDate);
       eventStart.setHours(0, 0, 0, 0);
@@ -429,7 +478,9 @@ export class NostrCompetitionService {
     captainPrivateKey: string
   ): Promise<CompetitionPublishResult> {
     try {
-      console.log(`🔄 Updating competition ${competitionId} status to ${newStatus}`);
+      console.log(
+        `🔄 Updating competition ${competitionId} status to ${newStatus}`
+      );
 
       // First, get the existing competition
       const existingCompetitions = await this.queryCompetitions({
@@ -437,8 +488,12 @@ export class NostrCompetitionService {
         limit: 1000, // Get all to find the right one
       });
 
-      const league = existingCompetitions.leagues.find(l => l.id === competitionId);
-      const event = existingCompetitions.events.find(e => e.id === competitionId);
+      const league = existingCompetitions.leagues.find(
+        (l) => l.id === competitionId
+      );
+      const event = existingCompetitions.events.find(
+        (e) => e.id === competitionId
+      );
 
       if (!league && !event) {
         throw new Error(`Competition ${competitionId} not found`);
@@ -446,7 +501,7 @@ export class NostrCompetitionService {
 
       const competition = league || event;
       const kind = league ? 30100 : 30101;
-      
+
       // Update the competition data
       const updatedCompetition = {
         ...competition!,
@@ -456,16 +511,23 @@ export class NostrCompetitionService {
 
       // Create and publish updated event
       if (kind === 30100) {
-        return await this.createLeague(updatedCompetition as any, captainPrivateKey);
+        return await this.createLeague(
+          updatedCompetition as any,
+          captainPrivateKey
+        );
       } else {
-        return await this.createEvent(updatedCompetition as any, captainPrivateKey);
+        return await this.createEvent(
+          updatedCompetition as any,
+          captainPrivateKey
+        );
       }
     } catch (error) {
       console.error('❌ Failed to update competition status:', error);
       return {
         eventId: '',
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown update error',
+        message:
+          error instanceof Error ? error.message : 'Unknown update error',
       };
     }
   }
@@ -473,7 +535,9 @@ export class NostrCompetitionService {
   /**
    * Get goal type for competition scoring
    */
-  getCompetitionGoalType(competition: NostrLeagueDefinition | NostrEventDefinition): CompetitionGoalType {
+  getCompetitionGoalType(
+    competition: NostrLeagueDefinition | NostrEventDefinition
+  ): CompetitionGoalType {
     if ('duration' in competition) {
       // It's a league
       return LEAGUE_GOAL_MAPPING[competition.competitionType] || 'distance';
@@ -506,7 +570,7 @@ export class NostrCompetitionService {
       const result = await service.queryCompetitions({
         kinds: [30100, 30101],
         '#team': [teamId],
-        since: now - (90 * 24 * 60 * 60), // Last 90 days
+        since: now - 90 * 24 * 60 * 60, // Last 90 days
         limit: 100,
       });
 
@@ -549,7 +613,9 @@ export class NostrCompetitionService {
         }
       }
 
-      console.log(`📊 Team ${teamId} has ${activeLeagues} active leagues, ${activeEvents} active events`);
+      console.log(
+        `📊 Team ${teamId} has ${activeLeagues} active leagues, ${activeEvents} active events`
+      );
 
       return {
         activeLeagues,
@@ -571,10 +637,16 @@ export class NostrCompetitionService {
   /**
    * Generate unique competition ID
    */
-  private static generateCompetitionId(type: 'league' | 'event', name: string): string {
+  private static generateCompetitionId(
+    type: 'league' | 'event',
+    name: string
+  ): string {
     const timestamp = Math.floor(Date.now() / 1000).toString(36);
     const random = Math.random().toString(36).substring(2, 8);
-    const sanitizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10);
+    const sanitizedName = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .substring(0, 10);
     return `${type}_${sanitizedName}_${timestamp}_${random}`;
   }
 
@@ -583,27 +655,27 @@ export class NostrCompetitionService {
    */
   validateLeagueData(data: Partial<NostrLeagueDefinition>): string[] {
     const errors: string[] = [];
-    
+
     if (!data.name || data.name.trim().length === 0) {
       errors.push('League name is required');
     }
-    
+
     if (!data.teamId) {
       errors.push('Team ID is required');
     }
-    
+
     if (!data.activityType) {
       errors.push('Activity type is required');
     }
-    
+
     if (!data.competitionType) {
       errors.push('Competition type is required');
     }
-    
+
     if (!data.startDate || !data.endDate) {
       errors.push('Start and end dates are required');
     }
-    
+
     if (data.startDate && data.endDate) {
       const start = new Date(data.startDate);
       const end = new Date(data.endDate);
@@ -611,41 +683,41 @@ export class NostrCompetitionService {
         errors.push('End date must be after start date');
       }
     }
-    
+
     if (data.duration && data.duration <= 0) {
       errors.push('Duration must be positive');
     }
-    
+
     if (data.maxParticipants && data.maxParticipants <= 0) {
       errors.push('Max participants must be positive');
     }
-    
+
     return errors;
   }
 
   validateEventData(data: Partial<NostrEventDefinition>): string[] {
     const errors: string[] = [];
-    
+
     if (!data.name || data.name.trim().length === 0) {
       errors.push('Event name is required');
     }
-    
+
     if (!data.teamId) {
       errors.push('Team ID is required');
     }
-    
+
     if (!data.activityType) {
       errors.push('Activity type is required');
     }
-    
+
     if (!data.competitionType) {
       errors.push('Competition type is required');
     }
-    
+
     if (!data.eventDate) {
       errors.push('Event date is required');
     }
-    
+
     if (data.eventDate) {
       const eventDate = new Date(data.eventDate);
       const now = new Date();
@@ -653,11 +725,11 @@ export class NostrCompetitionService {
         errors.push('Event date must be in the future');
       }
     }
-    
+
     if (data.maxParticipants && data.maxParticipants <= 0) {
       errors.push('Max participants must be positive');
     }
-    
+
     return errors;
   }
 
@@ -681,10 +753,10 @@ export class NostrCompetitionService {
       let upcomingCompetitions = 0;
 
       // Count active leagues
-      result.leagues.forEach(league => {
+      result.leagues.forEach((league) => {
         const startDate = new Date(league.startDate);
         const endDate = new Date(league.endDate);
-        
+
         if (startDate <= now && now <= endDate) {
           activeCompetitions++;
         } else if (startDate > now) {
@@ -693,7 +765,7 @@ export class NostrCompetitionService {
       });
 
       // Count active events
-      result.events.forEach(event => {
+      result.events.forEach((event) => {
         const eventDate = new Date(event.eventDate);
         const eventStart = new Date(eventDate);
         eventStart.setHours(0, 0, 0, 0);

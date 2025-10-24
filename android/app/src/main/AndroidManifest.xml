@@ -9,7 +9,6 @@
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
@@ -40,6 +39,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="runstrproject"/>
+        <data android:scheme="com.anonymous.runstr.project"/>
       </intent-filter>
       <intent-filter data-generated="true">
         <action android:name="android.intent.action.VIEW"/>
@@ -48,6 +48,5 @@
         <category android:name="android.intent.category.BROWSABLE"/>
       </intent-filter>
     </activity>
-    <service android:name="expo.modules.taskmanager.TaskService" android:exported="false" android:foregroundServiceType="location" android:permission="android.permission.FOREGROUND_SERVICE_LOCATION"/>
   </application>
 </manifest>

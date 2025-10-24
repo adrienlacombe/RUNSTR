@@ -116,7 +116,12 @@ export class TeamMembershipService {
         JSON.stringify(memberships)
       );
 
-      console.log(`✅ Local membership created for team: ${teamName} (key: ${normalizedKey.slice(0, 20)}...)`);
+      console.log(
+        `✅ Local membership created for team: ${teamName} (key: ${normalizedKey.slice(
+          0,
+          20
+        )}...)`
+      );
       return true;
     } catch (error) {
       console.error('Failed to join team locally:', error);
@@ -143,8 +148,14 @@ export class TeamMembershipService {
       );
 
       // FALLBACK: Check hex key for old data (backward compatibility)
-      if (!stored && userPubkey.length === 64 && /^[0-9a-fA-F]+$/.test(userPubkey)) {
-        console.log('🔄 No data at npub key, checking hex key for old team data...');
+      if (
+        !stored &&
+        userPubkey.length === 64 &&
+        /^[0-9a-fA-F]+$/.test(userPubkey)
+      ) {
+        console.log(
+          '🔄 No data at npub key, checking hex key for old team data...'
+        );
         stored = await AsyncStorage.getItem(
           `${this.LOCAL_MEMBERSHIPS_KEY}:${userPubkey}`
         );
@@ -487,11 +498,16 @@ export class TeamMembershipService {
       // CRITICAL: Normalize pubkey for consistent storage
       const normalizedKey = normalizeUserKeyForStorage(userPubkey);
       if (!normalizedKey) {
-        console.error('Failed to normalize user pubkey for setting primary team');
+        console.error(
+          'Failed to normalize user pubkey for setting primary team'
+        );
         return false;
       }
 
-      await AsyncStorage.setItem(`runstr:primaryTeamId:${normalizedKey}`, teamId);
+      await AsyncStorage.setItem(
+        `runstr:primaryTeamId:${normalizedKey}`,
+        teamId
+      );
 
       console.log(`⭐ Set primary team: ${teamId}`);
       return true;

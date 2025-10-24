@@ -4,7 +4,16 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, InteractionManager } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  Modal,
+  InteractionManager,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { ProfileTab, ProfileScreenData, NotificationSettings } from '../types';
@@ -24,6 +33,7 @@ import { NotificationBadge } from '../components/profile/NotificationBadge';
 import { NotificationModal } from '../components/profile/NotificationModal';
 import { QRScannerModal } from '../components/qr/QRScannerModal';
 import { JoinPreviewModal } from '../components/qr/JoinPreviewModal';
+import { NWCQRConfirmationModal } from '../components/wallet/NWCQRConfirmationModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 // Wallet imports removed - moved to Settings
@@ -91,7 +101,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showJoinPreview, setShowJoinPreview] = useState(false);
+  const [showNWCConfirmation, setShowNWCConfirmation] = useState(false);
   const [scannedQRData, setScannedQRData] = useState<QRData | null>(null);
+  const [scannedNWCString, setScannedNWCString] = useState<string>('');
   const [userNpub, setUserNpub] = useState<string>('');
 
   // Wallet features moved to Settings screen
@@ -103,26 +115,44 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       try {
         const userIdentifiers = await getUserNostrIdentifiers();
         if (userIdentifiers?.hexPubkey) {
-          console.log('[ProfileScreen] ⚡ Background notification initialization (3s delay)...');
+          console.log(
+            '[ProfileScreen] ⚡ Background notification initialization (3s delay)...'
+          );
 
           // Initialize in background - don't block UI
-          unifiedNotificationStore.initialize(userIdentifiers.hexPubkey).catch((err) => {
-            console.warn('[ProfileScreen] Notification store init failed:', err);
-          });
+          unifiedNotificationStore
+            .initialize(userIdentifiers.hexPubkey)
+            .catch((err) => {
+              console.warn(
+                '[ProfileScreen] Notification store init failed:',
+                err
+              );
+            });
 
           // Start listeners in background
           challengeNotificationHandler.startListening().catch((err) => {
-            console.warn('[ProfileScreen] Challenge notification handler failed:', err);
+            console.warn(
+              '[ProfileScreen] Challenge notification handler failed:',
+              err
+            );
           });
 
           eventJoinNotificationHandler.startListening().catch((err) => {
-            console.warn('[ProfileScreen] Event join notification handler failed:', err);
+            console.warn(
+              '[ProfileScreen] Event join notification handler failed:',
+              err
+            );
           });
 
-          console.log('[ProfileScreen] ✅ Notification system initialization started (background)');
+          console.log(
+            '[ProfileScreen] ✅ Notification system initialization started (background)'
+          );
         }
       } catch (error) {
-        console.error('[ProfileScreen] Failed to initialize notification system:', error);
+        console.error(
+          '[ProfileScreen] Failed to initialize notification system:',
+          error
+        );
       }
     }, 3000);
 
@@ -184,9 +214,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   // Wallet handlers moved to Settings screen
 
-  const handleSyncSourcePress = useCallback((provider: string) => {
-    onSyncSourcePress?.(provider);
-  }, [onSyncSourcePress]);
+  const handleSyncSourcePress = useCallback(
+    (provider: string) => {
+      onSyncSourcePress?.(provider);
+    },
+    [onSyncSourcePress]
+  );
 
   const handleManageSubscription = useCallback(() => {
     onManageSubscription?.();
@@ -215,16 +248,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
     try {
       // 1. Reconnect GlobalNDK to relays
-      const GlobalNDKService = require('../services/nostr/GlobalNDKService').GlobalNDKService;
+      const GlobalNDKService =
+        require('../services/nostr/GlobalNDKService').GlobalNDKService;
       await GlobalNDKService.reconnect().catch((err: any) => {
         console.warn('[ProfileScreen] Reconnect failed:', err);
       });
 
       // 2. Refetch profile from Nostr
-      const DirectNostrProfileService = require('../services/user/directNostrProfileService').DirectNostrProfileService;
-      await DirectNostrProfileService.getCurrentUserProfile().catch((err: any) => {
-        console.warn('[ProfileScreen] Profile refetch failed:', err);
-      });
+      const DirectNostrProfileService =
+        require('../services/user/directNostrProfileService').DirectNostrProfileService;
+      await DirectNostrProfileService.getCurrentUserProfile().catch(
+        (err: any) => {
+          console.warn('[ProfileScreen] Profile refetch failed:', err);
+        }
+      );
 
       // 3. Call original onRefresh if provided
       await onRefresh?.();
@@ -248,11 +285,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       onPrivacyPolicy,
       onSignOut,
     });
-  }, [navigation, data.currentTeam, onNavigateToTeamDiscovery, onViewCurrentTeam, onCaptainDashboard, onHelp, onContactSupport, onPrivacyPolicy, onSignOut]);
+  }, [
+    navigation,
+    data.currentTeam,
+    onNavigateToTeamDiscovery,
+    onViewCurrentTeam,
+    onCaptainDashboard,
+    onHelp,
+    onContactSupport,
+    onPrivacyPolicy,
+    onSignOut,
+  ]);
 
   const handleQRScanned = useCallback((qrData: QRData) => {
-    setScannedQRData(qrData);
-    setShowJoinPreview(true);
+    // Route to appropriate modal based on QR type
+    if (qrData.type === 'nwc') {
+      setScannedNWCString(qrData.connectionString);
+      setShowNWCConfirmation(true);
+    } else {
+      setScannedQRData(qrData);
+      setShowJoinPreview(true);
+    }
+  }, []);
+
+  const handleNWCConnected = useCallback(() => {
+    console.log('[ProfileScreen] NWC wallet connected successfully');
+    // Modal will close automatically, no additional action needed
   }, []);
 
   const handleJoinCompetition = useCallback(async (qrData: QRData) => {
@@ -263,7 +321,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           qrData.creator_npub
         );
         Alert.alert('Success', 'Challenge acceptance request sent!');
-      } else {
+      } else if (qrData.type === 'event') {
         // Handle event join using EventJoinRequestService (kind 1105)
         const authData = await getAuthenticationData();
         if (!authData?.nsec) {
@@ -301,6 +359,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           'Your join request has been sent to the captain for approval!'
         );
       }
+      // NWC type is handled by separate modal, not here
     } catch (error) {
       console.error('Failed to join competition:', error);
       Alert.alert('Error', 'Failed to send join request. Please try again.');
@@ -316,7 +375,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onPress={() => setShowQRScanner(true)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
+          <Ionicons
+            name="qr-code-outline"
+            size={24}
+            color={theme.colors.text}
+          />
         </TouchableOpacity>
         <View style={styles.headerSpacer} />
 
@@ -400,6 +463,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         onClose={() => setShowJoinPreview(false)}
         data={scannedQRData}
         onJoin={handleJoinCompetition}
+      />
+
+      {/* NWC Wallet Connection Modal */}
+      <NWCQRConfirmationModal
+        visible={showNWCConfirmation}
+        onClose={() => setShowNWCConfirmation(false)}
+        connectionString={scannedNWCString}
+        onSuccess={handleNWCConnected}
       />
     </SafeAreaView>
   );

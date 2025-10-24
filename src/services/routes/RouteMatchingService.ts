@@ -4,7 +4,10 @@
  * Provides real-time progress comparison against personal records
  */
 
-import routeStorageService, { type SavedRoute, type GPSPoint } from './RouteStorageService';
+import routeStorageService, {
+  type SavedRoute,
+  type GPSPoint,
+} from './RouteStorageService';
 import type { WorkoutType } from '../../types/workout';
 
 export interface RouteMatch {
@@ -63,7 +66,10 @@ export class RouteMatchingService {
   /**
    * Find the closest point in a route to a given GPS point
    */
-  private findClosestPoint(point: GPSPoint, routePoints: GPSPoint[]): {
+  private findClosestPoint(
+    point: GPSPoint,
+    routePoints: GPSPoint[]
+  ): {
     distance: number;
     index: number;
   } {
@@ -90,10 +96,17 @@ export class RouteMatchingService {
     expectedIndex?: number
   ): boolean {
     // If we have an expected index, check nearby points first for performance
-    if (expectedIndex !== undefined && expectedIndex >= 0 && expectedIndex < routePoints.length) {
+    if (
+      expectedIndex !== undefined &&
+      expectedIndex >= 0 &&
+      expectedIndex < routePoints.length
+    ) {
       const searchRadius = 5; // Check ±5 points from expected position
       const startIndex = Math.max(0, expectedIndex - searchRadius);
-      const endIndex = Math.min(routePoints.length - 1, expectedIndex + searchRadius);
+      const endIndex = Math.min(
+        routePoints.length - 1,
+        expectedIndex + searchRadius
+      );
 
       for (let i = startIndex; i <= endIndex; i++) {
         const distance = this.calculateDistance(point, routePoints[i]);
@@ -122,7 +135,9 @@ export class RouteMatchingService {
       }
 
       // Get saved routes for this activity type
-      const routes = await routeStorageService.getRoutesByActivity(activityType);
+      const routes = await routeStorageService.getRoutesByActivity(
+        activityType
+      );
       if (routes.length === 0) {
         return null;
       }
@@ -132,7 +147,10 @@ export class RouteMatchingService {
 
       // Compare against each saved route
       for (const route of routes) {
-        const matchedPoints = this.countMatchedPoints(currentPoints, route.coordinates);
+        const matchedPoints = this.countMatchedPoints(
+          currentPoints,
+          route.coordinates
+        );
         const matchPercentage = (matchedPoints / currentPoints.length) * 100;
 
         // Calculate confidence score (0-1)
@@ -140,7 +158,10 @@ export class RouteMatchingService {
         const confidence = Math.min(1, matchPercentage / 100);
 
         // Only consider matches above minimum threshold
-        if (matchPercentage >= this.MIN_MATCH_PERCENTAGE && confidence > highestConfidence) {
+        if (
+          matchPercentage >= this.MIN_MATCH_PERCENTAGE &&
+          confidence > highestConfidence
+        ) {
           highestConfidence = confidence;
           bestMatch = {
             routeId: route.id,
@@ -155,7 +176,11 @@ export class RouteMatchingService {
 
       if (bestMatch) {
         console.log(
-          `🎯 Route match found: "${bestMatch.routeName}" (${bestMatch.matchPercentage.toFixed(1)}% match, confidence: ${bestMatch.confidence.toFixed(2)})`
+          `🎯 Route match found: "${
+            bestMatch.routeName
+          }" (${bestMatch.matchPercentage.toFixed(
+            1
+          )}% match, confidence: ${bestMatch.confidence.toFixed(2)})`
         );
       }
 
@@ -169,7 +194,10 @@ export class RouteMatchingService {
   /**
    * Count how many points in current track match the saved route
    */
-  private countMatchedPoints(currentPoints: GPSPoint[], routePoints: GPSPoint[]): number {
+  private countMatchedPoints(
+    currentPoints: GPSPoint[],
+    routePoints: GPSPoint[]
+  ): number {
     let matchedCount = 0;
     let expectedIndex = 0;
 
@@ -199,21 +227,24 @@ export class RouteMatchingService {
       }
 
       // Calculate current pace (min/km)
-      const currentPace = currentDistance > 0 ? (currentTime / 60) / (currentDistance / 1000) : 0;
+      const currentPace =
+        currentDistance > 0 ? currentTime / 60 / (currentDistance / 1000) : 0;
 
       // Calculate percentage of route completed
-      const percentComplete = Math.min(100, (currentDistance / route.distance) * 100);
+      const percentComplete = Math.min(
+        100,
+        (currentDistance / route.distance) * 100
+      );
 
       // Calculate expected time at current pace for full route
-      const estimatedFinishTime = (route.distance / currentDistance) * currentTime;
+      const estimatedFinishTime =
+        (route.distance / currentDistance) * currentTime;
 
       // Compare with PR
       const timeDifference = route.bestTime - estimatedFinishTime;
       const isAheadOfPR = timeDifference > 0; // Positive means we're ahead
 
-      const paceDifference = route.bestPace
-        ? route.bestPace - currentPace
-        : 0;
+      const paceDifference = route.bestPace ? route.bestPace - currentPace : 0;
 
       return {
         isAheadOfPR,
@@ -236,11 +267,15 @@ export class RouteMatchingService {
     if (comparison.isAheadOfPR) {
       const minutes = Math.floor(Math.abs(comparison.timeDifference) / 60);
       const seconds = Math.floor(Math.abs(comparison.timeDifference) % 60);
-      return `🔥 ${minutes}:${seconds.toString().padStart(2, '0')} ahead of PR!`;
+      return `🔥 ${minutes}:${seconds
+        .toString()
+        .padStart(2, '0')} ahead of PR!`;
     } else {
       const minutes = Math.floor(Math.abs(comparison.timeDifference) / 60);
       const seconds = Math.floor(Math.abs(comparison.timeDifference) % 60);
-      return `💪 ${minutes}:${seconds.toString().padStart(2, '0')} behind PR - push harder!`;
+      return `💪 ${minutes}:${seconds
+        .toString()
+        .padStart(2, '0')} behind PR - push harder!`;
     }
   }
 
@@ -255,7 +290,11 @@ export class RouteMatchingService {
   /**
    * Get recommended pace to match PR
    */
-  getTargetPace(route: SavedRoute, currentDistance: number, currentTime: number): number | null {
+  getTargetPace(
+    route: SavedRoute,
+    currentDistance: number,
+    currentTime: number
+  ): number | null {
     if (!route.bestTime) return null;
 
     const remainingDistance = route.distance - currentDistance;
@@ -264,7 +303,7 @@ export class RouteMatchingService {
     if (remainingDistance <= 0 || remainingTime <= 0) return null;
 
     // Calculate required pace for remaining distance (min/km)
-    return (remainingTime / 60) / (remainingDistance / 1000);
+    return remainingTime / 60 / (remainingDistance / 1000);
   }
 }
 

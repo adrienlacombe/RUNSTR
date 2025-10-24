@@ -175,7 +175,9 @@ describe('Distance Freeze Detection Tests', () => {
 
       // With our fixes, freeze should be minimal (<7 seconds recovery)
       // But this is baseline without tracker logic
-      console.log(`Baseline freeze duration: ${(freezeDuration / 1000).toFixed(1)}s`);
+      console.log(
+        `Baseline freeze duration: ${(freezeDuration / 1000).toFixed(1)}s`
+      );
       expect(freezeDuration).toBeLessThan(20000); // Baseline check
     });
   });
@@ -218,8 +220,14 @@ describe('Distance Freeze Detection Tests', () => {
       const expectedDistance = 1000; // 500m + 500m
 
       // Should be within 5% of expected
-      expect(detectDistanceInflation(totalDistance, expectedDistance, 50)).toBe(true);
-      console.log(`Distance after dedup: ${totalDistance.toFixed(1)}m (expected: ${expectedDistance}m)`);
+      expect(detectDistanceInflation(totalDistance, expectedDistance, 50)).toBe(
+        true
+      );
+      console.log(
+        `Distance after dedup: ${totalDistance.toFixed(
+          1
+        )}m (expected: ${expectedDistance}m)`
+      );
     });
   });
 
@@ -250,7 +258,11 @@ describe('Distance Freeze Detection Tests', () => {
 
       // Should not have gaps >10 seconds
       expect(maxGap).toBeLessThan(10000);
-      console.log(`30min run: max gap = ${(maxGap / 1000).toFixed(1)}s, total distance = ${totalDistance.toFixed(1)}m`);
+      console.log(
+        `30min run: max gap = ${(maxGap / 1000).toFixed(
+          1
+        )}s, total distance = ${totalDistance.toFixed(1)}m`
+      );
     });
 
     it('tracks distance continuously over time', () => {
@@ -291,7 +303,11 @@ describe('Distance Freeze Detection Tests', () => {
 
       // Should be within 5 seconds of expected
       expect(Math.abs(gpsBasedDuration - expectedDuration)).toBeLessThan(5);
-      console.log(`GPS timestamp duration: ${gpsBasedDuration.toFixed(1)}s (expected: ${expectedDuration}s)`);
+      console.log(
+        `GPS timestamp duration: ${gpsBasedDuration.toFixed(
+          1
+        )}s (expected: ${expectedDuration}s)`
+      );
     });
 
     it('duration is immune to timer throttling', () => {
@@ -306,7 +322,11 @@ describe('Distance Freeze Detection Tests', () => {
       expect(gpsBasedDuration).toBeGreaterThan(throttledTimerDuration);
       expect(gpsBasedDuration).toBeGreaterThanOrEqual(595); // Within 5 seconds of 600
       expect(gpsBasedDuration).toBeLessThanOrEqual(605);
-      console.log(`GPS duration: ${gpsBasedDuration.toFixed(1)}s (throttled timer would show: ${throttledTimerDuration}s)`);
+      console.log(
+        `GPS duration: ${gpsBasedDuration.toFixed(
+          1
+        )}s (throttled timer would show: ${throttledTimerDuration}s)`
+      );
     });
   });
 
@@ -325,7 +345,9 @@ describe('Distance Freeze Detection Tests', () => {
 
       // Should have at least one period of poor accuracy
       expect(poorAccuracyPoints).toBeGreaterThan(0);
-      console.log(`Poor accuracy points: ${poorAccuracyPoints} out of ${points.length}`);
+      console.log(
+        `Poor accuracy points: ${poorAccuracyPoints} out of ${points.length}`
+      );
     });
 
     it('simulates recovery timeout behavior', () => {
@@ -353,7 +375,11 @@ describe('Distance Freeze Detection Tests', () => {
           if (recoveryDuration > RECOVERY_TIMEOUT) {
             recoveryTimeouts++;
             inRecovery = false;
-            console.log(`Recovery timeout at point ${i} after ${(recoveryDuration / 1000).toFixed(1)}s`);
+            console.log(
+              `Recovery timeout at point ${i} after ${(
+                recoveryDuration / 1000
+              ).toFixed(1)}s`
+            );
           }
 
           // Exit recovery on good accuracy
@@ -378,7 +404,11 @@ describe('Distance Freeze Detection Tests', () => {
       const errorPercent = (error / 1000) * 100;
 
       expect(errorPercent).toBeLessThan(3);
-      console.log(`1km route: ${calculatedDistance.toFixed(1)}m (error: ${errorPercent.toFixed(2)}%)`);
+      console.log(
+        `1km route: ${calculatedDistance.toFixed(
+          1
+        )}m (error: ${errorPercent.toFixed(2)}%)`
+      );
     });
 
     it('5km complex route is within 3% accuracy', () => {
@@ -390,7 +420,11 @@ describe('Distance Freeze Detection Tests', () => {
       const errorPercent = (error / expectedDistance) * 100;
 
       expect(errorPercent).toBeLessThan(3);
-      console.log(`5km route: ${calculatedDistance.toFixed(1)}m (error: ${errorPercent.toFixed(2)}%)`);
+      console.log(
+        `5km route: ${calculatedDistance.toFixed(
+          1
+        )}m (error: ${errorPercent.toFixed(2)}%)`
+      );
     });
   });
 });

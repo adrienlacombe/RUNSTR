@@ -1,14 +1,14 @@
 /**
  * NdkTeamService - Ultra-Fast Global Team Discovery
- * 
+ *
  * BASED ON: Proven Zap-Arena NDK patterns (113 workouts in 479ms)
  * APPROACH: Global team discovery - ALL 33404 events, ALL time, ANY author
- * 
+ *
  * Key Differences from Workout Discovery:
  * - NO author filters (want teams from everyone)
  * - NO time filters (want teams from all time)
  * - Global discovery vs user-specific data
- * 
+ *
  * Proven NDK Patterns Applied:
  * - NDK singleton with 30s connection timeouts
  * - Subscription-based fetching with timeout racing
@@ -17,8 +17,17 @@
  * - Comprehensive logging for debugging team discovery
  */
 
-import NDK, { NDKEvent, NDKFilter, NDKSubscription, NDKRelay } from '@nostr-dev-kit/ndk';
-import type { NostrTeam, NostrTeamEvent, TeamDiscoveryFilters } from '../nostr/NostrTeamService';
+import NDK, {
+  NDKEvent,
+  NDKFilter,
+  NDKSubscription,
+  NDKRelay,
+} from '@nostr-dev-kit/ndk';
+import type {
+  NostrTeam,
+  NostrTeamEvent,
+  TeamDiscoveryFilters,
+} from '../nostr/NostrTeamService';
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
 
 export interface NdkTeamQueryResult {
@@ -44,20 +53,22 @@ export class NdkTeamService {
   private ndk!: NDK;
   private isReady: boolean = false;
   private readyPromise!: Promise<boolean>;
-  
+
   // Relay list optimized for team events based on proven patterns
   private relayUrls = [
-    'wss://relay.damus.io',     // Primary: Most teams found here
-    'wss://nos.lol', 
+    'wss://relay.damus.io', // Primary: Most teams found here
+    'wss://nos.lol',
     'wss://relay.primal.net',
     'wss://nostr.wine',
     'wss://relay.nostr.band',
     'wss://relay.snort.social',
-    'wss://nostr-pub.wellorder.net'
+    'wss://nostr-pub.wellorder.net',
   ];
 
   private constructor() {
-    console.log('🚀 NdkTeamService: Initializing with Zap-Arena proven patterns for GLOBAL team discovery');
+    console.log(
+      '🚀 NdkTeamService: Initializing with Zap-Arena proven patterns for GLOBAL team discovery'
+    );
     this.initializeNDK();
   }
 
@@ -90,7 +101,9 @@ export class NdkTeamService {
       this.ndk = await GlobalNDKService.getInstance();
 
       const connectedCount = this.ndk.pool?.stats()?.connected || 0;
-      console.log(`[NDK Team] GlobalNDK connected. Connected relays: ${connectedCount}`);
+      console.log(
+        `[NDK Team] GlobalNDK connected. Connected relays: ${connectedCount}`
+      );
       console.log(`[NDK Team] Pool stats:`, this.ndk.pool?.stats());
 
       if (connectedCount > 0) {
@@ -98,7 +111,9 @@ export class NdkTeamService {
         this.isReady = true;
         return true;
       } else {
-        console.warn('[NDK Team] No relays connected yet, but NDK instance available');
+        console.warn(
+          '[NDK Team] No relays connected yet, but NDK instance available'
+        );
         this.isReady = true; // Still mark as ready - connections may come later
         return true;
       }
@@ -113,7 +128,8 @@ export class NdkTeamService {
    * Wait for NDK to be ready with timeout racing (Zap-Arena pattern)
    * OPTIMIZED: Check if already ready before waiting
    */
-  private async awaitNDKReady(timeoutMs: number = 10000): Promise<boolean> {  // 10 second timeout for GlobalNDK
+  private async awaitNDKReady(timeoutMs: number = 10000): Promise<boolean> {
+    // 10 second timeout for GlobalNDK
     try {
       // ✅ OPTIMIZATION: If already initialized, return immediately
       if (this.isReady && this.ndk) {
@@ -124,7 +140,9 @@ export class NdkTeamService {
       // ✅ OPTIMIZATION: Check if GlobalNDK is already connected
       const globalStatus = GlobalNDKService.getStatus();
       if (globalStatus.isInitialized && globalStatus.connectedRelays > 0) {
-        console.log(`[NDK Team] GlobalNDK already connected (${globalStatus.connectedRelays} relays), using immediately`);
+        console.log(
+          `[NDK Team] GlobalNDK already connected (${globalStatus.connectedRelays} relays), using immediately`
+        );
         this.isReady = true;
         return true;
       }
@@ -132,11 +150,15 @@ export class NdkTeamService {
       console.log('[NDK Team] Waiting for GlobalNDK to connect...');
       const ready = await Promise.race([
         this.readyPromise,
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+        new Promise<boolean>((resolve) =>
+          setTimeout(() => resolve(false), timeoutMs)
+        ),
       ]);
 
       if (!ready) {
-        throw new Error('NDK failed to become ready within timeout for team discovery');
+        throw new Error(
+          'NDK failed to become ready within timeout for team discovery'
+        );
       }
       return true;
     } catch (err) {
@@ -151,32 +173,44 @@ export class NdkTeamService {
   private getFastestRelays(count: number = 4): string[] {
     try {
       // Try to get performance metrics (will be undefined in React Native initially)
-      const metricsStr = typeof localStorage !== 'undefined' ? localStorage?.getItem('relayPerformance') : null;
+      const metricsStr =
+        typeof localStorage !== 'undefined'
+          ? localStorage?.getItem('relayPerformance')
+          : null;
       if (!metricsStr) return this.relayUrls.slice(0, count);
-      
+
       const metrics = JSON.parse(metricsStr);
-      if (Object.keys(metrics).length === 0) return this.relayUrls.slice(0, count);
-      
+      if (Object.keys(metrics).length === 0)
+        return this.relayUrls.slice(0, count);
+
       // Calculate average response times
       const relayScores = Object.entries(metrics)
         .map(([relay, data]: [string, any]) => {
-          const avgTime = data.count > 0 ? data.totalTime / data.count : Infinity;
+          const avgTime =
+            data.count > 0 ? data.totalTime / data.count : Infinity;
           // Add recency bonus – prefer recently-used relays
-          const recencyFactor = Date.now() - (data.lastUpdated || 0) < 24 * 60 * 60 * 1000 ? 0.7 : 1;
+          const recencyFactor =
+            Date.now() - (data.lastUpdated || 0) < 24 * 60 * 60 * 1000
+              ? 0.7
+              : 1;
           return { relay, score: avgTime * recencyFactor }; // Lower score is better
         })
         // Only include relays that are in our active list
-        .filter(item => this.relayUrls.includes(item.relay))
+        .filter((item) => this.relayUrls.includes(item.relay))
         // Sort by score (fastest first)
         .sort((a, b) => a.score - b.score)
         // Take the requested number
         .slice(0, count)
         // Extract just the URLs
-        .map(item => item.relay);
+        .map((item) => item.relay);
 
       // Fall back to the first N default relays if we ended up with an empty list
-      const finalRelays = relayScores.length > 0 ? relayScores : this.relayUrls.slice(0, count);
-      console.log(`[NDK Team] Using fastest relays for 33404 discovery:`, finalRelays);
+      const finalRelays =
+        relayScores.length > 0 ? relayScores : this.relayUrls.slice(0, count);
+      console.log(
+        `[NDK Team] Using fastest relays for 33404 discovery:`,
+        finalRelays
+      );
       return finalRelays;
     } catch (err) {
       console.warn('[NDK Team] Error getting fastest relays:', err);
@@ -195,7 +229,9 @@ export class NdkTeamService {
     const isReady = await this.awaitNDKReady(10000);
     if (!isReady) {
       console.error('❌ NDK not ready for team discovery after 10s timeout');
-      console.error('   This usually means GlobalNDK failed to connect to any relays');
+      console.error(
+        '   This usually means GlobalNDK failed to connect to any relays'
+      );
       return [];
     }
 
@@ -207,27 +243,27 @@ export class NdkTeamService {
     let subscriptionStats = {
       subscriptionsCreated: 0,
       eventsReceived: 0,
-      timeoutsCaught: 0
+      timeoutsCaught: 0,
     };
 
     try {
       // ULTRA-SIMPLE STRATEGY: Global team discovery
       const globalResult = await this.executeGlobalTeamDiscovery(
-        allEvents, 
+        allEvents,
         collectionEventIds, // Use separate set for collection
         subscriptionStats
       );
-      
+
       // Convert collected events to basic teams with minimal filtering
-      
+
       const seenTeamNames = new Set<string>(); // Track team names to prevent duplicates
-      
+
       for (const ndkEvent of allEvents) {
         try {
           // Extract basic info directly from NDK event
           const nameTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'name');
           const teamName = nameTag?.[1] || 'Unnamed Team';
-          
+
           // Filter 1: Skip "Deleted" teams
           if (teamName.toLowerCase() === 'deleted') {
             continue;
@@ -239,19 +275,25 @@ export class NdkTeamService {
             continue;
           }
           seenTeamNames.add(teamNameLower);
-          
-          const captainTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'captain');
+
+          const captainTag = ndkEvent.tags?.find(
+            (tag: any) => tag[0] === 'captain'
+          );
           const captainId = captainTag?.[1] || ndkEvent.pubkey || 'unknown';
-          
+
           const dTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'd');
           const teamId = dTag?.[1] || ndkEvent.id || 'unknown';
 
           // Extract charity ID from tags
-          const charityTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'charity');
+          const charityTag = ndkEvent.tags?.find(
+            (tag: any) => tag[0] === 'charity'
+          );
           const charityId = charityTag?.[1] || undefined;
 
           // Extract banner image from tags
-          const bannerTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'banner' || tag[0] === 'image');
+          const bannerTag = ndkEvent.tags?.find(
+            (tag: any) => tag[0] === 'banner' || tag[0] === 'image'
+          );
           const bannerImage = bannerTag?.[1] || undefined;
 
           // Banner image handled silently
@@ -260,14 +302,18 @@ export class NdkTeamService {
           const shopTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'shop');
           const shopUrl = shopTag?.[1] || undefined;
 
-          const flashTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'flash');
+          const flashTag = ndkEvent.tags?.find(
+            (tag: any) => tag[0] === 'flash'
+          );
           const flashUrl = flashTag?.[1] || undefined;
 
           // Extract description - handle both old JSON format and new tag format
           const description = (() => {
             try {
               // Check for 'about' tag first (new format)
-              const aboutTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'about');
+              const aboutTag = ndkEvent.tags?.find(
+                (tag: any) => tag[0] === 'about'
+              );
               if (aboutTag?.[1]) {
                 return aboutTag[1];
               }
@@ -311,9 +357,11 @@ export class NdkTeamService {
           };
 
           teams.push(simpleTeam);
-          
         } catch (error) {
-          console.warn(`⚠️ Error creating simple team from event ${ndkEvent.id}:`, error);
+          console.warn(
+            `⚠️ Error creating simple team from event ${ndkEvent.id}:`,
+            error
+          );
         }
       }
 
@@ -324,7 +372,6 @@ export class NdkTeamService {
       // Teams processed successfully
 
       return teams.sort((a, b) => b.createdAt - a.createdAt);
-
     } catch (error) {
       console.error('❌ NdkTeamService: Error discovering teams:', error);
       return [];
@@ -336,30 +383,34 @@ export class NdkTeamService {
    * Find ALL 33404 events from ALL time from ANY author
    */
   private async executeGlobalTeamDiscovery(
-    allEvents: NDKEvent[], 
+    allEvents: NDKEvent[],
     processedEventIds: Set<string>,
     subscriptionStats: any
   ): Promise<NdkTeamQueryResult> {
     // Using global strategy for team discovery
-    
+
     const startTime = Date.now();
     let totalEventsFound = 0;
 
     // ULTRA-SIMPLE FILTER: Just kind 33404 with large limit
     const limits = [500, 1000]; // Try multiple limits to catch all teams
-    
+
     for (const limit of limits) {
       // Querying with limit: ${limit}
-      
+
       const filter: NDKFilter = {
-        kinds: [33404 as any],    // Fitness teams (cast to any for NDK compatibility)
-        limit: limit              // Large limit to get all teams
+        kinds: [33404 as any], // Fitness teams (cast to any for NDK compatibility)
+        limit: limit, // Large limit to get all teams
         // NO authors - want teams from everyone
         // NO time filters - want teams from all time
       };
 
-      const globalEvents = await this.subscribeWithNdk(filter, `global-${limit}`, subscriptionStats);
-      
+      const globalEvents = await this.subscribeWithNdk(
+        filter,
+        `global-${limit}`,
+        subscriptionStats
+      );
+
       // Add unique events
       for (const event of globalEvents) {
         if (!processedEventIds.has(event.id)) {
@@ -370,9 +421,9 @@ export class NdkTeamService {
       }
 
       // Events collected from global query
-      
+
       // React Native breathing room between attempts
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
     return {
@@ -383,7 +434,7 @@ export class NdkTeamService {
       relaysResponded: this.relayUrls.length,
       method: 'ndk-global',
       queryTime: Date.now() - startTime,
-      subscriptionStats
+      subscriptionStats,
     };
   }
 
@@ -391,34 +442,31 @@ export class NdkTeamService {
    * Core NDK Subscription with timeout racing (Zap-Arena Pattern)
    */
   private async subscribeWithNdk(
-    filter: NDKFilter, 
-    strategy: string, 
+    filter: NDKFilter,
+    strategy: string,
     subscriptionStats: any
   ): Promise<NDKEvent[]> {
     const events: NDKEvent[] = [];
     const timeout = 2000; // 2 second timeout for faster team discovery
-    
+
     return new Promise((resolve) => {
       // Creating subscription with filter
-      
+
       // Get fastest relays for this subscription
       const fastRelays = this.getFastestRelays(4);
-      
+
       // Create subscription with fast relays
-      const subscription: NDKSubscription = this.ndk.subscribe(
-        filter,
-        { 
-          closeOnEose: false // CRITICAL: Keep subscription open (Zap-Arena pattern)
-          // Note: Using relaySet would be the correct NDK way, but keeping simple for now
-        }
-      );
-      
+      const subscription: NDKSubscription = this.ndk.subscribe(filter, {
+        closeOnEose: false, // CRITICAL: Keep subscription open (Zap-Arena pattern)
+        // Note: Using relaySet would be the correct NDK way, but keeping simple for now
+      });
+
       subscriptionStats.subscriptionsCreated++;
-      
+
       subscription.on('event', (event: NDKEvent) => {
         // Silently filter for team events
         if (event.kind === 33404) {
-          const hasTeamTags = event.tags?.some(tag =>
+          const hasTeamTags = event.tags?.some((tag) =>
             ['name', 'captain', 'd', 'public', 'member'].includes(tag[0])
           );
           if (hasTeamTags) {
@@ -427,7 +475,7 @@ export class NdkTeamService {
           }
         }
       });
-      
+
       subscription.on('eose', () => {
         // Don't close immediately on EOSE (Zap-Arena pattern: events can arrive after EOSE)
         // EOSE received, continuing to wait for timeout
@@ -453,7 +501,7 @@ export class NdkTeamService {
       created_at: ndkEvent.created_at || 0,
       content: ndkEvent.content || '',
       tags: ndkEvent.tags || [],
-      sig: ndkEvent.sig || ''
+      sig: ndkEvent.sig || '',
     };
   }
 
@@ -464,14 +512,14 @@ export class NdkTeamService {
   private parseTeamEvent(event: NostrTeamEvent): NostrTeam | null {
     try {
       const tags = new Map(event.tags.map((tag) => [tag[0], tag.slice(1)]));
-      
+
       const name = tags.get('name')?.[0] || 'Unnamed Team';
       const captain = tags.get('captain')?.[0] || event.pubkey;
       const teamUUID = tags.get('d')?.[0];
-      
+
       const memberTags = event.tags.filter((tag) => tag[0] === 'member');
       const memberCount = memberTags.length + 1; // +1 for captain
-      
+
       const activityTags = event.tags.filter((tag) => tag[0] === 't');
       const activityTypes = activityTags.map((tag) => tag[1]).filter(Boolean);
 
@@ -514,7 +562,9 @@ export class NdkTeamService {
     }
 
     // Allow everything else through
-    console.log(`✅ VALIDATION: Team passed all checks: ${team.name} (isPublic: ${team.isPublic})`);
+    console.log(
+      `✅ VALIDATION: Team passed all checks: ${team.name} (isPublic: ${team.isPublic})`
+    );
     return true;
   }
 

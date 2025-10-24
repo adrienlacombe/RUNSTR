@@ -41,7 +41,8 @@ export async function checkAuthStorageStatus(): Promise<{
 
         if (key === '@runstr:npub') hasNpub = true;
         if (key === '@runstr:hex_pubkey') hasHexPubkey = true;
-        if (key === '@runstr:user_nsec' || key === '@runstr:nsec_encrypted') hasNsec = true;
+        if (key === '@runstr:user_nsec' || key === '@runstr:nsec_encrypted')
+          hasNsec = true;
       } else {
         console.log(`❌ ${name}`);
         console.log(`   Key: ${key}`);
@@ -59,7 +60,9 @@ export async function checkAuthStorageStatus(): Promise<{
   console.log(`   NSEC: ${hasNsec ? '✅' : '❌'}`);
 
   const allPresent = hasNpub && hasHexPubkey && hasNsec;
-  console.log(`   STATUS: ${allPresent ? '✅ ALL KEYS PRESENT' : '❌ MISSING KEYS'}`);
+  console.log(
+    `   STATUS: ${allPresent ? '✅ ALL KEYS PRESENT' : '❌ MISSING KEYS'}`
+  );
 
   if (!allPresent) {
     console.log('⚠️  WARNING: Some auth keys are missing!');

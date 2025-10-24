@@ -32,9 +32,9 @@ interface UserCardProps {
   onSelect: () => void;
 }
 
-const ActivityIndicatorBadge: React.FC<{ status: 'active' | 'inactive' | 'new' }> = ({
-  status,
-}) => {
+const ActivityIndicatorBadge: React.FC<{
+  status: 'active' | 'inactive' | 'new';
+}> = ({ status }) => {
   const getStatusStyle = () => {
     switch (status) {
       case 'active':
@@ -113,10 +113,13 @@ export const UserSearchStep: React.FC<UserSearchStepProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DiscoveredNostrUser[]>([]);
-  const [recentChallengers, setRecentChallengers] = useState<DiscoveredNostrUser[]>([]);
+  const [recentChallengers, setRecentChallengers] = useState<
+    DiscoveredNostrUser[]
+  >([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingRecent, setIsLoadingRecent] = useState(true);
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const [searchDebounceTimer, setSearchDebounceTimer] =
+    useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadRecentChallengers();
@@ -181,8 +184,10 @@ export const UserSearchStep: React.FC<UserSearchStepProps> = ({
     [onSelectUser]
   );
 
-  const displayUsers = searchQuery.trim().length >= 2 ? searchResults : recentChallengers;
-  const showEmptyState = !isSearching && !isLoadingRecent && displayUsers.length === 0;
+  const displayUsers =
+    searchQuery.trim().length >= 2 ? searchResults : recentChallengers;
+  const showEmptyState =
+    !isSearching && !isLoadingRecent && displayUsers.length === 0;
 
   return (
     <View style={styles.container}>
@@ -206,13 +211,16 @@ export const UserSearchStep: React.FC<UserSearchStepProps> = ({
         )}
       </View>
 
-      {searchQuery.trim().length < 2 && !isLoadingRecent && recentChallengers.length > 0 && (
-        <Text style={styles.sectionTitle}>Recent Challengers</Text>
-      )}
+      {searchQuery.trim().length < 2 &&
+        !isLoadingRecent &&
+        recentChallengers.length > 0 && (
+          <Text style={styles.sectionTitle}>Recent Challengers</Text>
+        )}
 
       {searchQuery.trim().length >= 2 && searchResults.length > 0 && (
         <Text style={styles.sectionTitle}>
-          Found {searchResults.length} user{searchResults.length !== 1 ? 's' : ''}
+          Found {searchResults.length} user
+          {searchResults.length !== 1 ? 's' : ''}
         </Text>
       )}
 
@@ -224,7 +232,9 @@ export const UserSearchStep: React.FC<UserSearchStepProps> = ({
         {isLoadingRecent && searchQuery.trim().length < 2 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.text} />
-            <Text style={styles.loadingText}>Loading recent challengers...</Text>
+            <Text style={styles.loadingText}>
+              Loading recent challengers...
+            </Text>
           </View>
         ) : showEmptyState ? (
           <View style={styles.emptyState}>
@@ -237,7 +247,9 @@ export const UserSearchStep: React.FC<UserSearchStepProps> = ({
               </>
             ) : (
               <>
-                <Text style={styles.emptyStateText}>Start typing to search</Text>
+                <Text style={styles.emptyStateText}>
+                  Start typing to search
+                </Text>
                 <Text style={styles.emptyStateSubtext}>
                   Search any Nostr user globally
                 </Text>

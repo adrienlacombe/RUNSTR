@@ -44,7 +44,7 @@ export class HealthKitErrorBoundary extends Component<Props, State> {
     // Log error details for debugging
     console.error('HealthKit Error Boundary caught an error:', error);
     console.error('Error Info:', errorInfo);
-    
+
     this.setState({
       error,
       errorInfo,
@@ -110,9 +110,7 @@ export class HealthKitErrorBoundary extends Component<Props, State> {
               </View>
             </View>
 
-            <Text style={styles.description}>
-              {this.getErrorMessage()}
-            </Text>
+            <Text style={styles.description}>{this.getErrorMessage()}</Text>
 
             <TouchableOpacity
               style={styles.retryButton}

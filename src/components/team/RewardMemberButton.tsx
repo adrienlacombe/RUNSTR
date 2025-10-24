@@ -76,7 +76,11 @@ export const RewardMemberButton: React.FC<RewardMemberButtonProps> = ({
             setIsSending(true);
             try {
               const rewardMemo = memo || `Team reward for ${memberName}`;
-              const success = await sendZap(memberPubkey, defaultAmount, rewardMemo);
+              const success = await sendZap(
+                memberPubkey,
+                defaultAmount,
+                rewardMemo
+              );
 
               if (success) {
                 Alert.alert(
@@ -87,12 +91,9 @@ export const RewardMemberButton: React.FC<RewardMemberButtonProps> = ({
                 onSuccess?.(defaultAmount);
               } else {
                 // Show specific error if available
-                const errorMessage = error || 'Unable to send reward. Please try again.';
-                Alert.alert(
-                  'Send Failed',
-                  errorMessage,
-                  [{ text: 'OK' }]
-                );
+                const errorMessage =
+                  error || 'Unable to send reward. Please try again.';
+                Alert.alert('Send Failed', errorMessage, [{ text: 'OK' }]);
               }
             } catch (error) {
               Alert.alert(
@@ -140,17 +141,27 @@ export const RewardMemberButton: React.FC<RewardMemberButtonProps> = ({
       {isSending ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'secondary' ? theme.colors.accent : theme.colors.accentText}
+          color={
+            variant === 'secondary'
+              ? theme.colors.accent
+              : theme.colors.accentText
+          }
         />
       ) : (
         <>
           <Ionicons
             name="gift"
             size={variant === 'compact' ? 16 : 20}
-            color={variant === 'secondary' ? theme.colors.accent : theme.colors.accentText}
+            color={
+              variant === 'secondary'
+                ? theme.colors.accent
+                : theme.colors.accentText
+            }
           />
           <Text style={getTextStyle()}>
-            {variant === 'compact' ? `${defaultAmount}` : `Reward ${defaultAmount} sats`}
+            {variant === 'compact'
+              ? `${defaultAmount}`
+              : `Reward ${defaultAmount} sats`}
           </Text>
         </>
       )}

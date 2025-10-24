@@ -114,7 +114,10 @@ export class WorkoutMergeService {
     const startTime = Date.now();
 
     try {
-      console.log('⚡ Enhanced: Fetching and merging workouts for pubkey:', pubkey.slice(0, 20) + '...');
+      console.log(
+        '⚡ Enhanced: Fetching and merging workouts for pubkey:',
+        pubkey.slice(0, 20) + '...'
+      );
 
       if (!pubkey) {
         console.log('❌ No pubkey provided - returning empty results');
@@ -135,60 +138,84 @@ export class WorkoutMergeService {
       let usedCache = false; // Track if we used cached data
 
       if (!FEATURE_FLAGS.ENABLE_HEALTHKIT) {
-        console.log('⚠️ HealthKit disabled via feature flag - skipping HealthKit fetch');
+        console.log(
+          '⚠️ HealthKit disabled via feature flag - skipping HealthKit fetch'
+        );
       } else {
         // Check cache first for performance
         const cachedWorkouts = await this.healthKitService.getCachedWorkouts();
 
         if (cachedWorkouts && cachedWorkouts.length > 0) {
-          console.log(`📦 Using ${cachedWorkouts.length} cached HealthKit workouts`);
+          console.log(
+            `📦 Using ${cachedWorkouts.length} cached HealthKit workouts`
+          );
           healthKitWorkouts = cachedWorkouts;
           usedCache = true;
         } else if (HealthKitService.isAvailable()) {
-        // Fetch HealthKit workouts progressively
-        console.log('🔄 Fetching HealthKit workouts progressively...');
-        const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const endDate = new Date();
+          // Fetch HealthKit workouts progressively
+          console.log('🔄 Fetching HealthKit workouts progressively...');
+          const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const endDate = new Date();
 
-        try {
-          healthKitWorkouts = await this.healthKitService.fetchWorkoutsProgressive(
-            startDate,
-            endDate,
-            (progress) => {
-              console.log(`📊 Progress: ${progress.current}/${progress.total} chunks, ${progress.workouts} workouts`);
+          try {
+            healthKitWorkouts =
+              await this.healthKitService.fetchWorkoutsProgressive(
+                startDate,
+                endDate,
+                (progress) => {
+                  console.log(
+                    `📊 Progress: ${progress.current}/${progress.total} chunks, ${progress.workouts} workouts`
+                  );
+                }
+              );
+            console.log(
+              `✅ HealthKit fetch successful: ${healthKitWorkouts.length} workouts`
+            );
+          } catch (hkError) {
+            // Log error prominently and throw to let UI components show user-facing errors
+            console.error('❌ HealthKit fetch failed:', hkError);
+            const errorMessage =
+              hkError instanceof Error ? hkError.message : 'Unknown error';
+            console.error(`❌ HealthKit error details: ${errorMessage}`);
+
+            // Create user-friendly error message
+            let userFriendlyError = 'Failed to sync Apple Health workouts';
+
+            if (
+              errorMessage.includes('not authorized') ||
+              errorMessage.includes('Permission')
+            ) {
+              userFriendlyError =
+                'Apple Health permissions are required. Please grant permissions in Settings → Privacy & Security → Health → RUNSTR.';
+              console.error(
+                '❌ CRITICAL: HealthKit permission issue detected!'
+              );
+            } else if (
+              errorMessage.includes('timeout') ||
+              errorMessage.includes('timed out')
+            ) {
+              userFriendlyError =
+                'Apple Health sync timed out. This can happen with large workout libraries. Try again or contact support.';
+            } else if (errorMessage.includes('not available')) {
+              userFriendlyError =
+                'Apple Health is not available on this device or in the simulator.';
             }
-          );
-          console.log(`✅ HealthKit fetch successful: ${healthKitWorkouts.length} workouts`);
-        } catch (hkError) {
-          // Log error prominently and throw to let UI components show user-facing errors
-          console.error('❌ HealthKit fetch failed:', hkError);
-          const errorMessage = hkError instanceof Error ? hkError.message : 'Unknown error';
-          console.error(`❌ HealthKit error details: ${errorMessage}`);
 
-          // Create user-friendly error message
-          let userFriendlyError = 'Failed to sync Apple Health workouts';
+            // Store the error for UI components to access
+            await AsyncStorage.setItem(
+              '@healthkit:last_error',
+              JSON.stringify({
+                message: userFriendlyError,
+                timestamp: Date.now(),
+                technicalDetails: errorMessage,
+              })
+            );
 
-          if (errorMessage.includes('not authorized') || errorMessage.includes('Permission')) {
-            userFriendlyError = 'Apple Health permissions are required. Please grant permissions in Settings → Privacy & Security → Health → RUNSTR.';
-            console.error('❌ CRITICAL: HealthKit permission issue detected!');
-          } else if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
-            userFriendlyError = 'Apple Health sync timed out. This can happen with large workout libraries. Try again or contact support.';
-          } else if (errorMessage.includes('not available')) {
-            userFriendlyError = 'Apple Health is not available on this device or in the simulator.';
+            // Continue with empty HealthKit workouts but error is stored for UI
+            healthKitWorkouts = [];
           }
-
-          // Store the error for UI components to access
-          await AsyncStorage.setItem('@healthkit:last_error', JSON.stringify({
-            message: userFriendlyError,
-            timestamp: Date.now(),
-            technicalDetails: errorMessage
-          }));
-
-          // Continue with empty HealthKit workouts but error is stored for UI
-          healthKitWorkouts = [];
-        }
-      } else {
-        console.log('ℹ️ HealthKit not available on this device');
+        } else {
+          console.log('ℹ️ HealthKit not available on this device');
         }
       }
 
@@ -199,7 +226,9 @@ export class WorkoutMergeService {
         this.getWorkoutPostingStatus(pubkey),
       ]);
 
-      console.log(`📊 Found ${healthKitWorkouts.length} HealthKit, ${nostrWorkouts.length} Nostr, ${localWorkouts.length} local workouts`);
+      console.log(
+        `📊 Found ${healthKitWorkouts.length} HealthKit, ${nostrWorkouts.length} Nostr, ${localWorkouts.length} local workouts`
+      );
 
       // Deduplicate and merge (now includes local workouts)
       const mergedResult = this.mergeAndDeduplicate(
@@ -216,12 +245,17 @@ export class WorkoutMergeService {
           await NostrCacheService.setCachedWorkouts(pubkey, nostrWorkouts);
           await this.setCacheTimestamp(pubkey);
         } catch (cacheError) {
-          console.warn('⚠️ WorkoutMergeService: Caching failed, but continuing with workout data:', cacheError);
+          console.warn(
+            '⚠️ WorkoutMergeService: Caching failed, but continuing with workout data:',
+            cacheError
+          );
           // Continue execution - we still have the workout data to return
         }
       }
 
-      console.log(`✅ Merged: ${mergedResult.allWorkouts.length} total, ${mergedResult.duplicateCount} duplicates removed`);
+      console.log(
+        `✅ Merged: ${mergedResult.allWorkouts.length} total, ${mergedResult.duplicateCount} duplicates removed`
+      );
 
       return {
         ...mergedResult,
@@ -245,7 +279,9 @@ export class WorkoutMergeService {
   private async fetchHealthKitWorkouts(userId: string): Promise<Workout[]> {
     // RUNSTR is Nostr-native - all workouts come from Nostr events (kind 1301)
     // HealthKit integration should publish workouts to Nostr, not store in database
-    console.log('📱 RUNSTR is Nostr-native - all workouts fetched from Nostr relays only');
+    console.log(
+      '📱 RUNSTR is Nostr-native - all workouts fetched from Nostr relays only'
+    );
     return [];
   }
 
@@ -260,14 +296,22 @@ export class WorkoutMergeService {
         return [];
       }
 
-      console.log('🚀 Fetching Nostr workouts for pubkey:', pubkey.slice(0, 20) + '...');
+      console.log(
+        '🚀 Fetching Nostr workouts for pubkey:',
+        pubkey.slice(0, 20) + '...'
+      );
 
       const { nip19 } = await import('nostr-tools');
       const NDK = await import('@nostr-dev-kit/ndk');
 
       let hexPubkey = this.ensureHexPubkey(pubkey);
 
-      console.log(`📊 NDK Query: Getting kind 1301 events for ${hexPubkey.slice(0, 16)}...`);
+      console.log(
+        `📊 NDK Query: Getting kind 1301 events for ${hexPubkey.slice(
+          0,
+          16
+        )}...`
+      );
 
       // Initialize NDK if needed
       if (!this.ndk) {
@@ -280,7 +324,7 @@ export class WorkoutMergeService {
       const nuclearFilter = {
         kinds: [1301],
         authors: [hexPubkey],
-        limit: 500
+        limit: 500,
       };
 
       console.log('🚀 NDK Filter:', nuclearFilter);
@@ -295,7 +339,7 @@ export class WorkoutMergeService {
 
         const subscription = this.ndk.subscribe(nuclearFilter, {
           closeOnEose: false,
-          groupable: true
+          groupable: true,
         });
 
         // Track subscription for cleanup
@@ -346,7 +390,9 @@ export class WorkoutMergeService {
               if (tag[0] === 'exercise' && tag[1]) workoutType = tag[1];
               if (tag[0] === 'duration' && tag[1]) {
                 const timeStr = tag[1];
-                const parts = timeStr.split(':').map((p: string) => parseInt(p));
+                const parts = timeStr
+                  .split(':')
+                  .map((p: string) => parseInt(p));
                 if (parts.length === 3) {
                   duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
                 } else if (parts.length === 2) {
@@ -355,8 +401,10 @@ export class WorkoutMergeService {
                   duration = parseInt(timeStr) || 0;
                 }
               }
-              if (tag[0] === 'distance' && tag[1]) distance = parseFloat(tag[1]) || 0;
-              if (tag[0] === 'calories' && tag[1]) calories = parseInt(tag[1]) || 0;
+              if (tag[0] === 'distance' && tag[1])
+                distance = parseFloat(tag[1]) || 0;
+              if (tag[0] === 'calories' && tag[1])
+                calories = parseInt(tag[1]) || 0;
             }
 
             // Extract plain primitive values from NDK event to avoid circular references
@@ -367,7 +415,9 @@ export class WorkoutMergeService {
               userId: String(hexPubkey || ''), // Use pubkey as userId (pure Nostr)
               type: String(workoutType) as any,
               startTime: new Date(event.created_at * 1000).toISOString(),
-              endTime: new Date((event.created_at + Math.max(duration, 60)) * 1000).toISOString(),
+              endTime: new Date(
+                (event.created_at + Math.max(duration, 60)) * 1000
+              ).toISOString(),
               duration: Number(duration),
               distance: Number(distance),
               calories: Number(calories),
@@ -377,7 +427,7 @@ export class WorkoutMergeService {
               sourceApp: 'nostr_discovery',
               nostrCreatedAt: Number(event.created_at),
               unitSystem: 'metric' as const,
-              syncedAt: new Date().toISOString()
+              syncedAt: new Date().toISOString(),
             };
 
             workouts.push(workout);
@@ -386,14 +436,16 @@ export class WorkoutMergeService {
           }
         }
 
-        return workouts.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+        return workouts.sort(
+          (a, b) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        );
       });
     } catch (error) {
       console.error('❌ Nostr workout discovery failed:', error);
       return [];
     }
   }
-
 
   /**
    * SIMPLIFIED: Convert Nostr workouts to unified format (no merge complexity)
@@ -403,23 +455,29 @@ export class WorkoutMergeService {
     postingStatus: Map<string, WorkoutStatusUpdate>
   ): UnifiedWorkout[] {
     console.log('🔧 SIMPLIFIED: Converting Nostr workouts to unified format');
-    
-    const unifiedWorkouts: UnifiedWorkout[] = nostrWorkouts.map(nostrWorkout => ({
-      ...nostrWorkout,
-      // Nostr workouts are already synced (since they're from kind 1301 events)
-      syncedToNostr: true,
-      postedToSocial: postingStatus.get(nostrWorkout.id)?.postedToSocial || false,
-      postingInProgress: false,
-      canSyncToNostr: false, // Already synced to Nostr
-      canPostToSocial: true, // Can always post to social
-    }));
+
+    const unifiedWorkouts: UnifiedWorkout[] = nostrWorkouts.map(
+      (nostrWorkout) => ({
+        ...nostrWorkout,
+        // Nostr workouts are already synced (since they're from kind 1301 events)
+        syncedToNostr: true,
+        postedToSocial:
+          postingStatus.get(nostrWorkout.id)?.postedToSocial || false,
+        postingInProgress: false,
+        canSyncToNostr: false, // Already synced to Nostr
+        canPostToSocial: true, // Can always post to social
+      })
+    );
 
     // Sort by start time (newest first)
     unifiedWorkouts.sort(
-      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
 
-    console.log(`✅ SIMPLIFIED: Converted ${unifiedWorkouts.length} Nostr workouts`);
+    console.log(
+      `✅ SIMPLIFIED: Converted ${unifiedWorkouts.length} Nostr workouts`
+    );
     return unifiedWorkouts;
   }
 
@@ -450,7 +508,9 @@ export class WorkoutMergeService {
       if (nw.id) nostrById.set(nw.id, nw);
       if (nw.nostrEventId) nostrByEventId.set(nw.nostrEventId, nw);
       // Extract UUID from healthkit_UUID format if present
-      const uuid = nw.id?.includes('healthkit_') ? nw.id.replace('healthkit_', '') : null;
+      const uuid = nw.id?.includes('healthkit_')
+        ? nw.id.replace('healthkit_', '')
+        : null;
       if (uuid) nostrByUUID.set(uuid, nw);
     }
 
@@ -526,7 +586,9 @@ export class WorkoutMergeService {
     // ✅ PROCESS LOCAL WORKOUTS (O(N) with hash lookups)
     for (const localWorkout of localWorkouts) {
       // Fast O(1) duplicate check instead of O(N) .find()
-      const matchingNostr = localWorkout.nostrEventId && nostrByEventId.has(localWorkout.nostrEventId);
+      const matchingNostr =
+        localWorkout.nostrEventId &&
+        nostrByEventId.has(localWorkout.nostrEventId);
 
       if (!matchingNostr) {
         const status = postingStatus.get(localWorkout.id);
@@ -548,7 +610,10 @@ export class WorkoutMergeService {
           canPostToSocial: true,
           nostrEventId: localWorkout.nostrEventId,
           elevationGain: localWorkout.elevation,
-          sourceApp: localWorkout.source === 'gps_tracker' ? 'RUNSTR GPS Tracker' : 'RUNSTR Manual Entry',
+          sourceApp:
+            localWorkout.source === 'gps_tracker'
+              ? 'RUNSTR GPS Tracker'
+              : 'RUNSTR Manual Entry',
           sets: localWorkout.sets,
           reps: localWorkout.reps,
           notes: localWorkout.notes,
@@ -560,10 +625,13 @@ export class WorkoutMergeService {
 
     // Sort by start time (newest first)
     unified.sort(
-      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
 
-    console.log(`⚡ PERFORMANCE: Merged ${unified.length} workouts in O(N) time (was O(N²))`);
+    console.log(
+      `⚡ PERFORMANCE: Merged ${unified.length} workouts in O(N) time (was O(N²))`
+    );
 
     return {
       allWorkouts: unified,
@@ -584,7 +652,7 @@ export class WorkoutMergeService {
   ): boolean {
     const workout1Id = workout1.id || workout1.UUID || 'unknown';
 
-    return workouts2.some(w2 => {
+    return workouts2.some((w2) => {
       const w2Id = w2.id || w2.UUID || 'unknown';
 
       // Strategy 1: Exact UUID match (highest confidence)
@@ -599,8 +667,12 @@ export class WorkoutMergeService {
       const id2 = w2.id || w2.UUID;
       if (id1 && id2) {
         // Extract UUID from healthkit_UUID format
-        const uuid1 = id1.includes('healthkit_') ? id1.replace('healthkit_', '') : id1;
-        const uuid2 = id2.includes('healthkit_') ? id2.replace('healthkit_', '') : id2;
+        const uuid1 = id1.includes('healthkit_')
+          ? id1.replace('healthkit_', '')
+          : id1;
+        const uuid2 = id2.includes('healthkit_')
+          ? id2.replace('healthkit_', '')
+          : id2;
         if (uuid1 === uuid2 && uuid1 !== '') {
           console.log(`🔍 [Strategy 2] Duplicate found via HealthKit ID match`);
           console.log(`   Matched ID: ${uuid1}`);
@@ -621,7 +693,9 @@ export class WorkoutMergeService {
       if (normalizedType1 !== normalizedType2) return false;
 
       // Time window check (within 1 minute for better accuracy)
-      const time1 = new Date(workout1.startDate || workout1.startTime).getTime();
+      const time1 = new Date(
+        workout1.startDate || workout1.startTime
+      ).getTime();
       const time2 = new Date(w2.startTime || w2.startDate).getTime();
       const timeDiff = Math.abs(time1 - time2);
 
@@ -636,7 +710,7 @@ export class WorkoutMergeService {
 
       // Distance check (within 100 meters or 2% tolerance, whichever is larger)
       // Both HealthKit (totalDistance) and Nostr (distance) use meters
-      const dist1 = (workout1.totalDistance || workout1.distance || 0);
+      const dist1 = workout1.totalDistance || workout1.distance || 0;
       const dist2 = w2.distance || 0;
 
       if (dist1 > 0 && dist2 > 0) {
@@ -649,8 +723,12 @@ export class WorkoutMergeService {
       }
 
       // If we made it here, it's very likely a duplicate
-      console.log(`🔍 [Strategy 3] Duplicate found via fuzzy match (time/stats)`);
-      console.log(`   Time diff: ${timeDiff}ms | Duration diff: ${durationDiff}s`);
+      console.log(
+        `🔍 [Strategy 3] Duplicate found via fuzzy match (time/stats)`
+      );
+      console.log(
+        `   Time diff: ${timeDiff}ms | Duration diff: ${durationDiff}s`
+      );
       console.log(`   Type: ${normalizedType1}`);
       console.log(`   HealthKit: ${workout1Id} | Nostr: ${w2Id}`);
       return true;
@@ -670,21 +748,29 @@ export class WorkoutMergeService {
         24: 'hiking',
         46: 'yoga',
         35: 'strength_training',
-        3: 'gym'
+        3: 'gym',
       };
       return typeMap[type] || 'other';
     }
 
     // Normalize string types
-    const normalizedType = type.toLowerCase().replace(/_/g, '').replace(/-/g, '');
+    const normalizedType = type
+      .toLowerCase()
+      .replace(/_/g, '')
+      .replace(/-/g, '');
 
     // Map variations to standard types
     if (normalizedType.includes('run')) return 'running';
     if (normalizedType.includes('walk')) return 'walking';
-    if (normalizedType.includes('cycl') || normalizedType.includes('bike')) return 'cycling';
+    if (normalizedType.includes('cycl') || normalizedType.includes('bike'))
+      return 'cycling';
     if (normalizedType.includes('hik')) return 'hiking';
     if (normalizedType.includes('yoga')) return 'yoga';
-    if (normalizedType.includes('strength') || normalizedType.includes('weight')) return 'strength_training';
+    if (
+      normalizedType.includes('strength') ||
+      normalizedType.includes('weight')
+    )
+      return 'strength_training';
     if (normalizedType.includes('gym')) return 'gym';
 
     return normalizedType;
@@ -711,7 +797,7 @@ export class WorkoutMergeService {
    * Cleanup all active subscriptions
    */
   private cleanupSubscriptions(): void {
-    this.subscriptions.forEach(sub => {
+    this.subscriptions.forEach((sub) => {
       try {
         sub.stop();
       } catch (error) {
@@ -749,7 +835,9 @@ export class WorkoutMergeService {
       }
 
       const statusMap = await this.getWorkoutPostingStatus(pubkey);
-      const currentStatus = statusMap.get(updates.workoutId) || { workoutId: updates.workoutId };
+      const currentStatus = statusMap.get(updates.workoutId) || {
+        workoutId: updates.workoutId,
+      };
 
       const updatedStatus: WorkoutStatusUpdate = {
         ...currentStatus,
@@ -765,7 +853,10 @@ export class WorkoutMergeService {
         JSON.stringify(statusArray)
       );
 
-      console.log(`✅ Updated workout status for ${updates.workoutId}:`, updates);
+      console.log(
+        `✅ Updated workout status for ${updates.workoutId}:`,
+        updates
+      );
     } catch (error) {
       console.error('❌ Error updating workout status:', error);
       throw error;
@@ -919,7 +1010,10 @@ export class WorkoutMergeService {
 
   private async setCacheTimestamp(pubkey: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(`cache_timestamp_${pubkey}`, Date.now().toString());
+      await AsyncStorage.setItem(
+        `cache_timestamp_${pubkey}`,
+        Date.now().toString()
+      );
     } catch (error) {
       console.warn('Failed to set cache timestamp:', error);
     }
@@ -939,7 +1033,9 @@ export class WorkoutMergeService {
         if (freshWorkouts.length > 0) {
           await NostrCacheService.setCachedWorkouts(pubkey, freshWorkouts);
           await this.setCacheTimestamp(pubkey);
-          console.log(`✅ Background refresh completed: ${freshWorkouts.length} workouts cached`);
+          console.log(
+            `✅ Background refresh completed: ${freshWorkouts.length} workouts cached`
+          );
         }
       } catch (error) {
         console.error('❌ Background refresh failed:', error);
@@ -969,7 +1065,11 @@ export class WorkoutMergeService {
     untilTimestamp: number
   ): Promise<WorkoutMergeResult> {
     try {
-      console.log(`📖 WorkoutMergeService: Loading older workouts before ${new Date(untilTimestamp * 1000).toISOString()}`);
+      console.log(
+        `📖 WorkoutMergeService: Loading older workouts before ${new Date(
+          untilTimestamp * 1000
+        ).toISOString()}`
+      );
 
       const startTime = Date.now();
 
@@ -979,18 +1079,34 @@ export class WorkoutMergeService {
         const { nip19 } = await import('nostr-tools');
         const decoded = nip19.decode(pubkey);
         hexPubkey = decoded.data as string;
-        console.log(`🔧 Converted npub to hex for pagination: ${pubkey.slice(0, 20)}... → ${hexPubkey.slice(0, 20)}...`);
+        console.log(
+          `🔧 Converted npub to hex for pagination: ${pubkey.slice(
+            0,
+            20
+          )}... → ${hexPubkey.slice(0, 20)}...`
+        );
       }
 
       // Get older Nostr workouts using pagination
-      console.log(`🔍 Fetching older Nostr workouts before timestamp: ${untilTimestamp}`);
-      const olderNostrWorkouts = await NostrWorkoutService.getWorkoutsWithPagination(hexPubkey, untilTimestamp);
+      console.log(
+        `🔍 Fetching older Nostr workouts before timestamp: ${untilTimestamp}`
+      );
+      const olderNostrWorkouts =
+        await NostrWorkoutService.getWorkoutsWithPagination(
+          hexPubkey,
+          untilTimestamp
+        );
 
-      console.log(`📊 Pagination results: ${olderNostrWorkouts.length} Nostr workouts`);
+      console.log(
+        `📊 Pagination results: ${olderNostrWorkouts.length} Nostr workouts`
+      );
 
       // SIMPLIFIED: Convert older Nostr workouts to unified format
       const postingStatus = await this.getWorkoutPostingStatus(hexPubkey);
-      const unifiedWorkouts = this.convertNostrToUnified(olderNostrWorkouts, postingStatus);
+      const unifiedWorkouts = this.convertNostrToUnified(
+        olderNostrWorkouts,
+        postingStatus
+      );
 
       // Create simplified result (pure Nostr approach)
       const mergedResult = {
@@ -1013,9 +1129,10 @@ export class WorkoutMergeService {
         loadDuration,
       };
 
-      console.log(`✅ Pagination completed: ${result.allWorkouts.length} older workouts, ${loadDuration}ms`);
+      console.log(
+        `✅ Pagination completed: ${result.allWorkouts.length} older workouts, ${loadDuration}ms`
+      );
       return result;
-
     } catch (error) {
       console.error('❌ WorkoutMergeService pagination failed:', error);
       // Return empty result instead of throwing

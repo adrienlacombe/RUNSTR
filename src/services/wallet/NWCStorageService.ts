@@ -142,7 +142,9 @@ class NWCStorageServiceClass {
    * Save NWC connection string
    * Validates and tests connection before saving
    */
-  async saveNWCString(nwcString: string): Promise<{ success: boolean; error?: string }> {
+  async saveNWCString(
+    nwcString: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       console.log('[NWC] Attempting to save connection string');
 
@@ -159,7 +161,8 @@ class NWCStorageServiceClass {
       if (!connectionWorks) {
         return {
           success: false,
-          error: 'Could not connect to wallet. Please check your connection string.',
+          error:
+            'Could not connect to wallet. Please check your connection string.',
         };
       }
 
@@ -171,7 +174,10 @@ class NWCStorageServiceClass {
         connected: true,
         lastTested: Date.now(),
       };
-      await AsyncStorage.setItem(STORAGE_KEYS.NWC_STATUS, JSON.stringify(status));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.NWC_STATUS,
+        JSON.stringify(status)
+      );
 
       console.log('[NWC] Connection string saved successfully');
       return { success: true };
@@ -238,14 +244,20 @@ class NWCStorageServiceClass {
    * Update connection status
    * Call this after successful/failed operations
    */
-  async updateStatus(connected: boolean, walletInfo?: { balance: number; alias?: string }): Promise<void> {
+  async updateStatus(
+    connected: boolean,
+    walletInfo?: { balance: number; alias?: string }
+  ): Promise<void> {
     try {
       const status: NWCStatus = {
         connected,
         lastTested: Date.now(),
         walletInfo,
       };
-      await AsyncStorage.setItem(STORAGE_KEYS.NWC_STATUS, JSON.stringify(status));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.NWC_STATUS,
+        JSON.stringify(status)
+      );
     } catch (error) {
       console.error('[NWC] Update status failed:', error);
     }

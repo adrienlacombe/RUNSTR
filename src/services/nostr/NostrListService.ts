@@ -114,7 +114,12 @@ export class NostrListService {
     if (authorPubkey.startsWith('npub')) {
       const converted = npubToHex(authorPubkey);
       if (!converted) {
-        console.error(`❌ Failed to convert npub to hex for author: ${authorPubkey.slice(0, 20)}...`);
+        console.error(
+          `❌ Failed to convert npub to hex for author: ${authorPubkey.slice(
+            0,
+            20
+          )}...`
+        );
         return null;
       }
       hexAuthorPubkey = converted;
@@ -200,7 +205,12 @@ export class NostrListService {
     if (authorPubkey.startsWith('npub')) {
       const converted = npubToHex(authorPubkey);
       if (!converted) {
-        const error = new Error(`Failed to convert npub to hex for subscription: ${authorPubkey.slice(0, 20)}...`);
+        const error = new Error(
+          `Failed to convert npub to hex for subscription: ${authorPubkey.slice(
+            0,
+            20
+          )}...`
+        );
         console.error(`❌ ${error.message}`);
         throw error;
       }
@@ -407,7 +417,9 @@ export class NostrListService {
     memberPubkey: string,
     currentList: NostrList
   ) {
-    console.log(`📝 Preparing to remove member ${memberPubkey} from list ${dTag}`);
+    console.log(
+      `📝 Preparing to remove member ${memberPubkey} from list ${dTag}`
+    );
 
     // Check if member is in list
     if (!currentList.members.includes(memberPubkey)) {
@@ -416,7 +428,9 @@ export class NostrListService {
     }
 
     // Remove member from list
-    const updatedMembers = currentList.members.filter(m => m !== memberPubkey);
+    const updatedMembers = currentList.members.filter(
+      (m) => m !== memberPubkey
+    );
 
     // Prepare updated list event
     return this.prepareListUpdate(currentList, updatedMembers, authorPubkey);
@@ -460,7 +474,9 @@ export class NostrListService {
       pubkey: authorPubkey,
     };
 
-    console.log(`✅ Prepared list update with ${updatedMembers.length} members`);
+    console.log(
+      `✅ Prepared list update with ${updatedMembers.length} members`
+    );
     return eventTemplate;
   }
 
@@ -472,7 +488,9 @@ export class NostrListService {
     if (cachedList) {
       cachedList.members = updatedMembers;
       cachedList.lastUpdated = Math.floor(Date.now() / 1000);
-      console.log(`✅ Updated cached list: ${listId} with ${updatedMembers.length} members`);
+      console.log(
+        `✅ Updated cached list: ${listId} with ${updatedMembers.length} members`
+      );
     }
   }
 
@@ -480,23 +498,30 @@ export class NostrListService {
    * Get all lists containing a specific user's pubkey
    * Used for discovering competitions, teams, etc.
    */
-  async getListsContainingUser(userPubkey: string, filters?: {
-    kinds?: number[];
-    tags?: string[];
-    limit?: number;
-  }): Promise<NostrList[]> {
+  async getListsContainingUser(
+    userPubkey: string,
+    filters?: {
+      kinds?: number[];
+      tags?: string[];
+      limit?: number;
+    }
+  ): Promise<NostrList[]> {
     // Convert npub to hex if needed
     let hexUserPubkey = userPubkey;
     if (userPubkey.startsWith('npub')) {
       const converted = npubToHex(userPubkey);
       if (!converted) {
-        console.error(`❌ Failed to convert npub to hex: ${userPubkey.slice(0, 20)}...`);
+        console.error(
+          `❌ Failed to convert npub to hex: ${userPubkey.slice(0, 20)}...`
+        );
         return [];
       }
       hexUserPubkey = converted;
     }
 
-    console.log(`🔍 Finding all lists containing user: ${hexUserPubkey.slice(0, 20)}...`);
+    console.log(
+      `🔍 Finding all lists containing user: ${hexUserPubkey.slice(0, 20)}...`
+    );
 
     try {
       // Get GlobalNDK instance
@@ -524,11 +549,13 @@ export class NostrListService {
 
             // Apply additional tag filters if specified
             if (filters?.tags) {
-              const listTags = nostrEvent.tags!
-                .filter(t => t[0] === 't')
-                .map(t => t[1]);
+              const listTags = nostrEvent
+                .tags!.filter((t) => t[0] === 't')
+                .map((t) => t[1]);
 
-              const hasRequiredTags = filters.tags.some(tag => listTags.includes(tag));
+              const hasRequiredTags = filters.tags.some((tag) =>
+                listTags.includes(tag)
+              );
               if (!hasRequiredTags) {
                 return; // Skip lists without required tags
               }
@@ -561,9 +588,12 @@ export class NostrListService {
   /**
    * Get user's lists by type (using t-tags)
    */
-  async getUserListsByType(userPubkey: string, type: string): Promise<NostrList[]> {
+  async getUserListsByType(
+    userPubkey: string,
+    type: string
+  ): Promise<NostrList[]> {
     return this.getListsContainingUser(userPubkey, {
-      tags: [type]
+      tags: [type],
     });
   }
 

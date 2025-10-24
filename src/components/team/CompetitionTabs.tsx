@@ -41,10 +41,7 @@ export const CompetitionTabs: React.FC<CompetitionTabsProps> = ({
       {/* Tab Headers */}
       <View style={styles.tabHeader}>
         <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'events' && styles.activeTab,
-          ]}
+          style={[styles.tab, activeTab === 'events' && styles.activeTab]}
           onPress={() => handleTabPress('events')}
           activeOpacity={0.7}
         >
@@ -60,10 +57,7 @@ export const CompetitionTabs: React.FC<CompetitionTabsProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'challenges' && styles.activeTab,
-          ]}
+          style={[styles.tab, activeTab === 'challenges' && styles.activeTab]}
           onPress={() => handleTabPress('challenges')}
           activeOpacity={0.7}
         >
@@ -75,7 +69,9 @@ export const CompetitionTabs: React.FC<CompetitionTabsProps> = ({
           >
             Challenges
           </Text>
-          {activeTab === 'challenges' && <View style={styles.activeIndicator} />}
+          {activeTab === 'challenges' && (
+            <View style={styles.activeIndicator} />
+          )}
         </TouchableOpacity>
       </View>
 

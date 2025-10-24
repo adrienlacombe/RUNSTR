@@ -37,6 +37,20 @@ export class KalmanFilter {
   private readonly MIN_VARIANCE = 10; // Minimum position variance
 
   /**
+   * Create a new Kalman filter with optional warm start
+   * @param warmStart If true, initializes with reasonable defaults for faster convergence
+   */
+  constructor(warmStart: boolean = false) {
+    if (warmStart) {
+      // Start with reasonable running/walking parameters for faster convergence
+      this.variance = 20; // Much lower initial variance (more confident)
+      this.lastSpeed = 2.5; // Average jogging speed ~6 min/km pace
+      this.speedVariance = 0.5; // Lower uncertainty for speed
+      console.log('[KalmanFilter] Warm start enabled - faster convergence expected');
+    }
+  }
+
+  /**
    * Update the filter with a new GPS measurement
    * @param lat Latitude in degrees
    * @param lng Longitude in degrees
@@ -44,9 +58,18 @@ export class KalmanFilter {
    * @param timestamp Timestamp in milliseconds
    * @returns Filtered position with smoothed coordinates
    */
-  update(lat: number, lng: number, accuracy: number, timestamp: number = Date.now()): FilteredPosition {
+  update(
+    lat: number,
+    lng: number,
+    accuracy: number,
+    timestamp: number = Date.now()
+  ): FilteredPosition {
     // Input validation
-    if (typeof lat !== 'number' || typeof lng !== 'number' || typeof accuracy !== 'number') {
+    if (
+      typeof lat !== 'number' ||
+      typeof lng !== 'number' ||
+      typeof accuracy !== 'number'
+    ) {
       console.warn('[KalmanFilter] Invalid input - returning raw values');
       return { lat, lng, accuracy };
     }
@@ -105,15 +128,18 @@ export class KalmanFilter {
     // Maximum allowed movement based on speed and acceleration
     const maxDistance = this.calculateMaxDistance(timeDiff, currentSpeed);
     const maxLatDiff = maxDistance / 111111; // Approximate degrees latitude
-    const maxLngDiff = maxDistance / (111111 * Math.cos((this.lat * Math.PI) / 180));
+    const maxLngDiff =
+      maxDistance / (111111 * Math.cos((this.lat * Math.PI) / 180));
 
     // Apply bounded updates
-    const actualLatDiff = Math.abs(latDiff) > maxLatDiff
-      ? maxLatDiff * Math.sign(latDiff)
-      : latDiff;
-    const actualLngDiff = Math.abs(lngDiff) > maxLngDiff
-      ? maxLngDiff * Math.sign(lngDiff)
-      : lngDiff;
+    const actualLatDiff =
+      Math.abs(latDiff) > maxLatDiff
+        ? maxLatDiff * Math.sign(latDiff)
+        : latDiff;
+    const actualLngDiff =
+      Math.abs(lngDiff) > maxLngDiff
+        ? maxLngDiff * Math.sign(lngDiff)
+        : lngDiff;
 
     // Update state
     this.lat += limitedK * actualLatDiff;
@@ -125,7 +151,7 @@ export class KalmanFilter {
     return {
       lat: this.lat,
       lng: this.lng,
-      accuracy: Math.sqrt(this.variance)
+      accuracy: Math.sqrt(this.variance),
     };
   }
 
@@ -189,7 +215,7 @@ export class KalmanFilter {
       lat: this.lat,
       lng: this.lng,
       variance: this.variance,
-      lastSpeed: this.lastSpeed
+      lastSpeed: this.lastSpeed,
     };
   }
 }

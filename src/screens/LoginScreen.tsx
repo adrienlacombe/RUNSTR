@@ -103,7 +103,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
     setError(null);
 
     try {
-      console.log('LoginScreen: Starting Nostr signup (generating new identity)...');
+      console.log(
+        'LoginScreen: Starting Nostr signup (generating new identity)...'
+      );
 
       // Use AuthContext signUp - this generates a new identity and stores it
       const result = await signUp();
@@ -118,7 +120,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
         navigation.navigate('Onboarding', { nsec });
       } else {
         console.error('❌ LoginScreen: Signup failed:', result.error);
-        setError(result.error || 'Failed to create identity. Please try again.');
+        setError(
+          result.error || 'Failed to create identity. Please try again.'
+        );
       }
     } catch (error) {
       console.error('❌ LoginScreen: Signup error:', error);
@@ -129,7 +133,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
       setIsLoading(false);
     }
   };
-
 
   const handleAmberLogin = async () => {
     setIsLoading(true);
@@ -144,43 +147,52 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
         console.log('✅ LoginScreen: Amber authentication successful');
         setAmberStage('Success! Loading profile...');
       } else {
-        console.error('❌ LoginScreen: Amber authentication failed:', result.error);
+        console.error(
+          '❌ LoginScreen: Amber authentication failed:',
+          result.error
+        );
         setAmberStage('');
 
         // Provide specific error guidance based on the error type
         if (result.error?.includes('timeout')) {
           setError(
             'Amber request timed out.\n\n' +
-            'Please make sure to:\n' +
-            '1. Approve the request when Amber opens\n' +
-            '2. Grant all requested permissions\n' +
-            '3. Try again if you accidentally closed Amber'
+              'Please make sure to:\n' +
+              '1. Approve the request when Amber opens\n' +
+              '2. Grant all requested permissions\n' +
+              '3. Try again if you accidentally closed Amber'
           );
-        } else if (result.error?.includes('not installed') || result.error?.includes('not found')) {
+        } else if (
+          result.error?.includes('not installed') ||
+          result.error?.includes('not found')
+        ) {
           setError(
             'Amber not found. Install it from:\n\n' +
-            'F-Droid or GitHub (search "Amber Nostr")'
+              'F-Droid or GitHub (search "Amber Nostr")'
           );
         } else if (result.error?.includes('permission')) {
           setError(
             'Please grant all requested permissions in Amber to use RUNSTR.\n\n' +
-            'RUNSTR needs permissions to sign workouts, manage teams, and sync your profile.'
+              'RUNSTR needs permissions to sign workouts, manage teams, and sync your profile.'
           );
         } else {
-          setError(result.error || 'Amber authentication failed. Please try again.');
+          setError(
+            result.error || 'Amber authentication failed. Please try again.'
+          );
         }
       }
     } catch (error) {
       console.error('❌ LoginScreen: Amber authentication error:', error);
       setAmberStage('');
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unexpected error occurred';
 
       if (errorMessage.includes('Could not open Amber')) {
         setError(
           'Could not open Amber. Make sure:\n' +
-          '1. Amber is installed\n' +
-          '2. You have created or imported a key in Amber\n' +
-          '3. Amber is not restricted by device policies'
+            '1. Amber is installed\n' +
+            '2. You have created or imported a key in Amber\n' +
+            '3. Amber is not restricted by device policies'
         );
       } else {
         setError(errorMessage);
@@ -210,157 +222,181 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
         keyboardVerticalOffset={insets.top}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 20 },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-          {/* Header */}
-          <View style={[styles.header, IS_SMALL_DEVICE && styles.headerSmall]}>
-            <Image
-              source={require('../../assets/images/splash-icon.png')}
-              style={[styles.logo, { width: logoSize, height: logoHeight }]}
-              resizeMode="contain"
-            />
-          </View>
+            {/* Header */}
+            <View
+              style={[styles.header, IS_SMALL_DEVICE && styles.headerSmall]}
+            >
+              <Image
+                source={require('../../assets/images/splash-icon.png')}
+                style={[styles.logo, { width: logoSize, height: logoHeight }]}
+                resizeMode="contain"
+              />
+            </View>
 
-          {/* Login Section */}
-          <View style={styles.loginSection}>
-            {!showInput ? (
-              // Login Options
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={styles.loginButton}
-                  onPress={handleShowInput}
-                  activeOpacity={0.8}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color={theme.colors.textOrange} />
-                  ) : (
-                    <Text style={styles.loginButtonText}>Login</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.signupButton}
-                  onPress={handleSignUp}
-                  activeOpacity={0.8}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color={theme.colors.textOrange} />
-                  ) : (
-                    <Text style={styles.signupButtonText}>Start</Text>
-                  )}
-                </TouchableOpacity>
-
-                {error && (
-                  <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                )}
-              </View>
-            ) : (
-              // Input Form
-              <View style={styles.inputContainer}>
-                <View style={styles.inputHeader}>
+            {/* Login Section */}
+            <View style={styles.loginSection}>
+              {!showInput ? (
+                // Login Options
+                <View style={styles.buttonContainer}>
                   <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={handleBack}
+                    style={styles.loginButton}
+                    onPress={handleShowInput}
+                    activeOpacity={0.8}
+                    disabled={isLoading}
                   >
-                    <Text style={styles.backButtonText}>← Back</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.inputTitle}>Enter your password</Text>
-                </View>
-
-                <View style={styles.inputField}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  <TextInput
-                    style={[styles.textInput, error && styles.textInputError]}
-                    value={nsecInput}
-                    onChangeText={handleNsecChange}
-                    placeholder="Your secure password"
-                    placeholderTextColor={theme.colors.textOrange}
-                    secureTextEntry={true}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    multiline={false}
-                    editable={!isLoading}
-                  />
-                  <Text style={styles.inputHelper}>
-                    Your password is stored locally and never shared
-                  </Text>
-                </View>
-
-                {error && (
-                  <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={[
-                    styles.submitButton,
-                    (!nsecInput || isLoading) && styles.submitButtonDisabled,
-                  ]}
-                  onPress={handleLogin}
-                  disabled={!nsecInput || isLoading}
-                  activeOpacity={0.8}
-                >
-                  {isLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="small" color={theme.colors.accentText} />
-                      <Text style={styles.submitButtonText}>Authenticating...</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.submitButtonText}>Login</Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Amber Login Option - Only on Android */}
-                {Platform.OS === 'android' && (
-                  <View style={styles.amberSection}>
-                    <View style={styles.divider}>
-                      <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>OR</Text>
-                      <View style={styles.dividerLine} />
-                    </View>
-
-                    <TouchableOpacity
-                      style={[styles.amberButton, isLoading && styles.amberButtonDisabled]}
-                      onPress={handleAmberLogin}
-                      disabled={isLoading}
-                      activeOpacity={0.8}
-                    >
-                      {isLoading ? (
-                        <View style={styles.amberLoadingContainer}>
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                          {amberStage && (
-                            <Text style={styles.amberStageText}>{amberStage}</Text>
-                          )}
-                        </View>
-                      ) : (
-                        <>
-                          <Text style={styles.amberButtonText}>Login with Amber</Text>
-                          <Text style={styles.amberSubtext}>Secure key management</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-
-                    {!isLoading && (
-                      <Text style={styles.amberHelp}>
-                        Amber will open to approve login.\n
-                        Grant all permissions when asked.
-                      </Text>
+                    {isLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.textOrange}
+                      />
+                    ) : (
+                      <Text style={styles.loginButtonText}>Login</Text>
                     )}
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
+                  </TouchableOpacity>
 
-        </View>
+                  <TouchableOpacity
+                    style={styles.signupButton}
+                    onPress={handleSignUp}
+                    activeOpacity={0.8}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.textOrange}
+                      />
+                    ) : (
+                      <Text style={styles.signupButtonText}>Start</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {error && (
+                    <View style={styles.errorContainer}>
+                      <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                // Input Form
+                <View style={styles.inputContainer}>
+                  <View style={styles.inputHeader}>
+                    <TouchableOpacity
+                      style={styles.backButton}
+                      onPress={handleBack}
+                    >
+                      <Text style={styles.backButtonText}>← Back</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.inputTitle}>Enter your password</Text>
+                  </View>
+
+                  <View style={styles.inputField}>
+                    <Text style={styles.inputLabel}>Password</Text>
+                    <TextInput
+                      style={[styles.textInput, error && styles.textInputError]}
+                      value={nsecInput}
+                      onChangeText={handleNsecChange}
+                      placeholder="Your secure password"
+                      placeholderTextColor={theme.colors.textOrange}
+                      secureTextEntry={true}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      multiline={false}
+                      editable={!isLoading}
+                    />
+                    <Text style={styles.inputHelper}>
+                      Your password is stored locally and never shared
+                    </Text>
+                  </View>
+
+                  {error && (
+                    <View style={styles.errorContainer}>
+                      <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.submitButton,
+                      (!nsecInput || isLoading) && styles.submitButtonDisabled,
+                    ]}
+                    onPress={handleLogin}
+                    disabled={!nsecInput || isLoading}
+                    activeOpacity={0.8}
+                  >
+                    {isLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.accentText}
+                        />
+                        <Text style={styles.submitButtonText}>
+                          Authenticating...
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.submitButtonText}>Login</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Amber Login Option - Only on Android */}
+                  {Platform.OS === 'android' && (
+                    <View style={styles.amberSection}>
+                      <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>OR</Text>
+                        <View style={styles.dividerLine} />
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.amberButton,
+                          isLoading && styles.amberButtonDisabled,
+                        ]}
+                        onPress={handleAmberLogin}
+                        disabled={isLoading}
+                        activeOpacity={0.8}
+                      >
+                        {isLoading ? (
+                          <View style={styles.amberLoadingContainer}>
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                            {amberStage && (
+                              <Text style={styles.amberStageText}>
+                                {amberStage}
+                              </Text>
+                            )}
+                          </View>
+                        ) : (
+                          <>
+                            <Text style={styles.amberButtonText}>
+                              Login with Amber
+                            </Text>
+                            <Text style={styles.amberSubtext}>
+                              Secure key management
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      {!isLoading && (
+                        <Text style={styles.amberHelp}>
+                          Amber will open to approve login.\n Grant all
+                          permissions when asked.
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

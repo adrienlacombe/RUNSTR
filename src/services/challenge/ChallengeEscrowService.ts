@@ -52,7 +52,12 @@ export interface ChallengePaymentRecord {
     invoice?: string;
     paidAt?: number;
   };
-  status: 'awaiting_creator' | 'awaiting_accepter' | 'fully_funded' | 'completed' | 'refunded';
+  status:
+    | 'awaiting_creator'
+    | 'awaiting_accepter'
+    | 'fully_funded'
+    | 'completed'
+    | 'refunded';
   winnerId?: string;
   payoutHash?: string;
   payoutAt?: number;
@@ -104,7 +109,7 @@ export class ChallengeEscrowService {
     accepterPubkey: string
   ): Promise<ChallengePaymentRecord> {
     const now = Date.now();
-    const expiresAt = now + (this.PAYMENT_TIMEOUT_HOURS * 60 * 60 * 1000);
+    const expiresAt = now + this.PAYMENT_TIMEOUT_HOURS * 60 * 60 * 1000;
 
     const record: ChallengePaymentRecord = {
       challengeId,
@@ -179,7 +184,9 @@ export class ChallengeEscrowService {
    * Check if invoice has been paid
    * Uses Alby MCP lookup_invoice
    */
-  async checkInvoicePayment(paymentHash: string): Promise<PaymentConfirmationResult> {
+  async checkInvoicePayment(
+    paymentHash: string
+  ): Promise<PaymentConfirmationResult> {
     try {
       const result = await global.mcp__alby__lookup_invoice({
         payment_hash: paymentHash,
@@ -225,7 +232,9 @@ export class ChallengeEscrowService {
       }
 
       // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, this.POLL_INTERVAL_MS));
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.POLL_INTERVAL_MS)
+      );
     }
 
     console.log(`⏱️ Payment timeout: ${paymentHash}`);
@@ -297,7 +306,9 @@ export class ChallengeEscrowService {
   /**
    * Get payment status for challenge
    */
-  async getPaymentStatus(challengeId: string): Promise<ChallengePaymentRecord | null> {
+  async getPaymentStatus(
+    challengeId: string
+  ): Promise<ChallengePaymentRecord | null> {
     return this.getPaymentRecord(challengeId);
   }
 
@@ -458,7 +469,9 @@ export class ChallengeEscrowService {
 
       const splitAmount = record.wagerAmount; // Each gets their money back
 
-      console.log(`🤝 Tie detected - refunding ${splitAmount} sats to each participant`);
+      console.log(
+        `🤝 Tie detected - refunding ${splitAmount} sats to each participant`
+      );
 
       // For MVP, mark as completed with tie
       // Manual payouts required until we have Lightning addresses
@@ -483,12 +496,16 @@ export class ChallengeEscrowService {
   /**
    * Storage helpers
    */
-  private async savePaymentRecord(record: ChallengePaymentRecord): Promise<void> {
+  private async savePaymentRecord(
+    record: ChallengePaymentRecord
+  ): Promise<void> {
     const key = `${this.STORAGE_KEY_PREFIX}${record.challengeId}`;
     await AsyncStorage.setItem(key, JSON.stringify(record));
   }
 
-  private async getPaymentRecord(challengeId: string): Promise<ChallengePaymentRecord | null> {
+  private async getPaymentRecord(
+    challengeId: string
+  ): Promise<ChallengePaymentRecord | null> {
     try {
       const key = `${this.STORAGE_KEY_PREFIX}${challengeId}`;
       const data = await AsyncStorage.getItem(key);
@@ -505,7 +522,9 @@ export class ChallengeEscrowService {
   async getAllPaymentRecords(): Promise<ChallengePaymentRecord[]> {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const paymentKeys = keys.filter((key) => key.startsWith(this.STORAGE_KEY_PREFIX));
+      const paymentKeys = keys.filter((key) =>
+        key.startsWith(this.STORAGE_KEY_PREFIX)
+      );
 
       const records = await Promise.all(
         paymentKeys.map(async (key) => {
@@ -532,7 +551,10 @@ export class ChallengeEscrowService {
 
       let cleaned = 0;
       for (const record of records) {
-        if (now - record.createdAt > thirtyDaysMs && record.status === 'completed') {
+        if (
+          now - record.createdAt > thirtyDaysMs &&
+          record.status === 'completed'
+        ) {
           const key = `${this.STORAGE_KEY_PREFIX}${record.challengeId}`;
           await AsyncStorage.removeItem(key);
           cleaned++;

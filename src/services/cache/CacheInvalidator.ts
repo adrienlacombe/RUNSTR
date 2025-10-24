@@ -12,7 +12,9 @@ export class CacheInvalidator {
    * Invalidate all caches that depend on workout data
    */
   static onWorkoutPosted(userNpub: string, teamId?: string): void {
-    console.log(`🏃 CacheInvalidator: New workout posted by ${userNpub.slice(0, 12)}...`);
+    console.log(
+      `🏃 CacheInvalidator: New workout posted by ${userNpub.slice(0, 12)}...`
+    );
 
     const patterns: string[] = [
       // User's own workout cache
@@ -45,7 +47,12 @@ export class CacheInvalidator {
    * Invalidate member lists and dependent competitions
    */
   static onMemberAdded(teamId: string, memberNpub: string): void {
-    console.log(`👥 CacheInvalidator: Member ${memberNpub.slice(0, 12)}... added to team ${teamId}`);
+    console.log(
+      `👥 CacheInvalidator: Member ${memberNpub.slice(
+        0,
+        12
+      )}... added to team ${teamId}`
+    );
 
     UnifiedCacheService.invalidate([
       // Team member lists
@@ -69,7 +76,12 @@ export class CacheInvalidator {
    * Clear all their data from team competitions
    */
   static onMemberRemoved(teamId: string, memberNpub: string): void {
-    console.log(`🚪 CacheInvalidator: Member ${memberNpub.slice(0, 12)}... removed from team ${teamId}`);
+    console.log(
+      `🚪 CacheInvalidator: Member ${memberNpub.slice(
+        0,
+        12
+      )}... removed from team ${teamId}`
+    );
 
     UnifiedCacheService.invalidate([
       // Team member lists
@@ -105,10 +117,7 @@ export class CacheInvalidator {
     ];
 
     if (teamId) {
-      patterns.push(
-        `league:${teamId}:*`,
-        `event:${teamId}:*`
-      );
+      patterns.push(`league:${teamId}:*`, `event:${teamId}:*`);
     }
 
     UnifiedCacheService.invalidate(patterns);
@@ -159,7 +168,12 @@ export class CacheInvalidator {
    * Clear team discovery and membership caches
    */
   static onTeamJoined(teamId: string, userNpub: string): void {
-    console.log(`🤝 CacheInvalidator: User ${userNpub.slice(0, 12)}... joined team ${teamId}`);
+    console.log(
+      `🤝 CacheInvalidator: User ${userNpub.slice(
+        0,
+        12
+      )}... joined team ${teamId}`
+    );
 
     UnifiedCacheService.invalidate([
       // User's teams
@@ -179,7 +193,12 @@ export class CacheInvalidator {
    * Clear team and membership caches
    */
   static onTeamLeft(teamId: string, userNpub: string): void {
-    console.log(`👋 CacheInvalidator: User ${userNpub.slice(0, 12)}... left team ${teamId}`);
+    console.log(
+      `👋 CacheInvalidator: User ${userNpub.slice(
+        0,
+        12
+      )}... left team ${teamId}`
+    );
 
     UnifiedCacheService.invalidate([
       // User's teams
@@ -199,8 +218,13 @@ export class CacheInvalidator {
    * When captain creates a new competition
    * Clear team competition lists
    */
-  static onCompetitionCreated(teamId: string, competitionType: 'league' | 'event' | 'challenge'): void {
-    console.log(`🎉 CacheInvalidator: New ${competitionType} created for team ${teamId}`);
+  static onCompetitionCreated(
+    teamId: string,
+    competitionType: 'league' | 'event' | 'challenge'
+  ): void {
+    console.log(
+      `🎉 CacheInvalidator: New ${competitionType} created for team ${teamId}`
+    );
 
     UnifiedCacheService.invalidate([
       // Team's competition lists
@@ -218,7 +242,9 @@ export class CacheInvalidator {
    * Clear wallet and winner caches
    */
   static onRewardsDistributed(competitionId: string, teamId: string): void {
-    console.log(`💰 CacheInvalidator: Rewards distributed for competition ${competitionId}`);
+    console.log(
+      `💰 CacheInvalidator: Rewards distributed for competition ${competitionId}`
+    );
 
     UnifiedCacheService.invalidate([
       // Competition winners
@@ -239,7 +265,11 @@ export class CacheInvalidator {
    * Clear relay-dependent caches
    */
   static onRelayStatusChanged(relayUrl: string, isConnected: boolean): void {
-    console.log(`📡 CacheInvalidator: Relay ${relayUrl} status: ${isConnected ? 'connected' : 'disconnected'}`);
+    console.log(
+      `📡 CacheInvalidator: Relay ${relayUrl} status: ${
+        isConnected ? 'connected' : 'disconnected'
+      }`
+    );
 
     if (!isConnected) {
       // Don't invalidate data caches when relay disconnects
@@ -249,7 +279,9 @@ export class CacheInvalidator {
 
     // When relay reconnects, we might want to refresh critical data
     // But don't invalidate everything to avoid cache storms
-    console.log('📡 CacheInvalidator: Relay reconnected, background refresh may occur');
+    console.log(
+      '📡 CacheInvalidator: Relay reconnected, background refresh may occur'
+    );
   }
 
   /**
@@ -257,7 +289,9 @@ export class CacheInvalidator {
    * Used for pull-to-refresh on profile
    */
   static onUserRefresh(userNpub: string): void {
-    console.log(`🔄 CacheInvalidator: Full refresh for user ${userNpub.slice(0, 12)}...`);
+    console.log(
+      `🔄 CacheInvalidator: Full refresh for user ${userNpub.slice(0, 12)}...`
+    );
 
     UnifiedCacheService.invalidate([
       // User's profile and workouts
@@ -314,7 +348,9 @@ export class CacheInvalidator {
    * Pre-fetch likely needed data during idle time
    */
   static async warmCache(userNpub: string, teamIds: string[]): Promise<void> {
-    console.log(`🔥 CacheInvalidator: Warming cache for user ${userNpub.slice(0, 12)}...`);
+    console.log(
+      `🔥 CacheInvalidator: Warming cache for user ${userNpub.slice(0, 12)}...`
+    );
 
     // This would be called during app startup or idle time
     // to pre-populate caches with likely-needed data

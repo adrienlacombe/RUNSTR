@@ -23,6 +23,11 @@ import { theme } from '../../styles/theme';
 import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
 import LightningZapService from '../../services/nutzap/LightningZapService';
 import { npubToHex } from '../../utils/ndkConversion';
+import {
+  parseBolt11Invoice,
+  validateInvoiceAmount,
+  getInvoiceTimeRemaining,
+} from '../../utils/bolt11Parser';
 
 interface ExternalZapModalProps {
   visible: boolean;
@@ -47,12 +52,17 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
 
   // Convert npub to hex for API calls
   const recipientHex = React.useMemo(() => {
     const normalized = npubToHex(recipientNpub);
     if (!normalized) {
-      console.warn('[ExternalZapModal] Invalid recipient pubkey:', recipientNpub.slice(0, 20));
+      console.warn(
+        '[ExternalZapModal] Invalid recipient pubkey:',
+        recipientNpub.slice(0, 20)
+      );
       return recipientNpub;
     }
     return normalized;
@@ -64,13 +74,55 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
     }
   }, [visible, amount]);
 
+  // Countdown timer effect - updates every second
+  useEffect(() => {
+    if (!invoice || !visible) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    // Initial time calculation
+    const remaining = getInvoiceTimeRemaining(invoice);
+    setTimeRemaining(remaining);
+
+    if (remaining !== null && remaining <= 0) {
+      setIsExpired(true);
+      return;
+    }
+
+    // Update countdown every second
+    const interval = setInterval(() => {
+      const newRemaining = getInvoiceTimeRemaining(invoice);
+      setTimeRemaining(newRemaining);
+
+      if (newRemaining !== null && newRemaining <= 0) {
+        setIsExpired(true);
+        clearInterval(interval);
+
+        // Auto-regenerate invoice after 2 seconds
+        setTimeout(() => {
+          console.log('[ExternalZapModal] Invoice expired, regenerating...');
+          generateInvoice();
+        }, 2000);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [invoice, visible]);
+
   const generateInvoice = async () => {
     setIsLoading(true);
     setError('');
+    setIsExpired(false);
+    setInvoice('');
+    setTimeRemaining(null);
 
     try {
       // First, attempt to send a Lightning zap to get the Lightning address
-      console.log('[ExternalZapModal] Attempting to get Lightning info for:', recipientHex);
+      console.log(
+        '[ExternalZapModal] Attempting to get Lightning info for:',
+        recipientHex
+      );
 
       // No need to try sendLightningZap, just fetch the Lightning address directly
 
@@ -79,20 +131,28 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
 
       // Try to get the Lightning address from the user's Nostr profile
       try {
-        const { GlobalNDKService } = require('../../services/nostr/GlobalNDKService');
+        const {
+          GlobalNDKService,
+        } = require('../../services/nostr/GlobalNDKService');
         const ndk = await GlobalNDKService.getInstance();
         const user = ndk.getUser({ pubkey: recipientHex });
         await user.fetchProfile();
         lightningAddress = user.profile?.lud16 || user.profile?.lud06 || null;
       } catch (profileError) {
-        console.error('[ExternalZapModal] Error fetching profile:', profileError);
+        console.error(
+          '[ExternalZapModal] Error fetching profile:',
+          profileError
+        );
       }
 
       if (!lightningAddress) {
         throw new Error('Recipient does not have a Lightning address');
       }
 
-      console.log('[ExternalZapModal] Lightning address found:', lightningAddress);
+      console.log(
+        '[ExternalZapModal] Lightning address found:',
+        lightningAddress
+      );
 
       // Get invoice from Lightning address (NIP-57 zap request will be handled internally)
       console.log('[ExternalZapModal] Requesting invoice for', amount, 'sats');
@@ -103,14 +163,30 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       );
 
       if (invoiceResult && invoiceResult.invoice) {
+        // Validate invoice amount matches requested amount
+        const amountValid = validateInvoiceAmount(
+          invoiceResult.invoice,
+          amount
+        );
+
+        if (!amountValid) {
+          throw new Error(
+            `Invoice amount mismatch! Expected ${amount} sats. Please try again.`
+          );
+        }
+
         setInvoice(invoiceResult.invoice);
-        console.log('[ExternalZapModal] Invoice generated successfully');
+        console.log(
+          '[ExternalZapModal] Invoice generated and validated successfully'
+        );
       } else {
         throw new Error('Failed to generate invoice');
       }
     } catch (err) {
       console.error('[ExternalZapModal] Error generating invoice:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate invoice');
+      setError(
+        err instanceof Error ? err.message : 'Failed to generate invoice'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -195,7 +271,11 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
                 </View>
               ) : error ? (
                 <View style={styles.errorContainer}>
-                  <Ionicons name="alert-circle" size={48} color={theme.colors.error} />
+                  <Ionicons
+                    name="alert-circle"
+                    size={48}
+                    color={theme.colors.error}
+                  />
                   <Text style={styles.errorText}>{error}</Text>
                   <TouchableOpacity
                     style={styles.retryButton}
@@ -206,6 +286,50 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
                 </View>
               ) : invoice ? (
                 <>
+                  {/* Expiration Timer */}
+                  {timeRemaining !== null && (
+                    <View style={styles.timerContainer}>
+                      {isExpired ? (
+                        <View style={styles.expiredBanner}>
+                          <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color={theme.colors.error}
+                          />
+                          <Text style={styles.expiredText}>
+                            Invoice Expired - Regenerating...
+                          </Text>
+                        </View>
+                      ) : timeRemaining < 300 ? (
+                        <View
+                          style={[
+                            styles.timerBanner,
+                            timeRemaining < 60 && styles.timerBannerUrgent,
+                          ]}
+                        >
+                          <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color={
+                              timeRemaining < 60
+                                ? theme.colors.error
+                                : theme.colors.orangeBright
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.timerText,
+                              timeRemaining < 60 && styles.timerTextUrgent,
+                            ]}
+                          >
+                            Expires in {Math.floor(timeRemaining / 60)}:
+                            {String(timeRemaining % 60).padStart(2, '0')}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
+
                   <View style={styles.qrCodeContainer}>
                     <QRCode
                       value={invoice}
@@ -252,9 +376,12 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
 
                   {/* Supported Wallets */}
                   <View style={styles.supportedWallets}>
-                    <Text style={styles.supportedWalletsTitle}>Works with:</Text>
+                    <Text style={styles.supportedWalletsTitle}>
+                      Works with:
+                    </Text>
                     <Text style={styles.supportedWalletsList}>
-                      Cash App • Strike • Alby • Phoenix • Breez • BlueWallet • Zeus
+                      Cash App • Strike • Alby • Phoenix • Breez • BlueWallet •
+                      Zeus
                     </Text>
                   </View>
                 </>
@@ -269,7 +396,11 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
                 style={styles.confirmButton}
                 onPress={handlePaymentConfirmed}
               >
-                <Ionicons name="checkmark-circle" size={20} color={theme.colors.background} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color={theme.colors.background}
+                />
                 <Text style={styles.confirmButtonText}>I've Paid</Text>
               </TouchableOpacity>
             </View>
@@ -505,5 +636,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.background,
+  },
+
+  timerContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+
+  timerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 157, 66, 0.1)',
+    borderRadius: theme.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: theme.colors.orangeBright,
+  },
+
+  timerBannerUrgent: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: theme.colors.error,
+  },
+
+  timerText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.orangeBright,
+  },
+
+  timerTextUrgent: {
+    color: theme.colors.error,
+  },
+
+  expiredBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: theme.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+  },
+
+  expiredText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.error,
   },
 });

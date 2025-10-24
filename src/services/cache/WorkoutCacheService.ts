@@ -47,8 +47,14 @@ export class WorkoutCacheService {
    * Returns cached data immediately if available and valid, triggers background refresh if stale
    * Pure Nostr implementation - uses pubkey as single identifier
    */
-  async getMergedWorkouts(pubkey: string, limit = 500): Promise<WorkoutMergeResult> {
-    console.log('📦 WorkoutCacheService: Fetching merged workouts for pubkey:', pubkey?.slice(0, 20) + '...');
+  async getMergedWorkouts(
+    pubkey: string,
+    limit = 500
+  ): Promise<WorkoutMergeResult> {
+    console.log(
+      '📦 WorkoutCacheService: Fetching merged workouts for pubkey:',
+      pubkey?.slice(0, 20) + '...'
+    );
 
     if (!pubkey) {
       console.error('❌ WorkoutCacheService: No pubkey provided');
@@ -67,7 +73,9 @@ export class WorkoutCacheService {
     const cacheVersion = await appCache.get<string>(this.VERSION_KEY);
 
     if (cacheVersion !== this.CACHE_VERSION) {
-      console.log(`🔄 Cache version mismatch (${cacheVersion} vs ${this.CACHE_VERSION}), clearing cache...`);
+      console.log(
+        `🔄 Cache version mismatch (${cacheVersion} vs ${this.CACHE_VERSION}), clearing cache...`
+      );
       await this.clearCache();
       return this.fetchAndCacheWorkouts(pubkey, limit);
     }
@@ -81,12 +89,16 @@ export class WorkoutCacheService {
 
       // Check if cache is expired (24 hours)
       if (cacheAge > this.CACHE_TTL) {
-        console.log('⏰ WorkoutCacheService: Cache expired (>24h), fetching fresh data...');
+        console.log(
+          '⏰ WorkoutCacheService: Cache expired (>24h), fetching fresh data...'
+        );
         return this.fetchAndCacheWorkouts(pubkey, limit);
       }
 
       console.log(
-        `✅ WorkoutCacheService: Returning ${cachedResult.allWorkouts.length} cached workouts (age: ${Math.round(cacheAge / 1000)}s)`
+        `✅ WorkoutCacheService: Returning ${
+          cachedResult.allWorkouts.length
+        } cached workouts (age: ${Math.round(cacheAge / 1000)}s)`
       );
 
       // Add cache metadata
@@ -102,7 +114,9 @@ export class WorkoutCacheService {
     }
 
     // No cache or invalid cache, fetch fresh data
-    console.log('🔄 WorkoutCacheService: Cache miss, fetching fresh workouts...');
+    console.log(
+      '🔄 WorkoutCacheService: Cache miss, fetching fresh workouts...'
+    );
     return this.fetchAndCacheWorkouts(pubkey, limit);
   }
 
@@ -110,8 +124,14 @@ export class WorkoutCacheService {
    * Force refresh workouts (used for pull-to-refresh)
    * Pure Nostr implementation - uses pubkey only
    */
-  async refreshWorkouts(pubkey: string, limit = 500): Promise<WorkoutMergeResult> {
-    console.log('🔄 WorkoutCacheService: Force refreshing workouts for pubkey:', pubkey?.slice(0, 20) + '...');
+  async refreshWorkouts(
+    pubkey: string,
+    limit = 500
+  ): Promise<WorkoutMergeResult> {
+    console.log(
+      '🔄 WorkoutCacheService: Force refreshing workouts for pubkey:',
+      pubkey?.slice(0, 20) + '...'
+    );
     return this.fetchAndCacheWorkouts(pubkey, limit);
   }
 
@@ -119,7 +139,10 @@ export class WorkoutCacheService {
    * Fetch workouts from services and update cache with versioning
    * Pure Nostr implementation - uses pubkey only
    */
-  private async fetchAndCacheWorkouts(pubkey: string, limit: number = 500): Promise<WorkoutMergeResult> {
+  private async fetchAndCacheWorkouts(
+    pubkey: string,
+    limit: number = 500
+  ): Promise<WorkoutMergeResult> {
     const startTime = Date.now();
 
     try {
@@ -130,7 +153,11 @@ export class WorkoutCacheService {
         // Cache the result with version and timestamp
         await appCache.set(this.CACHE_KEY, result, this.CACHE_TTL);
         await appCache.set(this.TIMESTAMP_KEY, Date.now(), this.CACHE_TTL);
-        await appCache.set(this.VERSION_KEY, this.CACHE_VERSION, this.CACHE_TTL);
+        await appCache.set(
+          this.VERSION_KEY,
+          this.CACHE_VERSION,
+          this.CACHE_TTL
+        );
 
         console.log(
           `✅ WorkoutCacheService: Cached ${result.allWorkouts.length} workouts (v${this.CACHE_VERSION})`
@@ -146,9 +173,13 @@ export class WorkoutCacheService {
       console.error('❌ WorkoutCacheService: Error fetching workouts:', error);
 
       // Try to return stale cache if available
-      const staleCachedResult = await appCache.get<WorkoutMergeResult>(this.CACHE_KEY);
+      const staleCachedResult = await appCache.get<WorkoutMergeResult>(
+        this.CACHE_KEY
+      );
       if (staleCachedResult) {
-        console.log('⚠️ WorkoutCacheService: Returning stale cache due to error');
+        console.log(
+          '⚠️ WorkoutCacheService: Returning stale cache due to error'
+        );
         staleCachedResult.fromCache = true;
         return staleCachedResult;
       }
@@ -170,7 +201,10 @@ export class WorkoutCacheService {
    * Background refresh without blocking UI
    * Pure Nostr implementation - uses pubkey only
    */
-  private async refreshInBackground(pubkey: string, limit: number = 500): Promise<void> {
+  private async refreshInBackground(
+    pubkey: string,
+    limit: number = 500
+  ): Promise<void> {
     // Prevent multiple simultaneous refreshes
     if (this.isRefreshing) {
       return;
@@ -184,7 +218,10 @@ export class WorkoutCacheService {
     this.isRefreshing = true;
     this.lastRefreshTime = Date.now();
 
-    console.log('🔄 WorkoutCacheService: Starting background refresh for pubkey:', pubkey?.slice(0, 20) + '...');
+    console.log(
+      '🔄 WorkoutCacheService: Starting background refresh for pubkey:',
+      pubkey?.slice(0, 20) + '...'
+    );
 
     try {
       const result = await this.mergeService.getMergedWorkouts(pubkey);
@@ -197,11 +234,17 @@ export class WorkoutCacheService {
             `✅ WorkoutCacheService: Background refresh complete, ${result.allWorkouts.length} workouts updated`
           );
         } catch (cacheError) {
-          console.warn('⚠️ WorkoutCacheService: Background cache update failed:', cacheError);
+          console.warn(
+            '⚠️ WorkoutCacheService: Background cache update failed:',
+            cacheError
+          );
         }
       }
     } catch (error) {
-      console.error('❌ WorkoutCacheService: Background refresh failed:', error);
+      console.error(
+        '❌ WorkoutCacheService: Background refresh failed:',
+        error
+      );
     } finally {
       this.isRefreshing = false;
     }
@@ -230,7 +273,9 @@ export class WorkoutCacheService {
 
         // Update cache with modified data
         await appCache.set(this.CACHE_KEY, cachedResult, this.CACHE_TTL);
-        console.log(`✅ WorkoutCacheService: Updated status for workout ${workoutId}`);
+        console.log(
+          `✅ WorkoutCacheService: Updated status for workout ${workoutId}`
+        );
       }
     }
 
@@ -277,12 +322,17 @@ export class WorkoutCacheService {
    * Pure Nostr implementation - uses pubkey only
    */
   async warmUpCache(pubkey: string): Promise<WorkoutMergeResult> {
-    console.log('🔥 WorkoutCacheService: Warming up cache for pubkey:', pubkey?.slice(0, 20) + '...');
+    console.log(
+      '🔥 WorkoutCacheService: Warming up cache for pubkey:',
+      pubkey?.slice(0, 20) + '...'
+    );
 
     // Use the existing getMergedWorkouts which already implements cache-first strategy
     const result = await this.getMergedWorkouts(pubkey, 500);
 
-    console.log(`🔥 WorkoutCacheService: Cache warm-up complete - ${result.allWorkouts.length} workouts loaded`);
+    console.log(
+      `🔥 WorkoutCacheService: Cache warm-up complete - ${result.allWorkouts.length} workouts loaded`
+    );
 
     return result;
   }

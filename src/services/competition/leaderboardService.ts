@@ -108,9 +108,11 @@ export class LeaderboardService {
 
       // Determine competition time range
       let startTime: number, endTime: number;
-      
+
       if (competition.type === 'league') {
-        startTime = Math.floor(new Date(competition.startDate!).getTime() / 1000);
+        startTime = Math.floor(
+          new Date(competition.startDate!).getTime() / 1000
+        );
         endTime = Math.floor(new Date(competition.endDate!).getTime() / 1000);
       } else {
         // Event - use the event date as a full day
@@ -119,7 +121,7 @@ export class LeaderboardService {
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(eventDate);
         endOfDay.setHours(23, 59, 59, 999);
-        
+
         startTime = Math.floor(startOfDay.getTime() / 1000);
         endTime = Math.floor(endOfDay.getTime() / 1000);
       }
@@ -245,7 +247,7 @@ export class LeaderboardService {
 
     // Determine competition time range for subscription
     let startTime: number, endTime: number;
-    
+
     if (competition.type === 'league') {
       startTime = Math.floor(new Date(competition.startDate!).getTime() / 1000);
       endTime = Math.floor(new Date(competition.endDate!).getTime() / 1000);
@@ -256,7 +258,7 @@ export class LeaderboardService {
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(eventDate);
       endOfDay.setHours(23, 59, 59, 999);
-      
+
       startTime = Math.floor(startOfDay.getTime() / 1000);
       endTime = Math.floor(endOfDay.getTime() / 1000);
     }
@@ -308,7 +310,7 @@ export class LeaderboardService {
     console.log(`🔍 Querying workouts from ${memberPubkeys.length} members`);
 
     // Split large member lists into batches for better performance
-    const batchSize = Math.min(50, memberPubkeys.length);  // Larger batches for better performance
+    const batchSize = Math.min(50, memberPubkeys.length); // Larger batches for better performance
     const batches = [];
     for (let i = 0; i < memberPubkeys.length; i += batchSize) {
       batches.push(memberPubkeys.slice(i, i + batchSize));
@@ -533,13 +535,21 @@ export class LeaderboardService {
       case 'consistency':
         // Score based on workout frequency and consistency
         let competitionDays = 1; // Default for events
-        
-        if (competition.type === 'league' && competition.startDate && competition.endDate) {
-          const startTime = Math.floor(new Date(competition.startDate).getTime() / 1000);
-          const endTime = Math.floor(new Date(competition.endDate).getTime() / 1000);
+
+        if (
+          competition.type === 'league' &&
+          competition.startDate &&
+          competition.endDate
+        ) {
+          const startTime = Math.floor(
+            new Date(competition.startDate).getTime() / 1000
+          );
+          const endTime = Math.floor(
+            new Date(competition.endDate).getTime() / 1000
+          );
           competitionDays = (endTime - startTime) / (24 * 60 * 60);
         }
-        
+
         const workoutsPerDay = stats.workoutCount / competitionDays;
         return workoutsPerDay * 1000; // Scale for better scoring
 
@@ -616,12 +626,15 @@ export class LeaderboardService {
         (p) => p.workoutCount! > 0
       ).length,
       timeRange: {
-        start: competition.type === 'league' 
-          ? Math.floor(new Date(competition.startDate!).getTime() / 1000)
-          : Math.floor(new Date(competition.eventDate!).getTime() / 1000),
-        end: competition.type === 'league'
-          ? Math.floor(new Date(competition.endDate!).getTime() / 1000) 
-          : Math.floor(new Date(competition.eventDate!).getTime() / 1000) + (24 * 60 * 60), // End of event day
+        start:
+          competition.type === 'league'
+            ? Math.floor(new Date(competition.startDate!).getTime() / 1000)
+            : Math.floor(new Date(competition.eventDate!).getTime() / 1000),
+        end:
+          competition.type === 'league'
+            ? Math.floor(new Date(competition.endDate!).getTime() / 1000)
+            : Math.floor(new Date(competition.eventDate!).getTime() / 1000) +
+              24 * 60 * 60, // End of event day
         current: Math.floor(Date.now() / 1000),
       },
     };

@@ -5,7 +5,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ImageBackground,
+} from 'react-native';
 import { theme } from '../../styles/theme';
 import { Team } from '../../types';
 import { isTeamCaptain } from '../../utils/teamUtils';

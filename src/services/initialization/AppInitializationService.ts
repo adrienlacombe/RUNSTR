@@ -34,15 +34,21 @@ export class AppInitializationService {
     }
 
     // ✅ PERFORMANCE: Check if SplashInit already completed to avoid duplicate fetching
-    const splashCompleted = await AsyncStorage.getItem('@runstr:splash_init_completed');
+    const splashCompleted = await AsyncStorage.getItem(
+      '@runstr:splash_init_completed'
+    );
     if (splashCompleted === 'true') {
-      console.log('[AppInit] ✅ SplashInit already completed data prefetch, skipping duplicate initialization');
+      console.log(
+        '[AppInit] ✅ SplashInit already completed data prefetch, skipping duplicate initialization'
+      );
       this.isInitialized = true;
       return;
     }
 
     this.isInitializing = true;
-    console.log('[AppInit] 🚀 Starting app data initialization (SplashInit was skipped)...');
+    console.log(
+      '[AppInit] 🚀 Starting app data initialization (SplashInit was skipped)...'
+    );
 
     try {
       // Run all initializations in parallel (non-blocking)
@@ -82,7 +88,9 @@ export class AppInitializationService {
       const cacheStatus = await cacheService.getCacheStatus();
       console.log('[AppInit] 📊 Cache status:', {
         hasCachedData: cacheStatus.hasCachedData,
-        cacheAge: cacheStatus.cacheAge ? `${Math.round(cacheStatus.cacheAge / 1000)}s` : 'N/A',
+        cacheAge: cacheStatus.cacheAge
+          ? `${Math.round(cacheStatus.cacheAge / 1000)}s`
+          : 'N/A',
         workoutCount: cacheStatus.workoutCount,
         healthKitCount: cacheStatus.healthKitCount,
         nostrCount: cacheStatus.nostrCount,
@@ -122,7 +130,9 @@ export class AppInitializationService {
       // TODO: Add team cache warming when TeamCacheService is enhanced
       // For now, just log that it's a placeholder
 
-      console.log('[AppInit] ℹ️ Team data warm-up placeholder (no action needed)');
+      console.log(
+        '[AppInit] ℹ️ Team data warm-up placeholder (no action needed)'
+      );
     } catch (error) {
       console.error('[AppInit] ⚠️ Team data warm-up failed:', error);
     }
@@ -139,7 +149,9 @@ export class AppInitializationService {
     // Clear SplashInit completion flag so next login goes through full initialization
     try {
       await AsyncStorage.removeItem('@runstr:splash_init_completed');
-      console.log('[AppInit] 🔄 Initialization state reset (including SplashInit flag)');
+      console.log(
+        '[AppInit] 🔄 Initialization state reset (including SplashInit flag)'
+      );
     } catch (error) {
       console.warn('[AppInit] Failed to clear SplashInit flag:', error);
     }

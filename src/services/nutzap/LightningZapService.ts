@@ -57,13 +57,24 @@ class LightningZapService {
     memo: string = ''
   ): Promise<LightningZapResult> {
     try {
-      console.log(`[LightningZap] Attempting to send ${amount} sats to ${recipientPubkey.slice(0, 8)}...`);
+      console.log(
+        `[LightningZap] Attempting to send ${amount} sats to ${recipientPubkey.slice(
+          0,
+          8
+        )}...`
+      );
 
       // Step 1: Get Lightning address from profile
       const lud16 = await this.getLightningAddress(recipientPubkey);
       if (!lud16) {
-        console.log('[LightningZap] No Lightning address found, fallback to nutzap');
-        return { success: false, method: 'none', error: 'No Lightning address' };
+        console.log(
+          '[LightningZap] No Lightning address found, fallback to nutzap'
+        );
+        return {
+          success: false,
+          method: 'none',
+          error: 'No Lightning address',
+        };
       }
 
       console.log(`[LightningZap] Found Lightning address: ${lud16}`);
@@ -75,32 +86,59 @@ class LightningZapService {
         return { success: false, method: 'none', error: 'LNURL fetch failed' };
       }
 
-      console.log('[LightningZap] LNURL details fetched:', lnurlDetails.callback);
+      console.log(
+        '[LightningZap] LNURL details fetched:',
+        lnurlDetails.callback
+      );
 
       // Step 3: Create NIP-57 zap request
-      const zapRequest = await this.createZapRequest(recipientPubkey, amount, memo);
+      const zapRequest = await this.createZapRequest(
+        recipientPubkey,
+        amount,
+        memo
+      );
       if (!zapRequest) {
         console.log('[LightningZap] Failed to create zap request');
-        return { success: false, method: 'none', error: 'Zap request creation failed' };
+        return {
+          success: false,
+          method: 'none',
+          error: 'Zap request creation failed',
+        };
       }
 
-      console.log('[LightningZap] Zap request created:', zapRequest.id?.slice(0, 16) + '...');
+      console.log(
+        '[LightningZap] Zap request created:',
+        zapRequest.id?.slice(0, 16) + '...'
+      );
 
       // Step 4: Get Lightning invoice from LNURL callback
-      const invoice = await this.getInvoice(lnurlDetails.callback, amount, zapRequest);
+      const invoice = await this.getInvoice(
+        lnurlDetails.callback,
+        amount,
+        zapRequest
+      );
       if (!invoice) {
         console.log('[LightningZap] Failed to get invoice');
-        return { success: false, method: 'none', error: 'Invoice generation failed' };
+        return {
+          success: false,
+          method: 'none',
+          error: 'Invoice generation failed',
+        };
       }
 
-      console.log('[LightningZap] Invoice received:', invoice.slice(0, 40) + '...');
+      console.log(
+        '[LightningZap] Invoice received:',
+        invoice.slice(0, 40) + '...'
+      );
 
       // Step 5: Pay Lightning invoice using PaymentRouter
       // PaymentRouter automatically routes to NWC or Cashu based on feature flags
       const paymentResult = await PaymentRouter.payInvoice(invoice);
 
       if (paymentResult.success) {
-        console.log(`[LightningZap] ✅ Successfully sent ${amount} sats via Lightning`);
+        console.log(
+          `[LightningZap] ✅ Successfully sent ${amount} sats via Lightning`
+        );
         return {
           success: true,
           method: 'lightning',
@@ -153,7 +191,9 @@ class LightningZapService {
    * Fetch LNURL-Pay details from Lightning address
    * Handles both name@domain format and LNURL bech32 format
    */
-  private async fetchLnurlDetails(lud: string): Promise<LnurlPayDetails | null> {
+  private async fetchLnurlDetails(
+    lud: string
+  ): Promise<LnurlPayDetails | null> {
     try {
       let lnurlPayUrl: string;
 
@@ -211,7 +251,9 @@ class LightningZapService {
       // Simple bech32 decode - convert to buffer then to string
       // For production, you might want a proper bech32 library
       // For now, we mainly support lud16 (name@domain) format
-      console.warn('[LightningZap] LNURL bech32 decode not fully implemented, use lud16 format');
+      console.warn(
+        '[LightningZap] LNURL bech32 decode not fully implemented, use lud16 format'
+      );
       return '';
     } catch (error) {
       console.log('[LightningZap] LNURL decode error:', error);

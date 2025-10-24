@@ -78,7 +78,7 @@ export async function recoverAuthentication(): Promise<{
       nsec: legacyNsec,
       npub: legacyNpub,
       hexPubkey: null,
-      source: 'legacy_storage'
+      source: 'legacy_storage',
     };
   }
 
@@ -92,7 +92,7 @@ export async function recoverAuthentication(): Promise<{
       nsec: null,
       npub: null,
       hexPubkey: null,
-      source: 'encrypted_needs_decryption'
+      source: 'encrypted_needs_decryption',
     };
   }
 

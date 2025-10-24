@@ -33,7 +33,9 @@ export const JoinRequestsSection: React.FC<JoinRequestsSectionProps> = ({
 }) => {
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [subscription, setSubscription] = useState<NDKSubscription | null>(null);
+  const [subscription, setSubscription] = useState<NDKSubscription | null>(
+    null
+  );
 
   const membershipService = TeamMembershipService.getInstance();
 
@@ -41,9 +43,7 @@ export const JoinRequestsSection: React.FC<JoinRequestsSectionProps> = ({
   const loadJoinRequests = async () => {
     try {
       setIsLoading(true);
-      const joinRequests = await membershipService.getTeamJoinRequests(
-        teamId
-      );
+      const joinRequests = await membershipService.getTeamJoinRequests(teamId);
       setRequests(joinRequests);
     } catch (error) {
       console.error('Failed to load join requests:', error);
@@ -77,7 +77,9 @@ export const JoinRequestsSection: React.FC<JoinRequestsSectionProps> = ({
               await unifiedNotificationStore.addNotification(
                 'team_join_request',
                 'New join request',
-                `${newRequest.requesterName || 'Someone'} wants to join your team`,
+                `${
+                  newRequest.requesterName || 'Someone'
+                } wants to join your team`,
                 {
                   teamId: newRequest.teamId,
                   requestId: newRequest.id,
@@ -87,12 +89,20 @@ export const JoinRequestsSection: React.FC<JoinRequestsSectionProps> = ({
                 {
                   icon: 'people',
                   actions: [
-                    { id: 'view_dashboard', type: 'view_captain_dashboard', label: 'View', isPrimary: true }
-                  ]
+                    {
+                      id: 'view_dashboard',
+                      type: 'view_captain_dashboard',
+                      label: 'View',
+                      isPrimary: true,
+                    },
+                  ],
                 }
               );
             } catch (notifError) {
-              console.warn('[JoinRequestsSection] Failed to create join request notification:', notifError);
+              console.warn(
+                '[JoinRequestsSection] Failed to create join request notification:',
+                notifError
+              );
             }
           }
         );

@@ -33,7 +33,9 @@ export class CompetitionWinnersService {
    * Get competition winners from active and recent league rankings
    * Fetches real winners from current competitions via Nostr data
    */
-  async fetchTeamCompetitionWinners(teamId: string): Promise<CompetitionWinner[]> {
+  async fetchTeamCompetitionWinners(
+    teamId: string
+  ): Promise<CompetitionWinner[]> {
     console.log(`🏆 Getting competition winners for team: ${teamId}`);
 
     // Check cache first
@@ -62,7 +64,7 @@ export class CompetitionWinnersService {
         // Convert top 3 performers to winners format
         if (rankings && rankings.rankings.length > 0) {
           const topPerformers = rankings.rankings
-            .filter(r => r.score > 0)
+            .filter((r) => r.score > 0)
             .slice(0, 3);
 
           topPerformers.forEach((entry, index) => {
@@ -91,7 +93,6 @@ export class CompetitionWinnersService {
       // Cache the results
       this.cacheWinners(teamId, winners);
       return winners;
-
     } catch (error) {
       console.error('❌ Failed to fetch team competition winners:', error);
       // Return empty array on error instead of mock data
@@ -152,7 +153,8 @@ export class CompetitionWinnersService {
     const topThree = rankings.slice(0, 3);
 
     topThree.forEach((entry, index) => {
-      if (entry.score > 0) { // Only include if they have a score
+      if (entry.score > 0) {
+        // Only include if they have a score
         winners.push({
           id: `${competitionName}_winner_${index}`,
           winnerNpub: entry.npub,

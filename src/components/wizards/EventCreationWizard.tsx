@@ -116,7 +116,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const user = useUserStore((state) => state.user);
   const [teamCharityId, setTeamCharityId] = useState<string | undefined>();
-  const [captainLightningAddress, setCaptainLightningAddress] = useState<string>('');
+  const [captainLightningAddress, setCaptainLightningAddress] =
+    useState<string>('');
   const [eventData, setEventData] = useState<EventData>({
     activityType: null,
     competitionType: null,
@@ -160,7 +161,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         if (profile?.lud16) {
           setCaptainLightningAddress(profile.lud16);
           // Set as default if captain has Lightning address
-          setEventData((prev) => ({ ...prev, lightningAddress: profile.lud16 }));
+          setEventData((prev) => ({
+            ...prev,
+            lightningAddress: profile.lud16,
+          }));
         }
       });
     }
@@ -206,7 +210,9 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
     // Try to get user from store or DirectNostrProfileService
     let currentUser = user;
     if (!currentUser) {
-      console.log('⚠️ User not in store, fetching from DirectNostrProfileService...');
+      console.log(
+        '⚠️ User not in store, fetching from DirectNostrProfileService...'
+      );
       try {
         currentUser = await DirectNostrProfileService.getCurrentUserProfile();
         if (!currentUser) {
@@ -214,7 +220,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
           return;
         }
       } catch (error) {
-        console.error('Failed to get user from DirectNostrProfileService:', error);
+        console.error(
+          'Failed to get user from DirectNostrProfileService:',
+          error
+        );
         Alert.alert('Error', 'User not found. Please log in again.');
         return;
       }
@@ -226,7 +235,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
       console.log('🎯 Creating event with Nostr Competition Service');
 
       // Check for existing active events before proceeding
-      const activeCompetitions = await NostrCompetitionService.checkActiveCompetitions(teamId);
+      const activeCompetitions =
+        await NostrCompetitionService.checkActiveCompetitions(teamId);
 
       if (activeCompetitions.activeEvents > 0) {
         Alert.alert(
@@ -235,8 +245,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
           [
             {
               text: 'OK',
-              onPress: () => setIsCreating(false)
-            }
+              onPress: () => setIsCreating(false),
+            },
           ]
         );
         return;
@@ -254,7 +264,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         return;
       }
 
-      console.log('✅ Retrieved auth data for:', authData.npub.slice(0, 20) + '...');
+      console.log(
+        '✅ Retrieved auth data for:',
+        authData.npub.slice(0, 20) + '...'
+      );
 
       // Get signer (works for both nsec and Amber)
       const signingService = UnifiedSigningService.getInstance();
@@ -305,7 +318,9 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         // Create empty participant list for opt-in participation
         if (result.competitionId) {
           try {
-            console.log('📋 Creating empty participant list for event (opt-in)');
+            console.log(
+              '📋 Creating empty participant list for event (opt-in)'
+            );
             const listService = NostrListService.getInstance();
 
             // Get captain's hex pubkey from npub
@@ -341,10 +356,14 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
             await ndkEvent.publish();
 
             participantListCreated = true;
-            console.log('✅ Participant list created and published:', participantListData.dTag);
+            console.log(
+              '✅ Participant list created and published:',
+              participantListData.dTag
+            );
           } catch (listError) {
             console.error('⚠️ Failed to create participant list:', listError);
-            participantListError = listError instanceof Error ? listError.message : 'Unknown error';
+            participantListError =
+              listError instanceof Error ? listError.message : 'Unknown error';
             // Don't block event creation, just log the error
           }
         }
@@ -356,22 +375,25 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
           ? `Event "${eventData.eventName}" has been created, but participant list creation failed.\n\n⚠️ ${participantListError}\n\nYou may need to create the participant list manually from the Captain Dashboard.`
           : `Event "${eventData.eventName}" has been created and published to Nostr relays.`;
 
-        Alert.alert(
-          'Success!',
-          successMessage,
-          [{ text: 'OK', onPress: () => {
-            onEventCreated(eventData);
-            onClose();
-          }}]
-        );
+        Alert.alert('Success!', successMessage, [
+          {
+            text: 'OK',
+            onPress: () => {
+              onEventCreated(eventData);
+              onClose();
+            },
+          },
+        ]);
       } else {
         throw new Error(result.message || 'Failed to create event');
       }
     } catch (error) {
       console.error('❌ Failed to create event:', error);
       Alert.alert(
-        'Error', 
-        `Failed to create event: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'Error',
+        `Failed to create event: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
         [{ text: 'OK' }]
       );
     } finally {
@@ -424,7 +446,13 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
     return [
       { label: 'Today', date: today },
       { label: 'Tomorrow', date: tomorrow },
-      { label: currentDay === 0 || currentDay === 6 ? 'This Weekend (Today)' : 'This Weekend', date: thisWeekend },
+      {
+        label:
+          currentDay === 0 || currentDay === 6
+            ? 'This Weekend (Today)'
+            : 'This Weekend',
+        date: thisWeekend,
+      },
       { label: 'Next Week', date: nextWeek },
     ];
   };
@@ -484,10 +512,16 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
               {competitionOptions.map((competition) => {
                 // Add descriptions for race types
                 let description = '';
-                if (competition === '5K Race') description = '5 kilometers (3.1 miles) - Fastest time wins';
-                if (competition === '10K Race') description = '10 kilometers (6.2 miles) - Fastest time wins';
-                if (competition === 'Half Marathon') description = '21.1 kilometers (13.1 miles) - Fastest time wins';
-                if (competition === 'Marathon') description = '42.2 kilometers (26.2 miles) - Fastest time wins';
+                if (competition === '5K Race')
+                  description = '5 kilometers (3.1 miles) - Fastest time wins';
+                if (competition === '10K Race')
+                  description = '10 kilometers (6.2 miles) - Fastest time wins';
+                if (competition === 'Half Marathon')
+                  description =
+                    '21.1 kilometers (13.1 miles) - Fastest time wins';
+                if (competition === 'Marathon')
+                  description =
+                    '42.2 kilometers (26.2 miles) - Fastest time wins';
 
                 return (
                   <TouchableOpacity
@@ -677,7 +711,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                         ]}
                         onPress={() => {
                           updateSettings('paymentDestination', 'captain');
-                          updateSettings('lightningAddress', captainLightningAddress);
+                          updateSettings(
+                            'lightningAddress',
+                            captainLightningAddress
+                          );
                         }}
                         activeOpacity={0.7}
                       >
@@ -703,7 +740,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                             const charity = getCharityById(teamCharityId);
                             if (charity) {
                               updateSettings('paymentDestination', 'charity');
-                              updateSettings('lightningAddress', charity.lightningAddress);
+                              updateSettings(
+                                'lightningAddress',
+                                charity.lightningAddress
+                              );
                             }
                           }}
                           activeOpacity={0.7}
@@ -725,7 +765,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                     {eventData.paymentDestination === 'captain' ? (
                       <>
                         <Text style={styles.formHelper}>
-                          💰 You'll receive {eventData.entryFeesSats} sats per participant
+                          💰 You'll receive {eventData.entryFeesSats} sats per
+                          participant
                         </Text>
                         {!captainLightningAddress && (
                           <>
@@ -735,7 +776,9 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                             <TextInput
                               style={styles.textInput}
                               value={eventData.lightningAddress}
-                              onChangeText={(text) => updateSettings('lightningAddress', text)}
+                              onChangeText={(text) =>
+                                updateSettings('lightningAddress', text)
+                              }
                               placeholder="captain@getalby.com"
                               placeholderTextColor={theme.colors.textMuted}
                               keyboardType="email-address"
@@ -743,7 +786,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                               autoCorrect={false}
                             />
                             <Text style={styles.formHelper}>
-                              ⚡ Add a Lightning address to your profile to receive payments
+                              ⚡ Add a Lightning address to your profile to
+                              receive payments
                             </Text>
                           </>
                         )}
@@ -756,10 +800,12 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                     ) : (
                       <>
                         <Text style={styles.formHelper}>
-                          💝 All entry fees will be donated to {getCharityById(teamCharityId)?.name}
+                          💝 All entry fees will be donated to{' '}
+                          {getCharityById(teamCharityId)?.name}
                         </Text>
                         <Text style={styles.formHelper}>
-                          ⚡ Payments will go to: {getCharityById(teamCharityId)?.lightningAddress}
+                          ⚡ Payments will go to:{' '}
+                          {getCharityById(teamCharityId)?.lightningAddress}
                         </Text>
                       </>
                     )}
@@ -783,7 +829,9 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                         eventData.prizePoolSats === option.value &&
                           styles.prizeOptionSelected,
                       ]}
-                      onPress={() => updateSettings('prizePoolSats', option.value)}
+                      onPress={() =>
+                        updateSettings('prizePoolSats', option.value)
+                      }
                       activeOpacity={0.7}
                     >
                       <Text

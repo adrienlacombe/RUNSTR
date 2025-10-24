@@ -63,7 +63,9 @@ const DISTRIBUTION_PRESETS: DistributionPreset[] = [
   },
 ];
 
-export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanelProps> = ({
+export const CompetitionDistributionPanel: React.FC<
+  CompetitionDistributionPanelProps
+> = ({
   competition,
   winners,
   onDistributionComplete,
@@ -102,7 +104,7 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
 
   // Calculate individual rewards based on preset
   const rewardAmounts = useMemo(() => {
-    const preset = DISTRIBUTION_PRESETS.find(p => p.id === selectedPreset);
+    const preset = DISTRIBUTION_PRESETS.find((p) => p.id === selectedPreset);
     if (!preset) return [];
 
     const amounts = preset.calculate(totalPrize, Math.min(winners.length, 3));
@@ -112,7 +114,10 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
   // Handle distribution
   const handleDistribute = async () => {
     if (hasDistributed) {
-      Alert.alert('Already Distributed', 'Rewards have already been distributed for this competition.');
+      Alert.alert(
+        'Already Distributed',
+        'Rewards have already been distributed for this competition.'
+      );
       return;
     }
 
@@ -122,7 +127,10 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
         `You need ${totalPrize} sats but only have ${balance} sats available.`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Add Funds', onPress: () => console.log('TODO: Open Lightning deposit') },
+          {
+            text: 'Add Funds',
+            onPress: () => console.log('TODO: Open Lightning deposit'),
+          },
         ]
       );
       return;
@@ -130,7 +138,10 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
 
     Alert.alert(
       'Confirm Distribution',
-      `Distribute ${totalPrize} sats to ${Math.min(winners.length, rewardAmounts.length)} winners?`,
+      `Distribute ${totalPrize} sats to ${Math.min(
+        winners.length,
+        rewardAmounts.length
+      )} winners?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -141,7 +152,11 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
             try {
               // Send rewards to each winner
               const results = [];
-              for (let i = 0; i < Math.min(winners.length, rewardAmounts.length); i++) {
+              for (
+                let i = 0;
+                i < Math.min(winners.length, rewardAmounts.length);
+                i++
+              ) {
                 const winner = winners[i];
                 const amount = rewardAmounts[i];
 
@@ -164,8 +179,8 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
               }
 
               // Check if all succeeded
-              const allSuccess = results.every(r => r.success);
-              const successCount = results.filter(r => r.success).length;
+              const allSuccess = results.every((r) => r.success);
+              const successCount = results.filter((r) => r.success).length;
 
               if (allSuccess) {
                 // Mark as distributed
@@ -213,7 +228,9 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
         <Text style={styles.title}>🏆 Distribute Rewards</Text>
         <View style={styles.prizeInfo}>
           <Text style={styles.prizeLabel}>Total Prize Pool:</Text>
-          <Text style={styles.prizeAmount}>{totalPrize.toLocaleString()} sats</Text>
+          <Text style={styles.prizeAmount}>
+            {totalPrize.toLocaleString()} sats
+          </Text>
         </View>
       </View>
 
@@ -280,10 +297,16 @@ export const CompetitionDistributionPanel: React.FC<CompetitionDistributionPanel
       <TouchableOpacity
         style={[
           styles.distributeButton,
-          (hasDistributed || balance < totalPrize) && styles.distributeButtonDisabled,
+          (hasDistributed || balance < totalPrize) &&
+            styles.distributeButtonDisabled,
         ]}
         onPress={handleDistribute}
-        disabled={hasDistributed || isDistributing || walletLoading || balance < totalPrize}
+        disabled={
+          hasDistributed ||
+          isDistributing ||
+          walletLoading ||
+          balance < totalPrize
+        }
       >
         {isDistributing ? (
           <ActivityIndicator size="small" color="#FF9D42" />

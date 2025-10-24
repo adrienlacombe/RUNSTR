@@ -204,7 +204,13 @@ export const AuthFlowTestScreen: React.FC = () => {
 
       {/* Test Nsec Input */}
       <View style={{ marginBottom: 20 }}>
-        <Text style={{ color: theme.colors.textBright, fontSize: 16, marginBottom: 10 }}>
+        <Text
+          style={{
+            color: theme.colors.textBright,
+            fontSize: 16,
+            marginBottom: 10,
+          }}
+        >
           Test Nsec:
         </Text>
         <TextInput
@@ -239,7 +245,9 @@ export const AuthFlowTestScreen: React.FC = () => {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: theme.colors.textBright }}>Generate New Test Nsec</Text>
+          <Text style={{ color: theme.colors.textBright }}>
+            Generate New Test Nsec
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -256,7 +264,13 @@ export const AuthFlowTestScreen: React.FC = () => {
             marginBottom: 10,
           }}
         >
-          <Text style={{ color: theme.colors.textBright, fontSize: 16, fontWeight: 'bold' }}>
+          <Text
+            style={{
+              color: theme.colors.textBright,
+              fontSize: 16,
+              fontWeight: 'bold',
+            }}
+          >
             🔧 Run Utility Tests
           </Text>
         </TouchableOpacity>
@@ -275,7 +289,13 @@ export const AuthFlowTestScreen: React.FC = () => {
             marginBottom: 10,
           }}
         >
-          <Text style={{ color: theme.colors.textBright, fontSize: 16, fontWeight: 'bold' }}>
+          <Text
+            style={{
+              color: theme.colors.textBright,
+              fontSize: 16,
+              fontWeight: 'bold',
+            }}
+          >
             🚀 Run Full Authentication Test
           </Text>
         </TouchableOpacity>
@@ -291,7 +311,13 @@ export const AuthFlowTestScreen: React.FC = () => {
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: theme.colors.textBright, fontSize: 16, fontWeight: 'bold' }}>
+            <Text
+              style={{
+                color: theme.colors.textBright,
+                fontSize: 16,
+                fontWeight: 'bold',
+              }}
+            >
               🚪 Sign Out
             </Text>
           </TouchableOpacity>
@@ -348,7 +374,9 @@ export const AuthFlowTestScreen: React.FC = () => {
           >
             Authentication Result:
           </Text>
-          <Text style={{ color: theme.colors.textBright, fontFamily: 'monospace' }}>
+          <Text
+            style={{ color: theme.colors.textBright, fontFamily: 'monospace' }}
+          >
             {JSON.stringify(state.authResult, null, 2)}
           </Text>
         </View>
@@ -389,7 +417,9 @@ export const AuthFlowTestScreen: React.FC = () => {
               </Text>
 
               {result.duration && (
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
+                <Text
+                  style={{ color: theme.colors.textSecondary, fontSize: 12 }}
+                >
                   Duration: {result.duration}ms
                 </Text>
               )}
@@ -423,7 +453,9 @@ export const AuthFlowTestScreen: React.FC = () => {
               marginTop: 10,
             }}
           >
-            <Text style={{ color: theme.colors.textBright, fontWeight: 'bold' }}>
+            <Text
+              style={{ color: theme.colors.textBright, fontWeight: 'bold' }}
+            >
               Summary: {state.results.filter((r) => r.success).length}/
               {state.results.length} passed
             </Text>

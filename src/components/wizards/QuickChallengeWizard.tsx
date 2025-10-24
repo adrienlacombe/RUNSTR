@@ -1,7 +1,7 @@
 /**
  * QuickChallengeWizard - Streamlined challenge creation with preselected opponent
  * Used when tapping challenge icon next to usernames
- * 2-step flow: Activity Configuration → Review & Send
+ * 3-step flow: Activity Configuration → Arbitrator Selection (paid only) → Review & Send
  */
 
 import React, { useState, useCallback } from 'react';
@@ -26,18 +26,30 @@ import type { DiscoveredNostrUser } from '../../services/user/UserDiscoveryServi
 
 // Step components
 import { ActivityConfigurationStep } from './steps/ActivityConfigurationStep';
+import { ArbitratorSelectionStep } from './steps/ArbitratorSelectionStep';
 import { ChallengeReviewStep } from './steps/ChallengeReviewStep';
 
-type QuickChallengeStep = 'activity_config' | 'review';
+type QuickChallengeStep = 'activity_config' | 'arbitrator' | 'review';
+
+interface ArbitratorTeam {
+  id: string;
+  name: string;
+  captainPubkey: string;
+  captainName?: string;
+  captainLightningAddress?: string;
+  memberCount?: number;
+}
 
 export interface QuickChallengeWizardProps {
-  opponent: DiscoveredNostrUser | {
-    pubkey: string;
-    name: string;
-    displayName?: string;
-    picture?: string;
-    npub?: string;
-  };
+  opponent:
+    | DiscoveredNostrUser
+    | {
+        pubkey: string;
+        name: string;
+        displayName?: string;
+        picture?: string;
+        npub?: string;
+      };
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -47,10 +59,13 @@ interface WizardProgressProps {
 }
 
 const WizardProgress: React.FC<WizardProgressProps> = ({ currentStep }) => {
-  // Don't show payment step in progress (it's a modal)
-  const steps: QuickChallengeStep[] = ['activity_config', 'review'];
-  const displayStep = currentStep === 'payment' ? 'review' : currentStep;
-  const currentIndex = steps.indexOf(displayStep);
+  // Show all wizard steps (arbitrator step only appears for paid challenges)
+  const steps: QuickChallengeStep[] = [
+    'activity_config',
+    'arbitrator',
+    'review',
+  ];
+  const currentIndex = steps.indexOf(currentStep);
 
   return (
     <View style={styles.progressContainer}>
@@ -73,10 +88,16 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
   onComplete,
   onCancel,
 }) => {
-  const [currentStep, setCurrentStep] = useState<QuickChallengeStep>('activity_config');
-  const [configuration, setConfiguration] = useState<Partial<ActivityConfiguration>>({});
+  const [currentStep, setCurrentStep] =
+    useState<QuickChallengeStep>('activity_config');
+  const [configuration, setConfiguration] = useState<
+    Partial<ActivityConfiguration>
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lightningAddress, setLightningAddress] = useState('');
+  const [arbitratorTeam, setArbitratorTeam] = useState<ArbitratorTeam | null>(
+    null
+  );
 
   // Normalize opponent data to DiscoveredNostrUser format
   const normalizedOpponent: DiscoveredNostrUser = {
@@ -98,13 +119,16 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
           configuration.duration !== undefined &&
           configuration.wagerAmount !== undefined
         );
+      case 'arbitrator':
+        // Require arbitrator selection for paid challenges
+        return configuration.wagerAmount === 0 || !!arbitratorTeam;
       case 'review':
         // Require Lightning address for paid challenges
         return configuration.wagerAmount === 0 || !!lightningAddress?.trim();
       default:
         return false;
     }
-  }, [currentStep, configuration, lightningAddress]);
+  }, [currentStep, configuration, lightningAddress, arbitratorTeam]);
 
   // Navigation handlers
   const handleNext = useCallback(async () => {
@@ -114,6 +138,14 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
 
     switch (currentStep) {
       case 'activity_config':
+        // Skip arbitrator step for free challenges
+        if (configuration.wagerAmount === 0) {
+          setCurrentStep('review');
+        } else {
+          setCurrentStep('arbitrator');
+        }
+        break;
+      case 'arbitrator':
         setCurrentStep('review');
         break;
       case 'review':
@@ -121,20 +153,31 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
         await handleSendChallenge();
         break;
     }
-  }, [currentStep, validateCurrentStep]);
+  }, [currentStep, validateCurrentStep, configuration.wagerAmount]);
 
   const handleBack = useCallback(() => {
     if (currentStep === 'review') {
+      // Go back to arbitrator for paid challenges, activity_config for free
+      if (configuration.wagerAmount === 0) {
+        setCurrentStep('activity_config');
+      } else {
+        setCurrentStep('arbitrator');
+      }
+    } else if (currentStep === 'arbitrator') {
       setCurrentStep('activity_config');
     }
-  }, [currentStep]);
+  }, [currentStep, configuration.wagerAmount]);
 
   /**
    * Send challenge request with Lightning address
    */
   const handleSendChallenge = useCallback(async () => {
-    if (!configuration.activityType || !configuration.metric ||
-        configuration.duration === undefined || configuration.wagerAmount === undefined) {
+    if (
+      !configuration.activityType ||
+      !configuration.metric ||
+      configuration.duration === undefined ||
+      configuration.wagerAmount === undefined
+    ) {
       Alert.alert('Error', 'Please complete all required fields');
       return;
     }
@@ -151,7 +194,9 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
       // Get signer from UnifiedSigningService (works for both nsec and Amber)
       const signer = await UnifiedSigningService.getInstance().getSigner();
       if (!signer) {
-        throw new Error('Cannot access signing capability. Please ensure you are logged in.');
+        throw new Error(
+          'Cannot access signing capability. Please ensure you are logged in.'
+        );
       }
 
       // Create challenge request with actual Nostr publishing
@@ -163,6 +208,13 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
           duration: configuration.duration,
           wagerAmount: configuration.wagerAmount,
           creatorLightningAddress: lightningAddress || undefined,
+          // Include arbitrator data if paid challenge
+          ...(arbitratorTeam && {
+            arbitratorTeamId: arbitratorTeam.id,
+            arbitratorCaptainPubkey: arbitratorTeam.captainPubkey,
+            arbitratorCaptainName: arbitratorTeam.captainName,
+            arbitratorLightningAddress: arbitratorTeam.captainLightningAddress,
+          }),
         },
         signer
       );
@@ -192,24 +244,20 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'An unexpected error occurred';
 
-      Alert.alert(
-        'Challenge Failed',
-        errorMessage,
-        [
-          {
-            text: 'Try Again',
-            onPress: () => setIsSubmitting(false),
+      Alert.alert('Challenge Failed', errorMessage, [
+        {
+          text: 'Try Again',
+          onPress: () => setIsSubmitting(false),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            setIsSubmitting(false);
+            onCancel();
           },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              setIsSubmitting(false);
-              onCancel();
-            },
-          },
-        ]
-      );
+        },
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -219,7 +267,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
     setCurrentStep('activity_config');
   };
 
-  const canGoBack = currentStep === 'review';
+  const canGoBack = currentStep === 'review' || currentStep === 'arbitrator';
   const isValid = validateCurrentStep();
 
   // Get opponent display name
@@ -276,6 +324,19 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
           </View>
         )}
 
+        {currentStep === 'arbitrator' && (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Select Arbitrator</Text>
+            <Text style={styles.stepSubtitle}>
+              Choose team captain to hold wagers
+            </Text>
+            <ArbitratorSelectionStep
+              selectedTeam={arbitratorTeam}
+              onSelect={setArbitratorTeam}
+            />
+          </View>
+        )}
+
         {currentStep === 'review' && configuration.activityType && (
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Review Challenge</Text>
@@ -319,7 +380,6 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
           </TouchableOpacity>
         </View>
       )}
-
     </SafeAreaView>
   );
 };

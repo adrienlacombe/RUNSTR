@@ -4,7 +4,12 @@
  */
 
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 
@@ -62,8 +67,8 @@ export const ChallengeIconButton: React.FC<ChallengeIconButtonProps> = ({
           disabled
             ? theme.colors.textMuted
             : isPressed
-              ? theme.colors.orangeBright
-              : theme.colors.textMuted
+            ? theme.colors.orangeBright
+            : theme.colors.textMuted
         }
         style={{ opacity: disabled ? 0.3 : isPressed ? 1 : 0.6 }}
       />

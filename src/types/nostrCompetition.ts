@@ -14,7 +14,7 @@ export const NOSTR_COMPETITION_KINDS = {
 } as const;
 
 // Activity and Competition Types (from wizards)
-export type NostrActivityType = 
+export type NostrActivityType =
   | 'Running'
   | 'Walking'
   | 'Cycling'
@@ -23,7 +23,7 @@ export type NostrActivityType =
   | 'Yoga'
   | 'Diet';
 
-export type NostrLeagueCompetitionType = 
+export type NostrLeagueCompetitionType =
   | 'Total Distance'
   | 'Average Pace'
   | 'Longest Run'
@@ -74,18 +74,18 @@ export interface NostrLeagueDefinition {
   id: string; // d tag - unique identifier
   teamId: string; // team tag - associated team
   captainPubkey: string; // captain's pubkey (event author)
-  
+
   // Basic info
   name: string;
   description?: string;
   activityType: NostrActivityType;
   competitionType: NostrLeagueCompetitionType;
-  
+
   // Timing
   startDate: string; // ISO string
   endDate: string; // ISO string
   duration: number; // days
-  
+
   // Settings
   entryFeesSats: number;
   maxParticipants: number;
@@ -106,16 +106,16 @@ export interface NostrEventDefinition {
   id: string; // d tag - unique identifier
   teamId: string; // team tag - associated team
   captainPubkey: string; // captain's pubkey (event author)
-  
+
   // Basic info
   name: string;
   description?: string;
   activityType: NostrActivityType;
   competitionType: NostrEventCompetitionType;
-  
+
   // Timing
   eventDate: string; // ISO string
-  
+
   // Settings
   entryFeesSats: number;
   maxParticipants: number;
@@ -225,7 +225,11 @@ export interface CompetitionStatusUpdate {
 }
 
 // Goal Type Mapping for Scoring
-export type CompetitionGoalType = 'distance' | 'speed' | 'duration' | 'consistency';
+export type CompetitionGoalType =
+  | 'distance'
+  | 'speed'
+  | 'duration'
+  | 'consistency';
 
 export interface CompetitionGoalMapping {
   [key: string]: CompetitionGoalType;
@@ -259,7 +263,7 @@ export const EVENT_GOAL_MAPPING: CompetitionGoalMapping = {
   '5K Race': 'speed',
   '10K Race': 'speed',
   'Half Marathon': 'speed',
-  'Marathon': 'speed',
+  Marathon: 'speed',
   'Distance Challenge': 'distance',
   'Speed Challenge': 'speed',
   'Duration Challenge': 'duration',
@@ -279,17 +283,23 @@ export const EVENT_GOAL_MAPPING: CompetitionGoalMapping = {
 
 // Utility type guards
 export function isLeagueDefinition(obj: any): obj is NostrLeagueDefinition {
-  return typeof obj === 'object' && 
-         typeof obj.duration === 'number' &&
-         typeof obj.scoringFrequency === 'string';
+  return (
+    typeof obj === 'object' &&
+    typeof obj.duration === 'number' &&
+    typeof obj.scoringFrequency === 'string'
+  );
 }
 
 export function isEventDefinition(obj: any): obj is NostrEventDefinition {
-  return typeof obj === 'object' && 
-         typeof obj.eventDate === 'string' &&
-         !('duration' in obj);
+  return (
+    typeof obj === 'object' &&
+    typeof obj.eventDate === 'string' &&
+    !('duration' in obj)
+  );
 }
 
-export function isCompetitionEvent(event: Event): event is NostrCompetitionEvent {
+export function isCompetitionEvent(
+  event: Event
+): event is NostrCompetitionEvent {
   return [30100, 30101, 30102].includes(event.kind);
 }

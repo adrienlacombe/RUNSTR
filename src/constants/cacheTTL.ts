@@ -215,7 +215,8 @@ export const CacheKeys = {
   WALLET_BALANCE: (pubkey: string) => `wallet_balance_${pubkey}`,
 
   // Captain data
-  CAPTAIN_STATUS: (pubkey: string, teamId: string) => `captain_${pubkey}_${teamId}`,
+  CAPTAIN_STATUS: (pubkey: string, teamId: string) =>
+    `captain_${pubkey}_${teamId}`,
   CAPTAIN_TEAMS: (pubkey: string) => `captain_teams_${pubkey}`,
 
   // Competition data

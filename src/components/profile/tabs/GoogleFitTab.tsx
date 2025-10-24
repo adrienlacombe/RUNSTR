@@ -15,17 +15,21 @@ export const GoogleFitTab: React.FC = () => {
         <Text style={styles.title}>Google Fit</Text>
         <Text style={styles.subtitle}>Coming Soon</Text>
         <Text style={styles.description}>
-          Connect your Google Fit account to sync workouts from all your
-          Android fitness apps and devices.
+          Connect your Google Fit account to sync workouts from all your Android
+          fitness apps and devices.
         </Text>
-        
+
         <View style={styles.featureList}>
-          <Text style={styles.feature}>• WearOS watches and fitness trackers</Text>
+          <Text style={styles.feature}>
+            • WearOS watches and fitness trackers
+          </Text>
           <Text style={styles.feature}>• Popular Android fitness apps</Text>
-          <Text style={styles.feature}>• Steps, workouts, and activity data</Text>
+          <Text style={styles.feature}>
+            • Steps, workouts, and activity data
+          </Text>
           <Text style={styles.feature}>• Post to Nostr with one tap</Text>
         </View>
-        
+
         <View style={styles.badge}>
           <Text style={styles.badgeText}>In Development</Text>
         </View>

@@ -36,7 +36,9 @@ export interface LeagueRankingsSectionProps {
  * CACHED VERSION - Clean component that uses hooks
  * Compare this to the original - no direct service calls!
  */
-export const LeagueRankingsSectionCached: React.FC<LeagueRankingsSectionProps> = ({
+export const LeagueRankingsSectionCached: React.FC<
+  LeagueRankingsSectionProps
+> = ({
   competitionId,
   parameters,
   teamId,
@@ -71,10 +73,7 @@ export const LeagueRankingsSectionCached: React.FC<LeagueRankingsSectionProps> =
     setRefreshing(true);
     try {
       // Force refresh both members and rankings
-      await Promise.all([
-        refetchMembers(),
-        refetchRankings(),
-      ]);
+      await Promise.all([refetchMembers(), refetchRankings()]);
     } finally {
       setRefreshing(false);
     }
@@ -203,9 +202,7 @@ const RankingRow: React.FC<{
         fallbackName={entry.name}
         additionalContent={
           <View style={styles.statsContainer}>
-            <Text style={styles.memberStats}>
-              {formatStats(entry)}
-            </Text>
+            <Text style={styles.memberStats}>{formatStats(entry)}</Text>
             <View style={styles.scoreContainer}>
               <Text style={styles.scoreValue}>{entry.score || 0}</Text>
               <Text style={styles.scoreLabel}>points</Text>

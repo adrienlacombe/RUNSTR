@@ -19,7 +19,10 @@ export function npubToHex(npubKey: string): string | null {
       if (npubKey.length === 64 && /^[0-9a-f]+$/i.test(npubKey)) {
         return npubKey; // Already hex
       }
-      console.error('[NDK Conversion] Invalid npub format:', npubKey.slice(0, 20));
+      console.error(
+        '[NDK Conversion] Invalid npub format:',
+        npubKey.slice(0, 20)
+      );
       return null;
     }
 
@@ -32,7 +35,12 @@ export function npubToHex(npubKey: string): string | null {
       return null;
     }
 
-    console.log(`[NDK Conversion] Converted npub to hex: ${npubKey.slice(0, 20)}... → ${hexPubkey.slice(0, 20)}...`);
+    console.log(
+      `[NDK Conversion] Converted npub to hex: ${npubKey.slice(
+        0,
+        20
+      )}... → ${hexPubkey.slice(0, 20)}...`
+    );
     return hexPubkey;
   } catch (error) {
     console.error('[NDK Conversion] Failed to convert npub to hex:', error);
@@ -52,7 +60,10 @@ export function hexToNpub(hexPubkey: string): string | null {
     }
 
     if (hexPubkey.length !== 64 || !/^[0-9a-f]+$/i.test(hexPubkey)) {
-      console.error('[NDK Conversion] Invalid hex pubkey format:', hexPubkey.slice(0, 20));
+      console.error(
+        '[NDK Conversion] Invalid hex pubkey format:',
+        hexPubkey.slice(0, 20)
+      );
       return null;
     }
 
@@ -65,7 +76,12 @@ export function hexToNpub(hexPubkey: string): string | null {
       return null;
     }
 
-    console.log(`[NDK Conversion] Converted hex to npub: ${hexPubkey.slice(0, 20)}... → ${npub.slice(0, 20)}...`);
+    console.log(
+      `[NDK Conversion] Converted hex to npub: ${hexPubkey.slice(
+        0,
+        20
+      )}... → ${npub.slice(0, 20)}...`
+    );
     return npub;
   } catch (error) {
     console.error('[NDK Conversion] Failed to convert hex to npub:', error);
@@ -90,11 +106,15 @@ export function nsecToHex(nsecKey: string): string | null {
     const hexPrivateKey = signer.privateKey;
 
     if (!hexPrivateKey || hexPrivateKey.length !== 64) {
-      console.error('[NDK Conversion] Failed to extract hex private key from nsec');
+      console.error(
+        '[NDK Conversion] Failed to extract hex private key from nsec'
+      );
       return null;
     }
 
-    console.log('[NDK Conversion] Successfully converted nsec to hex private key');
+    console.log(
+      '[NDK Conversion] Successfully converted nsec to hex private key'
+    );
     return hexPrivateKey;
   } catch (error) {
     console.error('[NDK Conversion] Failed to convert nsec to hex:', error);
@@ -114,7 +134,10 @@ export function hexToNsec(hexPrivateKey: string): string | null {
     }
 
     if (hexPrivateKey.length !== 64 || !/^[0-9a-f]+$/i.test(hexPrivateKey)) {
-      console.error('[NDK Conversion] Invalid hex private key format, length:', hexPrivateKey.length);
+      console.error(
+        '[NDK Conversion] Invalid hex private key format, length:',
+        hexPrivateKey.length
+      );
       return null;
     }
 
@@ -131,7 +154,10 @@ export function hexToNsec(hexPrivateKey: string): string | null {
     return nsec;
   } catch (error) {
     console.error('[NDK Conversion] Failed to convert hex to nsec:', error);
-    console.error('[NDK Conversion] Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error(
+      '[NDK Conversion] Error stack:',
+      error instanceof Error ? error.stack : 'No stack'
+    );
     return null;
   }
 }
@@ -156,7 +182,10 @@ export function normalizeToHex(pubkey: string): string | null {
     return pubkey;
   }
 
-  console.error('[NDK Conversion] Unable to normalize pubkey:', pubkey.slice(0, 20));
+  console.error(
+    '[NDK Conversion] Unable to normalize pubkey:',
+    pubkey.slice(0, 20)
+  );
   return null;
 }
 

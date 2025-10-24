@@ -4,7 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Share,
+} from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
@@ -52,7 +59,10 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
       // Request permissions
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to save QR code to photos');
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to save QR code to photos'
+        );
         return;
       }
 
@@ -84,7 +94,13 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
    */
   const handleShareCode = async () => {
     try {
-      const message = `Challenge me on RUNSTR!\n\n${activityIcon} ${challengeData.activity} - ${challengeData.metric} - ${challengeData.duration} days${challengeData.wager > 0 ? `\n⚡ ${challengeData.wager.toLocaleString()} sats` : ''}\n\nScan the QR code or use this link:\n${deepLink}`;
+      const message = `Challenge me on RUNSTR!\n\n${activityIcon} ${
+        challengeData.activity
+      } - ${challengeData.metric} - ${challengeData.duration} days${
+        challengeData.wager > 0
+          ? `\n⚡ ${challengeData.wager.toLocaleString()} sats`
+          : ''
+      }\n\nScan the QR code or use this link:\n${deepLink}`;
 
       await Share.share({
         message,
@@ -123,14 +139,16 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
         <View style={styles.summaryRow}>
           <Text style={styles.summaryIcon}>{activityIcon}</Text>
           <Text style={styles.summaryText}>
-            {challengeData.activity.charAt(0).toUpperCase() + challengeData.activity.slice(1)}
+            {challengeData.activity.charAt(0).toUpperCase() +
+              challengeData.activity.slice(1)}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryIcon}>📏</Text>
           <Text style={styles.summaryText}>
-            {challengeData.metric.charAt(0).toUpperCase() + challengeData.metric.slice(1)}
+            {challengeData.metric.charAt(0).toUpperCase() +
+              challengeData.metric.slice(1)}
           </Text>
         </View>
 

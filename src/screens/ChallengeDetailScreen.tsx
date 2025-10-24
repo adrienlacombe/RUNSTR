@@ -33,7 +33,10 @@ import { RulesSection } from '../components/challenge/RulesSection';
 // Real Data Services
 import { ChallengeService } from '../services/competition/ChallengeService';
 import { NostrCompetitionLeaderboardService } from '../services/competition/nostrCompetitionLeaderboardService';
-import type { CompetitionLeaderboard, CompetitionParticipant } from '../services/competition/nostrCompetitionLeaderboardService';
+import type {
+  CompetitionLeaderboard,
+  CompetitionParticipant,
+} from '../services/competition/nostrCompetitionLeaderboardService';
 
 type ChallengeDetailRouteProp = RouteProp<
   RootStackParamList,
@@ -62,7 +65,9 @@ export const ChallengeDetailScreen: React.FC<ChallengeDetailScreenProps> = ({
   const [watchStatus, setWatchStatus] = useState<
     'not_watching' | 'watching' | 'participating'
   >('not_watching');
-  const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboard | null>(null);
+  const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboard | null>(
+    null
+  );
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
   // Load challenge data
@@ -92,41 +97,60 @@ export const ChallengeDetailScreen: React.FC<ChallengeDetailScreenProps> = ({
 
       // Load real leaderboard data for the challenge
       setIsLoadingLeaderboard(true);
-      const leaderboardService = NostrCompetitionLeaderboardService.getInstance();
-      
+      const leaderboardService =
+        NostrCompetitionLeaderboardService.getInstance();
+
       try {
-        const challengeLeaderboard = await leaderboardService.computeChallengeLeaderboard(
-          challengeId,
-          participant1,
-          participant2,
-          mockChallengeParams,
-          'current_user_id' // TODO: Get actual current user ID from auth
-        );
-        
+        const challengeLeaderboard =
+          await leaderboardService.computeChallengeLeaderboard(
+            challengeId,
+            participant1,
+            participant2,
+            mockChallengeParams,
+            'current_user_id' // TODO: Get actual current user ID from auth
+          );
+
         setLeaderboard(challengeLeaderboard);
-        
+
         // Convert leaderboard participants to competitor format
-        const competitors = challengeLeaderboard.participants.map((participant: CompetitionParticipant, index: number) => ({
-          id: participant.pubkey,
-          name: participant.name || `Participant ${index + 1}`,
-          avatar: participant.name?.charAt(0).toUpperCase() || `P${index + 1}`,
-          score: participant.score,
-          position: participant.position || index + 1,
-          distance: participant.totalDistance ? `${Math.round(participant.totalDistance / 1000)} km` : '0 km',
-          time: participant.totalDuration ? formatDuration(participant.totalDuration) : '0 min',
-          workouts: participant.workoutCount || 0,
-          isWinner: participant.position === 1 && challengeLeaderboard.participants.length > 1,
-          status: 'completed' as const,
-          progress: {
-            value: participant.totalDistance || 0,
-            percentage: Math.min(100, ((participant.totalDistance || 0) / (mockChallengeParams.goalValue || 1) / 1000) * 100),
-            unit: 'km'
-          }
-        }));
+        const competitors = challengeLeaderboard.participants.map(
+          (participant: CompetitionParticipant, index: number) => ({
+            id: participant.pubkey,
+            name: participant.name || `Participant ${index + 1}`,
+            avatar:
+              participant.name?.charAt(0).toUpperCase() || `P${index + 1}`,
+            score: participant.score,
+            position: participant.position || index + 1,
+            distance: participant.totalDistance
+              ? `${Math.round(participant.totalDistance / 1000)} km`
+              : '0 km',
+            time: participant.totalDuration
+              ? formatDuration(participant.totalDuration)
+              : '0 min',
+            workouts: participant.workoutCount || 0,
+            isWinner:
+              participant.position === 1 &&
+              challengeLeaderboard.participants.length > 1,
+            status: 'completed' as const,
+            progress: {
+              value: participant.totalDistance || 0,
+              percentage: Math.min(
+                100,
+                ((participant.totalDistance || 0) /
+                  (mockChallengeParams.goalValue || 1) /
+                  1000) *
+                  100
+              ),
+              unit: 'km',
+            },
+          })
+        );
 
         // Calculate time remaining
-        const timeRemainingSeconds = mockChallengeParams.endTime - Math.floor(Date.now() / 1000);
-        const formattedTimeRemaining = formatTimeRemaining(timeRemainingSeconds);
+        const timeRemainingSeconds =
+          mockChallengeParams.endTime - Math.floor(Date.now() / 1000);
+        const formattedTimeRemaining =
+          formatTimeRemaining(timeRemainingSeconds);
         const isExpired = timeRemainingSeconds <= 0;
         const isCompleted = isExpired; // For demo purposes
 
@@ -134,15 +158,21 @@ export const ChallengeDetailScreen: React.FC<ChallengeDetailScreenProps> = ({
         const challengeDetailData: ChallengeDetailData = {
           id: challengeId,
           name: `${mockChallengeParams.goalValue}${mockChallengeParams.goalUnit} ${mockChallengeParams.activityType} Challenge`,
-          description: `Complete ${mockChallengeParams.goalValue} ${mockChallengeParams.goalUnit} of ${mockChallengeParams.activityType.toLowerCase()} before the deadline`,
+          description: `Complete ${mockChallengeParams.goalValue} ${
+            mockChallengeParams.goalUnit
+          } of ${mockChallengeParams.activityType.toLowerCase()} before the deadline`,
           prizePool: 1000, // Mock prize pool in sats
           competitors,
           progress: {
             isParticipating: false, // TODO: Check if current user is participating
             isWatching: true,
-            status: isCompleted ? 'completed' : (isExpired ? 'completed' : 'active'),
+            status: isCompleted
+              ? 'completed'
+              : isExpired
+              ? 'completed'
+              : 'active',
             isCompleted,
-            winner: competitors.find(c => c.isWinner),
+            winner: competitors.find((c) => c.isWinner),
           },
           timer: {
             timeRemaining: formattedTimeRemaining,
@@ -151,23 +181,35 @@ export const ChallengeDetailScreen: React.FC<ChallengeDetailScreenProps> = ({
           rules: [
             {
               id: '1',
-              text: `Complete ${mockChallengeParams.goalValue} ${mockChallengeParams.goalUnit} of ${mockChallengeParams.activityType.toLowerCase()} before deadline`,
+              text: `Complete ${mockChallengeParams.goalValue} ${
+                mockChallengeParams.goalUnit
+              } of ${mockChallengeParams.activityType.toLowerCase()} before deadline`,
             },
-            { id: '2', text: 'Activities must be tracked and published to Nostr (kind 1301 events)' },
+            {
+              id: '2',
+              text: 'Activities must be tracked and published to Nostr (kind 1301 events)',
+            },
             { id: '3', text: 'Winner determined by total distance covered' },
-            { id: '4', text: 'Challenge results updated in real-time from Nostr workout events' },
+            {
+              id: '4',
+              text: 'Challenge results updated in real-time from Nostr workout events',
+            },
           ],
-          status: isCompleted ? 'completed' : (isExpired ? 'expired' : 'active'),
+          status: isCompleted ? 'completed' : isExpired ? 'expired' : 'active',
           formattedPrize: '1000 sats',
-          formattedDeadline: new Date(mockChallengeParams.endTime * 1000).toLocaleDateString(),
+          formattedDeadline: new Date(
+            mockChallengeParams.endTime * 1000
+          ).toLocaleDateString(),
         };
 
         setChallengeData(challengeDetailData);
         setTimeRemaining(challengeDetailData.timer.timeRemaining);
-        
       } catch (leaderboardError) {
-        console.error('Failed to load challenge leaderboard:', leaderboardError);
-        
+        console.error(
+          'Failed to load challenge leaderboard:',
+          leaderboardError
+        );
+
         // Fall back to basic challenge data without leaderboard
         const challengeDetailData: ChallengeDetailData = {
           id: challengeId,
@@ -186,7 +228,10 @@ export const ChallengeDetailScreen: React.FC<ChallengeDetailScreenProps> = ({
             isExpired: false,
           },
           rules: [
-            { id: '1', text: 'Complete the challenge requirements before deadline' },
+            {
+              id: '1',
+              text: 'Complete the challenge requirements before deadline',
+            },
             { id: '2', text: 'Activities must be tracked through RUNSTR app' },
             { id: '3', text: 'Winner takes the full prize pool' },
           ],
@@ -198,7 +243,6 @@ export const ChallengeDetailScreen: React.FC<ChallengeDetailScreenProps> = ({
       } finally {
         setIsLoadingLeaderboard(false);
       }
-      
     } catch (err) {
       console.error('Failed to load challenge data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load challenge');

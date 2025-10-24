@@ -67,14 +67,18 @@ export class MonthlyStatsCalculator {
   /**
    * Calculate complete monthly statistics
    */
-  static calculate(workouts: Workout[], previousMonthWorkouts?: Workout[]): MonthlyStats {
+  static calculate(
+    workouts: Workout[],
+    previousMonthWorkouts?: Workout[]
+  ): MonthlyStats {
     // Basic counts
     const totalWorkouts = workouts.length;
     const activeDays = this.countActiveDays(workouts);
     const totalDays = this.getTotalDaysInMonth(workouts);
 
     // Aggregate stats
-    const { totalDistance, totalDuration, totalCalories } = this.calculateTotals(workouts);
+    const { totalDistance, totalDuration, totalCalories } =
+      this.calculateTotals(workouts);
 
     // Averages
     const avgDistance = totalWorkouts > 0 ? totalDistance / totalWorkouts : 0;
@@ -160,7 +164,9 @@ export class MonthlyStatsCalculator {
   /**
    * Calculate activity type breakdown
    */
-  private static calculateActivityBreakdown(workouts: Workout[]): ActivityBreakdown[] {
+  private static calculateActivityBreakdown(
+    workouts: Workout[]
+  ): ActivityBreakdown[] {
     const activityMap = new Map<
       string,
       { count: number; distance: number; duration: number }
@@ -168,7 +174,11 @@ export class MonthlyStatsCalculator {
 
     workouts.forEach((workout) => {
       const type = workout.type || 'other';
-      const current = activityMap.get(type) || { count: 0, distance: 0, duration: 0 };
+      const current = activityMap.get(type) || {
+        count: 0,
+        distance: 0,
+        duration: 0,
+      };
       activityMap.set(type, {
         count: current.count + 1,
         distance: current.distance + (workout.distance || 0),
@@ -256,7 +266,11 @@ export class MonthlyStatsCalculator {
     workouts.forEach((workout) => {
       const date = new Date(workout.startTime);
       const weekNumber = Math.ceil(date.getDate() / 7);
-      const current = weekMap.get(weekNumber) || { workouts: 0, distance: 0, duration: 0 };
+      const current = weekMap.get(weekNumber) || {
+        workouts: 0,
+        distance: 0,
+        duration: 0,
+      };
       weekMap.set(weekNumber, {
         workouts: current.workouts + 1,
         distance: current.distance + (workout.distance || 0),
@@ -310,7 +324,10 @@ export class MonthlyStatsCalculator {
   /**
    * Calculate percentage change
    */
-  private static calculatePercentageChange(current: number, previous: number): number {
+  private static calculatePercentageChange(
+    current: number,
+    previous: number
+  ): number {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
   }

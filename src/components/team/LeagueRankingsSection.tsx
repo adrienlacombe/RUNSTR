@@ -52,7 +52,7 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
   showFullList = false,
   maxDisplayed = 5,
   teamId,
-  captainPubkey,  // Now properly destructuring the captain pubkey from props
+  captainPubkey, // Now properly destructuring the captain pubkey from props
   isDefaultLeague = false,
 }) => {
   console.log('🏆 LeagueRankingsSection rendering with:', {
@@ -65,7 +65,8 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [teamParticipants, setTeamParticipants] = useState<LeagueParticipant[]>(participants);
+  const [teamParticipants, setTeamParticipants] =
+    useState<LeagueParticipant[]>(participants);
   const [currentUserNpub, setCurrentUserNpub] = useState<string | null>(null);
   const [currentUserRank, setCurrentUserRank] = useState<number | null>(null);
   // captainPubkey now comes from props, no local state needed
@@ -78,12 +79,20 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
    */
   const fetchTeamMembers = async (): Promise<LeagueParticipant[]> => {
     if (!teamId || !captainPubkey) {
-      console.log('⚠️ Cannot fetch members: missing teamId or captainPubkey', { teamId, captainPubkey: captainPubkey?.slice(0, 12) });
+      console.log('⚠️ Cannot fetch members: missing teamId or captainPubkey', {
+        teamId,
+        captainPubkey: captainPubkey?.slice(0, 12),
+      });
       return [];
     }
 
     try {
-      console.log(`🔍 Fetching team members for team: ${teamId} with captain: ${captainPubkey.slice(0, 12)}...`);
+      console.log(
+        `🔍 Fetching team members for team: ${teamId} with captain: ${captainPubkey.slice(
+          0,
+          12
+        )}...`
+      );
 
       // Ensure we're using hex pubkey format for the query
       let captainHex = captainPubkey;
@@ -92,7 +101,9 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
         const converted = npubToHex(captainPubkey);
         if (converted) {
           captainHex = converted;
-          console.log(`✅ Converted captain npub to hex: ${captainHex.slice(0, 12)}...`);
+          console.log(
+            `✅ Converted captain npub to hex: ${captainHex.slice(0, 12)}...`
+          );
         } else {
           console.warn('⚠️ Could not convert captain npub to hex, using as-is');
         }
@@ -108,7 +119,7 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
       }
 
       // Convert to LeagueParticipant format
-      return members.map(pubkey => {
+      return members.map((pubkey) => {
         // Convert hex to npub for display if needed
         let displayKey = pubkey;
         if (pubkey.length === 64 && !pubkey.startsWith('npub')) {
@@ -121,7 +132,6 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
           isActive: true,
         };
       });
-
     } catch (err) {
       console.error('❌ Failed to fetch team members:', err);
       return [];
@@ -150,9 +160,16 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
    */
   useEffect(() => {
     if (captainPubkey) {
-      console.log(`🔑 LeagueRankingsSection: Captain pubkey received from props: ${captainPubkey.slice(0, 12)}...`);
+      console.log(
+        `🔑 LeagueRankingsSection: Captain pubkey received from props: ${captainPubkey.slice(
+          0,
+          12
+        )}...`
+      );
     } else {
-      console.log('⚠️ LeagueRankingsSection: No captain pubkey provided in props');
+      console.log(
+        '⚠️ LeagueRankingsSection: No captain pubkey provided in props'
+      );
     }
   }, [captainPubkey]);
 
@@ -164,7 +181,11 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
    */
   const loadRankings = async (force = false) => {
     try {
-      console.log(`🏆 Loading league rankings: ${competitionId}${force ? ' (FORCE REFRESH)' : ''}`);
+      console.log(
+        `🏆 Loading league rankings: ${competitionId}${
+          force ? ' (FORCE REFRESH)' : ''
+        }`
+      );
       console.log(`📊 Is default league: ${isDefaultLeague}`);
       console.log(`👥 Participants passed: ${participants.length}`);
 
@@ -175,14 +196,24 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
       // Use provided participants or fetch them from cached member list
       let participantsToUse = teamParticipants;
       if (participantsToUse.length === 0 && teamId && captainPubkey) {
-        console.log('📥 No participants provided, fetching from cached member lists...');
+        console.log(
+          '📥 No participants provided, fetching from cached member lists...'
+        );
         participantsToUse = await fetchTeamMembers();
         setTeamParticipants(participantsToUse);
-        console.log(`✅ Fetched ${participantsToUse.length} participants from cache`);
+        console.log(
+          `✅ Fetched ${participantsToUse.length} participants from cache`
+        );
       } else if (participantsToUse.length > 0) {
-        console.log(`✅ Using ${participantsToUse.length} provided participants`);
+        console.log(
+          `✅ Using ${participantsToUse.length} provided participants`
+        );
       } else {
-        console.warn(`⚠️ No participants available and cannot fetch (teamId: ${teamId ? 'present' : 'missing'}, captain: ${captainPubkey ? 'present' : 'missing'})`);
+        console.warn(
+          `⚠️ No participants available and cannot fetch (teamId: ${
+            teamId ? 'present' : 'missing'
+          }, captain: ${captainPubkey ? 'present' : 'missing'})`
+        );
       }
 
       // If still no participants, create empty result instead of throwing error
@@ -208,18 +239,21 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
         force // This bypasses cache and forces fresh fetch
       );
 
-      console.log(`✅ League rankings loaded: ${result.rankings.length} entries`);
+      console.log(
+        `✅ League rankings loaded: ${result.rankings.length} entries`
+      );
       setRankings(result);
       setError(null);
 
       // Find current user's rank
       if (currentUserNpub && result.rankings) {
-        const userEntry = result.rankings.find(r => r.npub === currentUserNpub);
+        const userEntry = result.rankings.find(
+          (r) => r.npub === currentUserNpub
+        );
         if (userEntry) {
           setCurrentUserRank(userEntry.rank);
         }
       }
-
     } catch (err) {
       console.error('❌ Failed to load league rankings:', err);
       setError(err instanceof Error ? err.message : 'Failed to load rankings');
@@ -264,7 +298,9 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
     if (!rankings?.isActive) return;
 
     const interval = setInterval(() => {
-      console.log('🔄 Auto-refresh triggered (5 min interval) - cache will serve instantly, then background refresh');
+      console.log(
+        '🔄 Auto-refresh triggered (5 min interval) - cache will serve instantly, then background refresh'
+      );
       loadRankings(); // Will use cache if < 24h old, refresh in background if > 5min old
     }, 5 * 60 * 1000); // Refresh every 5 minutes
 
@@ -292,11 +328,11 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
    */
   const getDisplayRankings = (): LeagueRankingEntry[] => {
     if (!rankings) return [];
-    
+
     if (showFullList) {
       return rankings.rankings;
     }
-    
+
     return rankings.rankings.slice(0, maxDisplayed);
   };
 
@@ -305,10 +341,14 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
    */
   const getRankDisplay = (rank: number): string => {
     switch (rank) {
-      case 1: return '1st';
-      case 2: return '2nd';
-      case 3: return '3rd';
-      default: return `${rank}`;
+      case 1:
+        return '1st';
+      case 2:
+        return '2nd';
+      case 3:
+        return '3rd';
+      default:
+        return `${rank}`;
     }
   };
 
@@ -317,10 +357,14 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
    */
   const getTrendDisplay = (trend?: 'up' | 'down' | 'same'): string => {
     switch (trend) {
-      case 'up': return '↗️';
-      case 'down': return '↘️';
-      case 'same': return '→';
-      default: return '';
+      case 'up':
+        return '↗️';
+      case 'down':
+        return '↘️';
+      case 'same':
+        return '→';
+      default:
+        return '';
     }
   };
 
@@ -385,7 +429,9 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
           <Text style={styles.emptyText}>
             {!hasParticipants
               ? 'No team members found'
-              : isDefaultLeague ? 'No team activity yet' : 'No competition data yet'}
+              : isDefaultLeague
+              ? 'No team activity yet'
+              : 'No competition data yet'}
           </Text>
           <Text style={styles.emptySubtext}>
             {!hasParticipants
@@ -400,7 +446,8 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
   }
 
   const displayRankings = getDisplayRankings();
-  const hasMoreResults = rankings.rankings.length > maxDisplayed && !showFullList;
+  const hasMoreResults =
+    rankings.rankings.length > maxDisplayed && !showFullList;
 
   return (
     <View style={[styles.rankingsSection, style]}>
@@ -458,55 +505,58 @@ export const LeagueRankingsSection: React.FC<LeagueRankingsSectionProps> = ({
         }
       >
         {displayRankings.map((entry, index) => {
-          const isCurrentUser = currentUserNpub && entry.npub === currentUserNpub;
+          const isCurrentUser =
+            currentUserNpub && entry.npub === currentUserNpub;
           return (
-          <View
-            key={entry.npub}
-            style={[
-              styles.rankingItem,
-              entry.isTopThree && styles.topThreeItem,
-              index === displayRankings.length - 1 && styles.lastRankingItem,
-              isCurrentUser && styles.currentUserItem,
-            ]}
-          >
-            <View style={styles.rankContainer}>
-              <Text style={[
-                styles.rankText,
-                entry.isTopThree && styles.topThreeRank,
-                isCurrentUser && styles.currentUserRank
-              ]}>
-                {getRankDisplay(entry.rank)}
-              </Text>
-              {isCurrentUser && (
-                <Text style={styles.youIndicator}>YOU</Text>
-              )}
-              {entry.trend && (
-                <Text style={styles.trendIndicator}>
-                  {getTrendDisplay(entry.trend)}
+            <View
+              key={entry.npub}
+              style={[
+                styles.rankingItem,
+                entry.isTopThree && styles.topThreeItem,
+                index === displayRankings.length - 1 && styles.lastRankingItem,
+                isCurrentUser && styles.currentUserItem,
+              ]}
+            >
+              <View style={styles.rankContainer}>
+                <Text
+                  style={[
+                    styles.rankText,
+                    entry.isTopThree && styles.topThreeRank,
+                    isCurrentUser && styles.currentUserRank,
+                  ]}
+                >
+                  {getRankDisplay(entry.rank)}
                 </Text>
-              )}
-            </View>
+                {isCurrentUser && <Text style={styles.youIndicator}>YOU</Text>}
+                {entry.trend && (
+                  <Text style={styles.trendIndicator}>
+                    {getTrendDisplay(entry.trend)}
+                  </Text>
+                )}
+              </View>
 
-            <ZappableUserRow
-              npub={entry.npub}
-              fallbackName={entry.name}
-              showQuickZap={true}
-              additionalContent={
-                <View style={styles.rankingStats}>
-                  <Text style={styles.memberStats}>
-                    {entry.workoutCount} workouts
-                  </Text>
-                  <Text style={[
-                    styles.scoreText,
-                    entry.isTopThree && styles.topThreeScore
-                  ]}>
-                    {entry.formattedScore}
-                  </Text>
-                </View>
-              }
-            />
-          </View>
-        );
+              <ZappableUserRow
+                npub={entry.npub}
+                fallbackName={entry.name}
+                showQuickZap={true}
+                additionalContent={
+                  <View style={styles.rankingStats}>
+                    <Text style={styles.memberStats}>
+                      {entry.workoutCount} workouts
+                    </Text>
+                    <Text
+                      style={[
+                        styles.scoreText,
+                        entry.isTopThree && styles.topThreeScore,
+                      ]}
+                    >
+                      {entry.formattedScore}
+                    </Text>
+                  </View>
+                }
+              />
+            </View>
+          );
         })}
       </ScrollView>
 
@@ -816,4 +866,9 @@ const styles = StyleSheet.create({
 });
 
 // Export types for parent components
-export type { LeagueRankingEntry, LeagueRankingResult, LeagueParameters, LeagueParticipant } from '../../services/competition/leagueRankingService';
+export type {
+  LeagueRankingEntry,
+  LeagueRankingResult,
+  LeagueParameters,
+  LeagueParticipant,
+} from '../../services/competition/leagueRankingService';

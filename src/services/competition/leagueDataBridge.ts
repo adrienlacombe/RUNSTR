@@ -115,7 +115,9 @@ export class LeagueDataBridge {
         };
       }
 
-      console.log(`✅ League created on Nostr: ${creationResult.competitionId}`);
+      console.log(
+        `✅ League created on Nostr: ${creationResult.competitionId}`
+      );
 
       // Get team members as initial participants
       const participants = await this.getTeamParticipants(leagueData.teamId);
@@ -152,7 +154,7 @@ export class LeagueDataBridge {
         competitionId: creationResult.competitionId,
         type: 'league',
         parameters,
-        participants: participants.map(p => p.npub),
+        participants: participants.map((p) => p.npub),
         lastUpdated: new Date().toISOString(),
       };
       await AsyncStorage.setItem(storageKey, JSON.stringify(cacheData));
@@ -165,7 +167,6 @@ export class LeagueDataBridge {
         activeLeague,
         message: `League "${leagueData.name}" created successfully`,
       };
-
     } catch (error) {
       console.error('❌ Failed to process league creation:', error);
       return {
@@ -178,8 +179,12 @@ export class LeagueDataBridge {
   /**
    * Get all active competitions (leagues and events) for a team
    */
-  async getActiveCompetitionsForTeam(teamId: string): Promise<{ leagues: ActiveLeague[], events: any[] }> {
-    console.log(`🔍 Getting all active competitions for team: ${teamId.slice(0, 8)}...`);
+  async getActiveCompetitionsForTeam(
+    teamId: string
+  ): Promise<{ leagues: ActiveLeague[]; events: any[] }> {
+    console.log(
+      `🔍 Getting all active competitions for team: ${teamId.slice(0, 8)}...`
+    );
 
     const activeLeagues: ActiveLeague[] = [];
     const activeEvents: any[] = [];
@@ -189,7 +194,7 @@ export class LeagueDataBridge {
       const result = await this.nostrCompetitionService.queryCompetitions({
         kinds: [30100, 30101], // Both league and event kinds
         '#team': [teamId],
-        limit: 100
+        limit: 100,
       });
 
       const now = new Date();
@@ -200,7 +205,10 @@ export class LeagueDataBridge {
         const endDate = new Date(league.endDate);
 
         if (now >= startDate && now <= endDate) {
-          const activeLeague = await this.convertNostrLeagueToActive(league, teamId);
+          const activeLeague = await this.convertNostrLeagueToActive(
+            league,
+            teamId
+          );
           if (activeLeague) {
             activeLeagues.push(activeLeague);
             this.activeLeagues.set(league.id, activeLeague);
@@ -219,9 +227,10 @@ export class LeagueDataBridge {
         }
       }
 
-      console.log(`✅ Found ${activeLeagues.length} leagues and ${activeEvents.length} events`);
+      console.log(
+        `✅ Found ${activeLeagues.length} leagues and ${activeEvents.length} events`
+      );
       return { leagues: activeLeagues, events: activeEvents };
-
     } catch (error) {
       console.error('❌ Failed to get competitions from Nostr:', error);
       return { leagues: [], events: [] };
@@ -253,7 +262,11 @@ export class LeagueDataBridge {
 
         // Fresh cache (< 5 minutes) - return immediately
         if (cacheAge < this.CACHE_FRESH_MS) {
-          console.log(`✅ Returning fresh cached league (age: ${Math.round(cacheAge / 1000)}s)`);
+          console.log(
+            `✅ Returning fresh cached league (age: ${Math.round(
+              cacheAge / 1000
+            )}s)`
+          );
           const activeLeague = cached.league as ActiveLeague;
           this.activeLeagues.set(activeLeague.competitionId, activeLeague);
           return activeLeague;
@@ -263,7 +276,11 @@ export class LeagueDataBridge {
         if (cacheAge < this.CACHE_STALE_MS) {
           const ageHours = Math.round(cacheAge / (1000 * 60 * 60));
           const ageMinutes = Math.round(cacheAge / (1000 * 60));
-          console.log(`⚡ Returning stale cache (age: ${ageHours > 0 ? ageHours + 'h' : ageMinutes + 'm'}), refreshing in background`);
+          console.log(
+            `⚡ Returning stale cache (age: ${
+              ageHours > 0 ? ageHours + 'h' : ageMinutes + 'm'
+            }), refreshing in background`
+          );
 
           const activeLeague = cached.league as ActiveLeague;
           this.activeLeagues.set(activeLeague.competitionId, activeLeague);
@@ -274,7 +291,11 @@ export class LeagueDataBridge {
           return activeLeague;
         }
 
-        console.log(`🗑️ Cache expired (age: ${Math.round(cacheAge / (1000 * 60 * 60))}h), fetching fresh`);
+        console.log(
+          `🗑️ Cache expired (age: ${Math.round(
+            cacheAge / (1000 * 60 * 60)
+          )}h), fetching fresh`
+        );
       }
     } catch (error) {
       console.warn('⚠️ Failed to read cached league:', error);
@@ -287,7 +308,9 @@ export class LeagueDataBridge {
   /**
    * Fetch active league from Nostr (blocking call)
    */
-  private async fetchActiveLeagueFromNostr(teamId: string): Promise<ActiveLeague | null> {
+  private async fetchActiveLeagueFromNostr(
+    teamId: string
+  ): Promise<ActiveLeague | null> {
     try {
       console.log(`🔍 Querying Nostr for team leagues: ${teamId}`);
 
@@ -295,7 +318,7 @@ export class LeagueDataBridge {
       const result = await this.nostrCompetitionService.queryCompetitions({
         kinds: [30100], // League kind
         '#team': [teamId],
-        limit: 50
+        limit: 50,
       });
 
       // Find active leagues from the results
@@ -307,7 +330,10 @@ export class LeagueDataBridge {
         // Check if league is currently active
         if (now >= startDate && now <= endDate) {
           // Convert to ActiveLeague format and cache it
-          const activeLeague = await this.convertNostrLeagueToActive(league, teamId);
+          const activeLeague = await this.convertNostrLeagueToActive(
+            league,
+            teamId
+          );
           if (activeLeague) {
             // Cache in memory
             this.activeLeagues.set(league.id, activeLeague);
@@ -323,7 +349,6 @@ export class LeagueDataBridge {
 
       console.log('📭 No active league found for team');
       return null;
-
     } catch (error) {
       console.error('❌ Failed to query leagues from Nostr:', error);
 
@@ -349,7 +374,9 @@ export class LeagueDataBridge {
    */
   private async refreshActiveLeagueInBackground(teamId: string): Promise<void> {
     try {
-      console.log(`🔄 Background refresh started for team: ${teamId.slice(0, 8)}...`);
+      console.log(
+        `🔄 Background refresh started for team: ${teamId.slice(0, 8)}...`
+      );
 
       const freshLeague = await this.fetchActiveLeagueFromNostr(teamId);
 
@@ -367,7 +394,10 @@ export class LeagueDataBridge {
   /**
    * Cache active league with timestamp in persistent storage
    */
-  private async cacheActiveLeague(teamId: string, league: ActiveLeague): Promise<void> {
+  private async cacheActiveLeague(
+    teamId: string,
+    league: ActiveLeague
+  ): Promise<void> {
     try {
       const cacheKey = this.getActiveLeagueStorageKey(teamId);
       const cacheData = {
@@ -375,7 +405,9 @@ export class LeagueDataBridge {
         timestamp: Date.now(),
       };
       await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
-      console.log(`💾 Cached active league to persistent storage: ${league.name}`);
+      console.log(
+        `💾 Cached active league to persistent storage: ${league.name}`
+      );
     } catch (error) {
       console.error('❌ Failed to cache active league:', error);
     }
@@ -384,7 +416,9 @@ export class LeagueDataBridge {
   /**
    * Get league ranking parameters from competition ID
    */
-  async getLeagueParameters(competitionId: string): Promise<LeagueParameters | null> {
+  async getLeagueParameters(
+    competitionId: string
+  ): Promise<LeagueParameters | null> {
     // Check memory cache first
     const cachedLeague = this.activeLeagues.get(competitionId);
     if (cachedLeague) {
@@ -413,7 +447,9 @@ export class LeagueDataBridge {
   /**
    * Get participants for a league
    */
-  async getLeagueParticipants(competitionId: string): Promise<LeagueParticipant[]> {
+  async getLeagueParticipants(
+    competitionId: string
+  ): Promise<LeagueParticipant[]> {
     // Check memory cache first
     const cachedLeague = this.activeLeagues.get(competitionId);
     if (cachedLeague) {
@@ -460,12 +496,14 @@ export class LeagueDataBridge {
         competitionId,
         type: 'league',
         parameters: league.parameters,
-        participants: newParticipants.map(p => p.npub),
+        participants: newParticipants.map((p) => p.npub),
         lastUpdated: league.lastUpdated,
       };
       await AsyncStorage.setItem(storageKey, JSON.stringify(cacheData));
 
-      console.log(`👥 Updated league participants: ${newParticipants.length} members`);
+      console.log(
+        `👥 Updated league participants: ${newParticipants.length} members`
+      );
     }
   }
 
@@ -484,7 +522,9 @@ export class LeagueDataBridge {
   /**
    * Get team members as league participants
    */
-  private async getTeamParticipants(teamId: string): Promise<LeagueParticipant[]> {
+  private async getTeamParticipants(
+    teamId: string
+  ): Promise<LeagueParticipant[]> {
     try {
       const teamData = await this.nostrTeamService.getTeamById(teamId);
       if (!teamData) {
@@ -494,11 +534,10 @@ export class LeagueDataBridge {
 
       // TODO: Get team member list (not implemented yet)
       console.log(`👥 TODO: Get team members for: ${teamId}`);
-      
+
       // For now, return empty array - no members found
       // This will be implemented when NostrTeamService.getTeamMembers is ready
       return [];
-
     } catch (error) {
       console.error('❌ Failed to get team participants:', error);
       return [];
@@ -512,7 +551,7 @@ export class LeagueDataBridge {
     const now = new Date();
     const start = new Date(leagueData.startDate);
     const end = new Date(leagueData.endDate);
-    
+
     return now >= start && now <= end;
   }
 
@@ -523,7 +562,7 @@ export class LeagueDataBridge {
     const now = new Date();
     const start = new Date(league.startDate);
     const end = new Date(league.endDate);
-    
+
     return now >= start && now <= end;
   }
 
@@ -533,14 +572,19 @@ export class LeagueDataBridge {
   private async getCachedCompetitionIds(teamId: string): Promise<string[]> {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const competitionKeys = keys.filter(key => key.startsWith(this.STORAGE_PREFIX));
+      const competitionKeys = keys.filter((key) =>
+        key.startsWith(this.STORAGE_PREFIX)
+      );
       const competitionIds: string[] = [];
 
       for (const key of competitionKeys) {
         const data = await AsyncStorage.getItem(key);
         if (data) {
           const parsed = JSON.parse(data);
-          if (parsed.teamId === teamId || parsed.parameters?.teamId === teamId) {
+          if (
+            parsed.teamId === teamId ||
+            parsed.parameters?.teamId === teamId
+          ) {
             competitionIds.push(key.replace(this.STORAGE_PREFIX, ''));
           }
         }
@@ -556,7 +600,10 @@ export class LeagueDataBridge {
   /**
    * Convert Nostr league to ActiveLeague format
    */
-  private async convertNostrLeagueToActive(nostrLeague: any, teamId?: string): Promise<ActiveLeague | null> {
+  private async convertNostrLeagueToActive(
+    nostrLeague: any,
+    teamId?: string
+  ): Promise<ActiveLeague | null> {
     try {
       const actualTeamId = teamId || nostrLeague.teamId;
       const participants = await this.getTeamParticipants(actualTeamId);
@@ -581,7 +628,6 @@ export class LeagueDataBridge {
         lastUpdated: new Date().toISOString(),
         prizePoolSats: nostrLeague.prizePoolSats,
       };
-
     } catch (error) {
       console.error('❌ Failed to convert Nostr league:', error);
       return null;
@@ -591,7 +637,9 @@ export class LeagueDataBridge {
   /**
    * Extract parameters from Nostr league
    */
-  private extractParametersFromNostrLeague(league: NostrLeague): LeagueParameters {
+  private extractParametersFromNostrLeague(
+    league: NostrLeague
+  ): LeagueParameters {
     return {
       activityType: league.activityType,
       competitionType: league.competitionType,
@@ -620,7 +668,9 @@ export class LeagueDataBridge {
    * Get all active leagues (for debugging)
    */
   getActiveLeagues(): ActiveLeague[] {
-    return Array.from(this.activeLeagues.values()).filter(league => league.isActive);
+    return Array.from(this.activeLeagues.values()).filter(
+      (league) => league.isActive
+    );
   }
 }
 

@@ -89,7 +89,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleScroll = (event: any) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const slideIndex = Math.round(
+      event.nativeEvent.contentOffset.x / SCREEN_WIDTH
+    );
     setCurrentSlide(slideIndex);
   };
 
@@ -113,11 +115,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     <View key={index} style={styles.slide}>
       <View style={styles.slideContent}>
         <View style={styles.iconContainer}>
-          <Ionicons
-            name={slide.icon}
-            size={60}
-            color={theme.colors.text}
-          />
+          <Ionicons name={slide.icon} size={60} color={theme.colors.text} />
         </View>
 
         <Text style={styles.slideTitle}>{slide.title}</Text>
@@ -131,9 +129,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 size={20}
                 color={theme.colors.text}
               />
-              <Text style={styles.featureText}>
-                {feature}
-              </Text>
+              <Text style={styles.featureText}>{feature}</Text>
             </View>
           ))}
         </View>
@@ -178,10 +174,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           {slides.map((_, index) => (
             <View
               key={index}
-              style={[
-                styles.dot,
-                index === currentSlide && styles.dotActive,
-              ]}
+              style={[styles.dot, index === currentSlide && styles.dotActive]}
             />
           ))}
         </View>

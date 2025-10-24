@@ -6,15 +6,18 @@
 
 import type { WorkoutType } from '../../types/workout';
 import type { PublishableWorkout } from './workoutPublishingService';
+import { RUNSTR_LOGO_BASE64 } from './runstrLogoBase64';
 
 export interface WorkoutCardOptions {
-  template?: 'achievement' | 'progress' | 'minimal' | 'stats';
+  template?: 'achievement' | 'progress' | 'minimal' | 'stats' | 'elegant';
   backgroundColor?: string;
   accentColor?: string;
   includeQR?: boolean;
   includeMap?: boolean; // For workouts with GPS data
   customMessage?: string;
   showBranding?: boolean;
+  userAvatar?: string; // User's profile picture URL
+  userName?: string; // User's display name
 }
 
 export interface WorkoutCardData {
@@ -28,13 +31,13 @@ export interface WorkoutCardData {
   };
 }
 
-// Card templates configuration
+// Card templates configuration - RUNSTR orange and black theme
 const CARD_TEMPLATES = {
   achievement: {
     width: 800,
     height: 600,
     backgroundColor: '#000000',
-    accentColor: '#ffffff',
+    accentColor: '#FF6B35', // RUNSTR orange
     showStats: true,
     showMotivation: true,
     showBranding: true,
@@ -42,18 +45,18 @@ const CARD_TEMPLATES = {
   progress: {
     width: 800,
     height: 600,
-    backgroundColor: '#1a1a1a',
-    accentColor: '#0a84ff',
+    backgroundColor: '#000000',
+    accentColor: '#FF6B35', // RUNSTR orange
     showStats: true,
     showProgress: true,
     showBranding: true,
   },
   minimal: {
     width: 600,
-    height: 400,
-    backgroundColor: '#0a0a0a',
-    accentColor: '#ffffff',
-    showStats: false,
+    height: 600,
+    backgroundColor: '#000000',
+    accentColor: '#FF6B35', // RUNSTR orange
+    showStats: true, // Show just duration and distance
     showMotivation: false,
     showBranding: false,
   },
@@ -61,10 +64,21 @@ const CARD_TEMPLATES = {
     width: 800,
     height: 800,
     backgroundColor: '#000000',
-    accentColor: '#ffffff',
+    accentColor: '#FF6B35', // RUNSTR orange
     showStats: true,
     showCharts: true,
     showBranding: true,
+  },
+  elegant: {
+    width: 800,
+    height: 600,
+    backgroundColor: '#000000',
+    accentColor: '#FFFFFF', // White for elegant design
+    showStats: true,
+    showMotivation: false,
+    showBranding: true,
+    useSplitLayout: true, // Two-panel split
+    useSerifFont: true, // Serif typography
   },
 } as const;
 
@@ -120,12 +134,38 @@ export class WorkoutCardGenerator {
     config: (typeof CARD_TEMPLATES)[keyof typeof CARD_TEMPLATES],
     options: WorkoutCardOptions
   ): string {
-    const { width, height } = config;
-    const backgroundColor = options.backgroundColor || config.backgroundColor;
-    const accentColor = options.accentColor || config.accentColor;
+    // Use elegant split-panel layout for 'elegant' template
+    if (options.template === 'elegant') {
+      return this.createElegantCard(workout, config, options);
+    }
 
-    // Build SVG components
+    // Use modern centered layout for 'minimal' template
+    if (options.template === 'minimal') {
+      return this.createMinimalCard(workout, config, options);
+    }
+
+    const { width, height } = config;
+
+    // Get dynamic colors based on activity type
+    const activityColors = this.getActivityColors(workout.type);
+    const backgroundColor =
+      options.backgroundColor || activityColors.background;
+    const accentColor = options.accentColor || activityColors.accent;
+
+    // Build SVG components based on template configuration
     const background = this.createBackground(width, height, backgroundColor);
+    const avatar = options.userAvatar
+      ? this.createUserAvatar(
+          options.userAvatar,
+          options.userName,
+          20,
+          20,
+          accentColor
+        )
+      : '';
+    const weather = workout.weather
+      ? this.createWeatherBadge(workout.weather, width - 120, 20, accentColor)
+      : '';
     const activityIcon = this.createActivityIcon(
       workout.type,
       80,
@@ -133,21 +173,33 @@ export class WorkoutCardGenerator {
       accentColor
     );
     const title = this.createTitle(workout, 100, accentColor);
-    const stats = this.createStatsSection(workout, 180, accentColor);
-    const achievement = this.createAchievementBadge(workout, 320, accentColor);
-    const motivation = this.createMotivationalMessage(
-      workout,
-      420,
-      accentColor
-    );
+
+    // Only show stats if template config allows it
+    const stats = config.showStats
+      ? this.createStatsSection(workout, 180, accentColor)
+      : '';
+
+    // Only show achievement badge if we have one and template supports it
+    const achievement = 'showMotivation' in config && config.showMotivation
+      ? this.createAchievementBadge(workout, 320, accentColor)
+      : '';
+
+    // Only show motivational message if template config allows it
+    const motivation = 'showMotivation' in config && config.showMotivation
+      ? this.createMotivationalMessage(workout, 420, accentColor)
+      : '';
+
+    // Branding can be disabled via options or template
     const branding =
-      options.showBranding !== false
+      (options.showBranding !== false && config.showBranding)
         ? this.createBranding(workout, height - 60, accentColor)
         : '';
 
     return `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         ${background}
+        ${avatar}
+        ${weather}
         <g transform="translate(40, 40)">
           ${activityIcon}
           ${title}
@@ -158,6 +210,552 @@ export class WorkoutCardGenerator {
         ${branding}
       </svg>
     `.trim();
+  }
+
+  /**
+   * Create elegant Quotestr-inspired split-panel card
+   * Left panel: Grayscale user avatar or workout icon (400px)
+   * Right panel: Black background with elegant serif text (400px)
+   */
+  private createElegantCard(
+    workout: PublishableWorkout,
+    config: (typeof CARD_TEMPLATES)[keyof typeof CARD_TEMPLATES],
+    options: WorkoutCardOptions
+  ): string {
+    const { width, height } = config;
+    const panelWidth = width / 2; // 400px each panel
+
+    // Serif font family (system fonts with good cross-platform support)
+    const serifFont = 'Georgia, Times New Roman, serif';
+    const sansFont = 'system-ui, -apple-system, sans-serif';
+
+    // Left panel: Grayscale avatar or workout icon
+    const leftPanel = this.createElegantLeftPanel(
+      workout,
+      options.userAvatar,
+      panelWidth,
+      height
+    );
+
+    // Right panel: Black background with workout details
+    const rightPanel = this.createElegantRightPanel(
+      workout,
+      options,
+      panelWidth,
+      height,
+      serifFont,
+      sansFont
+    );
+
+    return `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="grayscale">
+            <feColorMatrix type="saturate" values="0"/>
+          </filter>
+        </defs>
+
+        <!-- Black background -->
+        <rect width="${width}" height="${height}" fill="#000000"/>
+
+        <!-- Left panel with grayscale image -->
+        <g transform="translate(0, 0)">
+          ${leftPanel}
+        </g>
+
+        <!-- Dividing line -->
+        <line x1="${panelWidth}" y1="0" x2="${panelWidth}" y2="${height}" stroke="#FFFFFF" stroke-width="0.5" opacity="0.2"/>
+
+        <!-- Right panel with text -->
+        <g transform="translate(${panelWidth}, 0)">
+          ${rightPanel}
+        </g>
+      </svg>
+    `.trim();
+  }
+
+  /**
+   * Create left panel for elegant card (grayscale image)
+   */
+  private createElegantLeftPanel(
+    workout: PublishableWorkout,
+    userAvatar: string | undefined,
+    width: number,
+    height: number
+  ): string {
+    if (userAvatar) {
+      // User avatar with grayscale filter
+      return `
+        <image
+          href="${userAvatar}"
+          x="0"
+          y="0"
+          width="${width}"
+          height="${height}"
+          preserveAspectRatio="xMidYMid slice"
+          filter="url(#grayscale)"
+          opacity="0.8"
+        />
+      `;
+    } else {
+      // Fallback: Large centered workout icon with grayscale effect
+      const icon = this.getWorkoutIcon(workout.type);
+      return `
+        <rect width="${width}" height="${height}" fill="#1a1a1a"/>
+        <text
+          x="${width / 2}"
+          y="${height / 2}"
+          font-size="120"
+          text-anchor="middle"
+          alignment-baseline="middle"
+          opacity="0.3"
+        >${icon}</text>
+      `;
+    }
+  }
+
+  /**
+   * Create right panel for elegant card (text content)
+   */
+  private createElegantRightPanel(
+    workout: PublishableWorkout,
+    options: WorkoutCardOptions,
+    width: number,
+    height: number,
+    serifFont: string,
+    sansFont: string
+  ): string {
+    const padding = 40;
+    const contentWidth = width - (padding * 2);
+
+    // Workout type and date
+    const workoutType = this.getWorkoutTypeName(workout);
+    const date = new Date(workout.startTime).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    // Key stats with null safety
+    const stats = this.getWorkoutStats(workout);
+    const primaryStat = stats[0] || {
+      value: this.formatDurationDetailed(workout.duration),
+      label: 'Duration'
+    };
+    const secondaryStat = stats[1]; // Keep optional (handled with conditional rendering)
+
+    // Motivational quote (optional) - wrap text ONCE and cache result
+    const quote = options.customMessage || this.getMotivationalMessage(workout);
+    const wrappedLines = quote ? this.wrapText(quote, 35) : [];
+
+    // Build quote tspans safely
+    let quoteTspans = '';
+    if (wrappedLines.length > 0) {
+      quoteTspans = `<tspan x="${padding}" dy="0">"${this.escapeXml(wrappedLines[0])}"</tspan>`;
+      for (let i = 1; i < wrappedLines.length; i++) {
+        quoteTspans += `<tspan x="${padding}" dy="18">${this.escapeXml(wrappedLines[i])}</tspan>`;
+      }
+    }
+
+    return `
+      <!-- User name (if available) -->
+      ${options.userName ? `
+        <text
+          x="${padding}"
+          y="40"
+          font-family="${sansFont}"
+          font-size="12"
+          font-weight="500"
+          fill="#FFFFFF"
+          opacity="0.6"
+          letter-spacing="0.5"
+        >${this.escapeXml(options.userName).toUpperCase()}</text>
+      ` : ''}
+
+      <!-- Workout type -->
+      <text
+        x="${padding}"
+        y="${options.userName ? 80 : 60}"
+        font-family="${serifFont}"
+        font-size="32"
+        font-weight="400"
+        fill="#FFFFFF"
+        letter-spacing="-0.5"
+      >${this.escapeXml(workoutType)}</text>
+
+      <!-- Date -->
+      <text
+        x="${padding}"
+        y="${options.userName ? 110 : 90}"
+        font-family="${sansFont}"
+        font-size="14"
+        font-weight="400"
+        fill="#FFFFFF"
+        opacity="0.5"
+      >${date}</text>
+
+      <!-- Primary stat (duration) -->
+      <text
+        x="${padding}"
+        y="${options.userName ? 180 : 160}"
+        font-family="${serifFont}"
+        font-size="64"
+        font-weight="300"
+        fill="#FFFFFF"
+        letter-spacing="-1"
+      >${primaryStat.value}</text>
+
+      <text
+        x="${padding}"
+        y="${options.userName ? 210 : 190}"
+        font-family="${sansFont}"
+        font-size="12"
+        font-weight="500"
+        fill="#FFFFFF"
+        opacity="0.5"
+        letter-spacing="1"
+      >${primaryStat.label.toUpperCase()}</text>
+
+      <!-- Secondary stat (distance, calories, etc.) -->
+      ${secondaryStat ? `
+        <text
+          x="${padding}"
+          y="${options.userName ? 270 : 250}"
+          font-family="${serifFont}"
+          font-size="36"
+          font-weight="300"
+          fill="#FFFFFF"
+        >${secondaryStat.value}</text>
+
+        <text
+          x="${padding}"
+          y="${options.userName ? 295 : 275}"
+          font-family="${sansFont}"
+          font-size="12"
+          font-weight="500"
+          fill="#FFFFFF"
+          opacity="0.5"
+          letter-spacing="1"
+        >${secondaryStat.label.toUpperCase()}</text>
+      ` : ''}
+
+      <!-- Motivational quote -->
+      ${quoteTspans ? `
+        <text
+          x="${padding}"
+          y="${height - 100}"
+          font-family="${serifFont}"
+          font-size="14"
+          font-weight="400"
+          font-style="italic"
+          fill="#FFFFFF"
+          opacity="0.7"
+        >${quoteTspans}</text>
+      ` : ''}
+
+      <!-- RUNSTR branding -->
+      <text
+        x="${padding}"
+        y="${height - 40}"
+        font-family="${sansFont}"
+        font-size="10"
+        font-weight="600"
+        fill="#FFFFFF"
+        opacity="0.4"
+        letter-spacing="1"
+      >RUNSTR</text>
+    `;
+  }
+
+  /**
+   * Create modern minimal card with centered RUNSTR logo
+   * Instagram-story-style vertical layout with clean typography
+   */
+  private createMinimalCard(
+    workout: PublishableWorkout,
+    config: (typeof CARD_TEMPLATES)[keyof typeof CARD_TEMPLATES],
+    options: WorkoutCardOptions
+  ): string {
+    const { width, height } = config;
+    const centerX = width / 2;
+    const sansFont = 'system-ui, -apple-system, sans-serif';
+
+    // Get activity name (e.g., "MEDITATION", "RUNNING")
+    const activityName = this.getWorkoutTypeName(workout).toUpperCase();
+
+    // Format duration as MM:SS
+    const duration = this.formatDurationDetailed(workout.duration);
+
+    // Get distance if available
+    const distance = workout.distance
+      ? workout.distance < 1000
+        ? `${Math.round(workout.distance)}m`
+        : `${(workout.distance / 1000).toFixed(2)}km`
+      : null;
+
+    return `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Subtle gradient background -->
+          <linearGradient id="minimalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#000000;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0a0a0a;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+
+        <!-- Background -->
+        <rect width="${width}" height="${height}" fill="url(#minimalGradient)"/>
+
+        <!-- RUNSTR Ostrich Logo (centered, 120x120) -->
+        <image
+          href="${RUNSTR_LOGO_BASE64}"
+          x="${centerX - 60}"
+          y="80"
+          width="120"
+          height="120"
+          preserveAspectRatio="xMidYMid meet"
+        />
+
+        <!-- Activity name (white) -->
+        <text
+          x="${centerX}"
+          y="260"
+          font-family="${sansFont}"
+          font-size="36"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#FFFFFF"
+          letter-spacing="2"
+        >${this.escapeXml(activityName)}</text>
+
+        <!-- "COMPLETED" text (orange) -->
+        <text
+          x="${centerX}"
+          y="300"
+          font-family="${sansFont}"
+          font-size="36"
+          font-weight="700"
+          text-anchor="middle"
+          fill="${config.accentColor}"
+          letter-spacing="2"
+        >COMPLETED</text>
+
+        <!-- Duration label -->
+        <text
+          x="${centerX}"
+          y="370"
+          font-family="${sansFont}"
+          font-size="14"
+          font-weight="500"
+          text-anchor="middle"
+          fill="#FFFFFF"
+          opacity="0.6"
+          letter-spacing="1"
+        >DURATION</text>
+
+        <!-- Duration value (large, bold, orange) -->
+        <text
+          x="${centerX}"
+          y="430"
+          font-family="${sansFont}"
+          font-size="72"
+          font-weight="300"
+          text-anchor="middle"
+          fill="${config.accentColor}"
+          letter-spacing="-2"
+        >${duration}</text>
+
+        ${
+          distance
+            ? `
+        <!-- Distance (if available) -->
+        <text
+          x="${centerX}"
+          y="480"
+          font-family="${sansFont}"
+          font-size="24"
+          font-weight="400"
+          text-anchor="middle"
+          fill="#FFFFFF"
+          opacity="0.7"
+        >${distance}</text>
+        `
+            : ''
+        }
+
+        <!-- RUNSTR branding (bottom) -->
+        <text
+          x="${centerX}"
+          y="540"
+          font-family="${sansFont}"
+          font-size="12"
+          font-weight="600"
+          text-anchor="middle"
+          fill="#FFFFFF"
+          opacity="0.3"
+          letter-spacing="2"
+        >RUNSTR</text>
+      </svg>
+    `.trim();
+  }
+
+  /**
+   * Get workout icon (no emoji, just simple shapes)
+   */
+  private getWorkoutIcon(type: WorkoutType): string {
+    const icons = {
+      running: '🏃',
+      cycling: '🚴',
+      walking: '🚶',
+      hiking: '🥾',
+      gym: '💪',
+      strength_training: '🏋️',
+      yoga: '🧘',
+      meditation: '🧘',
+      other: '⚡',
+    };
+    return icons[type] || icons.other;
+  }
+
+  /**
+   * Get clean workout type name (no underscores)
+   */
+  private getWorkoutTypeName(workout: PublishableWorkout): string {
+    const typeMap: Record<string, string> = {
+      running: 'Running',
+      cycling: 'Cycling',
+      walking: 'Walking',
+      hiking: 'Hiking',
+      gym: 'Gym Session',
+      strength_training: 'Strength Training',
+      yoga: 'Yoga',
+      meditation: 'Meditation',
+      other: 'Workout',
+    };
+    return typeMap[workout.type] || 'Workout';
+  }
+
+  /**
+   * Wrap text to fit within a certain character width
+   */
+  private wrapText(text: string, maxChars: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach((word) => {
+      if ((currentLine + word).length <= maxChars) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    });
+
+    if (currentLine) lines.push(currentLine);
+    return lines.slice(0, 3); // Max 3 lines
+  }
+
+  /**
+   * Get RUNSTR brand colors (orange and black theme)
+   */
+  private getActivityColors(type: WorkoutType): {
+    background: string;
+    accent: string;
+  } {
+    // All workouts use RUNSTR's signature orange and black theme
+    return { background: '#000000', accent: '#FF6B35' }; // RUNSTR orange
+  }
+
+  /**
+   * Create user avatar with circular clip
+   */
+  private createUserAvatar(
+    avatarUrl: string,
+    userName: string | undefined,
+    x: number,
+    y: number,
+    accentColor: string
+  ): string {
+    return `
+      <g transform="translate(${x}, ${y})">
+        <defs>
+          <clipPath id="avatarClip">
+            <circle cx="30" cy="30" r="30"/>
+          </clipPath>
+        </defs>
+        <!-- Avatar circle background -->
+        <circle cx="30" cy="30" r="30" fill="${accentColor}20" stroke="${accentColor}" stroke-width="2"/>
+        <!-- Avatar image -->
+        <image href="${avatarUrl}" x="0" y="0" width="60" height="60" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice"/>
+        ${
+          userName
+            ? `<text x="70" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="${accentColor}">${this.escapeXml(
+                userName
+              )}</text>`
+            : ''
+        }
+      </g>
+    `;
+  }
+
+  /**
+   * Create weather badge with icon and temperature
+   */
+  private createWeatherBadge(
+    weather: { icon: string; temp: number; description?: string },
+    x: number,
+    y: number,
+    accentColor: string
+  ): string {
+    const weatherEmoji = this.getWeatherEmoji(weather.icon);
+
+    return `
+      <g transform="translate(${x}, ${y})">
+        <rect x="0" y="0" width="100" height="50" fill="${accentColor}15" rx="25" ry="25" stroke="${accentColor}30" stroke-width="1"/>
+        <text x="25" y="30" font-size="20" text-anchor="middle" alignment-baseline="middle">${weatherEmoji}</text>
+        <text x="65" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="600" text-anchor="middle" alignment-baseline="middle" fill="${accentColor}">${weather.temp}°C</text>
+      </g>
+    `;
+  }
+
+  /**
+   * Get weather emoji from icon code
+   */
+  private getWeatherEmoji(icon: string): string {
+    const iconMap: Record<string, string> = {
+      '01d': '☀️',
+      '01n': '🌙',
+      '02d': '⛅',
+      '02n': '☁️',
+      '03d': '☁️',
+      '03n': '☁️',
+      '04d': '☁️',
+      '04n': '☁️',
+      '09d': '🌧️',
+      '09n': '🌧️',
+      '10d': '🌦️',
+      '10n': '🌧️',
+      '11d': '⛈️',
+      '11n': '⛈️',
+      '13d': '❄️',
+      '13n': '❄️',
+      '50d': '🌫️',
+      '50n': '🌫️',
+    };
+    return iconMap[icon] || '🌤️';
+  }
+
+  /**
+   * Escape XML special characters
+   */
+  private escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   /**
@@ -206,6 +804,7 @@ export class WorkoutCardGenerator {
       gym: '💪',
       strength_training: '🏋️‍♂️',
       yoga: '🧘‍♂️',
+      meditation: '🧘‍♂️', // Same as yoga icon for meditation workouts
       other: '⚡',
     };
 
@@ -349,7 +948,7 @@ export class WorkoutCardGenerator {
     const stats = [];
 
     // Duration
-    const duration = this.formatDuration(workout.duration);
+    const duration = this.formatDurationDetailed(workout.duration);
     stats.push({ value: duration, label: 'Duration' });
 
     // Distance
@@ -377,17 +976,53 @@ export class WorkoutCardGenerator {
       });
     }
 
-    // Pace (for running/cycling)
+    // Activity-specific stats
+
+    // Cycling: Show speed (km/h) instead of pace
+    if (workout.type === 'cycling' && workout.distance && workout.duration) {
+      const speedKmh = (workout.distance / 1000) / (workout.duration / 3600);
+      stats.push({
+        value: `${speedKmh.toFixed(1)} km/h`,
+        label: 'Speed',
+      });
+    }
+
+    // Pace (for running only - cycling shows speed instead)
     if (
+      workout.type === 'running' &&
       workout.pace &&
-      workout.distance &&
-      ['running', 'cycling'].includes(workout.type)
+      workout.distance
     ) {
       const paceMin = Math.floor(workout.pace / 60);
       const paceSec = workout.pace % 60;
       stats.push({
         value: `${paceMin}:${paceSec.toString().padStart(2, '0')}`,
         label: 'Pace/km',
+      });
+    }
+
+    // Strength training: Show sets and reps
+    if (['strength_training', 'gym'].includes(workout.type)) {
+      if (workout.sets) {
+        stats.push({
+          value: workout.sets.toString(),
+          label: 'Sets',
+        });
+      }
+      if (workout.reps) {
+        stats.push({
+          value: workout.reps.toString(),
+          label: 'Reps',
+        });
+      }
+    }
+
+    // Walking: Show steps from metadata
+    if (workout.type === 'walking' && workout.metadata?.steps) {
+      const steps = Math.round(workout.metadata.steps);
+      stats.push({
+        value: steps.toLocaleString(),
+        label: 'Steps',
       });
     }
 
@@ -437,6 +1072,17 @@ export class WorkoutCardGenerator {
         'It never gets easier; you just go faster.',
         'The bicycle is a curious vehicle. Its passenger is its engine.',
       ],
+      meditation: [
+        'Peace comes from within. Do not seek it without.',
+        'The mind is everything. What you think you become.',
+        'In the midst of movement and chaos, keep stillness inside of you.',
+        'Meditation is not about stopping thoughts, but recognizing that we are more than our thoughts.',
+      ],
+      yoga: [
+        'Yoga is the journey of the self, through the self, to the self.',
+        'The body benefits from movement, and the mind benefits from stillness.',
+        'Inhale the future, exhale the past.',
+      ],
       gym: [
         "The only bad workout is the one that didn't happen.",
         "Your body can stand almost anything. It's your mind you have to convince.",
@@ -460,6 +1106,21 @@ export class WorkoutCardGenerator {
       return `${h}h ${m}m`;
     }
     return `${m}m`;
+  }
+
+  /**
+   * Format duration with seconds (MM:SS or H:MM:SS)
+   * Used for elegant cards where precision matters
+   */
+  private formatDurationDetailed(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
   /**
@@ -520,7 +1181,7 @@ export class WorkoutCardGenerator {
   }
 
   /**
-   * Get available templates
+   * Get available templates (simplified to 3 core options)
    */
   getAvailableTemplates(): Array<{
     id: keyof typeof CARD_TEMPLATES;
@@ -529,24 +1190,19 @@ export class WorkoutCardGenerator {
   }> {
     return [
       {
-        id: 'achievement',
-        name: 'Achievement',
-        description: 'Celebration-focused with achievement badges',
-      },
-      {
-        id: 'progress',
-        name: 'Progress',
-        description: 'Progress tracking with visual indicators',
+        id: 'elegant',
+        name: 'Elegant',
+        description: 'Quotestr-inspired split design with serif typography',
       },
       {
         id: 'minimal',
-        name: 'Minimal',
-        description: 'Clean and simple design',
+        name: 'RUNSTR Theme',
+        description: 'RUNSTR-branded card with ostrich logo',
       },
       {
-        id: 'stats',
-        name: 'Stats',
-        description: 'Detailed statistics and charts',
+        id: 'achievement',
+        name: 'Text-based',
+        description: 'Full stats with motivational messages',
       },
     ];
   }

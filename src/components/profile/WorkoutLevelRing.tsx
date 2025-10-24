@@ -76,7 +76,13 @@ export const WorkoutLevelRing: React.FC<WorkoutLevelRingProps> = ({
         <Svg width={size} height={size}>
           <Defs>
             {/* Orange gradient for progress ring */}
-            <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <LinearGradient
+              id="ringGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <Stop offset="0%" stopColor="#FF7B1C" stopOpacity="1" />
               <Stop offset="100%" stopColor="#FF9D42" stopOpacity="1" />
             </LinearGradient>
@@ -125,7 +131,8 @@ export const WorkoutLevelRing: React.FC<WorkoutLevelRingProps> = ({
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              {levelService.formatXP(stats.level.currentXP)} / {levelService.formatXP(stats.level.xpForNextLevel)}
+              {levelService.formatXP(stats.level.currentXP)} /{' '}
+              {levelService.formatXP(stats.level.xpForNextLevel)}
             </Text>
             <Text style={styles.statLabel}>XP Progress</Text>
           </View>

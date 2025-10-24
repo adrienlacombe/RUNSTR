@@ -10,7 +10,7 @@ import {
   CashuWallet,
   Proof,
   getEncodedToken,
-  getDecodedToken
+  getDecodedToken,
 } from '@cashu/cashu-ts';
 
 // Storage keys
@@ -26,7 +26,13 @@ const DEFAULT_MINT_URL = 'https://mint.coinos.io';
 
 export interface Transaction {
   id: string;
-  type: 'nutzap_sent' | 'nutzap_received' | 'lightning_received' | 'lightning_sent' | 'cashu_sent' | 'cashu_received';
+  type:
+    | 'nutzap_sent'
+    | 'nutzap_received'
+    | 'lightning_received'
+    | 'lightning_sent'
+    | 'cashu_sent'
+    | 'cashu_received';
   amount: number;
   timestamp: number;
   memo?: string;
@@ -81,7 +87,10 @@ export class WalletCore {
   async initialize(hexPubkey: string): Promise<WalletState> {
     console.log('[WalletCore] ========================================');
     console.log('[WalletCore] Initializing wallet with detection');
-    console.log('[WalletCore] User pubkey (hex):', hexPubkey.slice(0, 16) + '...');
+    console.log(
+      '[WalletCore] User pubkey (hex):',
+      hexPubkey.slice(0, 16) + '...'
+    );
 
     this.userPubkey = hexPubkey;
 
@@ -91,7 +100,7 @@ export class WalletCore {
     console.log('[WalletCore] Local storage check:', {
       balance: localWallet.balance,
       proofs: localWallet.proofs.length,
-      key: this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      key: this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
     });
 
     // Step 2: If local wallet has proofs, use it
@@ -99,12 +108,12 @@ export class WalletCore {
       console.log('[WalletCore] ✅ Local wallet found with proofs');
 
       // Verify against Nostr in background (non-blocking)
-      this.verifyAndMergeNostrProofs().catch(err =>
+      this.verifyAndMergeNostrProofs().catch((err) =>
         console.warn('[WalletCore] Background verification failed:', err)
       );
 
       // Connect to mint in background
-      this.connectToMintAsync().catch(err =>
+      this.connectToMintAsync().catch((err) =>
         console.warn('[WalletCore] Mint connection failed:', err)
       );
 
@@ -112,15 +121,24 @@ export class WalletCore {
     }
 
     // Step 3: If local is empty, detect RUNSTR wallet on Nostr
-    console.log('[WalletCore] Local wallet empty - detecting RUNSTR wallet on Nostr...');
+    console.log(
+      '[WalletCore] Local wallet empty - detecting RUNSTR wallet on Nostr...'
+    );
 
     try {
-      const WalletDetectionService = require('./WalletDetectionService').default;
-      const detection = await WalletDetectionService.findRunstrWallet(hexPubkey);
+      const WalletDetectionService =
+        require('./WalletDetectionService').default;
+      const detection = await WalletDetectionService.findRunstrWallet(
+        hexPubkey
+      );
 
       if (detection.found && detection.walletInfo) {
         console.log('[WalletCore] ✅ RUNSTR wallet detected on Nostr!');
-        console.log('[WalletCore] Balance:', detection.walletInfo.balance, 'sats');
+        console.log(
+          '[WalletCore] Balance:',
+          detection.walletInfo.balance,
+          'sats'
+        );
         console.log('[WalletCore] Mint:', detection.walletInfo.mint);
         console.log('[WalletCore] Name:', detection.walletInfo.name);
 
@@ -130,11 +148,11 @@ export class WalletCore {
           mint: detection.walletInfo.mint,
           proofs: [], // Empty - will decrypt when needed for sending
           pubkey: hexPubkey,
-          isOnline: false
+          isOnline: false,
         };
 
         // Connect to mint in background
-        this.connectToMintAsync().catch(err =>
+        this.connectToMintAsync().catch((err) =>
           console.warn('[WalletCore] Mint connection failed:', err)
         );
 
@@ -156,7 +174,7 @@ export class WalletCore {
           mint: DEFAULT_MINT_URL,
           proofs: [],
           pubkey: hexPubkey,
-          isOnline: false
+          isOnline: false,
         };
       }
     } catch (error) {
@@ -169,7 +187,7 @@ export class WalletCore {
         mint: DEFAULT_MINT_URL,
         proofs: [],
         pubkey: hexPubkey,
-        isOnline: false
+        isOnline: false,
       };
     }
   }
@@ -200,7 +218,7 @@ export class WalletCore {
       console.log('[WalletCore] ✅ Wallet found on Nostr:', {
         balance,
         proofs: nostrWallet.proofs.length,
-        mint: nostrWallet.mintUrl
+        mint: nostrWallet.mintUrl,
       });
 
       return {
@@ -208,9 +226,8 @@ export class WalletCore {
         mint: nostrWallet.mintUrl,
         proofs: nostrWallet.proofs,
         pubkey: this.userPubkey,
-        isOnline: false
+        isOnline: false,
       };
-
     } catch (error) {
       console.error('[WalletCore] Nostr restoration error:', error);
       return null;
@@ -223,7 +240,7 @@ export class WalletCore {
   private async verifyAndMergeNostrProofs(): Promise<void> {
     try {
       // Wait a moment for WalletSync to connect
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const WalletSync = require('./WalletSync').default;
       const nostrWallet = await WalletSync.restoreProofsFromNostr();
@@ -234,26 +251,42 @@ export class WalletCore {
       }
 
       // Compare balances
-      const localProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const localProofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const localProofs = localProofsStr ? JSON.parse(localProofsStr) : [];
-      const localBalance = localProofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
-      const nostrBalance = nostrWallet.proofs.reduce((sum, p) => sum + p.amount, 0);
+      const localBalance = localProofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
+      const nostrBalance = nostrWallet.proofs.reduce(
+        (sum, p) => sum + p.amount,
+        0
+      );
 
-      console.log(`[WalletCore] Balance comparison: Local=${localBalance}, Nostr=${nostrBalance}`);
+      console.log(
+        `[WalletCore] Balance comparison: Local=${localBalance}, Nostr=${nostrBalance}`
+      );
 
       // If Nostr has more funds, restore them
       if (nostrBalance > localBalance) {
-        console.log(`[WalletCore] Restoring ${nostrBalance - localBalance} sats from Nostr backup`);
+        console.log(
+          `[WalletCore] Restoring ${
+            nostrBalance - localBalance
+          } sats from Nostr backup`
+        );
         await this.saveWallet(nostrWallet.proofs, nostrWallet.mintUrl);
 
         // Notify UI to refresh balance
         // (You can add an event emitter here if needed)
       } else if (localBalance > nostrBalance) {
         console.log('[WalletCore] Local has more funds, re-syncing to Nostr');
-        const localMintUrl = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT)) || DEFAULT_MINT_URL;
+        const localMintUrl =
+          (await AsyncStorage.getItem(
+            this.getStorageKey(STORAGE_KEYS.WALLET_MINT)
+          )) || DEFAULT_MINT_URL;
         await WalletSync.publishTokenEvent(localProofs, localMintUrl);
       }
-
     } catch (error) {
       console.error('[WalletCore] Verify/merge failed:', error);
     }
@@ -286,14 +319,19 @@ export class WalletCore {
     try {
       console.log('[WalletCore] Connecting to mint in background...');
 
-      const mintUrl = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT)) || DEFAULT_MINT_URL;
+      const mintUrl =
+        (await AsyncStorage.getItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_MINT)
+        )) || DEFAULT_MINT_URL;
 
       this.cashuMint = new CashuMint(mintUrl);
 
       // Test connection with timeout
       await Promise.race([
         this.cashuMint.getKeys(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Mint timeout')), 5000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Mint timeout')), 5000)
+        ),
       ]);
 
       this.cashuWallet = new CashuWallet(this.cashuMint, { unit: 'sat' });
@@ -311,21 +349,31 @@ export class WalletCore {
    */
   private async loadLocalWallet(): Promise<WalletState> {
     try {
-      const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const proofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
-      const mintUrl = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT)) || DEFAULT_MINT_URL;
+      const mintUrl =
+        (await AsyncStorage.getItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_MINT)
+        )) || DEFAULT_MINT_URL;
 
-      const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+      const balance = proofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
 
-      console.log(`[WalletCore] Loaded local wallet: ${balance} sats (${proofs.length} proofs)`);
+      console.log(
+        `[WalletCore] Loaded local wallet: ${balance} sats (${proofs.length} proofs)`
+      );
 
       return {
         balance,
         mint: mintUrl,
         proofs,
         pubkey: this.userPubkey,
-        isOnline: false
+        isOnline: false,
       };
     } catch (error) {
       console.error('[WalletCore] Error loading local wallet:', error);
@@ -334,7 +382,7 @@ export class WalletCore {
         mint: DEFAULT_MINT_URL,
         proofs: [],
         pubkey: this.userPubkey,
-        isOnline: false
+        isOnline: false,
       };
     }
   }
@@ -342,12 +390,24 @@ export class WalletCore {
   /**
    * Save wallet to local storage
    */
-  async saveWallet(proofs: Proof[], mintUrl: string = DEFAULT_MINT_URL): Promise<void> {
+  async saveWallet(
+    proofs: Proof[],
+    mintUrl: string = DEFAULT_MINT_URL
+  ): Promise<void> {
     try {
       // Save to AsyncStorage (instant)
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS), JSON.stringify(proofs));
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_MINT), mintUrl);
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY), this.userPubkey);
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS),
+        JSON.stringify(proofs)
+      );
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_MINT),
+        mintUrl
+      );
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PUBKEY),
+        this.userPubkey
+      );
       console.log('[WalletCore] Wallet saved locally');
 
       // Trigger background Nostr backup (non-blocking)
@@ -365,7 +425,9 @@ export class WalletCore {
    * Get current balance from local storage
    */
   async getBalance(): Promise<number> {
-    const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+    const proofsStr = await AsyncStorage.getItem(
+      this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+    );
     const proofs = proofsStr ? JSON.parse(proofsStr) : [];
     return proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
   }
@@ -373,22 +435,38 @@ export class WalletCore {
   /**
    * Send nutzap (requires online connection)
    */
-  async sendNutzap(recipientPubkey: string, amount: number, memo: string = ''): Promise<{ success: boolean; token?: string; error?: string }> {
+  async sendNutzap(
+    recipientPubkey: string,
+    amount: number,
+    memo: string = ''
+  ): Promise<{ success: boolean; token?: string; error?: string }> {
     try {
       // Ensure mint is connected
       const connected = await this.ensureMintConnected();
       if (!connected || !this.cashuWallet) {
-        return { success: false, error: 'Unable to connect to mint. Please check your internet connection.' };
+        return {
+          success: false,
+          error:
+            'Unable to connect to mint. Please check your internet connection.',
+        };
       }
 
       // Load current proofs
-      const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const proofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
       // Check balance
-      const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+      const balance = proofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
       if (balance < amount) {
-        return { success: false, error: `Insufficient balance: ${balance} sats` };
+        return {
+          success: false,
+          error: `Insufficient balance: ${balance} sats`,
+        };
       }
 
       // Create token
@@ -397,11 +475,13 @@ export class WalletCore {
       const keep = sendResponse.returnChange || [];
 
       const token = getEncodedToken({
-        token: [{
-          mint: this.cashuMint!.mintUrl,
-          proofs: send
-        }],
-        memo
+        token: [
+          {
+            mint: this.cashuMint!.mintUrl,
+            proofs: send,
+          },
+        ],
+        memo,
       });
 
       // Update local proofs
@@ -416,14 +496,15 @@ export class WalletCore {
         recipient: recipientPubkey,
       });
 
-      console.log(`[WalletCore] Sent ${amount} sats to ${recipientPubkey.slice(0, 8)}...`);
+      console.log(
+        `[WalletCore] Sent ${amount} sats to ${recipientPubkey.slice(0, 8)}...`
+      );
       return { success: true, token };
-
     } catch (error) {
       console.error('[WalletCore] Send failed:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Send failed'
+        error: error instanceof Error ? error.message : 'Send failed',
       };
     }
   }
@@ -431,7 +512,9 @@ export class WalletCore {
   /**
    * Receive Cashu token
    */
-  async receiveCashuToken(token: string): Promise<{ amount: number; error?: string }> {
+  async receiveCashuToken(
+    token: string
+  ): Promise<{ amount: number; error?: string }> {
     try {
       if (!this.cashuWallet) {
         return { amount: 0, error: 'Wallet offline' };
@@ -441,13 +524,20 @@ export class WalletCore {
 
       if (proofs && proofs.length > 0) {
         // Add to existing proofs
-        const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-        const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+        const existingProofsStr = await AsyncStorage.getItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+        );
+        const existingProofs = existingProofsStr
+          ? JSON.parse(existingProofsStr)
+          : [];
         const newProofs = [...existingProofs, ...proofs];
 
         await this.saveWallet(newProofs);
 
-        const amount = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+        const amount = proofs.reduce(
+          (sum: number, p: Proof) => sum + p.amount,
+          0
+        );
 
         await this.saveTransaction({
           type: 'cashu_received',
@@ -469,12 +559,20 @@ export class WalletCore {
   /**
    * Create Lightning invoice
    */
-  async createLightningInvoice(amount: number, memo: string = ''): Promise<{ pr: string; hash: string; error?: string }> {
+  async createLightningInvoice(
+    amount: number,
+    memo: string = ''
+  ): Promise<{ pr: string; hash: string; error?: string }> {
     try {
       // Ensure mint is connected (matches sendNutzap pattern)
       const connected = await this.ensureMintConnected();
       if (!connected || !this.cashuWallet) {
-        return { pr: '', hash: '', error: 'Unable to connect to mint. Please check your internet connection.' };
+        return {
+          pr: '',
+          hash: '',
+          error:
+            'Unable to connect to mint. Please check your internet connection.',
+        };
       }
 
       console.log(`[WalletCore] Creating invoice for ${amount} sats...`);
@@ -486,18 +584,24 @@ export class WalletCore {
       }
 
       // Store quote for later checking
-      await AsyncStorage.setItem(`@runstr:quote:${mintQuote.quote}`, JSON.stringify({
-        amount,
-        created: Date.now(),
-        memo
-      }));
+      await AsyncStorage.setItem(
+        `@runstr:quote:${mintQuote.quote}`,
+        JSON.stringify({
+          amount,
+          created: Date.now(),
+          memo,
+        })
+      );
 
       console.log('[WalletCore] Invoice created');
       return { pr: mintQuote.request, hash: mintQuote.quote };
-
     } catch (error: any) {
       console.error('[WalletCore] Create invoice failed:', error);
-      return { pr: '', hash: '', error: error.message || 'Failed to create invoice' };
+      return {
+        pr: '',
+        hash: '',
+        error: error.message || 'Failed to create invoice',
+      };
     }
   }
 
@@ -510,7 +614,9 @@ export class WalletCore {
         return false;
       }
 
-      const quoteData = await AsyncStorage.getItem(`@runstr:quote:${quoteHash}`);
+      const quoteData = await AsyncStorage.getItem(
+        `@runstr:quote:${quoteHash}`
+      );
       if (!quoteData) {
         return false;
       }
@@ -529,8 +635,12 @@ export class WalletCore {
 
       if (proofs && proofs.length > 0) {
         // Add new proofs
-        const existingProofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
-        const existingProofs = existingProofsStr ? JSON.parse(existingProofsStr) : [];
+        const existingProofsStr = await AsyncStorage.getItem(
+          this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+        );
+        const existingProofs = existingProofsStr
+          ? JSON.parse(existingProofsStr)
+          : [];
         const updatedProofs = [...existingProofs, ...proofs];
 
         await this.saveWallet(updatedProofs);
@@ -560,24 +670,34 @@ export class WalletCore {
   /**
    * Pay Lightning invoice
    */
-  async payLightningInvoice(invoice: string): Promise<{ success: boolean; fee?: number; error?: string }> {
+  async payLightningInvoice(
+    invoice: string
+  ): Promise<{ success: boolean; fee?: number; error?: string }> {
     try {
       if (!this.cashuWallet) {
         return { success: false, error: 'Wallet offline' };
       }
 
       // Get current proofs
-      const proofsStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS));
+      const proofsStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.WALLET_PROOFS)
+      );
       const proofs = proofsStr ? JSON.parse(proofsStr) : [];
 
-      const balance = proofs.reduce((sum: number, p: Proof) => sum + p.amount, 0);
+      const balance = proofs.reduce(
+        (sum: number, p: Proof) => sum + p.amount,
+        0
+      );
 
       // Get melt quote
       const meltQuote = await this.cashuWallet.createMeltQuote(invoice);
       const totalNeeded = meltQuote.amount + meltQuote.fee_reserve;
 
       if (balance < totalNeeded) {
-        return { success: false, error: `Insufficient balance: need ${totalNeeded}, have ${balance}` };
+        return {
+          success: false,
+          error: `Insufficient balance: need ${totalNeeded}, have ${balance}`,
+        };
       }
 
       // Pay invoice
@@ -595,9 +715,10 @@ export class WalletCore {
         fee: meltQuote.fee_reserve,
       });
 
-      console.log(`[WalletCore] Paid invoice: ${meltQuote.amount} sats (fee: ${meltQuote.fee_reserve})`);
+      console.log(
+        `[WalletCore] Paid invoice: ${meltQuote.amount} sats (fee: ${meltQuote.fee_reserve})`
+      );
       return { success: true, fee: meltQuote.fee_reserve };
-
     } catch (error: any) {
       console.error('[WalletCore] Payment failed:', error);
       return { success: false, error: error.message || 'Payment failed' };
@@ -607,19 +728,26 @@ export class WalletCore {
   /**
    * Save transaction to history
    */
-  private async saveTransaction(transaction: Omit<Transaction, 'id'>): Promise<void> {
+  private async saveTransaction(
+    transaction: Omit<Transaction, 'id'>
+  ): Promise<void> {
     try {
-      const historyStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.TX_HISTORY));
+      const historyStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.TX_HISTORY)
+      );
       const history: Transaction[] = historyStr ? JSON.parse(historyStr) : [];
 
       const newTransaction: Transaction = {
         id: Date.now().toString() + Math.random().toString(36).substring(7),
-        ...transaction
+        ...transaction,
       };
 
       history.unshift(newTransaction);
 
-      await AsyncStorage.setItem(this.getStorageKey(STORAGE_KEYS.TX_HISTORY), JSON.stringify(history.slice(0, 100)));
+      await AsyncStorage.setItem(
+        this.getStorageKey(STORAGE_KEYS.TX_HISTORY),
+        JSON.stringify(history.slice(0, 100))
+      );
     } catch (error) {
       console.error('[WalletCore] Failed to save transaction:', error);
     }
@@ -630,7 +758,9 @@ export class WalletCore {
    */
   async getTransactionHistory(limit: number = 50): Promise<Transaction[]> {
     try {
-      const historyStr = await AsyncStorage.getItem(this.getStorageKey(STORAGE_KEYS.TX_HISTORY));
+      const historyStr = await AsyncStorage.getItem(
+        this.getStorageKey(STORAGE_KEYS.TX_HISTORY)
+      );
       const history: Transaction[] = historyStr ? JSON.parse(historyStr) : [];
       return history.slice(0, limit);
     } catch (error) {
@@ -680,26 +810,38 @@ export class WalletCore {
   async createRunstrWallet(): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.userPubkey) {
-        return { success: false, error: 'No user pubkey - cannot create wallet' };
+        return {
+          success: false,
+          error: 'No user pubkey - cannot create wallet',
+        };
       }
 
       console.log('[WalletCore] ========================================');
       console.log('[WalletCore] Creating RUNSTR wallet...');
-      console.log('[WalletCore] User pubkey:', this.userPubkey.slice(0, 16) + '...');
+      console.log(
+        '[WalletCore] User pubkey:',
+        this.userPubkey.slice(0, 16) + '...'
+      );
 
       // Import d-tag constant
-      const { RUNSTR_WALLET_DTAG, RUNSTR_WALLET_NAME } = require('./WalletDetectionService');
+      const {
+        RUNSTR_WALLET_DTAG,
+        RUNSTR_WALLET_NAME,
+      } = require('./WalletDetectionService');
 
       // Check if wallet already exists
-      const WalletDetectionService = require('./WalletDetectionService').default;
-      const detection = await WalletDetectionService.findRunstrWallet(this.userPubkey);
+      const WalletDetectionService =
+        require('./WalletDetectionService').default;
+      const detection = await WalletDetectionService.findRunstrWallet(
+        this.userPubkey
+      );
 
       if (detection.found) {
         console.warn('[WalletCore] ⚠️  RUNSTR wallet already exists!');
         console.warn('[WalletCore] Cannot create duplicate wallet');
         return {
           success: false,
-          error: 'RUNSTR wallet already exists for this user'
+          error: 'RUNSTR wallet already exists for this user',
         };
       }
 
@@ -717,21 +859,28 @@ export class WalletCore {
       // Publish kind 37375 wallet info event to Nostr
       const WalletSync = require('./WalletSync').default;
       await WalletSync.initialize(this.userPubkey);
-      await WalletSync.publishWalletInfo(RUNSTR_WALLET_DTAG, RUNSTR_WALLET_NAME, 0, mintUrl);
+      await WalletSync.publishWalletInfo(
+        RUNSTR_WALLET_DTAG,
+        RUNSTR_WALLET_NAME,
+        0,
+        mintUrl
+      );
 
-      console.log('[WalletCore] ✅ RUNSTR wallet created and published to Nostr');
+      console.log(
+        '[WalletCore] ✅ RUNSTR wallet created and published to Nostr'
+      );
       console.log('[WalletCore] d-tag:', RUNSTR_WALLET_DTAG);
       console.log('[WalletCore] Name:', RUNSTR_WALLET_NAME);
       console.log('[WalletCore] Balance: 0 sats (empty)');
       console.log('[WalletCore] ========================================');
 
       return { success: true };
-
     } catch (error) {
       console.error('[WalletCore] Wallet creation failed:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Wallet creation failed'
+        error:
+          error instanceof Error ? error.message : 'Wallet creation failed',
       };
     }
   }

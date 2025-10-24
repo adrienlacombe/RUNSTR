@@ -2,7 +2,7 @@
  * Optimized Nostr Workout Service - 10x Performance Improvements
  * Based on performance testing results:
  * - Timeout racing with Promise.race (5s optimal)
- * - Cache-first loading strategy  
+ * - Cache-first loading strategy
  * - Early termination when sufficient events found
  * - Background sync for cache updates
  */
@@ -60,7 +60,8 @@ export class OptimizedNostrWorkoutService {
 
   static getInstance(): OptimizedNostrWorkoutService {
     if (!OptimizedNostrWorkoutService.instance) {
-      OptimizedNostrWorkoutService.instance = new OptimizedNostrWorkoutService();
+      OptimizedNostrWorkoutService.instance =
+        new OptimizedNostrWorkoutService();
     }
     return OptimizedNostrWorkoutService.instance;
   }
@@ -69,30 +70,38 @@ export class OptimizedNostrWorkoutService {
    * PERFORMANCE OPTIMIZED: Cache-first workout loading
    * Based on test results: Shows cached data instantly, updates in background
    */
-  async getWorkoutsOptimized(query: OptimizedWorkoutQuery): Promise<CachedWorkoutResult> {
+  async getWorkoutsOptimized(
+    query: OptimizedWorkoutQuery
+  ): Promise<CachedWorkoutResult> {
     const startTime = Date.now();
     const cacheKey = query.pubkey;
-    
+
     console.log('⚡ OptimizedNostrWorkoutService: Starting cache-first query');
 
     // OPTIMIZATION 1: Check cache first (instant loading)
     if (query.useCache !== false && !query.forceRefresh) {
-      const cached = await NostrCacheService.getCachedWorkouts<NostrWorkout>(cacheKey);
-      
+      const cached = await NostrCacheService.getCachedWorkouts<NostrWorkout>(
+        cacheKey
+      );
+
       if (cached.length > 0) {
         const cacheAge = Date.now() - (await this.getCacheTimestamp(cacheKey));
-        console.log(`🚀 Cache hit: ${cached.length} workouts in ${Date.now() - startTime}ms`);
-        
+        console.log(
+          `🚀 Cache hit: ${cached.length} workouts in ${
+            Date.now() - startTime
+          }ms`
+        );
+
         // Start background sync if cache is getting old
         if (cacheAge > PERFORMANCE_CONFIG.CACHE_TTL) {
           this.startBackgroundSync(query);
         }
-        
+
         return {
           workouts: cached,
           fromCache: true,
           cacheAge,
-          totalDuration: Date.now() - startTime
+          totalDuration: Date.now() - startTime,
         };
       }
     }
@@ -100,19 +109,21 @@ export class OptimizedNostrWorkoutService {
     // OPTIMIZATION 2: Network query with timeout racing
     console.log('🔍 Cache miss, querying network with optimizations...');
     const workouts = await this.fetchWorkoutsWithOptimizations(query);
-    
+
     // OPTIMIZATION 3: Cache the results
     await NostrCacheService.setCachedWorkouts(cacheKey, workouts);
     await this.setCacheTimestamp(cacheKey);
 
     const totalDuration = Date.now() - startTime;
-    console.log(`✅ Network query completed: ${workouts.length} workouts in ${totalDuration}ms`);
+    console.log(
+      `✅ Network query completed: ${workouts.length} workouts in ${totalDuration}ms`
+    );
 
     return {
       workouts,
       fromCache: false,
       cacheAge: 0,
-      totalDuration
+      totalDuration,
     };
   }
 
@@ -120,12 +131,17 @@ export class OptimizedNostrWorkoutService {
    * OPTIMIZATION: Timeout racing + early termination
    * Based on test results: 5s timeout optimal, early termination at 50 events
    */
-  private async fetchWorkoutsWithOptimizations(query: OptimizedWorkoutQuery): Promise<NostrWorkout[]> {
+  private async fetchWorkoutsWithOptimizations(
+    query: OptimizedWorkoutQuery
+  ): Promise<NostrWorkout[]> {
     const { pubkey, limit = 100, recentFirst = true } = query;
-    
+
     // Check if already syncing this pubkey
     if (this.currentSyncPromises.has(pubkey)) {
-      console.log('🔄 Reusing existing sync promise for', pubkey.slice(0, 16) + '...');
+      console.log(
+        '🔄 Reusing existing sync promise for',
+        pubkey.slice(0, 16) + '...'
+      );
       return this.currentSyncPromises.get(pubkey)!;
     }
 
@@ -144,9 +160,13 @@ export class OptimizedNostrWorkoutService {
   /**
    * Core optimized sync with timeout racing and early termination
    */
-  private async performOptimizedSync(pubkey: string, limit: number, recentFirst: boolean): Promise<NostrWorkout[]> {
+  private async performOptimizedSync(
+    pubkey: string,
+    limit: number,
+    recentFirst: boolean
+  ): Promise<NostrWorkout[]> {
     const connectedRelays = nostrRelayManager.getConnectedRelays();
-    
+
     if (connectedRelays.length === 0) {
       console.warn('⚠️ No connected relays for optimized sync');
       return [];
@@ -170,7 +190,9 @@ export class OptimizedNostrWorkoutService {
     // OPTIMIZATION: Promise.race with Author+Kind Racing (2s optimal from tests)
     const timeoutPromise = new Promise<Event[]>((resolve) => {
       setTimeout(() => {
-        console.log(`⏱️ Author+Kind Racing timeout reached (${PERFORMANCE_CONFIG.OPTIMAL_TIMEOUT}ms)`);
+        console.log(
+          `⏱️ Author+Kind Racing timeout reached (${PERFORMANCE_CONFIG.OPTIMAL_TIMEOUT}ms)`
+        );
         resolve([]);
       }, PERFORMANCE_CONFIG.OPTIMAL_TIMEOUT);
     });
@@ -184,8 +206,10 @@ export class OptimizedNostrWorkoutService {
 
       // Race Author+Kind query against timeout
       const events = await Promise.race([queryPromise, timeoutPromise]);
-      
-      console.log(`📥 Author+Kind Racing: Received ${events.length} events (all yours!)`);
+
+      console.log(
+        `📥 Author+Kind Racing: Received ${events.length} events (all yours!)`
+      );
 
       // Process all events (no early termination needed with fast author+kind queries)
       for (const event of events) {
@@ -198,7 +222,8 @@ export class OptimizedNostrWorkoutService {
               false
             );
 
-            const validationErrors = NostrWorkoutParser.validateWorkoutData(workout);
+            const validationErrors =
+              NostrWorkoutParser.validateWorkoutData(workout);
             if (validationErrors.length === 0) {
               parsedWorkouts.push(workout);
             }
@@ -215,13 +240,15 @@ export class OptimizedNostrWorkoutService {
 
       // Remove duplicates and sort by time
       const uniqueWorkouts = this.deduplicateWorkouts(parsedWorkouts);
-      uniqueWorkouts.sort((a, b) => 
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      uniqueWorkouts.sort(
+        (a, b) =>
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
       );
 
-      console.log(`✅ Optimized sync completed: ${uniqueWorkouts.length} unique workouts`);
+      console.log(
+        `✅ Optimized sync completed: ${uniqueWorkouts.length} unique workouts`
+      );
       return uniqueWorkouts;
-
     } catch (error) {
       console.error('❌ Optimized sync failed:', error);
       return [];
@@ -236,19 +263,21 @@ export class OptimizedNostrWorkoutService {
     if (this.backgroundSyncTimer) return;
 
     console.log('🔄 Starting background sync for fresh data...');
-    
+
     this.backgroundSyncTimer = setTimeout(async () => {
       try {
         const freshData = await this.fetchWorkoutsWithOptimizations({
           ...query,
-          useCache: false
+          useCache: false,
         });
-        
+
         // Update cache with fresh data
         await NostrCacheService.setCachedWorkouts(query.pubkey, freshData);
         await this.setCacheTimestamp(query.pubkey);
-        
-        console.log(`✅ Background sync completed: ${freshData.length} workouts cached`);
+
+        console.log(
+          `✅ Background sync completed: ${freshData.length} workouts cached`
+        );
       } catch (error) {
         console.error('❌ Background sync failed:', error);
       } finally {
@@ -262,7 +291,7 @@ export class OptimizedNostrWorkoutService {
    */
   private deduplicateWorkouts(workouts: NostrWorkout[]): NostrWorkout[] {
     const seen = new Set<string>();
-    return workouts.filter(workout => {
+    return workouts.filter((workout) => {
       if (seen.has(workout.nostrEventId)) {
         return false;
       }
@@ -276,7 +305,9 @@ export class OptimizedNostrWorkoutService {
    */
   private async getCacheTimestamp(pubkey: string): Promise<number> {
     try {
-      const timestamp = await AsyncStorage.getItem(`${STORAGE_KEYS.LAST_SYNC}_${pubkey}`);
+      const timestamp = await AsyncStorage.getItem(
+        `${STORAGE_KEYS.LAST_SYNC}_${pubkey}`
+      );
       return timestamp ? parseInt(timestamp, 10) : 0;
     } catch {
       return 0;
@@ -285,7 +316,10 @@ export class OptimizedNostrWorkoutService {
 
   private async setCacheTimestamp(pubkey: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(`${STORAGE_KEYS.LAST_SYNC}_${pubkey}`, Date.now().toString());
+      await AsyncStorage.setItem(
+        `${STORAGE_KEYS.LAST_SYNC}_${pubkey}`,
+        Date.now().toString()
+      );
     } catch (error) {
       console.warn('Failed to set cache timestamp:', error);
     }
@@ -296,15 +330,15 @@ export class OptimizedNostrWorkoutService {
    */
   async forceRefresh(pubkey: string): Promise<CachedWorkoutResult> {
     console.log('🔄 Force refresh requested');
-    
+
     // Clear cache first
     await NostrCacheService.forceRefreshWorkouts(pubkey);
-    
+
     // Fetch fresh data
     return this.getWorkoutsOptimized({
       pubkey,
       forceRefresh: true,
-      useCache: false
+      useCache: false,
     });
   }
 

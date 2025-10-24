@@ -32,7 +32,9 @@ export async function publishJoinRequest(
   // Retry loop with exponential backoff
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`📤 Publishing join request for team: ${teamName} (attempt ${attempt}/${maxRetries})`);
+      console.log(
+        `📤 Publishing join request for team: ${teamName} (attempt ${attempt}/${maxRetries})`
+      );
 
       // 1. Prepare the join request event (unsigned)
       const membershipService = TeamMembershipService.getInstance();
@@ -57,7 +59,7 @@ export async function publishJoinRequest(
       const signature = await signingService.signEvent(eventTemplate as any);
       const signedEvent = {
         ...eventTemplate,
-        sig: signature
+        sig: signature,
       };
 
       // 4. Publish to Nostr relays using GlobalNDK (which has signer set)
@@ -69,7 +71,9 @@ export async function publishJoinRequest(
       const publishResult = { successful: ['relay'], failed: [] }; // NDK publish doesn't return detailed results
 
       if (publishResult.successful && publishResult.successful.length > 0) {
-        console.log(`✅ Join request published successfully on attempt ${attempt}: ${signedEvent.id}`);
+        console.log(
+          `✅ Join request published successfully on attempt ${attempt}: ${signedEvent.id}`
+        );
 
         // 5. Update local membership status to "requested"
         await membershipService.updateLocalMembershipStatus(
@@ -81,18 +85,20 @@ export async function publishJoinRequest(
 
         return {
           success: true,
-          eventId: signedEvent.id
+          eventId: signedEvent.id,
         };
       } else {
         lastError = 'Failed to publish to any relay';
-        console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed: ${lastError}`);
+        console.warn(
+          `⚠️ Attempt ${attempt}/${maxRetries} failed: ${lastError}`
+        );
 
         // Don't retry if this was the last attempt
         if (attempt < maxRetries) {
           // Exponential backoff: 1s, 2s, 4s
           const delayMs = Math.pow(2, attempt - 1) * 1000;
           console.log(`⏳ Retrying in ${delayMs}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
       }
     } catch (error) {
@@ -100,9 +106,11 @@ export async function publishJoinRequest(
       console.error(`❌ Attempt ${attempt}/${maxRetries} error:`, lastError);
 
       // Don't retry on authentication errors or user-rejected signing
-      if (lastError.includes('Authentication required') ||
-          lastError.includes('rejected') ||
-          lastError.includes('canceled')) {
+      if (
+        lastError.includes('Authentication required') ||
+        lastError.includes('rejected') ||
+        lastError.includes('canceled')
+      ) {
         return { success: false, error: lastError };
       }
 
@@ -110,7 +118,7 @@ export async function publishJoinRequest(
       if (attempt < maxRetries) {
         const delayMs = Math.pow(2, attempt - 1) * 1000;
         console.log(`⏳ Retrying in ${delayMs}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
@@ -119,6 +127,6 @@ export async function publishJoinRequest(
   console.error(`💥 All ${maxRetries} publish attempts failed`);
   return {
     success: false,
-    error: lastError || 'Failed to publish request after multiple attempts'
+    error: lastError || 'Failed to publish request after multiple attempts',
   };
 }

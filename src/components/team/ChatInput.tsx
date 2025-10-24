@@ -23,7 +23,7 @@ interface ChatInputProps {
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   loading = false,
-  placeholder = 'Type a message...'
+  placeholder = 'Type a message...',
 }) => {
   const [text, setText] = useState('');
   const [inputHeight, setInputHeight] = useState(40);
@@ -48,10 +48,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <View style={styles.container}>
       <TextInput
-        style={[
-          styles.input,
-          { height: Math.min(inputHeight, 100) }
-        ]}
+        style={[styles.input, { height: Math.min(inputHeight, 100) }]}
         value={text}
         onChangeText={setText}
         placeholder={placeholder}
@@ -67,14 +64,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <TouchableOpacity
         style={[
           styles.sendButton,
-          (!text.trim() || loading) && styles.sendButtonDisabled
+          (!text.trim() || loading) && styles.sendButtonDisabled,
         ]}
         onPress={handleSend}
         disabled={!text.trim() || loading}
       >
-        <Text style={styles.sendButtonText}>
-          {loading ? '...' : 'Send'}
-        </Text>
+        <Text style={styles.sendButtonText}>{loading ? '...' : 'Send'}</Text>
       </TouchableOpacity>
     </View>
   );

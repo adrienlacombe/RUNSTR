@@ -28,7 +28,9 @@ const PolicySection: React.FC<PolicySectionProps> = ({ title, content }) => (
   </Card>
 );
 
-export const PrivacyPolicyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const PrivacyPolicyScreen: React.FC<{ navigation: any }> = ({
+  navigation,
+}) => {
   const lastUpdated = 'January 2025';
   const version = '1.0';
 
@@ -116,7 +118,7 @@ export const PrivacyPolicyScreen: React.FC<{ navigation: any }> = ({ navigation 
 • No Analytics: We don't use Google Analytics, Firebase, or similar services.`,
     },
     {
-      title: '7. Children\'s Privacy',
+      title: "7. Children's Privacy",
       content: `RUNSTR is designed for users 13 and older:
 
 • Age Requirement: Users must be 13+ to use RUNSTR per Nostr community standards.
@@ -168,7 +170,10 @@ export const PrivacyPolicyScreen: React.FC<{ navigation: any }> = ({ navigation 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerSpacer} />
@@ -183,24 +188,28 @@ export const PrivacyPolicyScreen: React.FC<{ navigation: any }> = ({ navigation 
             Version {version} • Last Updated: {lastUpdated}
           </Text>
           <Text style={styles.headerCardText}>
-            RUNSTR is committed to protecting your privacy while delivering a decentralized
-            fitness experience. This policy explains how we handle information in a
-            Nostr-native, server-free environment.
+            RUNSTR is committed to protecting your privacy while delivering a
+            decentralized fitness experience. This policy explains how we handle
+            information in a Nostr-native, server-free environment.
           </Text>
         </Card>
 
         {/* Policy Sections */}
         {policySections.map((section, index) => (
-          <PolicySection key={index} title={section.title} content={section.content} />
+          <PolicySection
+            key={index}
+            title={section.title}
+            content={section.content}
+          />
         ))}
 
         {/* Footer */}
         <Card style={styles.footerCard}>
           <Text style={styles.footerTitle}>Decentralized by Design</Text>
           <Text style={styles.footerText}>
-            RUNSTR operates without traditional servers, placing you in complete control of
-            your data. Your fitness journey lives on the open Nostr protocol, ensuring true
-            data ownership and portability.
+            RUNSTR operates without traditional servers, placing you in complete
+            control of your data. Your fitness journey lives on the open Nostr
+            protocol, ensuring true data ownership and portability.
           </Text>
         </Card>
 

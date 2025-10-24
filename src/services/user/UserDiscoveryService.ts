@@ -6,7 +6,10 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { nostrRelayManager } from '../nostr/NostrRelayManager';
-import { nostrProfileService, type NostrProfile } from '../nostr/NostrProfileService';
+import {
+  nostrProfileService,
+  type NostrProfile,
+} from '../nostr/NostrProfileService';
 import { nip19 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 
@@ -64,7 +67,9 @@ export class UserDiscoveryService {
       const stored = await AsyncStorage.getItem(this.STORAGE_KEY_RECENT);
       if (stored) {
         this.recentChallengers = JSON.parse(stored);
-        console.log(`Loaded ${this.recentChallengers.length} recent challengers`);
+        console.log(
+          `Loaded ${this.recentChallengers.length} recent challengers`
+        );
       }
     } catch (error) {
       console.error('Failed to load recent challengers:', error);
@@ -131,7 +136,9 @@ export class UserDiscoveryService {
   /**
    * Check if user is active based on recent activity
    */
-  private async checkUserActivity(pubkey: string): Promise<'active' | 'inactive' | 'new'> {
+  private async checkUserActivity(
+    pubkey: string
+  ): Promise<'active' | 'inactive' | 'new'> {
     try {
       const recentEvents = await nostrRelayManager.queryWorkoutEvents(pubkey, {
         since: Math.floor((Date.now() - this.ACTIVITY_THRESHOLD) / 1000),
@@ -246,7 +253,9 @@ export class UserDiscoveryService {
   /**
    * Search user by npub or hex pubkey
    */
-  private async searchByPubkey(identifier: string): Promise<DiscoveredNostrUser | null> {
+  private async searchByPubkey(
+    identifier: string
+  ): Promise<DiscoveredNostrUser | null> {
     try {
       const pubkey = this.npubToHex(identifier);
       const profile = await nostrProfileService.getProfile(pubkey);
@@ -347,7 +356,10 @@ export class UserDiscoveryService {
     const users: DiscoveredNostrUser[] = [];
     const seenPubkeys = new Set<string>();
 
-    if (query.startsWith('npub1') || (query.length === 64 && /^[a-f0-9]+$/i.test(query))) {
+    if (
+      query.startsWith('npub1') ||
+      (query.length === 64 && /^[a-f0-9]+$/i.test(query))
+    ) {
       const user = await this.searchByPubkey(query);
       if (user) {
         users.push(user);
@@ -365,7 +377,9 @@ export class UserDiscoveryService {
 
     const searchTime = Date.now() - startTime;
 
-    console.log(`Search completed in ${searchTime}ms, found ${users.length} users`);
+    console.log(
+      `Search completed in ${searchTime}ms, found ${users.length} users`
+    );
 
     return {
       users,
@@ -401,7 +415,9 @@ export class UserDiscoveryService {
    */
   async addRecentChallenger(pubkey: string): Promise<void> {
     const npub = this.hexToNpub(pubkey);
-    const existingIndex = this.recentChallengers.findIndex((c) => c.pubkey === pubkey);
+    const existingIndex = this.recentChallengers.findIndex(
+      (c) => c.pubkey === pubkey
+    );
 
     if (existingIndex >= 0) {
       const existing = this.recentChallengers[existingIndex];

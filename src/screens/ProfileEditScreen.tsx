@@ -23,7 +23,10 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { theme } from '../styles/theme';
-import { nostrProfilePublisher, type EditableProfile } from '../services/nostr/NostrProfilePublisher';
+import {
+  nostrProfilePublisher,
+  type EditableProfile,
+} from '../services/nostr/NostrProfilePublisher';
 import { useAuth } from '../contexts/AuthContext';
 import { validateProfile } from '../utils/profileValidation';
 
@@ -103,7 +106,10 @@ export const ProfileEditScreen: React.FC = () => {
 
   const saveDraft = async () => {
     try {
-      await AsyncStorage.setItem('@runstr:profile_draft', JSON.stringify(profile));
+      await AsyncStorage.setItem(
+        '@runstr:profile_draft',
+        JSON.stringify(profile)
+      );
     } catch (error) {
       console.error('Error saving draft:', error);
     }
@@ -128,10 +134,10 @@ export const ProfileEditScreen: React.FC = () => {
   };
 
   const updateField = (field: keyof EditableProfile, value: string) => {
-    setProfile(prev => ({ ...prev, [field]: value }));
+    setProfile((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
     // Clear error for this field
-    setErrors(prev => ({ ...prev, [field]: '' }));
+    setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
   const validateForm = (): boolean => {
@@ -224,23 +230,34 @@ export const ProfileEditScreen: React.FC = () => {
           </TouchableOpacity>
           <View style={styles.headerSpacer} />
           <TouchableOpacity
-            style={[styles.headerButton, !hasChanges && styles.headerButtonDisabled]}
+            style={[
+              styles.headerButton,
+              !hasChanges && styles.headerButtonDisabled,
+            ]}
             onPress={handleSave}
             disabled={!hasChanges || isSaving}
           >
             {isSaving ? (
               <ActivityIndicator size="small" color={theme.colors.accent} />
             ) : (
-              <Text style={[styles.headerButtonText, styles.saveButtonText]}>Save</Text>
+              <Text style={[styles.headerButtonText, styles.saveButtonText]}>
+                Save
+              </Text>
             )}
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Profile Picture Preview */}
           {profile.picture && (
             <View style={styles.imagePreview}>
-              <Image source={{ uri: profile.picture }} style={styles.profileImage} />
+              <Image
+                source={{ uri: profile.picture }}
+                style={styles.profileImage}
+              />
             </View>
           )}
 
@@ -258,7 +275,9 @@ export const ProfileEditScreen: React.FC = () => {
                 maxLength={50}
               />
               {errors.name && <Text style={styles.error}>{errors.name}</Text>}
-              <Text style={styles.charCount}>{profile.name?.length || 0}/50</Text>
+              <Text style={styles.charCount}>
+                {profile.name?.length || 0}/50
+              </Text>
             </View>
 
             {/* Bio */}
@@ -275,7 +294,9 @@ export const ProfileEditScreen: React.FC = () => {
                 maxLength={500}
               />
               {errors.about && <Text style={styles.error}>{errors.about}</Text>}
-              <Text style={styles.charCount}>{profile.about?.length || 0}/500</Text>
+              <Text style={styles.charCount}>
+                {profile.about?.length || 0}/500
+              </Text>
             </View>
 
             {/* Profile Picture URL */}
@@ -290,7 +311,9 @@ export const ProfileEditScreen: React.FC = () => {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              {errors.picture && <Text style={styles.error}>{errors.picture}</Text>}
+              {errors.picture && (
+                <Text style={styles.error}>{errors.picture}</Text>
+              )}
             </View>
 
             {/* Banner URL */}
@@ -305,7 +328,9 @@ export const ProfileEditScreen: React.FC = () => {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              {errors.banner && <Text style={styles.error}>{errors.banner}</Text>}
+              {errors.banner && (
+                <Text style={styles.error}>{errors.banner}</Text>
+              )}
             </View>
 
             {/* Lightning Address */}
@@ -323,10 +348,15 @@ export const ProfileEditScreen: React.FC = () => {
               />
               {errors.lud16 && <Text style={styles.error}>{errors.lud16}</Text>}
               <View style={styles.helperTextContainer}>
-                <Ionicons name="information-circle-outline" size={14} color={theme.colors.textMuted} />
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color={theme.colors.textMuted}
+                />
                 <Text style={styles.helperText}>
-                  Your Lightning address allows others to send you Bitcoin tips (zaps).
-                  This is where you'll receive rewards, challenge winnings, and donations.
+                  Your Lightning address allows others to send you Bitcoin tips
+                  (zaps). This is where you'll receive rewards, challenge
+                  winnings, and donations.
                 </Text>
               </View>
             </View>
@@ -344,7 +374,9 @@ export const ProfileEditScreen: React.FC = () => {
                 autoCorrect={false}
                 keyboardType="url"
               />
-              {errors.website && <Text style={styles.error}>{errors.website}</Text>}
+              {errors.website && (
+                <Text style={styles.error}>{errors.website}</Text>
+              )}
             </View>
           </View>
         </ScrollView>

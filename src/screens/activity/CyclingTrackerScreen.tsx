@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { BaseTrackerComponent } from '../../components/activity/BaseTrackerComponent';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
@@ -14,6 +15,7 @@ import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryMod
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 
 export const CyclingTrackerScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [metrics, setMetrics] = useState({
@@ -38,7 +40,11 @@ export const CyclingTrackerScreen: React.FC = () => {
   const [alertConfig, setAlertConfig] = useState<{
     title: string;
     message: string;
-    buttons: Array<{text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}>;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
   }>({
     title: '',
     message: '',
@@ -47,9 +53,9 @@ export const CyclingTrackerScreen: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const metricsUpdateRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
-  const pauseStartTimeRef = useRef<number>(0);  // When pause started
-  const totalPausedTimeRef = useRef<number>(0);  // Cumulative pause duration in ms
-  const isPausedRef = useRef<boolean>(false);  // Ref to avoid stale closure in timer
+  const pauseStartTimeRef = useRef<number>(0); // When pause started
+  const totalPausedTimeRef = useRef<number>(0); // Cumulative pause duration in ms
+  const isPausedRef = useRef<boolean>(false); // Ref to avoid stale closure in timer
 
   useEffect(() => {
     return () => {
@@ -63,13 +69,16 @@ export const CyclingTrackerScreen: React.FC = () => {
 
     try {
       // Simple permission and start flow
-      const started = await simpleLocationTrackingService.startTracking('cycling');
+      const started = await simpleLocationTrackingService.startTracking(
+        'cycling'
+      );
       if (started) {
         initializeTracking();
       }
     } catch (error) {
       // Get detailed error message from service
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       // Show detailed error with helpful context
       setAlertConfig({
@@ -77,19 +86,26 @@ export const CyclingTrackerScreen: React.FC = () => {
         message: errorMessage,
         buttons: [
           { text: 'OK', style: 'default' },
-          ...(Platform.OS === 'android' ? [{
-            text: 'Settings',
-            style: 'default' as const,
-            onPress: () => {
-              // Open Android app settings
-              const { Linking } = require('react-native');
-              Linking.openSettings();
-            }
-          }] : [])
+          ...(Platform.OS === 'android'
+            ? [
+                {
+                  text: 'Settings',
+                  style: 'default' as const,
+                  onPress: () => {
+                    // Open Android app settings
+                    const { Linking } = require('react-native');
+                    Linking.openSettings();
+                  },
+                },
+              ]
+            : []),
         ],
       });
       setAlertVisible(true);
-      console.error('[CyclingTrackerScreen] Failed to start tracking:', errorMessage);
+      console.error(
+        '[CyclingTrackerScreen] Failed to start tracking:',
+        errorMessage
+      );
     }
   };
 
@@ -104,7 +120,9 @@ export const CyclingTrackerScreen: React.FC = () => {
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
         const now = Date.now();
-        const totalElapsed = Math.floor((now - startTimeRef.current - totalPausedTimeRef.current) / 1000);
+        const totalElapsed = Math.floor(
+          (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
+        );
         setElapsedTime(totalElapsed);
       }
     }, 1000);
@@ -116,14 +134,19 @@ export const CyclingTrackerScreen: React.FC = () => {
     const session = simpleLocationTrackingService.getCurrentSession();
     if (session) {
       // Calculate current speed based on distance and time
-      let speed = activityMetricsService.calculateSpeed(session.distance, elapsedTime);
+      let speed = activityMetricsService.calculateSpeed(
+        session.distance,
+        elapsedTime
+      );
 
       setCurrentSpeed(speed);
       setMetrics({
         distance: activityMetricsService.formatDistance(session.distance),
         duration: activityMetricsService.formatDuration(elapsedTime),
         speed: activityMetricsService.formatSpeed(speed),
-        elevation: activityMetricsService.formatElevation(session.elevationGain),
+        elevation: activityMetricsService.formatElevation(
+          session.elevationGain
+        ),
       });
     }
   };
@@ -133,14 +156,14 @@ export const CyclingTrackerScreen: React.FC = () => {
       await simpleLocationTrackingService.pauseTracking();
       setIsPaused(true);
       isPausedRef.current = true;
-      pauseStartTimeRef.current = Date.now();  // Store when pause started
+      pauseStartTimeRef.current = Date.now(); // Store when pause started
     }
   };
 
   const resumeTracking = async () => {
     if (isPaused) {
-      const pauseDuration = Date.now() - pauseStartTimeRef.current;  // Calculate how long we were paused
-      totalPausedTimeRef.current += pauseDuration;  // Add to cumulative total
+      const pauseDuration = Date.now() - pauseStartTimeRef.current; // Calculate how long we were paused
+      totalPausedTimeRef.current += pauseDuration; // Add to cumulative total
       await simpleLocationTrackingService.resumeTracking();
       setIsPaused(false);
       isPausedRef.current = false;
@@ -161,7 +184,8 @@ export const CyclingTrackerScreen: React.FC = () => {
     setIsTracking(false);
     setIsPaused(false);
 
-    if (session && session.distance > 50) { // Minimum 50 meters for cycling
+    if (session && session.distance > 50) {
+      // Minimum 50 meters for cycling
       showWorkoutSummary(session);
     } else {
       resetMetrics();
@@ -169,8 +193,15 @@ export const CyclingTrackerScreen: React.FC = () => {
   };
 
   const showWorkoutSummary = async (session: TrackingSession) => {
-    const avgSpeed = activityMetricsService.calculateSpeed(session.distance, elapsedTime);
-    const calories = activityMetricsService.estimateCalories('cycling', session.distance, elapsedTime);
+    const avgSpeed = activityMetricsService.calculateSpeed(
+      session.distance,
+      elapsedTime
+    );
+    const calories = activityMetricsService.estimateCalories(
+      'cycling',
+      session.distance,
+      elapsedTime
+    );
 
     // Save workout to local storage BEFORE showing modal
     try {
@@ -212,7 +243,6 @@ export const CyclingTrackerScreen: React.FC = () => {
     resetMetrics();
   };
 
-
   const resetMetrics = () => {
     setMetrics({
       distance: '0.00 km',
@@ -234,10 +264,26 @@ export const CyclingTrackerScreen: React.FC = () => {
     <>
       <BaseTrackerComponent
         metrics={{
-          primary: { label: 'Distance', value: metrics.distance, icon: 'navigate' },
-          secondary: { label: 'Duration', value: metrics.duration, icon: 'time' },
-          tertiary: { label: 'Speed', value: metrics.speed, icon: 'speedometer' },
-          quaternary: { label: 'Elevation', value: metrics.elevation, icon: 'trending-up' },
+          primary: {
+            label: 'Distance',
+            value: metrics.distance,
+            icon: 'navigate',
+          },
+          secondary: {
+            label: 'Duration',
+            value: metrics.duration,
+            icon: 'time',
+          },
+          tertiary: {
+            label: 'Speed',
+            value: metrics.speed,
+            icon: 'speedometer',
+          },
+          quaternary: {
+            label: 'Elevation',
+            value: metrics.elevation,
+            icon: 'trending-up',
+          },
         }}
         isTracking={isTracking}
         isPaused={isPaused}
@@ -246,6 +292,9 @@ export const CyclingTrackerScreen: React.FC = () => {
         onResume={resumeTracking}
         onStop={stopTracking}
         startButtonText="Start Ride"
+        onRoutesPress={() =>
+          navigation.navigate('SavedRoutes' as any, { activityType: 'cycling' })
+        }
       />
 
       {/* Workout Summary Modal */}

@@ -44,9 +44,7 @@ export const RewardEarnedModal: React.FC<RewardEarnedModalProps> = ({
           </View>
 
           {/* Amount text */}
-          <Text style={styles.amountText}>
-            You earned {amount} sats! ⚡
-          </Text>
+          <Text style={styles.amountText}>You earned {amount} sats! ⚡</Text>
 
           {/* Close button */}
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>

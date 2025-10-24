@@ -17,7 +17,9 @@ export class AmberNDKSigner implements NDKSigner {
   private readonly AMBER_TIMEOUT_MS = 60000; // 60 seconds timeout for Amber operations
 
   constructor() {
-    console.log('[Amber] Initializing NDK Signer for Activity Result communication');
+    console.log(
+      '[Amber] Initializing NDK Signer for Activity Result communication'
+    );
   }
 
   /**
@@ -38,21 +40,30 @@ export class AmberNDKSigner implements NDKSigner {
         IntentLauncher.startActivityAsync(action, options),
         new Promise((_, reject) =>
           setTimeout(
-            () => reject(new Error(`Amber request timed out after ${timeoutMs / 1000} seconds. Please respond in Amber app.`)),
+            () =>
+              reject(
+                new Error(
+                  `Amber request timed out after ${
+                    timeoutMs / 1000
+                  } seconds. Please respond in Amber app.`
+                )
+              ),
             timeoutMs
           )
-        )
+        ),
       ]);
     } catch (error) {
       const errorMessage = String(error);
 
       // Check for "Amber not installed" errors
-      if (errorMessage.includes('No Activity found') ||
-          errorMessage.includes('ActivityNotFoundException') ||
-          errorMessage.includes('No app can perform this action')) {
+      if (
+        errorMessage.includes('No Activity found') ||
+        errorMessage.includes('ActivityNotFoundException') ||
+        errorMessage.includes('No app can perform this action')
+      ) {
         throw new Error(
           'Amber app not found. Please install Amber from Google Play Store:\n' +
-          'https://play.google.com/store/apps/details?id=com.greenart7c3.nostrsigner'
+            'https://play.google.com/store/apps/details?id=com.greenart7c3.nostrsigner'
         );
       }
 
@@ -84,7 +95,8 @@ export class AmberNDKSigner implements NDKSigner {
       await AsyncStorage.setItem('@runstr:amber_pubkey', pubkey);
       return new NDKUser({ pubkey: pubkey });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('Could not open Amber')) {
         throw new Error(errorMessage);
       }
@@ -102,11 +114,12 @@ export class AmberNDKSigner implements NDKSigner {
 
   get pubkey(): string {
     if (!this._pubkey) {
-      throw new Error('Amber signer not initialized. Call blockUntilReady() first');
+      throw new Error(
+        'Amber signer not initialized. Call blockUntilReady() first'
+      );
     }
     return this._pubkey;
   }
-
 
   async requestPublicKey(): Promise<string> {
     if (Platform.OS !== 'android') {
@@ -118,37 +131,40 @@ export class AmberNDKSigner implements NDKSigner {
     try {
       // Prepare permissions for Amber
       const permissions = [
-        { type: 'sign_event', kind: 0 },      // Profile metadata
-        { type: 'sign_event', kind: 1 },      // Text notes
-        { type: 'sign_event', kind: 1301 },   // Workout events
-        { type: 'sign_event', kind: 30000 },  // Team member lists
-        { type: 'sign_event', kind: 30001 },  // Additional lists
-        { type: 'sign_event', kind: 33404 },  // Team events
+        { type: 'sign_event', kind: 0 }, // Profile metadata
+        { type: 'sign_event', kind: 1 }, // Text notes
+        { type: 'sign_event', kind: 1301 }, // Workout events
+        { type: 'sign_event', kind: 30000 }, // Team member lists
+        { type: 'sign_event', kind: 30001 }, // Additional lists
+        { type: 'sign_event', kind: 33404 }, // Team events
         { type: 'nip04_encrypt' },
         { type: 'nip04_decrypt' },
         { type: 'nip44_encrypt' },
-        { type: 'nip44_decrypt' }
+        { type: 'nip44_decrypt' },
       ];
 
       const intentExtras = {
-        'type': 'get_public_key',
-        'permissions': JSON.stringify(permissions)
+        type: 'get_public_key',
+        permissions: JSON.stringify(permissions),
       };
 
       console.log('[Amber DEBUG] Launching Intent with extras:', intentExtras);
 
       // Use IntentLauncher with timeout to prevent indefinite hangs
-      const result = await this.startActivityWithTimeout('android.intent.action.VIEW', {
-        data: 'nostrsigner:',
-        extra: intentExtras
-      });
+      const result = await this.startActivityWithTimeout(
+        'android.intent.action.VIEW',
+        {
+          data: 'nostrsigner:',
+          extra: intentExtras,
+        }
+      );
 
       console.log('[Amber DEBUG] Activity result received:', {
         resultCode: result.resultCode,
         hasData: !!result.data,
         hasExtra: !!result.extra,
         dataType: typeof result.data,
-        extraKeys: result.extra ? Object.keys(result.extra) : []
+        extraKeys: result.extra ? Object.keys(result.extra) : [],
       });
 
       // Check if user approved the request
@@ -156,16 +172,24 @@ export class AmberNDKSigner implements NDKSigner {
         // Extract public key from Activity Result
         // result.data is a STRING (URI), result.extra is an OBJECT with additional data
         const pubkey =
-          result.extra?.result ||      // Most likely location in extras object
-          result.extra?.pubkey ||      // Alternative field name
-          result.data;                 // Fallback: data as plain string
+          result.extra?.result || // Most likely location in extras object
+          result.extra?.pubkey || // Alternative field name
+          result.data; // Fallback: data as plain string
 
-        console.log('[Amber DEBUG] Extracted pubkey from:',
-          result.extra?.result ? 'extra.result' :
-          result.extra?.pubkey ? 'extra.pubkey' :
-          result.data ? 'data string' : 'NONE'
+        console.log(
+          '[Amber DEBUG] Extracted pubkey from:',
+          result.extra?.result
+            ? 'extra.result'
+            : result.extra?.pubkey
+            ? 'extra.pubkey'
+            : result.data
+            ? 'data string'
+            : 'NONE'
         );
-        console.log('[Amber DEBUG] Pubkey value:', pubkey ? pubkey.substring(0, 20) + '...' : 'NONE');
+        console.log(
+          '[Amber DEBUG] Pubkey value:',
+          pubkey ? pubkey.substring(0, 20) + '...' : 'NONE'
+        );
 
         if (pubkey) {
           // Ensure pubkey is properly formatted (decode npub if needed, pad to 64 chars)
@@ -184,7 +208,10 @@ export class AmberNDKSigner implements NDKSigner {
       }
     } catch (error) {
       console.error('[Amber] Failed to get public key:', error);
-      throw new Error('Could not get public key from Amber: ' + (error instanceof Error ? error.message : String(error)));
+      throw new Error(
+        'Could not get public key from Amber: ' +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
@@ -195,7 +222,11 @@ export class AmberNDKSigner implements NDKSigner {
 
     await this.blockUntilReady();
 
-    console.log('[Amber] Signing event kind', event.kind, 'via Activity Result');
+    console.log(
+      '[Amber] Signing event kind',
+      event.kind,
+      'via Activity Result'
+    );
 
     // Prepare unsigned event WITHOUT id/sig fields (Amber calculates per NIP-55)
     // CRITICAL: id and sig fields must be ABSENT, not empty strings
@@ -204,69 +235,80 @@ export class AmberNDKSigner implements NDKSigner {
       created_at: event.created_at || Math.floor(Date.now() / 1000),
       kind: event.kind!,
       tags: event.tags || [],
-      content: event.content || ''
+      content: event.content || '',
       // NO id field - Amber will calculate
       // NO sig field - Amber will sign
     };
 
-    console.log('[Amber DEBUG] Event prepared for signing (NO id/sig fields):', {
-      kind: unsignedEvent.kind,
-      pubkey: unsignedEvent.pubkey.substring(0, 16) + '...',
-      tagsCount: unsignedEvent.tags.length,
-      hasId: 'id' in unsignedEvent,  // Should be false
-      hasSig: 'sig' in unsignedEvent  // Should be false
-    });
+    console.log(
+      '[Amber DEBUG] Event prepared for signing (NO id/sig fields):',
+      {
+        kind: unsignedEvent.kind,
+        pubkey: unsignedEvent.pubkey.substring(0, 16) + '...',
+        tagsCount: unsignedEvent.tags.length,
+        hasId: 'id' in unsignedEvent, // Should be false
+        hasSig: 'sig' in unsignedEvent, // Should be false
+      }
+    );
 
     try {
       // NIP-55 CRITICAL: Event must be RAW JSON in URI, NOT percent-encoded
       // Per NIP-55 spec: Uri.parse("nostrsigner:$eventJson") - raw JSON string
       // Using encodeURIComponent() breaks Amber parsing (turns { into %7B, etc.)
       const eventJson = JSON.stringify(unsignedEvent);
-      const nostrsignerUri = `nostrsigner:${eventJson}`;  // ✅ RAW JSON per NIP-55
+      const nostrsignerUri = `nostrsigner:${eventJson}`; // ✅ RAW JSON per NIP-55
 
       console.log('[Amber DEBUG] Sign event URI (NIP-55 raw JSON format):', {
         type: 'sign_event',
         eventKind: unsignedEvent.kind,
         uriLength: nostrsignerUri.length,
         eventJsonLength: eventJson.length,
-        rawJsonSample: eventJson.substring(0, 100) + '...'
+        rawJsonSample: eventJson.substring(0, 100) + '...',
       });
 
       // Use IntentLauncher with timeout to prevent indefinite hangs
       // Per NIP-55: Event must be in URI, type in extras
-      const result = await this.startActivityWithTimeout('android.intent.action.VIEW', {
-        data: nostrsignerUri,  // Event encoded in URI per NIP-55
-        extra: {
-          'type': 'sign_event',
-          'id': unsignedEvent.created_at.toString(), // Track request/response
-          'current_user': this._pubkey  // CRITICAL: Tell Amber which account to sign with
+      const result = await this.startActivityWithTimeout(
+        'android.intent.action.VIEW',
+        {
+          data: nostrsignerUri, // Event encoded in URI per NIP-55
+          extra: {
+            type: 'sign_event',
+            id: unsignedEvent.created_at.toString(), // Track request/response
+            current_user: this._pubkey, // CRITICAL: Tell Amber which account to sign with
+          },
         }
-      });
+      );
 
       console.log('[Amber DEBUG] Sign result received:', {
         resultCode: result.resultCode,
         resultCodeValue: Object.keys(IntentLauncher.ResultCode).find(
-          key => IntentLauncher.ResultCode[key as keyof typeof IntentLauncher.ResultCode] === result.resultCode
+          (key) =>
+            IntentLauncher.ResultCode[
+              key as keyof typeof IntentLauncher.ResultCode
+            ] === result.resultCode
         ),
         hasData: !!result.data,
         hasExtra: !!result.extra,
-        extraKeys: result.extra ? Object.keys(result.extra) : []
+        extraKeys: result.extra ? Object.keys(result.extra) : [],
       });
 
       if (result.resultCode === IntentLauncher.ResultCode.Success) {
         // Extract signature from Activity Result
         // result.extra contains the object with response data
         const signature =
-          result.extra?.signature ||   // Direct signature field
-          result.extra?.result ||      // Result field
-          result.data;                 // Fallback: data as plain string
+          result.extra?.signature || // Direct signature field
+          result.extra?.result || // Result field
+          result.data; // Fallback: data as plain string
 
         // If result.extra.event exists, try to parse it
         let signedEvent = null;
         if (result.extra?.event) {
           try {
-            signedEvent = typeof result.extra.event === 'string' ?
-              JSON.parse(result.extra.event) : result.extra.event;
+            signedEvent =
+              typeof result.extra.event === 'string'
+                ? JSON.parse(result.extra.event)
+                : result.extra.event;
           } catch (e) {
             console.warn('[Amber] Failed to parse event:', e);
           }
@@ -274,22 +316,34 @@ export class AmberNDKSigner implements NDKSigner {
 
         const sig = signature || signedEvent?.sig;
 
-        console.log('[Amber DEBUG] Extracted signature from:',
-          result.extra?.signature ? 'extra.signature' :
-          result.extra?.result ? 'extra.result' :
-          signedEvent?.sig ? 'extra.event.sig' :
-          result.data ? 'data string' : 'NONE'
+        console.log(
+          '[Amber DEBUG] Extracted signature from:',
+          result.extra?.signature
+            ? 'extra.signature'
+            : result.extra?.result
+            ? 'extra.result'
+            : signedEvent?.sig
+            ? 'extra.event.sig'
+            : result.data
+            ? 'data string'
+            : 'NONE'
         );
-        console.log('[Amber DEBUG] Signature value:', sig ? sig.substring(0, 20) + '...' : 'NONE');
+        console.log(
+          '[Amber DEBUG] Signature value:',
+          sig ? sig.substring(0, 20) + '...' : 'NONE'
+        );
 
         if (sig) {
           // Cache the event ID if Amber returned the full signed event
           if (signedEvent?.id && signedEvent?.sig) {
             this.lastSignedEvent = {
               id: signedEvent.id,
-              sig: signedEvent.sig
+              sig: signedEvent.sig,
             };
-            console.log('[Amber DEBUG] Cached event ID from Amber:', signedEvent.id.substring(0, 16) + '...');
+            console.log(
+              '[Amber DEBUG] Cached event ID from Amber:',
+              signedEvent.id.substring(0, 16) + '...'
+            );
           } else {
             this.lastSignedEvent = null;
           }
@@ -301,17 +355,22 @@ export class AmberNDKSigner implements NDKSigner {
       } else if (result.resultCode === IntentLauncher.ResultCode.Canceled) {
         throw new Error('User canceled signing request in Amber');
       } else {
-        throw new Error(`Amber signing failed with result code: ${result.resultCode}`);
+        throw new Error(
+          `Amber signing failed with result code: ${result.resultCode}`
+        );
       }
     } catch (error) {
       console.error('[Amber] Failed to sign event:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       // Provide helpful error messages
       if (errorMessage.includes('canceled')) {
         throw new Error('User canceled signing request in Amber');
       } else if (errorMessage.includes('No signature')) {
-        throw new Error('Amber did not return a signature. Please check permissions in Amber app.');
+        throw new Error(
+          'Amber did not return a signature. Please check permissions in Amber app.'
+        );
       } else {
         throw new Error('Could not sign event with Amber: ' + errorMessage);
       }
@@ -325,34 +384,42 @@ export class AmberNDKSigner implements NDKSigner {
 
     await this.blockUntilReady();
 
-    const recipientPubkey = typeof recipient === 'string' ? recipient : recipient.pubkey;
+    const recipientPubkey =
+      typeof recipient === 'string' ? recipient : recipient.pubkey;
     console.log('[Amber] Encrypting message via Activity Result');
 
     try {
-      const result = await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: 'nostrsigner:',
-        extra: {
-          'type': 'nip04_encrypt',
-          'pubkey': recipientPubkey,
-          'plaintext': value
+      const result = await IntentLauncher.startActivityAsync(
+        'android.intent.action.VIEW',
+        {
+          data: 'nostrsigner:',
+          extra: {
+            type: 'nip04_encrypt',
+            pubkey: recipientPubkey,
+            plaintext: value,
+          },
         }
-      });
+      );
 
       console.log('[Amber DEBUG] Encrypt result received:', {
         resultCode: result.resultCode,
         hasData: !!result.data,
         hasExtra: !!result.extra,
-        extraKeys: result.extra ? Object.keys(result.extra) : []
+        extraKeys: result.extra ? Object.keys(result.extra) : [],
       });
 
       if (result.resultCode === IntentLauncher.ResultCode.Success) {
         const encrypted =
-          result.extra?.result ||   // Result in extras object
-          result.data;              // Fallback: data as plain string
+          result.extra?.result || // Result in extras object
+          result.data; // Fallback: data as plain string
 
-        console.log('[Amber DEBUG] Encrypted content from:',
-          result.extra?.result ? 'extra.result' :
-          result.data ? 'data string' : 'NONE'
+        console.log(
+          '[Amber DEBUG] Encrypted content from:',
+          result.extra?.result
+            ? 'extra.result'
+            : result.data
+            ? 'data string'
+            : 'NONE'
         );
 
         if (encrypted) {
@@ -365,7 +432,10 @@ export class AmberNDKSigner implements NDKSigner {
       }
     } catch (error) {
       console.error('[Amber] Failed to encrypt:', error);
-      throw new Error('Could not encrypt with Amber: ' + (error instanceof Error ? error.message : String(error)));
+      throw new Error(
+        'Could not encrypt with Amber: ' +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
@@ -380,30 +450,37 @@ export class AmberNDKSigner implements NDKSigner {
     console.log('[Amber] Decrypting message via Activity Result');
 
     try {
-      const result = await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: 'nostrsigner:',
-        extra: {
-          'type': 'nip04_decrypt',
-          'pubkey': senderPubkey,
-          'ciphertext': value
+      const result = await IntentLauncher.startActivityAsync(
+        'android.intent.action.VIEW',
+        {
+          data: 'nostrsigner:',
+          extra: {
+            type: 'nip04_decrypt',
+            pubkey: senderPubkey,
+            ciphertext: value,
+          },
         }
-      });
+      );
 
       console.log('[Amber DEBUG] Decrypt result received:', {
         resultCode: result.resultCode,
         hasData: !!result.data,
         hasExtra: !!result.extra,
-        extraKeys: result.extra ? Object.keys(result.extra) : []
+        extraKeys: result.extra ? Object.keys(result.extra) : [],
       });
 
       if (result.resultCode === IntentLauncher.ResultCode.Success) {
         const decrypted =
-          result.extra?.result ||   // Result in extras object
-          result.data;              // Fallback: data as plain string
+          result.extra?.result || // Result in extras object
+          result.data; // Fallback: data as plain string
 
-        console.log('[Amber DEBUG] Decrypted content from:',
-          result.extra?.result ? 'extra.result' :
-          result.data ? 'data string' : 'NONE'
+        console.log(
+          '[Amber DEBUG] Decrypted content from:',
+          result.extra?.result
+            ? 'extra.result'
+            : result.data
+            ? 'data string'
+            : 'NONE'
         );
 
         if (decrypted) {
@@ -416,7 +493,10 @@ export class AmberNDKSigner implements NDKSigner {
       }
     } catch (error) {
       console.error('[Amber] Failed to decrypt:', error);
-      throw new Error('Could not decrypt with Amber: ' + (error instanceof Error ? error.message : String(error)));
+      throw new Error(
+        'Could not decrypt with Amber: ' +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
@@ -436,7 +516,7 @@ export class AmberNDKSigner implements NDKSigner {
   toPayload(): string {
     return JSON.stringify({
       type: 'amber',
-      pubkey: this._pubkey || null
+      pubkey: this._pubkey || null,
     });
   }
 
@@ -467,7 +547,9 @@ export class AmberNDKSigner implements NDKSigner {
     } else if (hexPubkey.length < 64) {
       // Pad with leading zeros to reach 64 characters
       hexPubkey = hexPubkey.padStart(64, '0');
-      console.log(`[Amber] Padded hex pubkey from ${pubkey.length} to 64 characters`);
+      console.log(
+        `[Amber] Padded hex pubkey from ${pubkey.length} to 64 characters`
+      );
     } else if (hexPubkey.length > 64) {
       console.error('[Amber] Invalid pubkey length:', hexPubkey.length);
       throw new Error(`Invalid pubkey length: ${hexPubkey.length}`);
@@ -475,7 +557,10 @@ export class AmberNDKSigner implements NDKSigner {
 
     // Validate it's valid hex
     if (!/^[0-9a-fA-F]{64}$/.test(hexPubkey)) {
-      console.error('[Amber] Invalid hex format:', hexPubkey.slice(0, 20) + '...');
+      console.error(
+        '[Amber] Invalid hex format:',
+        hexPubkey.slice(0, 20) + '...'
+      );
       throw new Error('Invalid hex pubkey format');
     }
 

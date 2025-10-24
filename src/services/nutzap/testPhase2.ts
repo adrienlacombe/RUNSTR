@@ -74,7 +74,7 @@ async function runPhase2Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 2: Captain Personal Wallet Balance
     log('\nTEST 2: Captain Personal Wallet Balance', 'yellow');
@@ -90,7 +90,7 @@ async function runPhase2Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 3: Team Member Setup
     log('\nTEST 3: Team Member Setup', 'yellow');
@@ -117,10 +117,10 @@ async function runPhase2Tests() {
     log(`  - Member 2: ${member2Pubkey.slice(0, 20)}...`, 'green');
     testsPassed++;
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 4: Send Reward from Captain's Personal Wallet
-    log('\nTEST 4: Send Reward from Captain\'s Personal Wallet', 'yellow');
+    log("\nTEST 4: Send Reward from Captain's Personal Wallet", 'yellow');
 
     const teamId = 'test-team-001';
     const rewardAmount = 100;
@@ -135,7 +135,10 @@ async function runPhase2Tests() {
       'Testing Phase 2 reward distribution'
     );
 
-    if (!rewardResult.success && rewardResult.error?.includes('Insufficient balance')) {
+    if (
+      !rewardResult.success &&
+      rewardResult.error?.includes('Insufficient balance')
+    ) {
       log('✓ Reward validation working correctly', 'green');
       log(`  - Error handled: ${rewardResult.error}`, 'green');
       testsPassed++;
@@ -149,7 +152,7 @@ async function runPhase2Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 5: Batch Rewards
     log('\nTEST 5: Batch Reward Distribution', 'yellow');
@@ -169,12 +172,18 @@ async function runPhase2Tests() {
       },
     ];
 
-    const batchResult = await rewardService.sendBatchRewards(teamId, batchRewards);
+    const batchResult = await rewardService.sendBatchRewards(
+      teamId,
+      batchRewards
+    );
 
     // Should fail due to insufficient balance, but system should handle it
     if (batchResult.failed === 2 && batchResult.successful === 0) {
       log('✓ Batch reward validation working', 'green');
-      log(`  - Failed: ${batchResult.failed} (expected due to no balance)`, 'green');
+      log(
+        `  - Failed: ${batchResult.failed} (expected due to no balance)`,
+        'green'
+      );
       log(`  - Successful: ${batchResult.successful}`, 'green');
       testsPassed++;
     } else if (batchResult.successful > 0) {
@@ -187,7 +196,7 @@ async function runPhase2Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 6: Reward History
     log('\nTEST 6: Reward History Tracking', 'yellow');
@@ -198,7 +207,10 @@ async function runPhase2Tests() {
       log('✓ Reward history retrieved', 'green');
       log(`  - History entries: ${teamHistory.length}`, 'green');
       if (teamHistory.length > 0) {
-        log(`  - Latest: ${teamHistory[0].reason} (${teamHistory[0].amount} sats)`, 'green');
+        log(
+          `  - Latest: ${teamHistory[0].reason} (${teamHistory[0].amount} sats)`,
+          'green'
+        );
       }
       testsPassed++;
     } else {
@@ -206,7 +218,7 @@ async function runPhase2Tests() {
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 7: Reward Templates
     log('\nTEST 7: Reward Templates', 'yellow');
@@ -216,14 +228,20 @@ async function runPhase2Tests() {
     if (Array.isArray(templates) && templates.length > 0) {
       log('✓ Reward templates available', 'green');
       log(`  - Template count: ${templates.length}`, 'green');
-      log(`  - Examples: ${templates.slice(0, 3).map(t => t.name).join(', ')}`, 'green');
+      log(
+        `  - Examples: ${templates
+          .slice(0, 3)
+          .map((t) => t.name)
+          .join(', ')}`,
+        'green'
+      );
       testsPassed++;
     } else {
       log('✗ No reward templates found', 'red');
       testsFailed++;
     }
 
-    await new Promise(resolve => setTimeout(resolve, TEST_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, TEST_DELAY));
 
     // Test 8: Personal Wallet Integration Check
     log('\nTEST 8: Personal Wallet Integration', 'yellow');
@@ -238,7 +256,6 @@ async function runPhase2Tests() {
       log('✗ Team wallet code still present', 'red');
       testsFailed++;
     }
-
   } catch (error) {
     log('\n✗ Test suite error:', 'red');
     console.error(error);
@@ -251,7 +268,10 @@ async function runPhase2Tests() {
   log(`Tests Failed: ${testsFailed}`, testsFailed > 0 ? 'red' : 'green');
 
   if (testsFailed === 0) {
-    log('\n✓ PHASE 2 COMPLETE! Personal wallet integration successful.', 'green');
+    log(
+      '\n✓ PHASE 2 COMPLETE! Personal wallet integration successful.',
+      'green'
+    );
     log('\n🎉 NutZap Implementation Summary:', 'magenta');
     log('- Auto-wallet creation on login ✓', 'green');
     log('- Personal wallets for all users ✓', 'green');

@@ -4,7 +4,10 @@
  * Displays in-app notifications for incoming event join requests
  */
 
-import { EventJoinRequestService, type EventJoinRequest } from '../events/EventJoinRequestService';
+import {
+  EventJoinRequestService,
+  type EventJoinRequest,
+} from '../events/EventJoinRequestService';
 import { nostrProfileService } from '../nostr/NostrProfileService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import { unifiedNotificationStore } from './UnifiedNotificationStore';
@@ -25,7 +28,9 @@ export interface EventJoinNotification {
   read: boolean;
 }
 
-export type EventJoinNotificationCallback = (notification: EventJoinNotification) => void;
+export type EventJoinNotificationCallback = (
+  notification: EventJoinNotification
+) => void;
 
 export class EventJoinNotificationHandler {
   private static instance: EventJoinNotificationHandler;
@@ -41,7 +46,8 @@ export class EventJoinNotificationHandler {
 
   static getInstance(): EventJoinNotificationHandler {
     if (!EventJoinNotificationHandler.instance) {
-      EventJoinNotificationHandler.instance = new EventJoinNotificationHandler();
+      EventJoinNotificationHandler.instance =
+        new EventJoinNotificationHandler();
     }
     return EventJoinNotificationHandler.instance;
   }
@@ -58,7 +64,9 @@ export class EventJoinNotificationHandler {
       }
 
       const requestService = EventJoinRequestService.getInstance();
-      const joinRequests = await requestService.getEventJoinRequests(userIdentifiers.hexPubkey);
+      const joinRequests = await requestService.getEventJoinRequests(
+        userIdentifiers.hexPubkey
+      );
 
       for (const request of joinRequests) {
         const notification = await this.requestToNotification(request);
@@ -67,9 +75,14 @@ export class EventJoinNotificationHandler {
         }
       }
 
-      console.log(`[EventJoinNotifications] Loaded ${this.notifications.size} event join notifications`);
+      console.log(
+        `[EventJoinNotifications] Loaded ${this.notifications.size} event join notifications`
+      );
     } catch (error) {
-      console.error('[EventJoinNotifications] Failed to load notifications:', error);
+      console.error(
+        '[EventJoinNotifications] Failed to load notifications:',
+        error
+      );
     }
   }
 
@@ -97,7 +110,10 @@ export class EventJoinNotificationHandler {
         read: false,
       };
     } catch (error) {
-      console.error('[EventJoinNotifications] Failed to create notification from request:', error);
+      console.error(
+        '[EventJoinNotifications] Failed to create notification from request:',
+        error
+      );
       return null;
     }
   }
@@ -116,7 +132,9 @@ export class EventJoinNotificationHandler {
     try {
       const userIdentifiers = await getUserNostrIdentifiers();
       if (!userIdentifiers?.hexPubkey) {
-        console.warn('[EventJoinNotifications] User not authenticated, cannot start');
+        console.warn(
+          '[EventJoinNotifications] User not authenticated, cannot start'
+        );
         return;
       }
 
@@ -148,9 +166,14 @@ export class EventJoinNotificationHandler {
       );
 
       this.isActive = true;
-      console.log(`[EventJoinNotifications] Monitoring active: ${this.subscriptionId}`);
+      console.log(
+        `[EventJoinNotifications] Monitoring active: ${this.subscriptionId}`
+      );
     } catch (error) {
-      console.error('[EventJoinNotifications] Failed to start monitoring:', error);
+      console.error(
+        '[EventJoinNotifications] Failed to start monitoring:',
+        error
+      );
       throw error;
     }
   }
@@ -166,7 +189,9 @@ export class EventJoinNotificationHandler {
         const requestService = EventJoinRequestService.getInstance();
         // Note: EventJoinRequestService doesn't expose unsubscribe method
         // This is handled by NostrRelayManager cleanup
-        console.log(`[EventJoinNotifications] Stopped subscription: ${this.subscriptionId}`);
+        console.log(
+          `[EventJoinNotifications] Stopped subscription: ${this.subscriptionId}`
+        );
       } catch (error) {
         console.warn('[EventJoinNotifications] Failed to unsubscribe:', error);
       }
@@ -199,7 +224,10 @@ export class EventJoinNotificationHandler {
       try {
         callback(notification);
       } catch (error) {
-        console.error('[EventJoinNotifications] Error in notification callback:', error);
+        console.error(
+          '[EventJoinNotifications] Error in notification callback:',
+          error
+        );
       }
     });
   }
@@ -217,7 +245,8 @@ export class EventJoinNotificationHandler {
    * Get unread notification count
    */
   getUnreadCount(): number {
-    return Array.from(this.notifications.values()).filter((n) => !n.read).length;
+    return Array.from(this.notifications.values()).filter((n) => !n.read)
+      .length;
   }
 
   /**
@@ -265,7 +294,9 @@ export class EventJoinNotificationHandler {
   /**
    * Publish event join notification to unified store
    */
-  private async publishToUnifiedStore(notification: EventJoinNotification): Promise<void> {
+  private async publishToUnifiedStore(
+    notification: EventJoinNotification
+  ): Promise<void> {
     try {
       const metadata: EventJoinNotificationMetadata = {
         requestId: notification.requestId,
@@ -297,9 +328,13 @@ export class EventJoinNotificationHandler {
         }
       );
     } catch (error) {
-      console.error('[EventJoinNotifications] Failed to publish to unified store:', error);
+      console.error(
+        '[EventJoinNotifications] Failed to publish to unified store:',
+        error
+      );
     }
   }
 }
 
-export const eventJoinNotificationHandler = EventJoinNotificationHandler.getInstance();
+export const eventJoinNotificationHandler =
+  EventJoinNotificationHandler.getInstance();

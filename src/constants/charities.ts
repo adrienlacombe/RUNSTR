@@ -19,7 +19,7 @@ export const CHARITIES: Charity[] = [
     displayName: 'OpenSats',
     lightningAddress: 'opensats@vlt.ge',
     description: 'Supporting open source Bitcoin development',
-    website: 'https://opensats.org'
+    website: 'https://opensats.org',
   },
   {
     id: 'hrf',
@@ -27,20 +27,20 @@ export const CHARITIES: Charity[] = [
     displayName: 'The HRF',
     lightningAddress: 'nostr@btcpay.hrf.org',
     description: 'Promoting freedom and human rights worldwide',
-    website: 'https://hrf.org'
-  }
+    website: 'https://hrf.org',
+  },
 ];
 
 // Helper function to get charity by ID
 export const getCharityById = (charityId?: string): Charity | undefined => {
   if (!charityId) return undefined;
-  return CHARITIES.find(charity => charity.id === charityId);
+  return CHARITIES.find((charity) => charity.id === charityId);
 };
 
 // Helper to get charity options for dropdowns
 export const getCharityOptions = () => {
-  return CHARITIES.map(charity => ({
+  return CHARITIES.map((charity) => ({
     label: charity.name,
-    value: charity.id
+    value: charity.id,
   }));
 };

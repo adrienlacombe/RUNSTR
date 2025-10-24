@@ -5,19 +5,22 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons, AntDesign } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { Card } from '../ui/Card';
 import { LoadingOverlay } from '../ui/LoadingStates';
 import { WorkoutAnalyticsService } from '../../services/analytics/workoutAnalyticsService';
-import type { UnifiedWorkout, WorkoutMergeResult } from '../../services/fitness/workoutMergeService';
-import type { PerformanceAnalytics, PersonalRecord, WorkoutStreak, VolumeStats } from '../../services/analytics/workoutAnalyticsService';
+import type {
+  UnifiedWorkout,
+  WorkoutMergeResult,
+} from '../../services/fitness/workoutMergeService';
+import type {
+  PerformanceAnalytics,
+  PersonalRecord,
+  WorkoutStreak,
+  VolumeStats,
+} from '../../services/analytics/workoutAnalyticsService';
 
 interface PerformanceDashboardProps {
   mergeResult: WorkoutMergeResult;
@@ -28,7 +31,7 @@ type ViewMode = 'overview' | 'records' | 'trends';
 
 export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
   mergeResult,
-  isLoading = false
+  isLoading = false,
 }) => {
   const [analytics, setAnalytics] = useState<PerformanceAnalytics | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
@@ -48,10 +51,15 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
 
     setAnalyticsLoading(true);
     try {
-      const result = await WorkoutAnalyticsService.calculateFullAnalytics(mergeResult.allWorkouts);
+      const result = await WorkoutAnalyticsService.calculateFullAnalytics(
+        mergeResult.allWorkouts
+      );
       setAnalytics(result);
     } catch (error) {
-      console.error('PerformanceDashboard: Failed to calculate analytics:', error);
+      console.error(
+        'PerformanceDashboard: Failed to calculate analytics:',
+        error
+      );
       setAnalytics(null);
     } finally {
       setAnalyticsLoading(false);
@@ -65,7 +73,9 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
     const secs = Math.floor(seconds % 60);
 
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}`;
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
@@ -83,8 +93,10 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const diffDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -101,7 +113,7 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
       strength_training: 'fitness-center',
       yoga: 'self-improvement',
       hiking: 'terrain',
-      default: 'fitness-center'
+      default: 'fitness-center',
     };
     return iconMap[type] || iconMap.default;
   };
@@ -113,15 +125,19 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
     return (
       <View style={styles.recordsSection}>
         <Text style={styles.sectionTitle}>🏆 Personal Records</Text>
-        {analytics.personalRecords.slice(0, 4).map((record: PersonalRecord, index: number) => (
-          <View key={index} style={styles.recordItem}>
-            <View style={styles.recordInfo}>
-              <Text style={styles.recordDistance}>{record.distance}</Text>
-              <Text style={styles.recordTime}>{formatTime(record.time)}</Text>
+        {analytics.personalRecords
+          .slice(0, 4)
+          .map((record: PersonalRecord, index: number) => (
+            <View key={index} style={styles.recordItem}>
+              <View style={styles.recordInfo}>
+                <Text style={styles.recordDistance}>{record.distance}</Text>
+                <Text style={styles.recordTime}>{formatTime(record.time)}</Text>
+              </View>
+              <Text style={styles.recordDate}>
+                {formatDate(record.achievedAt)}
+              </Text>
             </View>
-            <Text style={styles.recordDate}>{formatDate(record.achievedAt)}</Text>
-          </View>
-        ))}
+          ))}
       </View>
     );
   };
@@ -160,15 +176,21 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
           </View>
           <View style={styles.volumeItem}>
             <Text style={styles.volumeLabel}>Distance</Text>
-            <Text style={styles.volumeValue}>{formatDistance(stats.totalDistance)}</Text>
+            <Text style={styles.volumeValue}>
+              {formatDistance(stats.totalDistance)}
+            </Text>
           </View>
           <View style={styles.volumeItem}>
             <Text style={styles.volumeLabel}>Duration</Text>
-            <Text style={styles.volumeValue}>{Math.floor(stats.totalDuration / 60)}h</Text>
+            <Text style={styles.volumeValue}>
+              {Math.floor(stats.totalDuration / 60)}h
+            </Text>
           </View>
           <View style={styles.volumeItem}>
             <Text style={styles.volumeLabel}>Calories</Text>
-            <Text style={styles.volumeValue}>{stats.totalCalories?.toLocaleString() || 0}</Text>
+            <Text style={styles.volumeValue}>
+              {stats.totalCalories?.toLocaleString() || 0}
+            </Text>
           </View>
         </View>
       </View>
@@ -184,15 +206,19 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
         <Text style={styles.sectionTitle}>🏃‍♂️ Activity Types</Text>
         {analytics.activityBreakdown.slice(0, 3).map((activity, index) => (
           <View key={index} style={styles.activityItem}>
-            <MaterialIcons 
-              name="fitness-center" 
-              size={16} 
-              color={theme.colors.textSecondary} 
+            <MaterialIcons
+              name="fitness-center"
+              size={16}
+              color={theme.colors.textSecondary}
             />
-            <Text style={styles.activityType}>{activity.type.replace('_', ' ')}</Text>
+            <Text style={styles.activityType}>
+              {activity.type.replace('_', ' ')}
+            </Text>
             <View style={styles.activityStats}>
               <Text style={styles.activityCount}>{activity.count}</Text>
-              <Text style={styles.activityPercent}>({activity.percentage}%)</Text>
+              <Text style={styles.activityPercent}>
+                ({activity.percentage}%)
+              </Text>
             </View>
           </View>
         ))}
@@ -212,9 +238,15 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
     return (
       <Card style={styles.dashboardCard}>
         <View style={styles.emptyState}>
-          <MaterialIcons name="trending-up" size={32} color={theme.colors.textMuted} />
+          <MaterialIcons
+            name="trending-up"
+            size={32}
+            color={theme.colors.textMuted}
+          />
           <Text style={styles.emptyTitle}>No Performance Data</Text>
-          <Text style={styles.emptySubtext}>Complete workouts to see your analytics</Text>
+          <Text style={styles.emptySubtext}>
+            Complete workouts to see your analytics
+          </Text>
         </View>
       </Card>
     );
@@ -227,18 +259,34 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
         <Text style={styles.title}>Performance Dashboard</Text>
         <View style={styles.toggleButtons}>
           <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'overview' && styles.activeToggle]}
+            style={[
+              styles.toggleButton,
+              viewMode === 'overview' && styles.activeToggle,
+            ]}
             onPress={() => setViewMode('overview')}
           >
-            <Text style={[styles.toggleText, viewMode === 'overview' && styles.activeToggleText]}>
+            <Text
+              style={[
+                styles.toggleText,
+                viewMode === 'overview' && styles.activeToggleText,
+              ]}
+            >
               Overview
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'records' && styles.activeToggle]}
+            style={[
+              styles.toggleButton,
+              viewMode === 'records' && styles.activeToggle,
+            ]}
             onPress={() => setViewMode('records')}
           >
-            <Text style={[styles.toggleText, viewMode === 'records' && styles.activeToggleText]}>
+            <Text
+              style={[
+                styles.toggleText,
+                viewMode === 'records' && styles.activeToggleText,
+              ]}
+            >
               Records
             </Text>
           </TouchableOpacity>
@@ -255,15 +303,14 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
       )}
 
       {viewMode === 'records' && (
-        <View style={styles.recordsContent}>
-          {renderPersonalRecords()}
-        </View>
+        <View style={styles.recordsContent}>{renderPersonalRecords()}</View>
       )}
 
       {/* Data source breakdown (always visible) */}
       <View style={styles.sourceBreakdown}>
         <Text style={styles.sourceText}>
-          HealthKit: {mergeResult.healthKitCount} • Nostr: {mergeResult.nostrCount}
+          HealthKit: {mergeResult.healthKitCount} • Nostr:{' '}
+          {mergeResult.nostrCount}
         </Text>
         {mergeResult.duplicateCount > 0 && (
           <Text style={styles.sourceText}>

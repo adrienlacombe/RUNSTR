@@ -110,7 +110,12 @@ export const QRDisplayModal: React.FC<QRDisplayModalProps> = ({
             {renderDetails()}
 
             <View style={styles.qrContainer}>
-              <QRCode value={qrString} size={250} backgroundColor="#fff" color="#000" />
+              <QRCode
+                value={qrString}
+                size={250}
+                backgroundColor="#fff"
+                color="#000"
+              />
             </View>
 
             <Text style={styles.runstrBranding}>RUNSTR</Text>

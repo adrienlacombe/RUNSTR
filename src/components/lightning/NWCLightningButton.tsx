@@ -21,6 +21,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../styles/theme';
 import { useNWCZap } from '../../hooks/useNWCZap';
 import { npubToHex } from '../../utils/ndkConversion';
+import { EnhancedZapModal } from '../nutzap/EnhancedZapModal';
+import { ExternalZapModal } from '../nutzap/ExternalZapModal';
 
 const DEFAULT_ZAP_AMOUNT = 21;
 const LONG_PRESS_DURATION = 400; // ms to trigger long press (reduced from 500ms)
@@ -44,10 +46,14 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
   disabled = false,
   customLabel,
 }) => {
-  const { balance, sendZap, isInitialized, hasWallet, refreshBalance, error } = useNWCZap();
+  const { balance, sendZap, isInitialized, hasWallet, refreshBalance, error } =
+    useNWCZap();
   const [isZapped, setIsZapped] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showExternalModal, setShowExternalModal] = useState(false);
+  const [externalZapAmount, setExternalZapAmount] = useState(0);
+  const [externalZapMemo, setExternalZapMemo] = useState('');
   const [defaultAmount, setDefaultAmount] = useState(DEFAULT_ZAP_AMOUNT);
 
   // Animation for the zap effect
@@ -60,7 +66,10 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
   const recipientHex = React.useMemo(() => {
     const normalized = npubToHex(recipientNpub);
     if (!normalized) {
-      console.warn('[NWCLightningButton] Invalid recipient pubkey:', recipientNpub.slice(0, 20));
+      console.warn(
+        '[NWCLightningButton] Invalid recipient pubkey:',
+        recipientNpub.slice(0, 20)
+      );
       return null;
     }
     return normalized;
@@ -156,29 +165,20 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
       return;
     }
 
-    if (!isInitialized || !hasWallet) {
-      console.log('[NWCLightningButton] Wallet not ready');
-      Alert.alert(
-        'Wallet Not Connected',
-        'Please connect your NWC wallet in settings to send zaps.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    // Start long press timer for custom amount
+    // Always start long press timer - wallet check happens on tap vs hold
     console.log('[NWCLightningButton] Starting long press timer...');
     longPressTimer.current = setTimeout(() => {
-      console.log('[NWCLightningButton] Long press detected, would open modal for custom amount');
-      // For now, we'll just use default amount
-      // In future, you can implement a custom amount modal here
+      console.log('[NWCLightningButton] Long press detected, opening modal');
       setShowModal(true);
       longPressTimer.current = null;
     }, LONG_PRESS_DURATION);
   };
 
   const handlePressOut = async () => {
-    console.log('[NWCLightningButton] Press out - Timer active:', longPressTimer.current !== null);
+    console.log(
+      '[NWCLightningButton] Press out - Timer active:',
+      longPressTimer.current !== null
+    );
 
     if (longPressTimer.current) {
       // Timer still active = quick tap (not long press)
@@ -194,11 +194,21 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
   const performQuickZap = async () => {
     if (isZapping) return;
 
+    // Check if wallet is connected
+    if (!isInitialized || !hasWallet) {
+      Alert.alert(
+        'No Wallet Connected',
+        'Quick zap requires an NWC wallet. Hold the button to pay with an external wallet (Cash App, Strike, etc.)',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // Check balance
     if (balance < defaultAmount) {
       Alert.alert(
         'Insufficient Balance',
-        `You need ${defaultAmount} sats but only have ${balance} sats`,
+        `You need ${defaultAmount} sats but only have ${balance} sats. Hold the button to pay with an external wallet.`,
         [{ text: 'OK' }]
       );
       return;
@@ -233,7 +243,9 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
 
       if (success) {
         // Haptic feedback for success
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
 
         // Refresh balance
         await refreshBalance();
@@ -264,11 +276,42 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       // Show specific error message
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while sending the zap';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'An error occurred while sending the zap';
       Alert.alert('Zap Error', errorMessage);
     } finally {
       setIsZapping(false);
     }
+  };
+
+  const handleModalSuccess = async () => {
+    // Set zapped state for color change
+    setIsZapped(true);
+    await saveZapState();
+    setShowModal(false);
+    onZapSuccess?.();
+  };
+
+  const handleShowExternalWallet = (amount: number, memo: string) => {
+    console.log(
+      '[NWCLightningButton] Showing external wallet modal for',
+      amount,
+      'sats'
+    );
+    setExternalZapAmount(amount);
+    setExternalZapMemo(memo);
+    setShowModal(false);
+    setShowExternalModal(true);
+  };
+
+  const handleExternalZapSuccess = async () => {
+    // Set zapped state for color change
+    setIsZapped(true);
+    await saveZapState();
+    setShowExternalModal(false);
+    onZapSuccess?.();
   };
 
   const handleDefaultAmountChange = async (newDefault: number) => {
@@ -294,71 +337,107 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
   const config = sizeConfig[size] || sizeConfig.medium;
   const isRectangular = size === 'rectangular';
 
-  // Always show button, but disable if not ready
-  const isDisabled = disabled || !isInitialized || !hasWallet;
+  // Button is never truly disabled - always allow interaction
+  // (wallet check happens during quick tap, long press always works)
+  const isButtonDisabled = disabled || isZapping;
 
   return (
-    <View
-      onStartShouldSetResponder={() => true}
-      onResponderGrant={() => {}}
-    >
-      <Animated.View
-        style={[
-          {
-            transform: [{ scale: scaleAnimation }],
-          },
-        ]}
-      >
-        <TouchableOpacity
+    <>
+      <View onStartShouldSetResponder={() => true} onResponderGrant={() => {}}>
+        <Animated.View
           style={[
-            styles.button,
-            isRectangular ? {
-              width: 'width' in config ? config.width : 70,
-              height: config.button,
-              borderRadius: 4,
-              flexDirection: 'row',
-              paddingHorizontal: 8,
-            } : {
-              width: config.button,
-              height: config.button,
-              borderRadius: config.button / 2,
+            {
+              transform: [{ scale: scaleAnimation }],
             },
-            isZapped && styles.buttonZapped,
-            isDisabled && styles.buttonDisabled,
-            style,
           ]}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          disabled={isDisabled || isZapping}
-          activeOpacity={0.7}
         >
-          {isZapping ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          ) : (
-            <View style={[styles.buttonContent, isRectangular && styles.rectangularContent]}>
-              <Animated.View style={!isInitialized && styles.uninitializedIcon}>
-                <Ionicons
-                  name="flash-outline"
-                  size={config.icon}
-                  color={
-                    !isInitialized || !hasWallet
-                      ? theme.colors.textMuted
-                      : isZapped
+          <TouchableOpacity
+            style={[
+              styles.button,
+              isRectangular
+                ? {
+                    width: 'width' in config ? config.width : 70,
+                    height: config.button,
+                    borderRadius: 4,
+                    flexDirection: 'row',
+                    paddingHorizontal: 8,
+                  }
+                : {
+                    width: config.button,
+                    height: config.button,
+                    borderRadius: config.button / 2,
+                  },
+              isZapped && styles.buttonZapped,
+              isButtonDisabled && styles.buttonDisabled,
+              style,
+            ]}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            disabled={isButtonDisabled}
+            activeOpacity={0.7}
+          >
+            {isZapping ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <View
+                style={[
+                  styles.buttonContent,
+                  isRectangular && styles.rectangularContent,
+                ]}
+              >
+                <Animated.View
+                  style={!isInitialized && styles.uninitializedIcon}
+                >
+                  <Ionicons
+                    name="flash-outline"
+                    size={config.icon}
+                    color={
+                      !isInitialized || !hasWallet
+                        ? theme.colors.textMuted
+                        : isZapped
                         ? theme.colors.background
                         : theme.colors.orangeBright
-                  }
-                />
-              </Animated.View>
-              {isRectangular && (
-                <Text style={[styles.zapText, isDisabled && styles.zapTextDisabled]}>
-                  {customLabel || 'Zap'}
-                </Text>
-              )}
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+                    }
+                  />
+                </Animated.View>
+                {isRectangular && (
+                  <Text
+                    style={[
+                      styles.zapText,
+                      isButtonDisabled && styles.zapTextDisabled,
+                    ]}
+                  >
+                    {customLabel || 'Zap'}
+                  </Text>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+
+      <EnhancedZapModal
+        visible={showModal}
+        recipientNpub={recipientHex}
+        recipientName={recipientName}
+        defaultAmount={defaultAmount}
+        balance={balance}
+        onClose={() => setShowModal(false)}
+        onSuccess={handleModalSuccess}
+        onDefaultAmountChange={handleDefaultAmountChange}
+        onShowExternalWallet={handleShowExternalWallet}
+      />
+
+      <ExternalZapModal
+        visible={showExternalModal}
+        recipientNpub={recipientHex}
+        recipientName={recipientName}
+        amount={externalZapAmount}
+        memo={externalZapMemo}
+        onClose={() => setShowExternalModal(false)}
+        onSuccess={handleExternalZapSuccess}
+      />
+    </>
   );
 };
 

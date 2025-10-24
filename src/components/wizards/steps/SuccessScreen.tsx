@@ -125,7 +125,11 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
       {/* Status indicator for in-app challenges */}
       {isInAppChallenge && (
         <View style={styles.statusContainer}>
-          <Ionicons name="time-outline" size={48} color={theme.colors.textSecondary} />
+          <Ionicons
+            name="time-outline"
+            size={48}
+            color={theme.colors.textSecondary}
+          />
           <Text style={styles.statusText}>
             Your opponent will receive a notification
           </Text>
@@ -149,12 +153,19 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
             onPress={handleShare}
             activeOpacity={0.8}
           >
-            <Ionicons name="share-outline" size={20} color={theme.colors.text} />
+            <Ionicons
+              name="share-outline"
+              size={20}
+              color={theme.colors.text}
+            />
             <Text style={styles.shareButtonText}>Share</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.doneButton, qrData && !isInAppChallenge && styles.doneButtonSecondary]}
+          style={[
+            styles.doneButton,
+            qrData && !isInAppChallenge && styles.doneButtonSecondary,
+          ]}
           onPress={onDone}
           activeOpacity={0.8}
         >

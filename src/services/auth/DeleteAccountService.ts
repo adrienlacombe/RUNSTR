@@ -73,7 +73,9 @@ export class DeleteAccountService {
       // Ensure at least one relay is connected
       const connected = await GlobalNDKService.waitForConnection(10000);
       if (!connected) {
-        console.warn('⚠️ DeleteAccountService: Proceeding with partial connectivity');
+        console.warn(
+          '⚠️ DeleteAccountService: Proceeding with partial connectivity'
+        );
       }
 
       console.log('✅ DeleteAccountService: NDK initialized for deletion');
@@ -99,9 +101,9 @@ export class DeleteAccountService {
 
       // Get user's recent events to delete
       const eventKindsToDelete = [
-        0,     // Profile metadata
-        1,     // Text notes (social posts)
-        1301,  // Workout events
+        0, // Profile metadata
+        1, // Text notes (social posts)
+        1301, // Workout events
         30000, // People lists (team memberships)
         30001, // Thing lists
       ];
@@ -132,11 +134,14 @@ export class DeleteAccountService {
         }
 
         deletionPromises.push(
-          deletionEvent.publish().then(() => {
-            console.log(`Deletion request sent for event ${event.id}`);
-          }).catch((error) => {
-            console.error(`Failed to delete event ${event.id}:`, error);
-          })
+          deletionEvent
+            .publish()
+            .then(() => {
+              console.log(`Deletion request sent for event ${event.id}`);
+            })
+            .catch((error) => {
+              console.error(`Failed to delete event ${event.id}:`, error);
+            })
         );
       }
 
@@ -161,16 +166,17 @@ export class DeleteAccountService {
       const allKeys = await AsyncStorage.getAllKeys();
 
       // Filter RUNSTR-related keys
-      const runstrKeys = allKeys.filter(key =>
-        key.includes('@runstr') ||
-        key.includes('workout') ||
-        key.includes('team') ||
-        key.includes('captain') ||
-        key.includes('competition') ||
-        key.includes('notification') ||
-        key.includes('wallet') ||
-        key.includes('nutzap') ||
-        key.includes('cache')
+      const runstrKeys = allKeys.filter(
+        (key) =>
+          key.includes('@runstr') ||
+          key.includes('workout') ||
+          key.includes('team') ||
+          key.includes('captain') ||
+          key.includes('competition') ||
+          key.includes('notification') ||
+          key.includes('wallet') ||
+          key.includes('nutzap') ||
+          key.includes('cache')
       );
 
       console.log(`Found ${runstrKeys.length} keys to delete`);
@@ -240,7 +246,9 @@ export class DeleteAccountService {
 
       // Check cached workouts
       const workoutCache = await AsyncStorage.getItem('user_workouts_merged');
-      const workoutCount = workoutCache ? JSON.parse(workoutCache).allWorkouts?.length || 0 : 0;
+      const workoutCount = workoutCache
+        ? JSON.parse(workoutCache).allWorkouts?.length || 0
+        : 0;
 
       return {
         hasWallet,

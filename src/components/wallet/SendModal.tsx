@@ -32,7 +32,9 @@ interface SendModalProps {
 type SendMethod = 'lightning';
 
 // Helper function to detect payment type
-const detectPaymentType = (input: string): 'invoice' | 'address' | 'unknown' => {
+const detectPaymentType = (
+  input: string
+): 'invoice' | 'address' | 'unknown' => {
   if (input.toLowerCase().startsWith('lnbc')) return 'invoice';
   if (input.includes('@')) return 'address';
   return 'unknown';
@@ -46,7 +48,9 @@ export const SendModal: React.FC<SendModalProps> = ({
   const [sendMethod] = useState<SendMethod>('lightning');
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
-  const [paymentType, setPaymentType] = useState<'invoice' | 'address' | 'unknown'>('unknown');
+  const [paymentType, setPaymentType] = useState<
+    'invoice' | 'address' | 'unknown'
+  >('unknown');
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasNWC, setHasNWC] = useState(false);
@@ -72,7 +76,11 @@ export const SendModal: React.FC<SendModalProps> = ({
   const handleSend = async () => {
     if (sendMethod === 'lightning') {
       // Feature flag guard: Require NWC when Cashu is disabled
-      if (FEATURES.ENABLE_NWC_WALLET && !FEATURES.ENABLE_CASHU_WALLET && !hasNWC) {
+      if (
+        FEATURES.ENABLE_NWC_WALLET &&
+        !FEATURES.ENABLE_CASHU_WALLET &&
+        !hasNWC
+      ) {
         Alert.alert(
           'Wallet Not Connected',
           'Please connect a Lightning wallet in Settings to send payments.',
@@ -84,7 +92,10 @@ export const SendModal: React.FC<SendModalProps> = ({
       const type = detectPaymentType(recipient);
 
       if (type === 'unknown') {
-        Alert.alert('Invalid Input', 'Please enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)');
+        Alert.alert(
+          'Invalid Input',
+          'Please enter a Lightning invoice (lnbc...) or Lightning address (user@domain.com)'
+        );
         return;
       }
 
@@ -92,12 +103,18 @@ export const SendModal: React.FC<SendModalProps> = ({
       if (type === 'address') {
         const sats = parseInt(amount);
         if (isNaN(sats) || sats <= 0) {
-          Alert.alert('Amount Required', 'Please enter an amount for Lightning address payment.');
+          Alert.alert(
+            'Amount Required',
+            'Please enter an amount for Lightning address payment.'
+          );
           return;
         }
 
         if (sats > currentBalance) {
-          Alert.alert('Insufficient Balance', `You only have ${currentBalance} sats available.`);
+          Alert.alert(
+            'Insufficient Balance',
+            `You only have ${currentBalance} sats available.`
+          );
           return;
         }
       }
@@ -110,25 +127,38 @@ export const SendModal: React.FC<SendModalProps> = ({
         // Route to PaymentRouter when NWC is enabled, otherwise use Cashu
         let result;
         if (FEATURES.ENABLE_NWC_WALLET && !FEATURES.ENABLE_CASHU_WALLET) {
-          result = await PaymentRouter.payInvoice(recipient, sats > 0 ? sats : undefined);
+          result = await PaymentRouter.payInvoice(
+            recipient,
+            sats > 0 ? sats : undefined
+          );
         } else {
           // Preserve Cashu logic for when ENABLE_CASHU_WALLET is true
-          result = await nutzapService.payLightningInvoice(recipient, sats > 0 ? sats : undefined);
+          result = await nutzapService.payLightningInvoice(
+            recipient,
+            sats > 0 ? sats : undefined
+          );
         }
 
         if (result.success) {
           Alert.alert(
             'Payment Sent!',
-            `Payment successful${result.fee ? `\nFee: ${result.fee} sats` : ''}`,
+            `Payment successful${
+              result.fee ? `\nFee: ${result.fee} sats` : ''
+            }`,
             [{ text: 'OK', onPress: handleClose }]
           );
         } else {
-          Alert.alert('Payment Failed', result.error || 'Failed to process payment');
+          Alert.alert(
+            'Payment Failed',
+            result.error || 'Failed to process payment'
+          );
         }
-
       } catch (error) {
         console.error('Send error:', error);
-        Alert.alert('Error', 'Failed to complete transaction. Please try again.');
+        Alert.alert(
+          'Error',
+          'Failed to complete transaction. Please try again.'
+        );
       } finally {
         setIsSending(false);
       }
@@ -169,7 +199,10 @@ export const SendModal: React.FC<SendModalProps> = ({
           {paymentType !== 'invoice' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
-                Amount {sendMethod === 'lightning' && paymentType !== 'invoice' ? '(Required for Lightning address)' : ''}
+                Amount{' '}
+                {sendMethod === 'lightning' && paymentType !== 'invoice'
+                  ? '(Required for Lightning address)'
+                  : ''}
               </Text>
               <View style={styles.inputContainer}>
                 <TextInput
@@ -195,7 +228,7 @@ export const SendModal: React.FC<SendModalProps> = ({
                 style={styles.textInput}
                 value={recipient}
                 onChangeText={handleRecipientChange}
-                placeholder='lnbc... or user@domain.com'
+                placeholder="lnbc... or user@domain.com"
                 placeholderTextColor={theme.colors.textMuted}
                 multiline={paymentType === 'invoice'}
                 autoCapitalize="none"
@@ -203,7 +236,8 @@ export const SendModal: React.FC<SendModalProps> = ({
               />
               {recipient && paymentType === 'unknown' && (
                 <Text style={[styles.helperText, { color: '#999999' }]}>
-                  Invalid format. Enter a Lightning invoice (lnbc...) or address (user@domain.com)
+                  Invalid format. Enter a Lightning invoice (lnbc...) or address
+                  (user@domain.com)
                 </Text>
               )}
               {paymentType === 'address' && (
@@ -212,31 +246,45 @@ export const SendModal: React.FC<SendModalProps> = ({
                 </Text>
               )}
               {paymentType === 'invoice' && (
-                <Text style={[styles.helperText, { color: theme.colors.textBright }]}>
+                <Text
+                  style={[
+                    styles.helperText,
+                    { color: theme.colors.textBright },
+                  ]}
+                >
                   Lightning invoice detected. Amount will be taken from invoice.
                 </Text>
               )}
             </View>
           )}
 
-
           {/* Send Button */}
           <TouchableOpacity
             style={[
               styles.primaryButton,
               (isSending ||
-               (!recipient || (paymentType === 'address' && !amount) || (recipient && paymentType === 'unknown'))
-              ) && styles.buttonDisabled,
+                !recipient ||
+                (paymentType === 'address' && !amount) ||
+                (recipient && paymentType === 'unknown')) &&
+                styles.buttonDisabled,
             ]}
             onPress={handleSend}
-            disabled={isSending ||
-                     (!recipient || (paymentType === 'address' && !amount) || (recipient && paymentType === 'unknown'))}
+            disabled={
+              isSending ||
+              !recipient ||
+              (paymentType === 'address' && !amount) ||
+              (recipient && paymentType === 'unknown')
+            }
           >
             {isSending ? (
               <ActivityIndicator color={theme.colors.accentText} />
             ) : (
               <>
-                <Ionicons name="send" size={20} color={theme.colors.accentText} />
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={theme.colors.accentText}
+                />
                 <Text style={styles.primaryButtonText}>Send</Text>
               </>
             )}
@@ -299,7 +347,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
-
   // Inputs
   section: {
     marginBottom: 20,
@@ -347,7 +394,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     minHeight: 50,
   },
-
 
   // Button
   primaryButton: {

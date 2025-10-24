@@ -12,8 +12,17 @@ export type WorkoutType =
   | 'other'
   | 'hiking'
   | 'yoga'
-  | 'strength_training';
-export type WorkoutSource = 'healthkit' | 'googlefit' | 'nostr' | 'manual';
+  | 'strength_training'
+  | 'meditation'
+  | 'diet'
+  | 'fasting';
+export type WorkoutSource =
+  | 'healthkit'
+  | 'googlefit'
+  | 'nostr'
+  | 'manual'
+  | 'gps_tracker'
+  | 'manual_entry';
 export type FitnessProvider = 'healthkit' | 'googlefit' | 'nostr';
 
 export interface Workout {
@@ -215,15 +224,48 @@ export type ChallengeCreationStep =
   | 'review_confirm'
   | 'success';
 
-export type ChallengeCategory = 'cardio' | 'strength' | 'wellness' | 'endurance';
+export type ChallengeCategory =
+  | 'cardio'
+  | 'strength'
+  | 'wellness'
+  | 'endurance';
 
 export interface ChallengeType {
   id: string;
   name: string;
   description: string;
   category: ChallengeCategory;
-  activityType: 'running' | 'walking' | 'cycling' | 'hiking' | 'swimming' | 'rowing' | 'strength' | 'treadmill' | 'meditation' | 'yoga' | 'pushups' | 'pullups' | 'situps' | 'weights' | 'any';
-  metric: 'time' | 'distance' | 'steps' | 'consistency' | 'reps' | 'sets' | 'elevation' | 'laps' | 'poses' | 'sessions' | 'weight' | 'duration' | 'calories' | 'pace';
+  activityType:
+    | 'running'
+    | 'walking'
+    | 'cycling'
+    | 'hiking'
+    | 'swimming'
+    | 'rowing'
+    | 'strength'
+    | 'treadmill'
+    | 'meditation'
+    | 'yoga'
+    | 'pushups'
+    | 'pullups'
+    | 'situps'
+    | 'weights'
+    | 'any';
+  metric:
+    | 'time'
+    | 'distance'
+    | 'steps'
+    | 'consistency'
+    | 'reps'
+    | 'sets'
+    | 'elevation'
+    | 'laps'
+    | 'poses'
+    | 'sessions'
+    | 'weight'
+    | 'duration'
+    | 'calories'
+    | 'pace';
 }
 
 export interface TeammateInfo {

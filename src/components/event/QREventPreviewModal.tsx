@@ -71,7 +71,8 @@ export const QREventPreviewModal: React.FC<QREventPreviewModalProps> = ({
     onClose();
   };
 
-  const activityIcon = ACTIVITY_ICONS[eventData.activity_type.toLowerCase()] || '🏃';
+  const activityIcon =
+    ACTIVITY_ICONS[eventData.activity_type.toLowerCase()] || '🏃';
   const isPaidEvent = eventData.entry_fee > 0;
 
   const eventDate = new Date(eventData.event_date).toLocaleDateString('en-US', {
@@ -162,7 +163,9 @@ export const QREventPreviewModal: React.FC<QREventPreviewModalProps> = ({
           {/* Description */}
           {eventData.description && (
             <View style={styles.descriptionSection}>
-              <Text style={styles.descriptionText}>{eventData.description}</Text>
+              <Text style={styles.descriptionText}>
+                {eventData.description}
+              </Text>
             </View>
           )}
 
@@ -170,7 +173,7 @@ export const QREventPreviewModal: React.FC<QREventPreviewModalProps> = ({
           <View style={styles.infoSection}>
             <Text style={styles.infoText}>
               {isPaidEvent
-                ? 'Payment will be sent to the captain. You\'ll receive confirmation once approved.'
+                ? "Payment will be sent to the captain. You'll receive confirmation once approved."
                 : 'Your join request will be sent to the captain for approval.'}
             </Text>
           </View>
@@ -191,7 +194,10 @@ export const QREventPreviewModal: React.FC<QREventPreviewModalProps> = ({
               disabled={isJoining}
             >
               {isJoining ? (
-                <ActivityIndicator size="small" color={theme.colors.accentText} />
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.accentText}
+                />
               ) : (
                 <Text style={styles.joinButtonText}>
                   {isPaidEvent

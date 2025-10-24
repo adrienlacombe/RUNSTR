@@ -21,7 +21,10 @@ import { SimpleLeagueDisplay } from '../components/team/SimpleLeagueDisplay';
 import type { RootStackParamList } from '../types';
 
 type LeagueDetailRouteProp = RouteProp<RootStackParamList, 'LeagueDetail'>;
-type LeagueDetailNavigationProp = StackNavigationProp<RootStackParamList, 'LeagueDetail'>;
+type LeagueDetailNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'LeagueDetail'
+>;
 
 interface LeagueDetailScreenProps {
   route: LeagueDetailRouteProp;
@@ -54,7 +57,9 @@ export const LeagueDetailScreen: React.FC<LeagueDetailScreenProps> = ({
       let league = passedLeagueData;
 
       if (!league) {
-        const SimpleCompetitionService = (await import('../services/competition/SimpleCompetitionService')).default;
+        const SimpleCompetitionService = (
+          await import('../services/competition/SimpleCompetitionService')
+        ).default;
         league = await SimpleCompetitionService.getLeagueById(leagueId);
       }
 
@@ -66,7 +71,9 @@ export const LeagueDetailScreen: React.FC<LeagueDetailScreenProps> = ({
       setLeagueData(league);
 
       // Get team members
-      const TeamMemberCache = (await import('../services/team/TeamMemberCache')).TeamMemberCache.getInstance();
+      const TeamMemberCache = (
+        await import('../services/team/TeamMemberCache')
+      ).TeamMemberCache.getInstance();
       const members = await TeamMemberCache.getTeamMembers(
         league.teamId,
         league.captainPubkey
@@ -75,15 +82,17 @@ export const LeagueDetailScreen: React.FC<LeagueDetailScreenProps> = ({
       console.log(`Found ${members.length} team members`);
 
       // Calculate leaderboard
-      const SimpleLeaderboardService = (await import('../services/competition/SimpleLeaderboardService')).default;
-      const rankings = await SimpleLeaderboardService.calculateLeagueLeaderboard(
-        league,
-        members
-      );
+      const SimpleLeaderboardService = (
+        await import('../services/competition/SimpleLeaderboardService')
+      ).default;
+      const rankings =
+        await SimpleLeaderboardService.calculateLeagueLeaderboard(
+          league,
+          members
+        );
 
       setLeaderboard(rankings);
       console.log(`✅ Leaderboard calculated: ${rankings.length} entries`);
-
     } catch (err) {
       console.error('❌ Failed to load league:', err);
       setError(err instanceof Error ? err.message : 'Failed to load league');
@@ -169,12 +178,14 @@ export const LeagueDetailScreen: React.FC<LeagueDetailScreenProps> = ({
 
           {/* Status Badge */}
           <View style={styles.statusBadgeContainer}>
-            <View style={[
-              styles.statusBadge,
-              status === 'active' && styles.statusBadgeActive,
-              status === 'past' && styles.statusBadgePast,
-              status === 'upcoming' && styles.statusBadgeUpcoming,
-            ]}>
+            <View
+              style={[
+                styles.statusBadge,
+                status === 'active' && styles.statusBadgeActive,
+                status === 'past' && styles.statusBadgePast,
+                status === 'upcoming' && styles.statusBadgeUpcoming,
+              ]}
+            >
               <Text style={styles.statusBadgeText}>
                 {status === 'active' && '🔴 Active'}
                 {status === 'past' && '✓ Completed'}
@@ -185,12 +196,16 @@ export const LeagueDetailScreen: React.FC<LeagueDetailScreenProps> = ({
 
           <View style={styles.leagueInfoRow}>
             <Text style={styles.leagueLabel}>Start Date</Text>
-            <Text style={styles.leagueValue}>{formatDate(leagueData.startDate)}</Text>
+            <Text style={styles.leagueValue}>
+              {formatDate(leagueData.startDate)}
+            </Text>
           </View>
 
           <View style={styles.leagueInfoRow}>
             <Text style={styles.leagueLabel}>End Date</Text>
-            <Text style={styles.leagueValue}>{formatDate(leagueData.endDate)}</Text>
+            <Text style={styles.leagueValue}>
+              {formatDate(leagueData.endDate)}
+            </Text>
           </View>
 
           {leagueData.description && (

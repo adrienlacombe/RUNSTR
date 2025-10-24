@@ -16,15 +16,20 @@ import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
 import { LoadingOverlay } from '../../ui/LoadingStates';
 import { EnhancedWorkoutCard } from '../shared/EnhancedWorkoutCard';
-import { SocialShareModal } from '../shared/SocialShareModal';
-import { MonthlyWorkoutGroup, groupWorkoutsByMonth } from '../shared/MonthlyWorkoutGroup';
+import { EnhancedSocialShareModal } from '../shared/EnhancedSocialShareModal';
+import {
+  MonthlyWorkoutGroup,
+  groupWorkoutsByMonth,
+} from '../shared/MonthlyWorkoutGroup';
 import { Nuclear1301Service } from '../../../services/fitness/Nuclear1301Service';
 import { WorkoutPublishingService } from '../../../services/nostr/workoutPublishingService';
 import { WorkoutStatusTracker } from '../../../services/fitness/WorkoutStatusTracker';
 import { UnifiedSigningService } from '../../../services/auth/UnifiedSigningService';
+import { nostrProfileService } from '../../../services/nostr/NostrProfileService';
 import type { NDKSigner } from '@nostr-dev-kit/ndk';
 import type { NostrWorkout } from '../../../types/nostrWorkout';
 import type { Workout } from '../../../types/workout';
+import type { NostrProfile } from '../../../services/nostr/NostrProfileService';
 
 interface AllWorkoutsTabProps {
   userId: string;
@@ -43,6 +48,7 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [signer, setSigner] = useState<NDKSigner | null>(null);
+  const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
 
   const nuclear1301Service = Nuclear1301Service.getInstance();
   const publishingService = WorkoutPublishingService.getInstance();
@@ -50,8 +56,21 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
 
   useEffect(() => {
     loadSigner();
+    loadUserProfile();
     loadAllWorkouts();
   }, []);
+
+  const loadUserProfile = async () => {
+    if (!pubkey) return;
+
+    try {
+      const profile = await nostrProfileService.getProfile(pubkey);
+      setUserProfile(profile);
+      console.log('✅ User profile loaded for social cards:', profile?.name);
+    } catch (error) {
+      console.error('Failed to load user profile:', error);
+    }
+  };
 
   const loadSigner = async () => {
     try {
@@ -75,7 +94,9 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
 
       // Use the same approach as PublicWorkoutsTab - direct Nuclear1301Service
       const nostrWorkouts = await nuclear1301Service.getUserWorkouts(pubkey);
-      console.log(`📊 Received ${nostrWorkouts?.length || 0} workouts from Nostr`);
+      console.log(
+        `📊 Received ${nostrWorkouts?.length || 0} workouts from Nostr`
+      );
 
       if (!nostrWorkouts || nostrWorkouts.length === 0) {
         setWorkouts([]);
@@ -88,8 +109,9 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
           const isValid = w.type && w.type !== 'other';
           return isValid;
         })
-        .sort((a: NostrWorkout, b: NostrWorkout) =>
-          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        .sort(
+          (a: NostrWorkout, b: NostrWorkout) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
         );
 
       setWorkouts(validWorkouts);
@@ -156,14 +178,17 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
   // Group workouts by month
   const monthlyGroups = groupWorkoutsByMonth(workouts);
 
-  const renderWorkout = useCallback((workout: Workout) => (
-    <EnhancedWorkoutCard
-      workout={workout}
-      onCompete={handleCompete}
-      onSocialShare={handleSocialShare}
-      hideActions={workout.source?.toLowerCase() === 'nostr'}
-    />
-  ), [signer]);
+  const renderWorkout = useCallback(
+    (workout: Workout) => (
+      <EnhancedWorkoutCard
+        workout={workout}
+        onCompete={handleCompete}
+        onSocialShare={handleSocialShare}
+        hideActions={workout.source?.toLowerCase() === 'nostr'}
+      />
+    ),
+    [signer]
+  );
 
   const renderMonthlyGroup = ({ item }: { item: any }) => (
     <MonthlyWorkoutGroup
@@ -187,8 +212,9 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
         <Card style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No workouts found</Text>
           <Text style={styles.emptyStateText}>
-            Connect your fitness apps or record a workout to get started.
-            Use the sync button above to import from Apple Health, Garmin, or Google Fit.
+            Connect your fitness apps or record a workout to get started. Use
+            the sync button above to import from Apple Health, Garmin, or Google
+            Fit.
           </Text>
         </Card>
       </View>
@@ -211,10 +237,12 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
         }
       />
 
-      <SocialShareModal
+      <EnhancedSocialShareModal
         visible={shareModalVisible}
         workout={selectedWorkout}
         userId={userId}
+        userAvatar={userProfile?.picture}
+        userName={userProfile?.name || userProfile?.display_name}
         onClose={() => {
           setShareModalVisible(false);
           setSelectedWorkout(null);

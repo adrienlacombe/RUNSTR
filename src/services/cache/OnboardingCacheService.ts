@@ -46,7 +46,9 @@ class OnboardingCacheService {
    */
   async startBackgroundCaching(): Promise<void> {
     if (this.cacheStatus.isLoading) {
-      console.log('[OnboardingCache] Already caching, skipping duplicate request');
+      console.log(
+        '[OnboardingCache] Already caching, skipping duplicate request'
+      );
       return;
     }
 
@@ -63,10 +65,7 @@ class OnboardingCacheService {
       }
 
       // Run caching tasks in parallel
-      const cachePromises = [
-        this.cacheTeams(),
-        this.cacheCompetitions(),
-      ];
+      const cachePromises = [this.cacheTeams(), this.cacheCompetitions()];
 
       await Promise.allSettled(cachePromises);
 
@@ -76,7 +75,10 @@ class OnboardingCacheService {
         Date.now().toString()
       );
 
-      console.log('[OnboardingCache] Background caching complete:', this.cacheStatus);
+      console.log(
+        '[OnboardingCache] Background caching complete:',
+        this.cacheStatus
+      );
     } catch (error) {
       console.error('[OnboardingCache] Background caching failed:', error);
     } finally {
@@ -98,17 +100,14 @@ class OnboardingCacheService {
       // Discover teams with a reasonable timeout
       const teams = await Promise.race([
         ndkService.discoverAllTeams(),
-        new Promise<any[]>((resolve) =>
-          setTimeout(() => resolve([]), 10000) // 10 second timeout
+        new Promise<any[]>(
+          (resolve) => setTimeout(() => resolve([]), 10000) // 10 second timeout
         ),
       ]);
 
       if (teams && teams.length > 0) {
         // Store teams in cache
-        await AsyncStorage.setItem(
-          CACHE_KEYS.TEAMS,
-          JSON.stringify(teams)
-        );
+        await AsyncStorage.setItem(CACHE_KEYS.TEAMS, JSON.stringify(teams));
 
         this.cacheStatus.teams = true;
         console.log(`[OnboardingCache] Cached ${teams.length} teams`);
@@ -133,7 +132,7 @@ class OnboardingCacheService {
       this.cacheStatus.competitions = true;
 
       // Simulate some processing time
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       console.log('[OnboardingCache] Competition caching complete');
     } catch (error) {
@@ -147,7 +146,9 @@ class OnboardingCacheService {
    */
   private async hasRecentCache(): Promise<boolean> {
     try {
-      const timestampStr = await AsyncStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+      const timestampStr = await AsyncStorage.getItem(
+        CACHE_KEYS.CACHE_TIMESTAMP
+      );
       if (!timestampStr) {
         return false;
       }

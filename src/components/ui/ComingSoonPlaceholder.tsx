@@ -15,7 +15,7 @@ interface ComingSoonPlaceholderProps {
 
 export const ComingSoonPlaceholder: React.FC<ComingSoonPlaceholderProps> = ({
   featureName = 'This Feature',
-  description = 'We\'re working hard to bring this feature to you soon!',
+  description = "We're working hard to bring this feature to you soon!",
   icon,
 }) => {
   return (

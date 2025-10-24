@@ -25,11 +25,9 @@ interface NutzapTransactionHistoryProps {
   maxItems?: number;
 }
 
-export const NutzapTransactionHistory: React.FC<NutzapTransactionHistoryProps> = ({
-  userPubkey,
-  onTransactionPress,
-  maxItems,
-}) => {
+export const NutzapTransactionHistory: React.FC<
+  NutzapTransactionHistoryProps
+> = ({ userPubkey, onTransactionPress, maxItems }) => {
   const [transactions, setTransactions] = useState<NutzapTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -41,7 +39,9 @@ export const NutzapTransactionHistory: React.FC<NutzapTransactionHistoryProps> =
   const loadTransactions = async () => {
     try {
       // Load transactions from local storage
-      const storedTxs = await AsyncStorage.getItem(`@nutzap:transactions:${userPubkey}`);
+      const storedTxs = await AsyncStorage.getItem(
+        `@nutzap:transactions:${userPubkey}`
+      );
       if (storedTxs) {
         const txs = JSON.parse(storedTxs) as NutzapTransaction[];
         // Sort by timestamp, newest first
@@ -81,7 +81,9 @@ export const NutzapTransactionHistory: React.FC<NutzapTransactionHistoryProps> =
   };
 
   const getTransactionColor = (type: 'sent' | 'received'): string => {
-    return type === 'sent' ? theme.colors.textMuted : theme.colors.statusConnected;
+    return type === 'sent'
+      ? theme.colors.textMuted
+      : theme.colors.statusConnected;
   };
 
   const renderTransaction = ({ item }: { item: NutzapTransaction }) => (
@@ -105,19 +107,15 @@ export const NutzapTransactionHistory: React.FC<NutzapTransactionHistoryProps> =
         <Text style={styles.transactionMemo} numberOfLines={1}>
           {item.memo || 'No memo'}
         </Text>
-        <Text style={styles.transactionTime}>
-          {formatTime(item.timestamp)}
-        </Text>
+        <Text style={styles.transactionTime}>{formatTime(item.timestamp)}</Text>
       </View>
 
       <View style={styles.transactionAmount}>
         <Text
-          style={[
-            styles.amountText,
-            { color: getTransactionColor(item.type) }
-          ]}
+          style={[styles.amountText, { color: getTransactionColor(item.type) }]}
         >
-          {item.type === 'sent' ? '-' : '+'}{item.amount}
+          {item.type === 'sent' ? '-' : '+'}
+          {item.amount}
         </Text>
         <Text style={styles.amountUnit}>sats</Text>
       </View>
