@@ -63,6 +63,8 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
 
   // ✅ PERFORMANCE: Debounce timer to prevent rapid navigation fetches
   const debounceTimerRef = useRef<NodeJS.Timeout>();
+  // ✅ FIX: AbortController to properly cancel ongoing fetches
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // ✅ PERFORMANCE: Instant cache-first display with debouncing
   useFocusEffect(
@@ -70,6 +72,12 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
       // ✅ DEBOUNCE: Clear any pending fetch from rapid navigation
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+
+      // ✅ FIX: Abort any ongoing fetch from previous navigation
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
 
       const fetchEvents = async () => {
@@ -113,29 +121,53 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
           setLoadingEvents(true); // Only show spinner on first load when no cache
         }
 
+        // ✅ FIX: Create new AbortController for this fetch
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
         // ✅ NON-BLOCKING: Fetch fresh data in background (UI already responsive)
         console.log(
           '[SimpleTeamScreen] 🔄 Starting background fetch for fresh events...'
         );
-        SimpleCompetitionService.getInstance()
-          .getTeamEvents(team.id)
-          .then((freshEvents) => {
-            console.log(
-              '[SimpleTeamScreen] ✅ Background fetch complete:',
-              freshEvents.length,
-              'events'
-            );
-            setEvents(freshEvents);
-            setLoadingEvents(false);
-          })
-          .catch((error) => {
-            console.error(
-              '[SimpleTeamScreen] ❌ Background fetch error:',
-              error
-            );
-            setLoadingEvents(false);
-            // Keep showing cached data if background fetch fails
-          });
+
+        try {
+          const freshEvents = await SimpleCompetitionService.getInstance()
+            .getTeamEvents(team.id, signal);
+
+          // Check if request was aborted
+          if (signal.aborted) {
+            console.log('[SimpleTeamScreen] ⚠️ Background fetch was aborted - user navigated away');
+            return;
+          }
+
+          console.log(
+            '[SimpleTeamScreen] ✅ Background fetch complete:',
+            freshEvents.length,
+            'events'
+          );
+
+          // Ensure all events have teamId (use team context if missing)
+          const eventsWithTeamId = freshEvents.map(event => ({
+            ...event,
+            teamId: event.teamId || team.id
+          }));
+
+          setEvents(eventsWithTeamId);
+          setLoadingEvents(false);
+        } catch (error: any) {
+          // Ignore abort errors
+          if (error?.name === 'AbortError') {
+            console.log('[SimpleTeamScreen] ℹ️ Background fetch cancelled - user navigated away');
+            return;
+          }
+
+          console.error(
+            '[SimpleTeamScreen] ❌ Background fetch error:',
+            error
+          );
+          setLoadingEvents(false);
+          // Keep showing cached data if background fetch fails
+        }
       };
 
       // ✅ DEBOUNCE: Only fetch if user stays on page for 150ms (prevents rapid back-forward)
@@ -147,6 +179,11 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
       return () => {
         if (debounceTimerRef.current) {
           clearTimeout(debounceTimerRef.current);
+        }
+        // ✅ FIX: Abort any ongoing fetch when navigating away
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
         }
       };
     }, [team?.id, data, team])

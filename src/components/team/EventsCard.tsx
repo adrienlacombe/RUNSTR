@@ -192,27 +192,28 @@ export const EventsCard: React.FC<EventsCardProps> = ({
               key={event.id}
               style={styles.eventItem}
               onPress={() => {
-                // DEFENSIVE CHECK: Ensure event has required data before navigation
-                if (!event?.id || !event?.teamId) {
-                  console.error(
-                    '❌ Cannot navigate to event: missing required data',
-                    {
-                      hasId: !!event?.id,
-                      hasTeamId: !!event?.teamId,
-                      event,
-                    }
-                  );
+                // Check if event has minimum required data
+                if (!event?.id) {
+                  console.error('❌ Cannot navigate: Event missing ID');
                   Alert.alert(
                     'Error',
-                    'Event data incomplete. Please try refreshing the team page.'
+                    'Unable to open event. Please try refreshing the page.'
                   );
                   return;
+                }
+
+                // Log warning if teamId is missing but continue navigation
+                if (!event?.teamId) {
+                  console.warn(
+                    '⚠️ Event missing teamId, navigation may have issues:',
+                    event.id
+                  );
                 }
 
                 console.log(
                   '✅ Navigating to event:',
                   event.id,
-                  'with complete data'
+                  event.teamId ? 'with teamId' : 'WITHOUT teamId (may have issues)'
                 );
                 onEventPress?.(event.id, event);
               }}

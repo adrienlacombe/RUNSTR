@@ -47,10 +47,10 @@ export const CacheTTL = {
 
   /**
    * Competition definitions (kind 30100, 30101)
-   * ✅ OPTIMIZATION: 24h TTL (competitions created infrequently)
-   * Created once, rarely modified
+   * ✅ OPTIMIZATION: 1h TTL for fresher data (events can change frequently)
+   * Balances freshness with performance - users can always pull-to-refresh
    */
-  COMPETITIONS: 24 * HOUR,
+  COMPETITIONS: 1 * HOUR,
 
   /**
    * League definitions (kind 30100)

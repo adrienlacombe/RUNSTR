@@ -32,6 +32,13 @@ import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStora
 import { BACKGROUND_LOCATION_TASK } from '../../services/activity/BackgroundLocationTask';
 import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
 import { appPermissionService } from '../../services/initialization/AppPermissionService';
+import routeMatchingService from '../../services/routes/RouteMatchingService';
+import routeStorageService from '../../services/routes/RouteStorageService';
+import type { RouteMatch, ProgressComparison } from '../../services/routes/RouteMatchingService';
+import { RouteRecognitionBadge } from '../../components/activity/RouteRecognitionBadge';
+import { RoutePRComparison } from '../../components/activity/RoutePRComparison';
+import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
+import type { SavedRoute } from '../../services/routes/RouteStorageService';
 
 // Constants
 const TIMER_INTERVAL_MS = 1000; // Update timer every second
@@ -40,6 +47,7 @@ const MIN_WORKOUT_DISTANCE_METERS = 10; // Minimum distance to show workout summ
 const ZOMBIE_SESSION_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 hours
 const ANDROID_BACKGROUND_WARNING_KEY =
   '@runstr:android_background_warning_shown';
+const ROUTE_CHECK_INTERVAL_MS = 30000; // Check for route match every 30 seconds
 
 interface MetricCardProps {
   label: string;
@@ -87,6 +95,12 @@ export const RunningTrackerScreen: React.FC = () => {
     pace?: number;
     splits?: Split[];
     localWorkoutId?: string; // For marking as synced later
+    gpsCoordinates?: Array<{
+      latitude: number;
+      longitude: number;
+      altitude?: number;
+      timestamp?: number;
+    }>; // For route saving
   } | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
@@ -102,8 +116,16 @@ export const RunningTrackerScreen: React.FC = () => {
     message: '',
     buttons: [],
   });
+
+  // Route matching state
+  const [matchedRoute, setMatchedRoute] = useState<RouteMatch | null>(null);
+  const [prComparison, setPrComparison] = useState<ProgressComparison | null>(null);
+  const [showRouteSelectionModal, setShowRouteSelectionModal] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<SavedRoute | null>(null);
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const metricsUpdateRef = useRef<NodeJS.Timeout | null>(null);
+  const routeCheckRef = useRef<NodeJS.Timeout | null>(null); // For route matching interval
   const startTimeRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<number>(0); // When pause started
   const totalPausedTimeRef = useRef<number>(0); // Cumulative pause duration in ms
@@ -114,6 +136,7 @@ export const RunningTrackerScreen: React.FC = () => {
       // Cleanup timers on unmount
       if (timerRef.current) clearInterval(timerRef.current);
       if (metricsUpdateRef.current) clearInterval(metricsUpdateRef.current);
+      if (routeCheckRef.current) clearInterval(routeCheckRef.current);
     };
   }, []);
 
@@ -185,6 +208,22 @@ export const RunningTrackerScreen: React.FC = () => {
     pauseStartTimeRef.current = 0;
     totalPausedTimeRef.current = 0;
 
+    // Reset route matching state (unless we pre-selected a route)
+    if (!selectedRoute) {
+      setMatchedRoute(null);
+      setPrComparison(null);
+    } else {
+      // If we have a pre-selected route, set it as matched immediately
+      setMatchedRoute({
+        routeId: selectedRoute.id,
+        routeName: selectedRoute.name,
+        confidence: 1.0, // 100% confidence since user selected it
+        matchedPoints: 0,
+        totalPoints: 0,
+        matchPercentage: 0,
+      });
+    }
+
     // Start timer for duration
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
@@ -195,6 +234,11 @@ export const RunningTrackerScreen: React.FC = () => {
         setElapsedTime(totalElapsed);
       }
     }, TIMER_INTERVAL_MS);
+
+    // Start route checking timer
+    routeCheckRef.current = setInterval(checkForRouteMatch, ROUTE_CHECK_INTERVAL_MS);
+    // Check immediately as well
+    setTimeout(checkForRouteMatch, 5000); // Check after 5 seconds to get initial GPS points
 
     // Start metrics update timer (1 second for responsive UI)
     metricsUpdateRef.current = setInterval(() => {
@@ -258,6 +302,52 @@ export const RunningTrackerScreen: React.FC = () => {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const checkForRouteMatch = async () => {
+    const session = simpleLocationTrackingService.getCurrentSession();
+    if (!session || session.positions.length < 10) {
+      return; // Need at least 10 GPS points to attempt matching
+    }
+
+    try {
+      // Convert LocationPoint[] to GPSPoint[] for route matching
+      const gpsPoints = session.positions.map(p => ({
+        latitude: p.latitude,
+        longitude: p.longitude,
+        altitude: p.altitude,
+        timestamp: p.timestamp,
+      }));
+
+      // Check if we're on a saved route
+      const match = await routeMatchingService.findMatchingRoute(
+        gpsPoints,
+        'running'
+      );
+
+      if (match && match.confidence >= 0.7) {
+        setMatchedRoute(match);
+
+        // Check PR comparison if we have a matched route
+        const comparison = await routeMatchingService.compareWithPR(
+          match.routeId,
+          session.distance,
+          elapsedTime
+        );
+
+        if (comparison) {
+          setPrComparison(comparison);
+        }
+      } else {
+        // Lost the route or confidence too low
+        if (matchedRoute) {
+          setMatchedRoute(null);
+          setPrComparison(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for route match:', error);
+    }
+  };
+
   const pauseTracking = async () => {
     if (!isPaused) {
       await simpleLocationTrackingService.pauseTracking();
@@ -287,10 +377,34 @@ export const RunningTrackerScreen: React.FC = () => {
       clearInterval(metricsUpdateRef.current);
       metricsUpdateRef.current = null;
     }
+    if (routeCheckRef.current) {
+      clearInterval(routeCheckRef.current);
+      routeCheckRef.current = null;
+    }
 
     const session = await simpleLocationTrackingService.stopTracking();
     setIsTracking(false);
     setIsPaused(false);
+
+    // If we were on a matched route, update its stats
+    if (matchedRoute && session) {
+      try {
+        const pace = activityMetricsService.calculatePace(
+          session.distance,
+          elapsedTime
+        );
+
+        await routeStorageService.updateRouteStats(matchedRoute.routeId, {
+          workoutId: `workout_${Date.now()}`,
+          workoutTime: elapsedTime,
+          workoutPace: pace,
+        });
+
+        console.log(`✅ Updated route stats for "${matchedRoute.routeName}"`);
+      } catch (error) {
+        console.error('Failed to update route stats:', error);
+      }
+    }
 
     if (session && session.distance > MIN_WORKOUT_DISTANCE_METERS) {
       // Only show summary if moved at least 10 meters
@@ -304,6 +418,9 @@ export const RunningTrackerScreen: React.FC = () => {
         elevation: '0 m',
       });
       setElapsedTime(0);
+      setMatchedRoute(null);
+      setPrComparison(null);
+      setSelectedRoute(null); // Clear selected route
     }
   };
 
@@ -317,6 +434,14 @@ export const RunningTrackerScreen: React.FC = () => {
       session.distance,
       elapsedTime
     );
+
+    // Convert LocationPoint[] to GPSCoordinate[] for route saving
+    const gpsCoordinates = session.positions.map(point => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      altitude: point.altitude,
+      timestamp: point.timestamp,
+    }));
 
     // Save workout to local storage BEFORE showing modal
     // This ensures data persists even if user dismisses modal
@@ -348,6 +473,7 @@ export const RunningTrackerScreen: React.FC = () => {
         pace,
         splits: session.splits,
         localWorkoutId: workoutId, // Pass to modal for sync tracking
+        gpsCoordinates, // Pass GPS data for route saving
       });
       setSummaryModalVisible(true);
     } catch (error) {
@@ -361,6 +487,7 @@ export const RunningTrackerScreen: React.FC = () => {
         elevation: session.elevationGain,
         pace,
         splits: session.splits,
+        gpsCoordinates, // Pass GPS data even if local save failed
       });
       setSummaryModalVisible(true);
     }
@@ -390,6 +517,23 @@ export const RunningTrackerScreen: React.FC = () => {
 
       {/* Battery Warning */}
       {isTracking && <BatteryWarning />}
+
+      {/* Route Recognition Badge */}
+      <RouteRecognitionBadge
+        routeName={matchedRoute?.routeName || ''}
+        confidence={matchedRoute?.confidence || 0}
+        isVisible={isTracking && matchedRoute !== null}
+      />
+
+      {/* PR Comparison */}
+      <RoutePRComparison
+        isAheadOfPR={prComparison?.isAheadOfPR || false}
+        timeDifference={prComparison?.timeDifference || 0}
+        percentComplete={prComparison?.percentComplete || 0}
+        estimatedFinishTime={prComparison?.estimatedFinishTime || 0}
+        prFinishTime={prComparison?.prFinishTime || 0}
+        isVisible={isTracking && prComparison !== null}
+      />
 
       {/* Metrics Display */}
       <View style={styles.metricsContainer}>
@@ -425,18 +569,19 @@ export const RunningTrackerScreen: React.FC = () => {
           <>
             <TouchableOpacity
               style={styles.routesButton}
-              onPress={() =>
-                navigation.navigate('SavedRoutes' as any, {
-                  activityType: 'running',
-                })
-              }
+              onPress={() => setShowRouteSelectionModal(true)}
             >
               <Ionicons
-                name="map-outline"
+                name={selectedRoute ? "map" : "map-outline"}
                 size={20}
-                color={theme.colors.text}
+                color={selectedRoute ? theme.colors.accent : theme.colors.text}
               />
-              <Text style={styles.routesButtonText}>Routes</Text>
+              <Text style={[
+                styles.routesButtonText,
+                selectedRoute && { color: theme.colors.accent }
+              ]}>
+                {selectedRoute ? selectedRoute.name : 'Routes'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.startButton}
@@ -498,6 +643,23 @@ export const RunningTrackerScreen: React.FC = () => {
       <PermissionRequestModal
         visible={showPermissionModal}
         onComplete={handlePermissionsGranted}
+      />
+
+      {/* Route Selection Modal */}
+      <RouteSelectionModal
+        visible={showRouteSelectionModal}
+        activityType="running"
+        onSelectRoute={(route) => {
+          setSelectedRoute(route);
+          setShowRouteSelectionModal(false);
+          console.log(`✅ Selected route: ${route.name}`);
+        }}
+        onTrackFreely={() => {
+          setSelectedRoute(null);
+          setShowRouteSelectionModal(false);
+          console.log('📍 Tracking freely - auto-detection enabled');
+        }}
+        onClose={() => setShowRouteSelectionModal(false)}
       />
     </View>
   );

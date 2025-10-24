@@ -104,6 +104,38 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
     );
   };
 
+  const handleZapLongPress = async () => {
+    // On long press, generate invoice with default amount (2100 sats) for quick payment
+    const defaultAmount = 2100; // Default donation amount in sats (~$2)
+
+    try {
+      console.log('[CharitySection] Long press detected - generating quick donation invoice');
+
+      // Generate Lightning invoice with default amount
+      const result = await CharityZapService.generateCharityInvoice(
+        charity.id,
+        defaultAmount
+      );
+
+      if (!result.success || !result.invoice) {
+        Alert.alert(
+          'Invoice Generation Failed',
+          result.error || 'Unable to generate invoice. Please try again.'
+        );
+        return;
+      }
+
+      // Show payment modal directly without amount prompt
+      setPaymentInvoice(result.invoice);
+      setPaymentAmount(defaultAmount);
+      setCharityName(charity.name);
+      setShowPaymentModal(true);
+    } catch (error) {
+      console.error('[CharitySection] Error generating quick donation invoice:', error);
+      Alert.alert('Error', 'Failed to generate invoice. Please try again.');
+    }
+  };
+
   const handleLearnMore = () => {
     if (charity.website) {
       Linking.openURL(charity.website);
@@ -156,11 +188,13 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
           )}
         </View>
 
-        {/* Zap Button */}
+        {/* Zap Button - Single tap for amount prompt, long press for quick zap */}
         <TouchableOpacity
           onPress={handleZapPress}
+          onLongPress={handleZapLongPress}
           style={styles.zapButton}
           activeOpacity={0.7}
+          delayLongPress={500}  // 500ms long press delay
         >
           <Ionicons name="flash" size={20} color="#000000" />
           <Text style={styles.zapButtonText}>Zap</Text>

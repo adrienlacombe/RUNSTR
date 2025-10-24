@@ -27,6 +27,7 @@ import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService
 import { CustomAlert } from '../ui/CustomAlert';
 import { RewardEarnedModal } from '../rewards/RewardEarnedModal';
 import routeStorageService from '../../services/routes/RouteStorageService';
+import routeMatchingService from '../../services/routes/RouteMatchingService';
 import { nostrProfileService } from '../../services/nostr/NostrProfileService';
 import type { NostrProfile } from '../../services/nostr/NostrProfileService';
 
@@ -77,6 +78,17 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [rewardAmount, setRewardAmount] = useState(0);
 
+  // Route achievement state
+  const [routeAchievements, setRouteAchievements] = useState<{
+    isNewPR: boolean;
+    previousBestTime?: number;
+    timesCompleted?: number;
+    routeName?: string;
+    milestone?: 'first' | 'tenth' | 'hundredth';
+  }>({
+    isNewPR: false,
+  });
+
   const [alertState, setAlertState] = useState<{
     visible: boolean;
     title: string;
@@ -109,6 +121,63 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
       loadProfileAndId();
     }
   }, [visible]);
+
+  // Check for route achievements when modal opens
+  useEffect(() => {
+    const checkRouteAchievements = async () => {
+      // Check if we have a matched route from the tracking session
+      const matchedRoute = routeMatchingService.getMatchedRoute();
+
+      if (matchedRoute && workout.duration) {
+        try {
+          // Calculate pace for the workout
+          const workoutPace = workout.duration / 60 / (workout.distance / 1000);
+
+          // Update route stats with this completion
+          await routeStorageService.updateRouteStats(matchedRoute.id, {
+            workoutId: workout.localWorkoutId || `workout_${Date.now()}`,
+            workoutTime: workout.duration,
+            workoutPace: workoutPace,
+          });
+
+          // Get updated route to check achievements
+          const updatedRoute = await routeStorageService.getRouteById(matchedRoute.id);
+
+          if (updatedRoute) {
+            const achievements: any = {
+              routeName: updatedRoute.name,
+              timesCompleted: updatedRoute.timesUsed,
+            };
+
+            // Check if this is a new PR
+            if (updatedRoute.bestTime && workout.duration < updatedRoute.bestTime) {
+              achievements.isNewPR = true;
+              achievements.previousBestTime = updatedRoute.bestTime;
+            } else if (!updatedRoute.bestTime || updatedRoute.timesUsed === 1) {
+              // First time completing the route
+              achievements.milestone = 'first';
+              achievements.isNewPR = true;
+            }
+
+            // Check for milestones
+            if (updatedRoute.timesUsed === 10) {
+              achievements.milestone = 'tenth';
+            } else if (updatedRoute.timesUsed === 100) {
+              achievements.milestone = 'hundredth';
+            }
+
+            setRouteAchievements(achievements);
+          }
+        } catch (error) {
+          console.error('Failed to check route achievements:', error);
+        }
+      }
+    };
+
+    if (visible && workout) {
+      checkRouteAchievements();
+    }
+  }, [visible, workout]);
 
   // TTS Announcement when modal opens
   useEffect(() => {
@@ -470,6 +539,75 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
             )}
           </View>
 
+          {/* Route Achievements */}
+          {routeAchievements.routeName && (
+            <View style={styles.achievementsSection}>
+              <View style={styles.achievementHeader}>
+                <Ionicons name="map" size={20} color={theme.colors.accent} />
+                <Text style={styles.achievementTitle}>
+                  {routeAchievements.routeName}
+                </Text>
+              </View>
+
+              {routeAchievements.isNewPR && (
+                <View style={styles.achievementBadge}>
+                  <Ionicons name="trophy" size={24} color={theme.colors.orangeBright} />
+                  <View style={styles.achievementText}>
+                    <Text style={styles.achievementLabel}>NEW PERSONAL RECORD!</Text>
+                    {routeAchievements.previousBestTime && (
+                      <Text style={styles.achievementValue}>
+                        Beat previous best by {Math.floor(
+                          (routeAchievements.previousBestTime - workout.duration) / 60
+                        )}:{String(Math.floor(
+                          (routeAchievements.previousBestTime - workout.duration) % 60
+                        )).padStart(2, '0')}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {routeAchievements.milestone === 'first' && (
+                <View style={styles.achievementBadge}>
+                  <Ionicons name="flag" size={24} color={theme.colors.text} />
+                  <View style={styles.achievementText}>
+                    <Text style={styles.achievementLabel}>FIRST COMPLETION!</Text>
+                    <Text style={styles.achievementValue}>
+                      You've established your baseline time
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {routeAchievements.milestone === 'tenth' && (
+                <View style={styles.achievementBadge}>
+                  <Ionicons name="medal" size={24} color={theme.colors.text} />
+                  <View style={styles.achievementText}>
+                    <Text style={styles.achievementLabel}>10TH COMPLETION!</Text>
+                    <Text style={styles.achievementValue}>
+                      Route veteran - keep crushing it!
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {routeAchievements.milestone === 'hundredth' && (
+                <View style={styles.achievementBadge}>
+                  <Ionicons name="ribbon" size={24} color={theme.colors.orangeBright} />
+                  <View style={styles.achievementText}>
+                    <Text style={styles.achievementLabel}>100TH COMPLETION!</Text>
+                    <Text style={styles.achievementValue}>
+                      Route legend status achieved!
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <Text style={styles.achievementStats}>
+                Completed {routeAchievements.timesCompleted} time{routeAchievements.timesCompleted !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
 
           {/* Splits Section */}
           {workout.type === 'running' &&
@@ -886,5 +1024,54 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: 8,
     textAlign: 'center',
+  },
+  achievementsSection: {
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.medium,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+  },
+  achievementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  achievementTitle: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    flex: 1,
+  },
+  achievementBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.small,
+    padding: 12,
+    marginBottom: 8,
+  },
+  achievementText: {
+    flex: 1,
+  },
+  achievementLabel: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  achievementValue: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+  },
+  achievementStats: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
   },
 });

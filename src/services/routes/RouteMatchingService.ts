@@ -30,6 +30,8 @@ export interface ProgressComparison {
 
 export class RouteMatchingService {
   private static instance: RouteMatchingService;
+  private currentMatchedRoute: SavedRoute | null = null; // Currently matched route
+  private activeRoute: SavedRoute | null = null; // Manually selected route
 
   // GPS matching parameters (tunable for accuracy vs performance)
   private readonly MATCH_DISTANCE_THRESHOLD = 50; // meters - points within this distance count as match
@@ -304,6 +306,38 @@ export class RouteMatchingService {
 
     // Calculate required pace for remaining distance (min/km)
     return remainingTime / 60 / (remainingDistance / 1000);
+  }
+
+  /**
+   * Start tracking a specific route
+   */
+  startMatching(route: SavedRoute): void {
+    this.activeRoute = route;
+    this.currentMatchedRoute = route;
+    console.log(`📍 Started route tracking: ${route.name}`);
+  }
+
+  /**
+   * Stop route tracking
+   */
+  stopMatching(): void {
+    this.activeRoute = null;
+    this.currentMatchedRoute = null;
+    console.log('📍 Stopped route tracking');
+  }
+
+  /**
+   * Get the currently matched route
+   */
+  getMatchedRoute(): SavedRoute | null {
+    return this.currentMatchedRoute || this.activeRoute;
+  }
+
+  /**
+   * Set the matched route (for auto-detection)
+   */
+  setMatchedRoute(route: SavedRoute | null): void {
+    this.currentMatchedRoute = route;
   }
 }
 

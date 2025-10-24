@@ -75,11 +75,11 @@ export class SimpleCompetitionService {
         limit: 500, // Fetch many leagues for caching
       };
 
-      // ✅ PERFORMANCE: Reduced timeout from 5s → 3s for faster failures
+      // ✅ PERFORMANCE: Reduced timeout from 3s → 2s for faster failures
       const events = await Promise.race([
         ndk.fetchEvents(filter),
         new Promise<Set<NDKEvent>>(
-          (resolve) => setTimeout(() => resolve(new Set()), 3000) // 3s timeout
+          (resolve) => setTimeout(() => resolve(new Set()), 2000) // 2s timeout
         ),
       ]);
       const leagues: League[] = [];
@@ -128,11 +128,11 @@ export class SimpleCompetitionService {
         limit: 500, // Fetch many events for caching
       };
 
-      // ✅ PERFORMANCE: Reduced timeout from 5s → 3s for faster failures
+      // ✅ PERFORMANCE: Reduced timeout from 3s → 2s for faster failures
       const events = await Promise.race([
         ndk.fetchEvents(filter),
         new Promise<Set<NDKEvent>>(
-          (resolve) => setTimeout(() => resolve(new Set()), 3000) // 3s timeout
+          (resolve) => setTimeout(() => resolve(new Set()), 2000) // 2s timeout
         ),
       ]);
       const competitionEvents: CompetitionEvent[] = [];
@@ -187,11 +187,17 @@ export class SimpleCompetitionService {
 
   /**
    * Get all events for a team (with caching)
+   * @param signal - Optional AbortSignal for cancellation
    */
-  async getTeamEvents(teamId: string): Promise<CompetitionEvent[]> {
+  async getTeamEvents(teamId: string, signal?: AbortSignal): Promise<CompetitionEvent[]> {
     console.log(`📋 Fetching events for team: ${teamId}`);
 
     try {
+      // Check if already aborted
+      if (signal?.aborted) {
+        throw new Error('Request aborted');
+      }
+
       // ✅ Try to get from cache first
       const allEvents = await unifiedCache.get(
         CacheKeys.COMPETITIONS,
@@ -199,14 +205,68 @@ export class SimpleCompetitionService {
         { ttl: CacheTTL.COMPETITIONS, backgroundRefresh: true }
       );
 
-      // Filter for this team
-      const teamEvents = allEvents.filter((event) => event.teamId === teamId);
+      // Check if aborted after cache fetch
+      if (signal?.aborted) {
+        throw new Error('Request aborted');
+      }
+
+      // Filter for this team AND filter out old events
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const ninetyDaysFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+      const teamEvents = allEvents.filter((event) => {
+        // Must be for this team
+        if (event.teamId !== teamId) return false;
+
+        // Parse event date
+        const eventDate = new Date(event.eventDate);
+
+        // Show events from:
+        // - Past 7 days (recently completed)
+        // - Today (active)
+        // - Next 90 days (upcoming)
+        if (eventDate < sevenDaysAgo) {
+          console.log(`⏩ Filtering out old event: ${event.name} (${event.eventDate}) - older than 7 days`);
+          return false;
+        }
+
+        if (eventDate > ninetyDaysFromNow) {
+          console.log(`⏩ Filtering out distant event: ${event.name} (${event.eventDate}) - more than 90 days away`);
+          return false;
+        }
+
+        return true;
+      })
+      // Sort by date - upcoming events first, then recent past events
+      .sort((a, b) => {
+        const dateA = new Date(a.eventDate).getTime();
+        const dateB = new Date(b.eventDate).getTime();
+        const nowTime = now.getTime();
+
+        // Both in future - sort ascending (nearest first)
+        if (dateA >= nowTime && dateB >= nowTime) {
+          return dateA - dateB;
+        }
+
+        // Both in past - sort descending (most recent first)
+        if (dateA < nowTime && dateB < nowTime) {
+          return dateB - dateA;
+        }
+
+        // One future, one past - future comes first
+        return dateA >= nowTime ? -1 : 1;
+      });
+
       console.log(
-        `✅ Found ${teamEvents.length} events for team ${teamId} (${allEvents.length} total cached)`
+        `✅ Found ${teamEvents.length} recent events for team ${teamId} (${allEvents.length} total cached)`
       );
 
       return teamEvents;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === 'Request aborted') {
+        throw new Error('AbortError');
+      }
       console.error('Failed to fetch events:', error);
       return [];
     }
@@ -338,11 +398,16 @@ export class SimpleCompetitionService {
         event.tags.find((t) => t[0] === name)?.[1];
 
       const id = getTag('d');
-      const teamId = getTag('team');
+      const teamId = getTag('team') || getTag('team_id'); // Support both 'team' and 'team_id' tags
 
-      if (!id || !teamId) {
-        console.warn('Event missing required tags:', { id, teamId });
+      if (!id) {
+        console.warn('Event missing required id tag');
         return null;
+      }
+
+      // Log warning but don't reject if teamId is missing
+      if (!teamId) {
+        console.warn(`Event ${id} missing teamId tag - will attempt to infer from context`);
       }
 
       const targetValue = getTag('target_value');

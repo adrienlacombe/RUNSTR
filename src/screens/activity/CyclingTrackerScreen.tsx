@@ -13,6 +13,9 @@ import { activityMetricsService } from '../../services/activity/ActivityMetricsS
 import type { TrackingSession } from '../../services/activity/SimpleLocationTrackingService';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
+import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
+import routeMatchingService from '../../services/routes/RouteMatchingService';
+import type { SavedRoute } from '../../services/routes/RouteStorageService';
 
 export const CyclingTrackerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -26,6 +29,8 @@ export const CyclingTrackerScreen: React.FC = () => {
   });
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [selectedRoute, setSelectedRoute] = useState<SavedRoute | null>(null);
+  const [routeSelectionVisible, setRouteSelectionVisible] = useState(false);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
@@ -35,6 +40,12 @@ export const CyclingTrackerScreen: React.FC = () => {
     elevation?: number;
     speed?: number;
     localWorkoutId?: string; // For marking as synced later
+    gpsCoordinates?: Array<{
+      latitude: number;
+      longitude: number;
+      altitude?: number;
+      timestamp?: number;
+    }>; // For route saving
   } | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
@@ -117,6 +128,12 @@ export const CyclingTrackerScreen: React.FC = () => {
     pauseStartTimeRef.current = 0;
     totalPausedTimeRef.current = 0;
 
+    // Initialize route matching if a route is selected
+    if (selectedRoute) {
+      routeMatchingService.startMatching(selectedRoute);
+      console.log(`[CyclingTrackerScreen] Started route matching for: ${selectedRoute.name}`);
+    }
+
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
         const now = Date.now();
@@ -180,6 +197,11 @@ export const CyclingTrackerScreen: React.FC = () => {
       metricsUpdateRef.current = null;
     }
 
+    // Stop route matching if active
+    if (selectedRoute) {
+      routeMatchingService.stopMatching();
+    }
+
     const session = await simpleLocationTrackingService.stopTracking();
     setIsTracking(false);
     setIsPaused(false);
@@ -203,6 +225,14 @@ export const CyclingTrackerScreen: React.FC = () => {
       elapsedTime
     );
 
+    // Convert LocationPoint[] to GPSCoordinate[] for route saving
+    const gpsCoordinates = session.positions.map(point => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      altitude: point.altitude,
+      timestamp: point.timestamp,
+    }));
+
     // Save workout to local storage BEFORE showing modal
     try {
       const workoutId = await LocalWorkoutStorageService.saveGPSWorkout({
@@ -224,6 +254,7 @@ export const CyclingTrackerScreen: React.FC = () => {
         elevation: session.elevationGain,
         speed: avgSpeed,
         localWorkoutId: workoutId,
+        gpsCoordinates, // Pass GPS data for route saving
       });
       setSummaryModalVisible(true);
     } catch (error) {
@@ -236,6 +267,7 @@ export const CyclingTrackerScreen: React.FC = () => {
         calories,
         elevation: session.elevationGain,
         speed: avgSpeed,
+        gpsCoordinates, // Pass GPS data even if local save failed
       });
       setSummaryModalVisible(true);
     }
@@ -292,9 +324,8 @@ export const CyclingTrackerScreen: React.FC = () => {
         onResume={resumeTracking}
         onStop={stopTracking}
         startButtonText="Start Ride"
-        onRoutesPress={() =>
-          navigation.navigate('SavedRoutes' as any, { activityType: 'cycling' })
-        }
+        onRoutesPress={() => setRouteSelectionVisible(true)}
+        routesButtonText={selectedRoute ? selectedRoute.name : 'Routes'}
       />
 
       {/* Workout Summary Modal */}
@@ -316,6 +347,21 @@ export const CyclingTrackerScreen: React.FC = () => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onClose={() => setAlertVisible(false)}
+      />
+
+      {/* Route Selection Modal */}
+      <RouteSelectionModal
+        visible={routeSelectionVisible}
+        activityType="cycling"
+        onSelectRoute={(route) => {
+          setSelectedRoute(route);
+          setRouteSelectionVisible(false);
+        }}
+        onTrackFreely={() => {
+          setSelectedRoute(null);
+          setRouteSelectionVisible(false);
+        }}
+        onClose={() => setRouteSelectionVisible(false)}
       />
     </>
   );

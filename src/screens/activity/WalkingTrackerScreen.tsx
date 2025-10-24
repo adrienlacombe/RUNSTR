@@ -13,6 +13,9 @@ import { activityMetricsService } from '../../services/activity/ActivityMetricsS
 import type { TrackingSession } from '../../services/activity/SimpleLocationTrackingService';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
+import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
+import routeMatchingService from '../../services/routes/RouteMatchingService';
+import type { SavedRoute } from '../../services/routes/RouteStorageService';
 
 export const WalkingTrackerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -25,6 +28,8 @@ export const WalkingTrackerScreen: React.FC = () => {
     elevation: '0 m',
   });
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [selectedRoute, setSelectedRoute] = useState<SavedRoute | null>(null);
+  const [routeSelectionVisible, setRouteSelectionVisible] = useState(false);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
@@ -34,6 +39,12 @@ export const WalkingTrackerScreen: React.FC = () => {
     elevation?: number;
     steps?: number;
     localWorkoutId?: string; // For marking as synced later
+    gpsCoordinates?: Array<{
+      latitude: number;
+      longitude: number;
+      altitude?: number;
+      timestamp?: number;
+    }>; // For route saving
   } | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
@@ -116,6 +127,12 @@ export const WalkingTrackerScreen: React.FC = () => {
     pauseStartTimeRef.current = 0;
     totalPausedTimeRef.current = 0;
 
+    // Initialize route matching if a route is selected
+    if (selectedRoute) {
+      routeMatchingService.startMatching(selectedRoute);
+      console.log(`[WalkingTrackerScreen] Started route matching for: ${selectedRoute.name}`);
+    }
+
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
         const now = Date.now();
@@ -174,6 +191,11 @@ export const WalkingTrackerScreen: React.FC = () => {
       metricsUpdateRef.current = null;
     }
 
+    // Stop route matching if active
+    if (selectedRoute) {
+      routeMatchingService.stopMatching();
+    }
+
     const session = await simpleLocationTrackingService.stopTracking();
     setIsTracking(false);
     setIsPaused(false);
@@ -192,6 +214,14 @@ export const WalkingTrackerScreen: React.FC = () => {
       session.distance,
       elapsedTime
     );
+
+    // Convert LocationPoint[] to GPSCoordinate[] for route saving
+    const gpsCoordinates = session.positions.map(point => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      altitude: point.altitude,
+      timestamp: point.timestamp,
+    }));
 
     // Save workout to local storage BEFORE showing modal
     try {
@@ -213,6 +243,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         elevation: session.elevationGain,
         steps,
         localWorkoutId: workoutId,
+        gpsCoordinates, // Pass GPS data for route saving
       });
       setSummaryModalVisible(true);
     } catch (error) {
@@ -225,6 +256,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         calories,
         elevation: session.elevationGain,
         steps,
+        gpsCoordinates, // Pass GPS data even if local save failed
       });
       setSummaryModalVisible(true);
     }
@@ -276,9 +308,8 @@ export const WalkingTrackerScreen: React.FC = () => {
         onResume={resumeTracking}
         onStop={stopTracking}
         startButtonText="Start Walk"
-        onRoutesPress={() =>
-          navigation.navigate('SavedRoutes' as any, { activityType: 'walking' })
-        }
+        onRoutesPress={() => setRouteSelectionVisible(true)}
+        routesButtonText={selectedRoute ? selectedRoute.name : 'Routes'}
       />
 
       {/* Workout Summary Modal */}
@@ -300,6 +331,21 @@ export const WalkingTrackerScreen: React.FC = () => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onClose={() => setAlertVisible(false)}
+      />
+
+      {/* Route Selection Modal */}
+      <RouteSelectionModal
+        visible={routeSelectionVisible}
+        activityType="walking"
+        onSelectRoute={(route) => {
+          setSelectedRoute(route);
+          setRouteSelectionVisible(false);
+        }}
+        onTrackFreely={() => {
+          setSelectedRoute(null);
+          setRouteSelectionVisible(false);
+        }}
+        onClose={() => setRouteSelectionVisible(false)}
       />
     </>
   );
