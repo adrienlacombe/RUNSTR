@@ -28,6 +28,12 @@ import {
   validateInvoiceAmount,
   getInvoiceTimeRemaining,
 } from '../../utils/bolt11Parser';
+import {
+  openInCashApp,
+  openInStrike,
+  openInGenericWallet,
+  openInBestAvailableWallet,
+} from '../../utils/walletDeepLinks';
 
 interface ExternalZapModalProps {
   visible: boolean;
@@ -266,18 +272,20 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
     }
   };
 
-  const handleOpenInWallet = () => {
-    const uri = `lightning:${invoice}`;
-    Linking.canOpenURL(uri).then((supported) => {
-      if (supported) {
-        Linking.openURL(uri);
-      } else {
-        Alert.alert(
-          'No Lightning Wallet Found',
-          'Please copy the invoice and paste it in your Lightning wallet app'
-        );
-      }
-    });
+  const handleOpenInCashApp = async () => {
+    await openInCashApp(invoice);
+  };
+
+  const handleOpenInStrike = async () => {
+    await openInStrike(invoice);
+  };
+
+  const handleOpenInOtherWallet = async () => {
+    await openInGenericWallet(invoice);
+  };
+
+  const handleOpenInBestWallet = async () => {
+    await openInBestAvailableWallet(invoice);
   };
 
   const handlePaymentConfirmed = () => {
@@ -404,46 +412,75 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
                     Scan this QR code with any Lightning wallet
                   </Text>
 
-                  {/* Action Buttons */}
-                  <View style={styles.actionButtons}>
+                  {/* Copy Invoice Button */}
+                  <TouchableOpacity
+                    style={styles.copyButton}
+                    onPress={handleCopyInvoice}
+                  >
+                    <Ionicons
+                      name={copied ? 'checkmark' : 'copy'}
+                      size={20}
+                      color={theme.colors.text}
+                    />
+                    <Text style={styles.copyButtonText}>
+                      {copied ? 'Copied!' : 'Copy Invoice'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Wallet Selection Buttons */}
+                  <View style={styles.walletButtonsSection}>
+                    <Text style={styles.walletSectionTitle}>
+                      Open in Wallet
+                    </Text>
+
+                    {/* Primary Wallets - Cash App & Strike */}
+                    <View style={styles.primaryWallets}>
+                      <TouchableOpacity
+                        style={styles.walletButton}
+                        onPress={handleOpenInCashApp}
+                      >
+                        <View style={styles.walletIconCircle}>
+                          <Ionicons
+                            name="logo-usd"
+                            size={20}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>Cash App</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.walletButton}
+                        onPress={handleOpenInStrike}
+                      >
+                        <View style={styles.walletIconCircle}>
+                          <Ionicons
+                            name="flash"
+                            size={20}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>Strike</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Other Wallets Button */}
                     <TouchableOpacity
-                      style={styles.copyButton}
-                      onPress={handleCopyInvoice}
+                      style={styles.otherWalletsButton}
+                      onPress={handleOpenInOtherWallet}
                     >
                       <Ionicons
-                        name={copied ? 'checkmark' : 'copy'}
+                        name="wallet-outline"
                         size={20}
                         color={theme.colors.text}
                       />
-                      <Text style={styles.copyButtonText}>
-                        {copied ? 'Copied!' : 'Copy Invoice'}
+                      <Text style={styles.otherWalletsButtonText}>
+                        Other Lightning Wallets
+                      </Text>
+                      <Text style={styles.otherWalletsSubtext}>
+                        Alby • Phoenix • Breez • BlueWallet • Zeus
                       </Text>
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.openWalletButton}
-                      onPress={handleOpenInWallet}
-                    >
-                      <Ionicons
-                        name="open-outline"
-                        size={20}
-                        color={theme.colors.background}
-                      />
-                      <Text style={styles.openWalletButtonText}>
-                        Open in Wallet
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Supported Wallets */}
-                  <View style={styles.supportedWallets}>
-                    <Text style={styles.supportedWalletsTitle}>
-                      Works with:
-                    </Text>
-                    <Text style={styles.supportedWalletsList}>
-                      Cash App • Strike • Alby • Phoenix • Breez • BlueWallet •
-                      Zeus
-                    </Text>
                   </View>
                 </>
               ) : (
@@ -631,7 +668,6 @@ const styles = StyleSheet.create({
   },
 
   copyButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -641,6 +677,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    marginBottom: 20,
   },
 
   copyButtonText: {
@@ -649,39 +686,74 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
-  openWalletButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: theme.borderRadius.medium,
-    backgroundColor: theme.colors.accent,
-  },
-
-  openWalletButtonText: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.background,
-  },
-
-  supportedWallets: {
-    alignItems: 'center',
+  walletButtonsSection: {
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
 
-  supportedWalletsTitle: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
+  walletSectionTitle: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  primaryWallets: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+
+  walletButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+
+  walletIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 157, 66, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+
+  walletButtonText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+
+  otherWalletsButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+
+  otherWalletsButtonText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginTop: 4,
     marginBottom: 4,
   },
 
-  supportedWalletsList: {
-    fontSize: 12,
-    color: theme.colors.text,
+  otherWalletsSubtext: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
     textAlign: 'center',
   },
 
