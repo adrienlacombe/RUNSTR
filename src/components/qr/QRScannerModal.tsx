@@ -43,12 +43,35 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
 
     setScanned(true);
 
-    const qrData = QRCodeService.parseQR(data);
+    try {
+      const qrData = QRCodeService.parseQR(data);
 
-    if (!qrData) {
+      if (!qrData) {
+        Alert.alert(
+          'Invalid QR Code',
+          'This QR code is not a valid RUNSTR challenge or event invitation.',
+          [
+            {
+              text: 'Try Again',
+              onPress: () => setScanned(false),
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: onClose,
+            },
+          ]
+        );
+        return;
+      }
+
+      onScanned(qrData);
+      onClose();
+    } catch (error) {
+      console.error('[QRScanner] Scan error:', error);
       Alert.alert(
-        'Invalid QR Code',
-        'This QR code is not a valid RUNSTR challenge or event invitation.',
+        'Scan Failed',
+        'Unable to process QR code. Please try again.',
         [
           {
             text: 'Try Again',
@@ -61,11 +84,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
           },
         ]
       );
-      return;
     }
-
-    onScanned(qrData);
-    onClose();
   };
 
   const handlePermissionRequest = async () => {

@@ -59,41 +59,41 @@ interface SessionState {
   isPaused: boolean;
   startTime: number;
   pauseCount: number;
-  // HybridDurationTracker state (for session recovery)
-  jsTimerSeconds: number;
-  gpsBasedDuration: number;
-  totalPausedTime: number;
-  pauseStartTime: number;
-  lastGpsTimestamp: number;
+  // SimpleDurationTracker state (for session recovery)
+  trackerStartTime: number;
+  trackerTotalPausedTime: number;
+  trackerPauseStartTime: number;
+  trackerDuration: number;
 }
 
 /**
- * Hybrid Duration Tracker
- * GPS-based when available, JS timer when GPS is lost
+ * Simple Duration Tracker (like Reference Implementation)
+ * Just calculates: (now - startTime - pausedTime) / 1000
+ * No GPS interference, no hybrid logic, no complexity
  */
-class HybridDurationTracker {
-  private jsTimerSeconds: number = 0;
-  private gpsBasedDuration: number = 0;
-  private lastGpsTimestamp: number = 0;
+class SimpleDurationTracker {
   private startTime: number = 0;
   private totalPausedTime: number = 0;
   private pauseStartTime: number = 0;
   private timerInterval: NodeJS.Timeout | null = null;
+  private duration: number = 0;
 
   start(startTime: number) {
     this.startTime = startTime;
-    this.jsTimerSeconds = 0;
-    this.gpsBasedDuration = 0;
-    this.lastGpsTimestamp = startTime;
+    this.totalPausedTime = 0;
+    this.pauseStartTime = 0;
+    this.duration = 0;
 
-    // Start simple JS timer (always works!)
+    // Simple timer - just updates duration every second from Date.now()
     this.timerInterval = setInterval(() => {
-      if (this.pauseStartTime === 0) { // Only increment if not paused
-        this.jsTimerSeconds++;
+      if (this.pauseStartTime === 0) {
+        // Simple calculation like reference implementation
+        const now = Date.now();
+        this.duration = Math.floor((now - this.startTime - this.totalPausedTime) / 1000);
       }
     }, 1000);
 
-    console.log('[HybridDurationTracker] Started - JS timer active');
+    console.log('[SimpleDurationTracker] Started - counting 1, 2, 3, 4, 5...');
   }
 
   stop() {
@@ -101,12 +101,12 @@ class HybridDurationTracker {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
-    console.log('[HybridDurationTracker] Stopped');
+    console.log('[SimpleDurationTracker] Stopped');
   }
 
   pause() {
     this.pauseStartTime = Date.now();
-    console.log('[HybridDurationTracker] Paused');
+    console.log('[SimpleDurationTracker] Paused');
   }
 
   resume() {
@@ -114,32 +114,22 @@ class HybridDurationTracker {
       const pauseDuration = Date.now() - this.pauseStartTime;
       this.totalPausedTime += pauseDuration;
       this.pauseStartTime = 0;
-      console.log(`[HybridDurationTracker] Resumed (paused for ${(pauseDuration / 1000).toFixed(1)}s)`);
-    }
-  }
-
-  /**
-   * Update with GPS timestamp when available
-   * Falls back to JS timer when GPS signal is lost
-   */
-  updateWithGPS(gpsTimestamp: number) {
-    if (gpsTimestamp > this.lastGpsTimestamp) {
-      // Calculate duration from GPS timestamps
-      this.gpsBasedDuration = (gpsTimestamp - this.startTime - this.totalPausedTime) / 1000;
-      this.lastGpsTimestamp = gpsTimestamp;
-
-      // Sync JS timer to GPS (keeps them in sync)
-      this.jsTimerSeconds = Math.floor(this.gpsBasedDuration);
+      console.log(`[SimpleDurationTracker] Resumed (paused for ${(pauseDuration / 1000).toFixed(1)}s)`);
     }
   }
 
   /**
    * Get current duration in seconds
-   * Returns GPS-based duration if available, JS timer otherwise
+   * Simple: (now - startTime - pausedTime) / 1000
    */
   getDuration(): number {
-    // Use whichever is larger (handles GPS signal loss gracefully)
-    return Math.max(this.jsTimerSeconds, Math.floor(this.gpsBasedDuration));
+    // If paused, return frozen duration
+    if (this.pauseStartTime > 0) {
+      return this.duration;
+    }
+    // Otherwise calculate from current time
+    const now = Date.now();
+    return Math.floor((now - this.startTime - this.totalPausedTime) / 1000);
   }
 
   getTotalPausedTime(): number {
@@ -152,12 +142,10 @@ class HybridDurationTracker {
    */
   exportState() {
     return {
-      jsTimerSeconds: this.jsTimerSeconds,
-      gpsBasedDuration: this.gpsBasedDuration,
+      startTime: this.startTime,
       totalPausedTime: this.totalPausedTime,
       pauseStartTime: this.pauseStartTime,
-      lastGpsTimestamp: this.lastGpsTimestamp,
-      startTime: this.startTime,
+      duration: this.getDuration(),
     };
   }
 
@@ -165,31 +153,28 @@ class HybridDurationTracker {
    * Restore tracker state from saved session
    */
   restoreState(state: {
-    jsTimerSeconds: number;
-    gpsBasedDuration: number;
+    startTime: number;
     totalPausedTime: number;
     pauseStartTime: number;
-    lastGpsTimestamp: number;
-    startTime: number;
+    duration: number;
   }) {
-    this.jsTimerSeconds = state.jsTimerSeconds;
-    this.gpsBasedDuration = state.gpsBasedDuration;
+    this.startTime = state.startTime;
     this.totalPausedTime = state.totalPausedTime;
     this.pauseStartTime = state.pauseStartTime;
-    this.lastGpsTimestamp = state.lastGpsTimestamp;
-    this.startTime = state.startTime;
+    this.duration = state.duration;
 
-    // Restart JS timer if not paused
+    // Restart timer
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
     this.timerInterval = setInterval(() => {
       if (this.pauseStartTime === 0) {
-        this.jsTimerSeconds++;
+        const now = Date.now();
+        this.duration = Math.floor((now - this.startTime - this.totalPausedTime) / 1000);
       }
     }, 1000);
 
-    console.log('[HybridDurationTracker] State restored - timer resuming');
+    console.log('[SimpleDurationTracker] State restored - timer resuming');
   }
 }
 
@@ -206,8 +191,8 @@ export class SimpleRunTracker {
   private isPaused = false;
   private pauseCount = 0;
 
-  // Duration tracker (hybrid GPS + JS)
-  private durationTracker = new HybridDurationTracker();
+  // Duration tracker (simple Date.now() calculation)
+  private durationTracker = new SimpleDurationTracker();
 
   // Start time
   private startTime: number = 0;
@@ -228,49 +213,55 @@ export class SimpleRunTracker {
   }
 
   /**
-   * Start tracking - Simple and reliable
+   * Start tracking - INSTANT UI RESPONSE (like reference implementation)
+   * Sets state immediately, GPS initializes in background
    */
   async startTracking(activityType: 'running' | 'walking' | 'cycling'): Promise<boolean> {
-    try {
-      console.log(`[SimpleRunTracker] Starting ${activityType} tracking...`);
+    // INSTANT: Set state immediately (no await blocking)
+    this.sessionId = `run_${Date.now()}`;
+    this.activityType = activityType;
+    this.startTime = Date.now();
+    this.isTracking = true;
+    this.isPaused = false;
+    this.pauseCount = 0;
+    this.cachedGpsPoints = []; // Clear cache immediately
 
-      // Check if already running and clean up
+    // INSTANT: Start timer immediately (user sees 1, 2, 3... right away!)
+    this.durationTracker.start(this.startTime);
+    console.log('[SimpleRunTracker] ⏱️ INSTANT START - Stopwatch counting 1, 2, 3, 4, 5...');
+
+    // Background tasks (don't block UI)
+    this.initializeGPS(activityType).catch(error => {
+      console.error('[SimpleRunTracker] GPS initialization failed:', error);
+      // Timer still runs even if GPS fails!
+    });
+
+    return true;
+  }
+
+  /**
+   * Initialize GPS in background (non-blocking)
+   * Like reference implementation - GPS starts async
+   */
+  private async initializeGPS(activityType: 'running' | 'walking' | 'cycling'): Promise<void> {
+    try {
+      console.log(`[SimpleRunTracker] Initializing GPS for ${activityType}...`);
+
+      // Clean up any existing GPS watchers
       const isAlreadyRunning = await Location.hasStartedLocationUpdatesAsync(SIMPLE_TRACKER_TASK);
       if (isAlreadyRunning) {
-        console.log('[SimpleRunTracker] Previous session detected, cleaning up...');
+        console.log('[SimpleRunTracker] Cleaning up previous GPS session...');
         await Location.stopLocationUpdatesAsync(SIMPLE_TRACKER_TASK);
       }
 
-      // Request permissions
-      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-      if (foregroundStatus !== 'granted') {
-        throw new Error('Foreground location permission required');
-      }
-
-      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-      if (backgroundStatus !== 'granted') {
-        console.warn('[SimpleRunTracker] Background permission not granted - tracking may be limited');
-      }
-
-      // Initialize session
-      this.sessionId = `run_${Date.now()}`;
-      this.activityType = activityType;
-      this.startTime = Date.now();
-      this.isTracking = true;
-      this.isPaused = false;
-      this.pauseCount = 0;
-
-      // Clear previous GPS points (both storage and cache)
+      // Clear previous data from storage
       await AsyncStorage.removeItem(GPS_POINTS_KEY);
-      this.cachedGpsPoints = [];
+      await AsyncStorage.removeItem(SESSION_STATE_KEY);
 
-      // Save session state
+      // Save fresh session state
       await this.saveSessionState();
 
-      // Start duration tracker
-      this.durationTracker.start(this.startTime);
-
-      // Start GPS tracking (single subscription via TaskManager)
+      // Start GPS tracking (background operation)
       await Location.startLocationUpdatesAsync(SIMPLE_TRACKER_TASK, {
         accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 1000, // 1 second
@@ -285,19 +276,10 @@ export class SimpleRunTracker {
         showsBackgroundLocationIndicator: true,
       });
 
-      console.log('[SimpleRunTracker] ✅ Tracking started successfully');
-      return true;
-
+      console.log('[SimpleRunTracker] ✅ GPS tracking started');
     } catch (error) {
-      console.error('[SimpleRunTracker] Failed to start tracking:', error);
-
-      // Fallback: at least start the timer so user can track time manually
-      this.isTracking = true;
-      this.startTime = Date.now();
-      this.durationTracker.start(this.startTime);
-      console.log('[SimpleRunTracker] ⚠️ Started in timer-only mode (GPS unavailable)');
-
-      throw error;
+      console.error('[SimpleRunTracker] GPS initialization error:', error);
+      // Timer keeps running even if GPS fails!
     }
   }
 
@@ -428,13 +410,8 @@ export class SimpleRunTracker {
     try {
       const points = await this.getStoredPoints();
       this.cachedGpsPoints = points;
-      console.log(`[SimpleRunTracker] Synced ${points.length} GPS points to cache`);
-
-      // Update duration tracker with latest GPS timestamp
-      if (points.length > 0) {
-        const latestPoint = points[points.length - 1];
-        this.durationTracker.updateWithGPS(latestPoint.timestamp);
-      }
+      console.log(`[SimpleRunTracker] Synced ${points.length} GPS points to cache (for distance only)`);
+      // Timer runs independently - no GPS duration updates!
     } catch (error) {
       console.error('[SimpleRunTracker] Error syncing GPS points:', error);
     }
@@ -444,15 +421,16 @@ export class SimpleRunTracker {
    * Append GPS points from background task (REAL-TIME UPDATES!)
    * This is called by SimpleRunTrackerTask when GPS data arrives
    *
-   * Architecture: Like Nike Run Club / Strava
-   * GPS → Background Task → Direct cache update → UI sees fresh data
+   * Architecture: GPS ONLY for distance, timer is independent stopwatch
+   * GPS → Background Task → Direct cache update → Distance updates
+   * Timer → Pure JS stopwatch → Counts 1, 2, 3, 4, 5...
    */
   appendGpsPointsToCache(points: GPSPoint[]): void {
     if (!this.isTracking || points.length === 0) {
       return;
     }
 
-    // Update in-memory cache (instant UI updates!)
+    // Update in-memory cache (instant distance updates!)
     this.cachedGpsPoints.push(...points);
 
     // Keep cache trimmed (last 10,000 points max)
@@ -460,9 +438,8 @@ export class SimpleRunTracker {
       this.cachedGpsPoints = this.cachedGpsPoints.slice(-10000);
     }
 
-    // Update duration tracker with latest GPS timestamp
-    const latestPoint = points[points.length - 1];
-    this.durationTracker.updateWithGPS(latestPoint.timestamp);
+    // DO NOT update duration - timer runs independently like a stopwatch!
+    // GPS is ONLY for distance calculation
 
     // Persist to AsyncStorage asynchronously (background operation)
     this.saveGpsPointsToStorage(this.cachedGpsPoints);
@@ -481,18 +458,6 @@ export class SimpleRunTracker {
       await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(points));
     } catch (error) {
       console.error('[SimpleRunTracker] Error saving GPS points to storage:', error);
-    }
-  }
-
-  /**
-   * Update duration with latest GPS timestamp
-   * Called from background task when new GPS data arrives
-   */
-  async updateWithLatestGPS() {
-    const points = await this.getStoredPoints();
-    if (points.length > 0) {
-      const latestPoint = points[points.length - 1];
-      this.durationTracker.updateWithGPS(latestPoint.timestamp);
     }
   }
 
@@ -561,11 +526,10 @@ export class SimpleRunTracker {
         startTime: this.startTime,
         pauseCount: this.pauseCount,
         // Include tracker state for session recovery
-        jsTimerSeconds: trackerState.jsTimerSeconds,
-        gpsBasedDuration: trackerState.gpsBasedDuration,
-        totalPausedTime: trackerState.totalPausedTime,
-        pauseStartTime: trackerState.pauseStartTime,
-        lastGpsTimestamp: trackerState.lastGpsTimestamp,
+        trackerStartTime: trackerState.startTime,
+        trackerTotalPausedTime: trackerState.totalPausedTime,
+        trackerPauseStartTime: trackerState.pauseStartTime,
+        trackerDuration: trackerState.duration,
       };
       await AsyncStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
       console.log('[SimpleRunTracker] Session state saved');
@@ -620,12 +584,10 @@ export class SimpleRunTracker {
 
       // Restore duration tracker state
       this.durationTracker.restoreState({
-        jsTimerSeconds: sessionState.jsTimerSeconds,
-        gpsBasedDuration: sessionState.gpsBasedDuration,
-        totalPausedTime: sessionState.totalPausedTime,
-        pauseStartTime: sessionState.pauseStartTime,
-        lastGpsTimestamp: sessionState.lastGpsTimestamp,
-        startTime: sessionState.startTime,
+        startTime: sessionState.trackerStartTime,
+        totalPausedTime: sessionState.trackerTotalPausedTime,
+        pauseStartTime: sessionState.trackerPauseStartTime,
+        duration: sessionState.trackerDuration,
       });
 
       // Sync GPS points from storage to cache

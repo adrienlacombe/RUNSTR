@@ -127,9 +127,17 @@ class NWCStorageServiceClass {
       console.error('[NWC] Connection test failed:', error);
       return false;
     } finally {
-      // NWCClient v6 doesn't have .close() - connections clean up automatically
+      // Clean up test client connection
       if (testClient) {
-        testClient = null;
+        try {
+          // Only close if relay is connected (prevents closing half-initialized connections)
+          if (testClient.relay && testClient.connected) {
+            testClient.close();
+          }
+        } catch (closeError) {
+          // Ignore close errors - connection cleanup is best-effort
+          console.warn('[NWC] Test client close warning:', closeError);
+        }
       }
     }
   }

@@ -298,13 +298,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   ]);
 
   const handleQRScanned = useCallback((qrData: QRData) => {
-    // Route to appropriate modal based on QR type
-    if (qrData.type === 'nwc') {
-      setScannedNWCString(qrData.connectionString);
-      setShowNWCConfirmation(true);
-    } else {
-      setScannedQRData(qrData);
-      setShowJoinPreview(true);
+    try {
+      // Route to appropriate modal based on QR type
+      if (qrData.type === 'nwc') {
+        // Validate NWC data before setting state
+        if (!qrData.connectionString || typeof qrData.connectionString !== 'string') {
+          throw new Error('Invalid NWC connection string');
+        }
+        setScannedNWCString(qrData.connectionString);
+        setShowNWCConfirmation(true);
+      } else {
+        // Validate challenge/event data
+        if (!qrData) {
+          throw new Error('Invalid QR data');
+        }
+        setScannedQRData(qrData);
+        setShowJoinPreview(true);
+      }
+    } catch (error) {
+      console.error('[ProfileScreen] QR scan error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to process QR code. Please try scanning again.',
+        [{ text: 'OK' }]
+      );
     }
   }, []);
 
