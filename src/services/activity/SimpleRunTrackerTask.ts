@@ -4,16 +4,16 @@
  * CRITICAL: This file must be imported in index.js BEFORE app initialization
  * so TaskManager knows about the background task.
  *
- * Architecture: Just stores GPS points to AsyncStorage - Simple and reliable
+ * Architecture: Direct cache updates (like Nike Run Club / Strava)
+ * GPS → This task → SimpleRunTracker.appendGpsPointsToCache() → Real-time UI updates
  */
 
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SIMPLE_TRACKER_TASK } from './SimpleRunTracker';
+import { SIMPLE_TRACKER_TASK, simpleRunTracker } from './SimpleRunTracker';
 
 // Storage key
-const GPS_POINTS_KEY = '@runstr:gps_points';
 const SESSION_STATE_KEY = '@runstr:session_state';
 
 /**
@@ -63,21 +63,13 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
         return;
       }
 
-      // Get existing points from AsyncStorage
-      const existingStr = await AsyncStorage.getItem(GPS_POINTS_KEY);
-      const existingPoints = existingStr ? JSON.parse(existingStr) : [];
-
-      // Append new points
-      const updatedPoints = [...existingPoints, ...validLocations];
-
-      // Keep only last 10,000 points to prevent storage bloat
-      const trimmedPoints = updatedPoints.slice(-10000);
-
-      // Save back to AsyncStorage
-      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(trimmedPoints));
+      // REAL-TIME UPDATES: Update SimpleRunTracker cache directly!
+      // This is how Nike Run Club / Strava work - direct data flow
+      // GPS → This task → Tracker cache → UI sees fresh data
+      simpleRunTracker.appendGpsPointsToCache(validLocations);
 
       console.log(
-        `[SimpleRunTrackerTask] Stored ${validLocations.length} valid locations (${trimmedPoints.length} total)`
+        `[SimpleRunTrackerTask] ✅ Real-time: Sent ${validLocations.length} GPS points to tracker`
       );
     } catch (err) {
       console.error('[SimpleRunTrackerTask] Error processing locations:', err);

@@ -435,6 +435,57 @@ export class SimpleCompetitionService {
   }
 
   /**
+   * Get event by ID with fallback to Nostr event ID
+   * ✅ FIX: Handles backwards compatibility for events stored with event.id instead of d-tag
+   */
+  async getEventByIdOrDTag(identifier: string): Promise<CompetitionEvent | null> {
+    console.log(`🔍 Fetching event by ID or d-tag: ${identifier}`);
+
+    try {
+      // Try d-tag first (correct way for kind 30101 parameterized replaceable events)
+      let event = await this.getEventById(identifier);
+
+      if (!event) {
+        console.log('⚠️ Event not found by d-tag, trying as Nostr event ID...');
+
+        // Fallback: Try as Nostr event ID (for backwards compatibility)
+        const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000);
+        if (!connected) {
+          console.warn('⚠️ Proceeding with minimal relay connectivity for event ID fallback');
+        }
+
+        const ndk = await GlobalNDKService.getInstance();
+
+        const filter: NDKFilter = {
+          kinds: [30101],
+          ids: [identifier], // Query by event ID instead of d-tag
+          limit: 1,
+        };
+
+        const events = await Promise.race([
+          ndk.fetchEvents(filter),
+          new Promise<Set<NDKEvent>>(
+            (resolve) => setTimeout(() => resolve(new Set()), 2000) // 2s timeout
+          ),
+        ]);
+
+        for (const evt of events) {
+          event = this.parseEventEvent(evt);
+          if (event) {
+            console.log(`✅ Found event by Nostr ID: ${event.name}`);
+            break;
+          }
+        }
+      }
+
+      return event;
+    } catch (error) {
+      console.error('Failed to fetch event by ID or d-tag:', error);
+      return null;
+    }
+  }
+
+  /**
    * Parse a kind 30100 Nostr event into a League
    */
   private parseLeagueEvent(event: NDKEvent): League | null {

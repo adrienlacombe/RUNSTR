@@ -43,6 +43,7 @@ import type { QREventData } from '../services/event/QREventService';
 import { NostrListService } from '../services/nostr/NostrListService';
 import { NostrProtocolHandler } from '../services/nostr/NostrProtocolHandler';
 import { GlobalNDKService } from '../services/nostr/GlobalNDKService';
+import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import { TeamMemberCache } from '../services/team/TeamMemberCache';
 import { TeamCacheService } from '../services/cache/TeamCacheService';
 import { getTeamListDetector } from '../utils/teamListDetector';
@@ -524,10 +525,19 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
     try {
       setIsSavingTeam(true);
 
-      // Get auth data for signing
-      const authData = await getAuthenticationData();
-      if (!authData?.nsec) {
-        Alert.alert('Error', 'Authentication required to update team');
+      // Get signer using UnifiedSigningService (handles both nsec and Amber)
+      const signingService = UnifiedSigningService.getInstance();
+      const signer = await signingService.getSigner();
+
+      if (!signer) {
+        Alert.alert('Error', 'Unable to sign event. Please ensure you are logged in.');
+        return;
+      }
+
+      // Get user's hex pubkey for captain tag
+      const userHexPubkey = await signingService.getUserPubkey();
+      if (!userHexPubkey) {
+        Alert.alert('Error', 'Unable to get user pubkey. Please try logging in again.');
         return;
       }
 
@@ -539,9 +549,6 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         return;
       }
 
-      // Create signer
-      const signer = new NDKPrivateKeySigner(authData.nsec);
-
       // Create updated team event
       const teamEvent = new NDKEvent(ndk);
       teamEvent.kind = 33404;
@@ -551,7 +558,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         ['d', teamId],
         ['name', editedTeamName.trim()],
         ['about', editedTeamName.trim()], // Using name for about tag as per existing pattern
-        ['captain', authData.hexPubkey],
+        ['captain', userHexPubkey],
       ];
 
       // Add location if provided
@@ -694,10 +701,19 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
   // Save shop URL to team's Nostr event
   const handleUpdateTeamShopUrl = async (newShopUrl: string) => {
     try {
-      // Get auth data for signing
-      const authData = await getAuthenticationData();
-      if (!authData?.nsec) {
-        Alert.alert('Error', 'Authentication required to update team');
+      // Get signer using UnifiedSigningService (handles both nsec and Amber)
+      const signingService = UnifiedSigningService.getInstance();
+      const signer = await signingService.getSigner();
+
+      if (!signer) {
+        Alert.alert('Error', 'Unable to sign event. Please ensure you are logged in.');
+        return;
+      }
+
+      // Get user's hex pubkey for captain tag
+      const userHexPubkey = await signingService.getUserPubkey();
+      if (!userHexPubkey) {
+        Alert.alert('Error', 'Unable to get user pubkey. Please try logging in again.');
         return;
       }
 
@@ -709,9 +725,6 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         return;
       }
 
-      // Create signer
-      const signer = new NDKPrivateKeySigner(authData.nsec);
-
       // Create updated team event
       const teamEvent = new NDKEvent(ndk);
       teamEvent.kind = 33404;
@@ -721,7 +734,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
         ['d', teamId],
         ['name', currentTeamData?.name || data.team.name],
         ['about', currentTeamData?.description || data.team.name],
-        ['captain', authData.hexPubkey],
+        ['captain', userHexPubkey],
       ];
 
       // Preserve existing tags

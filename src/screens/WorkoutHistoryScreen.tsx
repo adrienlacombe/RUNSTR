@@ -292,10 +292,7 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         await localWorkoutStorage.markAsSynced(workout.id, result.eventId);
         console.log(`[WorkoutHistory] ✅ Workout marked as synced`);
 
-        Alert.alert(
-          'Success',
-          'Workout posted as kind 1301 event!\nIt will now appear in your Public tab and competitions.'
-        );
+        // Success alert handled by child component (PrivateWorkoutsTab)
       } else {
         throw new Error(result.error || 'Failed to publish workout');
       }
@@ -383,7 +380,7 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         onSuccess={() => {
           setShowSocialModal(false);
           setSelectedWorkout(null);
-          Alert.alert('Success', 'Workout shared to social feeds!');
+          // Success alert handled by child component (PrivateWorkoutsTab)
         }}
       />
     </SafeAreaView>

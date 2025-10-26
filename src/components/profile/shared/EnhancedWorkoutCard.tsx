@@ -15,6 +15,7 @@ import { theme } from '../../../styles/theme';
 import { WorkoutStatusTracker } from '../../../services/fitness/WorkoutStatusTracker';
 import { WorkoutDetailModal } from './WorkoutDetailModal';
 import type { Workout } from '../../../types/workout';
+import { formatDistance } from '../../../utils/distanceFormatter';
 
 interface EnhancedWorkoutCardProps {
   workout: Workout;
@@ -86,13 +87,6 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
       setLoading((prev) => ({ ...prev, compete: false }));
     }
   };
-
-  const formatDistance = (meters?: number): string =>
-    !meters
-      ? '--'
-      : meters < 1000
-      ? `${meters.toFixed(2)}m`
-      : `${(meters / 1000).toFixed(2)}km`;
 
   const formatDuration = (seconds: number): string => {
     const h = Math.floor(seconds / 3600);

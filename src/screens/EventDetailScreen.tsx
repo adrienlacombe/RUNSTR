@@ -105,7 +105,8 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         const SimpleCompetitionService = (
           await import('../services/competition/SimpleCompetitionService')
         ).default;
-        event = await SimpleCompetitionService.getInstance().getEventById(
+        // ✅ FIX: Use fallback method to handle both d-tag and Nostr event ID
+        event = await SimpleCompetitionService.getInstance().getEventByIdOrDTag(
           eventId
         );
         setIsLoading(false);
@@ -246,7 +247,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       ).default;
 
       // Fetch fresh data
-      const freshEvent = await SimpleCompetitionService.getInstance().getEventById(eventId);
+      const freshEvent = await SimpleCompetitionService.getInstance().getEventByIdOrDTag(eventId);
       if (!freshEvent) {
         console.warn('⚠️ Background refresh: Event not found');
         return;
@@ -498,9 +499,21 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error || 'Event not found'}</Text>
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={theme.colors.textMuted}
+          />
+          <Text style={styles.errorText}>
+            {error || 'Event not found'}
+            {'\n\n'}
+            This event may have been deleted or is no longer available on Nostr relays.
+          </Text>
           <TouchableOpacity onPress={loadEventData} style={styles.retryButton}>
             <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleBack} style={styles.backToListButton}>
+            <Text style={styles.backToListButtonText}>Back to Events</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -923,11 +936,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
+    marginBottom: 12,
   },
   retryButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.accentText,
+  },
+  backToListButton: {
+    backgroundColor: theme.colors.cardBackground,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  backToListButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
   captainDashboardButton: {
     flexDirection: 'row',

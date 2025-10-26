@@ -11,7 +11,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Dimensions,
 } from 'react-native';
@@ -143,10 +142,8 @@ export const EnhancedSocialShareModal: React.FC<
         // Fall back to nsec (required for iOS since Amber not supported)
         const nsec = await getNsecFromStorage(userId);
         if (!nsec) {
-          Alert.alert(
-            'Authentication Required',
-            'Please log in with your Nostr key to share workouts.'
-          );
+          console.error('❌ Authentication required - no signer or nsec available');
+          // Error handling delegated to parent component
           setLoading(false);
           return;
         }
@@ -221,7 +218,7 @@ export const EnhancedSocialShareModal: React.FC<
       }
     } catch (error) {
       console.error('Failed to share to Nostr:', error);
-      Alert.alert('Error', 'Failed to share workout. Please try again.');
+      // Error handling delegated to parent component
     } finally {
       setLoading(false);
     }

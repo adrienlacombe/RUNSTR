@@ -84,13 +84,12 @@ export const CompetitionsListScreen: React.FC = () => {
       const localCompetitions: UserCompetition[] = localEvents.map((event) => ({
         id: event.eventId,
         name: event.eventName,
-        type: 'event',
-        teamId: event.teamId,
-        status: event.status === 'approved' ? 'active' : 'pending',
-        startDate: event.eventDate,
-        activityType: event.activityType,
-        isPending: event.localOnly,
-        entryFee: event.entryFeePaid, // Add entry fee to display
+        type: 'event' as const,
+        status: event.status === 'approved' ? ('active' as const) : ('upcoming' as const),
+        participantCount: 1, // At least the user
+        yourRole: 'member' as const,
+        startsAt: new Date(event.eventDate).getTime() / 1000,
+        prizePool: event.entryFeePaid,
       }));
 
       // Show local events immediately for fast UX
@@ -132,6 +131,28 @@ export const CompetitionsListScreen: React.FC = () => {
     setFilteredCompetitions(competitions.filter((c) => c.type === type));
   };
 
+  /**
+   * Build event data from competition for instant display
+   * ✅ FIX: Pass full event data to prevent "Event not found" errors
+   */
+  const buildEventDataFromCompetition = (comp: UserCompetition) => {
+    if (comp.type !== 'event') return null;
+
+    return {
+      id: comp.id,
+      name: comp.name,
+      activityType: 'Any', // Default - will be fetched from Nostr if needed
+      eventDate: comp.startsAt
+        ? new Date(comp.startsAt * 1000).toISOString()
+        : new Date().toISOString(),
+      metric: 'total_distance', // Default metric
+      teamId: '', // Will be fetched from Nostr if needed
+      captainPubkey: '', // Will be fetched from Nostr if needed
+      description: undefined,
+      entryFeesSats: comp.prizePool,
+    };
+  };
+
   const handleCompetitionPress = (competition: UserCompetition) => {
     // Navigate based on competition type
     switch (competition.type) {
@@ -145,7 +166,11 @@ export const CompetitionsListScreen: React.FC = () => {
         navigation.navigate('LeagueLeaderboard', { leagueId: competition.id });
         break;
       case 'event':
-        navigation.navigate('EventDetail', { eventId: competition.id });
+        // ✅ FIX: Pass eventData for instant display
+        navigation.navigate('EventDetail', {
+          eventId: competition.id,
+          eventData: buildEventDataFromCompetition(competition),
+        });
         break;
       case 'challenge':
         navigation.navigate('ChallengeLeaderboard', {
@@ -222,11 +247,6 @@ export const CompetitionsListScreen: React.FC = () => {
                 {item.status.toUpperCase()}
               </Text>
             </View>
-            {item.isPending && (
-              <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>PENDING APPROVAL</Text>
-              </View>
-            )}
             {item.wager && (
               <Text style={styles.wager}>
                 <Ionicons name="flash" size={12} color="#FF9D42" /> {item.wager}{' '}

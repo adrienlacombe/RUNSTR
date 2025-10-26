@@ -7,6 +7,7 @@
 import type { WorkoutType } from '../../types/workout';
 import type { PublishableWorkout } from './workoutPublishingService';
 import { RUNSTR_LOGO_BASE64 } from './runstrLogoBase64';
+import { formatDistanceValue } from '../../utils/distanceFormatter';
 
 export interface WorkoutCardOptions {
   template?: 'achievement' | 'progress' | 'minimal' | 'stats' | 'elegant';
@@ -488,9 +489,7 @@ export class WorkoutCardGenerator {
 
     // Get distance if available
     const distance = workout.distance
-      ? workout.distance < 1000
-        ? `${Math.round(workout.distance)}m`
-        : `${(workout.distance / 1000).toFixed(2)}km`
+      ? `${formatDistanceValue(workout.distance)} km`
       : null;
 
     return `
@@ -754,8 +753,7 @@ export class WorkoutCardGenerator {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+      .replace(/"/g, '&quot;');
   }
 
   /**
@@ -953,10 +951,7 @@ export class WorkoutCardGenerator {
 
     // Distance
     if (workout.distance) {
-      const distance =
-        workout.distance < 1000
-          ? `${workout.distance}m`
-          : `${(workout.distance / 1000).toFixed(2)}km`;
+      const distance = `${formatDistanceValue(workout.distance)} km`;
       stats.push({ value: distance, label: 'Distance' });
     }
 

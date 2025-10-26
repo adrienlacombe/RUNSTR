@@ -215,7 +215,7 @@ export class NostrCompetitionDiscoveryService {
     const prizePool = parseInt(tags.get('prize_pool') || '0');
 
     return {
-      id: event.id || dTag,
+      id: dTag || event.id || '', // ✅ FIX: Use d-tag (stable ID for replaceable events)
       name,
       type,
       status,
@@ -324,7 +324,7 @@ export class NostrCompetitionDiscoveryService {
       : undefined;
 
     return {
-      id: event.id || dTag,
+      id: dTag || event.id || '', // ✅ FIX: Use d-tag (stable ID for list-based competitions)
       name,
       type,
       status,

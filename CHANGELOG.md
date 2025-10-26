@@ -6,6 +6,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2025-10-25
+
+### Fixed
+- **Event Viewing Bug**: Fixed event loading failures when navigating from competitions list
+  - Added `getEventByIdOrDTag()` method for backwards compatibility with Nostr event IDs
+  - Events now load correctly when accessed via d-tag OR Nostr event ID
+  - Improved error UI with icon, helpful messaging, and "Back to Events" button
+  - Pass full event data on navigation to prevent "Event not found" errors
+  - Files: EventDetailScreen.tsx (+33 lines), SimpleCompetitionService.ts (+51 lines), CompetitionsListScreen.tsx (+46 lines)
+- **Distance Tracker Bug**: Fixed GPS data not updating in real-time during workouts
+  - Added `appendGpsPointsToCache()` for instant cache updates from background task
+  - Added `saveGpsPointsToStorage()` for async persistence without blocking UI
+  - Nike Run Club / Strava-like architecture: GPS → Background Task → Direct cache update → UI
+  - Real-time distance updates during active tracking sessions
+  - Files: SimpleRunTracker.ts (+44 lines), SimpleRunTrackerTask.ts (-24 lines)
+- **Posting Bug**: Fixed inconsistent distance formatting across workout cards and screens
+  - Created `distanceFormatter.ts` as single source of truth for distance formatting
+  - Replaced all inline distance calculations with utility functions
+  - Consistent "X.XX km" format across entire app (workout cards, history, leaderboards)
+  - Files: distanceFormatter.ts (NEW, 35 lines), workoutCardGenerator.ts (-13 lines), WorkoutCard.tsx (-8 lines), EnhancedWorkoutCard.tsx (-8 lines), EnhancedSocialShareModal.tsx (-9 lines), WorkoutHistoryScreen.tsx (-7 lines)
+- **Team Updates Bug**: Fixed team metadata updates failing for Amber users
+  - Switched from direct nsec usage to `UnifiedSigningService` for better compatibility
+  - Now handles both nsec and Amber signing methods seamlessly
+  - Fixed team name updates and shop URL updates for all authentication methods
+  - Files: CaptainDashboardScreen.tsx (+45 lines)
+
+### Improved
+- **Event Discovery**: Better event loading with instant display using cached data
+  - Events appear immediately from local cache while fresh data loads
+  - Prevents "Event not found" errors during navigation
+  - Smoother transitions between event lists and detail screens
+- **Distance Formatting**: Centralized distance formatting logic
+  - Single `formatDistanceValue()` function used across all components
+  - Consistent display prevents confusion from different formats
+  - Easier maintenance with one source of truth
+- **Real-Time Tracking**: Enhanced GPS data flow from background task to UI
+  - Background GPS → Cache → UI with zero delay
+  - Instant metrics updates during active tracking
+  - Matches professional fitness apps like Strava and Nike Run Club
+
+### Technical
+- Version numbers updated across all platforms:
+  - app.json: 0.4.9 (versionCode 40)
+  - android/app/build.gradle: 0.4.9 (versionCode 40)
+  - package.json: 0.4.9
+- Modified files:
+  - **Event Viewing**: EventDetailScreen.tsx, SimpleCompetitionService.ts, CompetitionsListScreen.tsx
+  - **Distance Tracker**: SimpleRunTracker.ts, SimpleRunTrackerTask.ts
+  - **Distance Formatting**: distanceFormatter.ts (new), workoutCardGenerator.ts, WorkoutCard.tsx, EnhancedWorkoutCard.tsx, EnhancedSocialShareModal.tsx, WorkoutHistoryScreen.tsx
+  - **Team Updates**: CaptainDashboardScreen.tsx, NostrCompetitionDiscoveryService.ts
+- 14 files total: 13 modified, 1 new (208 additions, 84 deletions)
+
 ## [0.4.8] - 2025-10-25
 
 ### Added

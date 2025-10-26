@@ -441,6 +441,50 @@ export class SimpleRunTracker {
   }
 
   /**
+   * Append GPS points from background task (REAL-TIME UPDATES!)
+   * This is called by SimpleRunTrackerTask when GPS data arrives
+   *
+   * Architecture: Like Nike Run Club / Strava
+   * GPS → Background Task → Direct cache update → UI sees fresh data
+   */
+  appendGpsPointsToCache(points: GPSPoint[]): void {
+    if (!this.isTracking || points.length === 0) {
+      return;
+    }
+
+    // Update in-memory cache (instant UI updates!)
+    this.cachedGpsPoints.push(...points);
+
+    // Keep cache trimmed (last 10,000 points max)
+    if (this.cachedGpsPoints.length > 10000) {
+      this.cachedGpsPoints = this.cachedGpsPoints.slice(-10000);
+    }
+
+    // Update duration tracker with latest GPS timestamp
+    const latestPoint = points[points.length - 1];
+    this.durationTracker.updateWithGPS(latestPoint.timestamp);
+
+    // Persist to AsyncStorage asynchronously (background operation)
+    this.saveGpsPointsToStorage(this.cachedGpsPoints);
+
+    console.log(
+      `[SimpleRunTracker] 📍 Appended ${points.length} GPS points to cache (${this.cachedGpsPoints.length} total)`
+    );
+  }
+
+  /**
+   * Save GPS points to AsyncStorage (async, non-blocking)
+   * Called by appendGpsPointsToCache after updating in-memory cache
+   */
+  private async saveGpsPointsToStorage(points: GPSPoint[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(points));
+    } catch (error) {
+      console.error('[SimpleRunTracker] Error saving GPS points to storage:', error);
+    }
+  }
+
+  /**
    * Update duration with latest GPS timestamp
    * Called from background task when new GPS data arrives
    */
