@@ -6,6 +6,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.10] - 2025-10-25
+
+### Fixed
+- **QR Scanner Crash**: Fixed app crash when scanning NWC wallet QR codes
+  - Problem: App crashed every time user scanned NWC QR code from Alby/Mutiny wallet
+  - Root Cause: @getalby/sdk v6.0.1/v6.0.2's NWCClient connection cleanup improved
+  - Solution: Enhanced close() method with connection state checks and error handling
+  - Only close relay connection if it exists and is connected
+  - Prevents crashes from closing half-initialized connections
+  - Files: NWCStorageService.ts (+6 lines, improved error handling)
+- **Activity Tracker Duration**: Fixed duration tracking inconsistencies during workouts
+  - Problem: Complex hybrid GPS-based duration calculation causing timing inaccuracies
+  - Root Cause: HybridDurationTracker tried to sync JS timer with GPS timestamps
+  - Solution: Replaced with SimpleDurationTracker - pure stopwatch calculation
+  - New approach: `duration = (now - startTime - pausedTime) / 1000`
+  - GPS is now ONLY for distance tracking, timer is completely independent
+  - Matches reference implementation patterns from running apps
+  - Files: SimpleRunTracker.ts (97 additions, 135 deletions - major refactor)
+
+### Improved
+- **Duration Tracking Architecture**: Simplified from hybrid to pure stopwatch model
+  - Removed complex GPS timestamp synchronization logic
+  - Timer now counts like a stopwatch: 1, 2, 3, 4, 5... seconds
+  - GPS points update distance only, no interference with duration
+  - More predictable and reliable time tracking during workouts
+- **QR Scanner Reliability**: Better error handling for wallet connection flows
+  - Graceful handling of partial connection states
+  - Warning logs instead of crashes for close errors
+  - Best-effort connection cleanup prevents user-facing errors
+
+### Technical
+- Version numbers updated across all platforms:
+  - app.json: 0.4.10 (versionCode 41)
+  - android/app/build.gradle: 0.4.10 (versionCode 41)
+  - package.json: 0.4.10
+- Modified files:
+  - src/services/wallet/NWCStorageService.ts - Enhanced connection cleanup
+  - src/services/activity/SimpleRunTracker.ts - Duration tracker replacement
+- 2 files total: 103 additions, 141 deletions
+- Architecture change: HybridDurationTracker → SimpleDurationTracker
+- Dependency update: @getalby/sdk upgraded from 6.0.1 to 6.0.2
+
 ## [0.4.9] - 2025-10-25
 
 ### Fixed
