@@ -290,6 +290,7 @@ export class ChallengeService {
 
   /**
    * Calculate progress based on metric
+   * Supports 4 simple challenge types: pushups (reps), distance, carnivore (days), meditation (duration)
    */
   private calculateProgress(
     workouts: Kind1301Event[],
@@ -303,16 +304,36 @@ export class ChallengeService {
     let lastWorkoutAt = 0;
 
     switch (metric) {
+      case 'reps':
+        // For pushups challenge - sum total reps across all workouts
+        value = workouts.reduce((sum, w) => {
+          const reps = this.extractReps(w);
+          return sum + reps;
+        }, 0);
+        break;
+
       case 'distance':
-        // Sum total distance
+        // For distance challenge - sum total distance
         value = workouts.reduce((sum, w) => {
           const distance = this.extractDistance(w);
           return sum + distance;
         }, 0);
         break;
 
+      case 'days':
+        // For carnivore challenge - count unique days with workouts
+        // Group workouts by date (UTC day)
+        const uniqueDays = new Set(
+          workouts.map((w) => {
+            const date = new Date((w.created_at || 0) * 1000);
+            return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+          })
+        );
+        value = uniqueDays.size;
+        break;
+
       case 'duration':
-        // Sum total duration in seconds
+        // For meditation challenge - sum total duration in seconds
         value = workouts.reduce((sum, w) => {
           const duration = this.extractDuration(w);
           return sum + duration;
@@ -320,12 +341,12 @@ export class ChallengeService {
         break;
 
       case 'count':
-        // Count of workouts
+        // Count of workouts (legacy support)
         value = workouts.length;
         break;
 
       case 'calories':
-        // Sum total calories
+        // Sum total calories (legacy support)
         value = workouts.reduce((sum, w) => {
           const calories = this.extractCalories(w);
           return sum + calories;
@@ -333,7 +354,7 @@ export class ChallengeService {
         break;
 
       case 'pace':
-        // Average pace (lower is better)
+        // Average pace (lower is better) (legacy support)
         const validPaces = workouts
           .map((w) => this.calculatePace(w))
           .filter((p) => p > 0);
@@ -379,6 +400,12 @@ export class ChallengeService {
       }
     }
     return 0;
+  }
+
+  private extractReps(workout: Kind1301Event): number {
+    // For pushups challenge - extract reps from tags
+    const repsTag = workout.tags?.find((t) => t[0] === 'reps');
+    return repsTag ? parseInt(repsTag[1]) || 0 : 0;
   }
 
   private extractCalories(workout: Kind1301Event): number {

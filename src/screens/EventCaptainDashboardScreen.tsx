@@ -11,7 +11,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Image,
   RefreshControl,
 } from 'react-native';
@@ -23,6 +22,7 @@ import { theme } from '../styles/theme';
 import { QRDisplayModal } from '../components/qr/QRDisplayModal';
 import { EventTransactionHistory } from '../components/captain/EventTransactionHistory';
 import { EventJoinRequestsSection } from '../components/captain/EventJoinRequestsSection';
+import { CustomAlert } from '../components/ui/CustomAlert';
 import QRCodeService from '../services/qr/QRCodeService';
 import type { EventQRData } from '../services/qr/QRCodeService';
 import type { RootStackParamList } from '../types';
@@ -63,6 +63,22 @@ export const EventCaptainDashboardScreen: React.FC<
   const [participantProfiles, setParticipantProfiles] = useState<
     ParticipantProfile[]
   >([]);
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
 
   useEffect(() => {
     loadParticipants();
@@ -132,10 +148,10 @@ export const EventCaptainDashboardScreen: React.FC<
     participantPubkey: string,
     participantName: string
   ) => {
-    Alert.alert(
-      'Remove Participant',
-      `Are you sure you want to remove ${participantName} from this event?`,
-      [
+    setAlertConfig({
+      title: 'Remove Participant',
+      message: `Are you sure you want to remove ${participantName} from this event?`,
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
@@ -159,21 +175,26 @@ export const EventCaptainDashboardScreen: React.FC<
               // Refresh participant list
               await loadParticipants();
 
-              Alert.alert(
-                'Success',
-                `${participantName} has been removed from the event`
-              );
+              setAlertConfig({
+                title: 'Success',
+                message: `${participantName} has been removed from the event`,
+                buttons: [{ text: 'OK', style: 'default' }],
+              });
+              setAlertVisible(true);
             } catch (error) {
               console.error('❌ Failed to remove participant:', error);
-              Alert.alert(
-                'Error',
-                'Failed to remove participant. Please try again.'
-              );
+              setAlertConfig({
+                title: 'Error',
+                message: 'Failed to remove participant. Please try again.',
+                buttons: [{ text: 'OK', style: 'default' }],
+              });
+              setAlertVisible(true);
             }
           },
         },
-      ]
-    );
+      ],
+    });
+    setAlertVisible(true);
   };
 
   const handleGenerateQR = async () => {
@@ -181,7 +202,12 @@ export const EventCaptainDashboardScreen: React.FC<
       // Get captain's npub for QR data
       const captainNpub = await AsyncStorage.getItem('@runstr:npub');
       if (!captainNpub) {
-        Alert.alert('Error', 'Captain authentication not found');
+        setAlertConfig({
+          title: 'Error',
+          message: 'Captain authentication not found',
+          buttons: [{ text: 'OK', style: 'default' }],
+        });
+        setAlertVisible(true);
         return;
       }
 
@@ -209,7 +235,12 @@ export const EventCaptainDashboardScreen: React.FC<
       console.log('✅ QR code generated for event:', eventId);
     } catch (error) {
       console.error('❌ Failed to generate QR code:', error);
-      Alert.alert('Error', 'Failed to generate QR code');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to generate QR code',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -402,9 +433,14 @@ export const EventCaptainDashboardScreen: React.FC<
           <Text style={styles.sectionTitle}>Event Controls</Text>
           <TouchableOpacity
             style={styles.controlButton}
-            onPress={() =>
-              Alert.alert('Coming Soon', 'Event editing will be available soon')
-            }
+            onPress={() => {
+              setAlertConfig({
+                title: 'Coming Soon',
+                message: 'Event editing will be available soon',
+                buttons: [{ text: 'OK', style: 'default' }],
+              });
+              setAlertVisible(true);
+            }}
             activeOpacity={0.8}
           >
             <Ionicons
@@ -431,6 +467,15 @@ export const EventCaptainDashboardScreen: React.FC<
           data={eventQRData}
         />
       )}
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertVisible(false)}
+      />
     </SafeAreaView>
   );
 };

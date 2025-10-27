@@ -1,6 +1,9 @@
 /**
- * ChallengeCreationWizard - Multi-step challenge creation flow
- * Guides users through creating peer-to-peer challenges with teammates
+ * ChallengeCreationWizard - Simplified 3-step challenge creation
+ * Step 1: Choose challenge type + duration + wager
+ * Step 2: Choose Direct (pick opponent) OR QR (share with anyone)
+ * Step 3a: If Direct - Select opponent
+ * Step 3b: If QR - Show QR code with sharing options
  */
 
 import React, { useState, useCallback } from 'react';
@@ -13,66 +16,62 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  TextInput,
 } from 'react-native';
 import { theme } from '../../styles/theme';
+import type { SimpleChallengeType } from '../../constants/simpleChallengePresets';
 import {
-  ChallengeCreationStep,
-  ChallengeCreationData,
-  ChallengeCreationWizardProps,
-} from '../../types';
-import { useChallengeCreation } from '../../hooks/useChallengeCreation';
-
-// Step components
+  SIMPLE_CHALLENGE_TYPES,
+  DURATION_OPTIONS,
+  getChallengeName,
+} from '../../constants/simpleChallengePresets';
+import { ChallengeTargetStep, type ChallengeTarget } from './steps/ChallengeTargetStep';
 import { ChooseOpponentStep } from './steps/ChooseOpponentStep';
-import { ChallengeTypeStep } from './steps/ChallengeTypeStep';
-import { ReviewConfirmStep } from './steps/ReviewConfirmStep';
-import { SuccessScreen } from './steps/SuccessScreen';
+import { ChallengeQRStep } from './steps/ChallengeQRStep';
+import type { TeammateInfo, ChallengeCreationData } from '../../types';
+import { useChallengeCreation } from '../../hooks/useChallengeCreation';
+import type { ChallengeDeepLinkData } from '../../utils/challengeDeepLink';
 
-interface WizardProgressProps {
-  currentStep: ChallengeCreationStep;
+type WizardStep = 'type_config' | 'target' | 'opponent' | 'qr' | 'success';
+
+export interface ChallengeCreationWizardProps {
+  onComplete?: (challengeData: ChallengeCreationData) => void;
+  onCancel: () => void;
+  teammates?: TeammateInfo[];
+  currentUser?: any;
+  teamId?: string;
 }
 
-const WizardProgress: React.FC<WizardProgressProps> = ({ currentStep }) => {
-  const steps: ChallengeCreationStep[] = [
-    'choose_opponent',
-    'challenge_type',
-    'review_confirm',
-  ];
+interface ChallengeFormData {
+  type?: SimpleChallengeType;
+  duration: 1 | 7 | 30;
+  wager: number;
+  target?: ChallengeTarget;
+  opponentId?: string;
+  opponentInfo?: TeammateInfo;
+  challengeId?: string;
+}
 
-  const currentIndex = steps.indexOf(currentStep);
-
-  return (
-    <View style={styles.progressContainer}>
-      {steps.map((step, index) => (
-        <View
-          key={step}
-          style={[
-            styles.progressDot,
-            index === currentIndex && styles.progressDotActive,
-            index < currentIndex && styles.progressDotCompleted,
-          ]}
-        />
-      ))}
-    </View>
-  );
-};
-
-export const ChallengeCreationWizard: React.FC<
-  ChallengeCreationWizardProps
-> = ({ onComplete, onCancel, teammates, currentUser, teamId }) => {
-  const [currentStep, setCurrentStep] =
-    useState<ChallengeCreationStep>('choose_opponent');
-  const [formData, setFormData] = useState<ChallengeCreationData>({
-    duration: 7, // Default challenge duration
+export const ChallengeCreationWizard: React.FC<ChallengeCreationWizardProps> = ({
+  onComplete,
+  onCancel,
+  teammates: providedTeammates,
+  currentUser,
+  teamId,
+}) => {
+  const [currentStep, setCurrentStep] = useState<WizardStep>('type_config');
+  const [formData, setFormData] = useState<ChallengeFormData>({
+    duration: 7,
+    wager: 0,
   });
 
-  // Use challenge creation hook for data and actions
+  // Use challenge creation hook
   const {
     teammates: hookTeammates,
     isLoading,
     error,
     createChallenge,
-    refreshTeammates,
     clearError,
   } = useChallengeCreation({
     currentUser,
@@ -80,17 +79,19 @@ export const ChallengeCreationWizard: React.FC<
     onComplete,
   });
 
-  // Use provided teammates or hook teammates
-  const effectiveTeammates = teammates || hookTeammates;
+  const teammates = providedTeammates || hookTeammates;
 
   // Step validation
-  const validateCurrentStep = useCallback((): boolean => {
+  const canProceed = useCallback((): boolean => {
     switch (currentStep) {
-      case 'choose_opponent':
-        return !!formData.opponentId && !!formData.opponentInfo;
-      case 'challenge_type':
-        return !!formData.challengeType;
-      case 'review_confirm':
+      case 'type_config':
+        return !!formData.type;
+      case 'target':
+        return !!formData.target;
+      case 'opponent':
+        return !!formData.opponentId;
+      case 'qr':
+      case 'success':
         return true;
       default:
         return false;
@@ -99,128 +100,272 @@ export const ChallengeCreationWizard: React.FC<
 
   // Navigation handlers
   const handleNext = useCallback(() => {
-    if (!validateCurrentStep()) {
+    if (!canProceed()) {
       return;
     }
 
     switch (currentStep) {
-      case 'choose_opponent':
-        setCurrentStep('challenge_type');
+      case 'type_config':
+        setCurrentStep('target');
         break;
-      case 'challenge_type':
-        // Calculate expiration date
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + formData.duration);
-        setFormData((prev) => ({
-          ...prev,
-          expiresAt: expirationDate.toISOString(),
-        }));
-        setCurrentStep('review_confirm');
+      case 'target':
+        if (formData.target === 'direct') {
+          setCurrentStep('opponent');
+        } else {
+          // QR flow - generate challenge ID and show QR
+          const challengeId = `challenge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          setFormData((prev) => ({ ...prev, challengeId }));
+          setCurrentStep('qr');
+        }
         break;
-      case 'review_confirm':
-        handleCreateChallenge();
+      case 'opponent':
+        handleCreateDirectChallenge();
         break;
     }
-  }, [currentStep, formData, validateCurrentStep]);
+  }, [currentStep, formData, canProceed]);
 
   const handleBack = useCallback(() => {
+    clearError();
     switch (currentStep) {
-      case 'challenge_type':
-        setCurrentStep('choose_opponent');
+      case 'target':
+        setCurrentStep('type_config');
         break;
-      case 'review_confirm':
-        setCurrentStep('challenge_type');
+      case 'opponent':
+      case 'qr':
+        setCurrentStep('target');
         break;
     }
-  }, [currentStep]);
+  }, [currentStep, clearError]);
 
-  const handleCreateChallenge = useCallback(async () => {
+  const handleCreateDirectChallenge = async () => {
+    if (!formData.type || !formData.opponentId) {
+      Alert.alert('Error', 'Please select challenge type and opponent');
+      return;
+    }
+
     try {
-      // Clear any previous errors
-      clearError();
+      const challengeData: ChallengeCreationData = {
+        type: formData.type,
+        duration: formData.duration,
+        wager: formData.wager,
+        opponentId: formData.opponentId,
+        opponentInfo: formData.opponentInfo,
+      };
 
-      // Validate all form data before submission
-      if (!formData.opponentId || !formData.challengeType) {
-        throw new Error(
-          'Please complete all required fields before creating the challenge.'
-        );
-      }
-
-      // Create challenge using the hook
-      await createChallenge(formData);
-
-      // Move to success screen
+      await createChallenge(challengeData);
       setCurrentStep('success');
     } catch (error) {
       console.error('Failed to create challenge:', error);
-
-      // Determine error type and show appropriate message
-      let errorTitle = 'Challenge Creation Failed';
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      let actions = [
-        {
-          text: 'Try Again',
-          onPress: () => clearError(),
-        },
-      ];
-
-      if (error instanceof Error) {
-        errorMessage = error.message;
-
-        // Handle specific error types
-        if (
-          error.message.includes('network') ||
-          error.message.includes('connection')
-        ) {
-          errorTitle = 'Connection Error';
-          errorMessage = 'Please check your internet connection and try again.';
-          actions.push({
-            text: 'Retry',
-            onPress: () => {
-              clearError();
-              // Retry after a short delay
-              setTimeout(() => handleCreateChallenge(), 1000);
-            },
-          });
-          // Removed insufficient funds error - no wagers in this phase
-        } else if (
-          error.message.includes('user not found') ||
-          error.message.includes('opponent')
-        ) {
-          errorTitle = 'Opponent Unavailable';
-          errorMessage =
-            'The selected opponent is no longer available. Please choose another teammate.';
-          actions = [
-            {
-              text: 'Choose Another',
-              onPress: () => {
-                setCurrentStep('choose_opponent');
-                clearError();
-              },
-            },
-          ];
-        }
-      }
-
-      Alert.alert(errorTitle, errorMessage, actions);
+      Alert.alert(
+        'Challenge Creation Failed',
+        error instanceof Error ? error.message : 'An error occurred'
+      );
     }
-  }, [formData, createChallenge, clearError, setCurrentStep]);
+  };
 
-  // Data update handler
   const updateFormData = useCallback(
-    (updates: Partial<ChallengeCreationData>) => {
+    (updates: Partial<ChallengeFormData>) => {
       setFormData((prev) => ({ ...prev, ...updates }));
     },
     []
   );
 
-  const canGoBack =
-    currentStep !== 'choose_opponent' && currentStep !== 'success';
-  const isValid = validateCurrentStep();
+  // Prepare QR challenge data
+  const getQRChallengeData = (): ChallengeDeepLinkData | null => {
+    if (!formData.type || !formData.challengeId || !currentUser) {
+      return null;
+    }
+
+    return {
+      type: formData.type,
+      duration: formData.duration,
+      wager: formData.wager,
+      creatorPubkey: currentUser.id || currentUser.npub || '',
+      creatorName: currentUser.name || 'Unknown',
+      challengeId: formData.challengeId,
+    };
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 'type_config':
+        return (
+          <ScrollView
+            style={styles.stepContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.stepTitle}>Create Challenge</Text>
+            <Text style={styles.stepSubtitle}>
+              Choose challenge type and settings
+            </Text>
+
+            {/* Challenge Type Selection */}
+            <Text style={styles.sectionLabel}>Challenge Type</Text>
+            <View style={styles.typeGrid}>
+              {SIMPLE_CHALLENGE_TYPES.map((preset) => (
+                <TouchableOpacity
+                  key={preset.id}
+                  style={[
+                    styles.typeCard,
+                    formData.type === preset.id && styles.typeCardSelected,
+                  ]}
+                  onPress={() => updateFormData({ type: preset.id })}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.typeName,
+                      formData.type === preset.id && styles.typeNameSelected,
+                    ]}
+                  >
+                    {preset.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Duration Selection */}
+            <Text style={styles.sectionLabel}>Duration</Text>
+            <View style={styles.durationOptions}>
+              {DURATION_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.durationOption,
+                    formData.duration === option.value &&
+                      styles.durationOptionSelected,
+                  ]}
+                  onPress={() => updateFormData({ duration: option.value })}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.durationOptionText,
+                      formData.duration === option.value &&
+                        styles.durationOptionTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Wager Input */}
+            <Text style={styles.sectionLabel}>Wager (optional)</Text>
+            <TextInput
+              style={styles.wagerInput}
+              value={formData.wager.toString()}
+              onChangeText={(text) =>
+                updateFormData({ wager: parseInt(text) || 0 })
+              }
+              placeholder="0 sats"
+              placeholderTextColor={theme.colors.textMuted}
+              keyboardType="numeric"
+            />
+            {formData.wager > 0 && (
+              <Text style={styles.wagerHelper}>
+                Loser pays {formData.wager} sats to winner (trust-based)
+              </Text>
+            )}
+          </ScrollView>
+        );
+
+      case 'target':
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>How to Send Challenge?</Text>
+            <Text style={styles.stepSubtitle}>
+              Challenge specific person or share with QR code
+            </Text>
+            <ChallengeTargetStep
+              selectedTarget={formData.target}
+              onSelectTarget={(target) => updateFormData({ target })}
+            />
+          </View>
+        );
+
+      case 'opponent':
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Choose Opponent</Text>
+            <Text style={styles.stepSubtitle}>
+              Select teammate to challenge
+            </Text>
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.text} />
+                <Text style={styles.loadingText}>Loading teammates...</Text>
+              </View>
+            ) : (
+              <ChooseOpponentStep
+                teammates={teammates}
+                selectedOpponentId={formData.opponentId}
+                onSelectOpponent={(teammate) => {
+                  updateFormData({
+                    opponentId: teammate.id,
+                    opponentInfo: teammate,
+                  });
+                }}
+              />
+            )}
+          </View>
+        );
+
+      case 'qr':
+        const qrData = getQRChallengeData();
+        if (!qrData) {
+          return (
+            <Text style={styles.errorText}>
+              Failed to generate QR code data
+            </Text>
+          );
+        }
+        return (
+          <ChallengeQRStep
+            challengeData={qrData}
+            onDone={() => {
+              // Close wizard
+              if (onComplete) {
+                onComplete({} as any);
+              }
+              onCancel();
+            }}
+          />
+        );
+
+      case 'success':
+        return (
+          <View style={styles.successContainer}>
+            <Text style={styles.successTitle}>Challenge Created!</Text>
+            <Text style={styles.successMessage}>
+              Your challenge has been sent successfully
+            </Text>
+            <TouchableOpacity
+              style={styles.doneButton}
+              onPress={() => {
+                if (onComplete) {
+                  onComplete({} as any);
+                }
+                onCancel();
+              }}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const canGoBack = currentStep !== 'type_config' && currentStep !== 'success' && currentStep !== 'qr';
+  const showNextButton = currentStep !== 'qr' && currentStep !== 'success';
 
   return (
     <SafeAreaView style={styles.container}>
-      {currentStep !== 'success' && (
+      {currentStep !== 'success' && currentStep !== 'qr' && (
         <>
           {/* Header */}
           <View style={styles.header}>
@@ -238,7 +383,7 @@ export const ChallengeCreationWizard: React.FC<
                   !canGoBack && styles.headerButtonTextDisabled,
                 ]}
               >
-                ←
+                Back
               </Text>
             </TouchableOpacity>
 
@@ -249,103 +394,64 @@ export const ChallengeCreationWizard: React.FC<
             </TouchableOpacity>
           </View>
 
-          {/* Progress Indicator */}
-          <WizardProgress currentStep={currentStep} />
+          {/* Progress Dots */}
+          <View style={styles.progressContainer}>
+            <View
+              style={[
+                styles.progressDot,
+                currentStep === 'type_config' && styles.progressDotActive,
+              ]}
+            />
+            <View
+              style={[
+                styles.progressDot,
+                currentStep === 'target' && styles.progressDotActive,
+              ]}
+            />
+            <View
+              style={[
+                styles.progressDot,
+                (currentStep === 'opponent' || currentStep === 'qr') &&
+                  styles.progressDotActive,
+              ]}
+            />
+          </View>
         </>
       )}
 
       {/* Step Content */}
-      <View style={styles.content}>
-        {currentStep === 'choose_opponent' && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Choose Opponent</Text>
-            <Text style={styles.stepSubtitle}>
-              Select a teammate to challenge
-            </Text>
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.text} />
-                <Text style={styles.loadingText}>Loading teammates...</Text>
-              </View>
-            ) : (
-              <ChooseOpponentStep
-                teammates={effectiveTeammates}
-                selectedOpponentId={formData.opponentId}
-                onSelectOpponent={(teammate) => {
-                  updateFormData({
-                    opponentId: teammate.id,
-                    opponentInfo: teammate,
-                  });
-                }}
-              />
-            )}
-          </View>
-        )}
+      <View style={styles.content}>{renderStepContent()}</View>
 
-        {currentStep === 'challenge_type' && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Challenge Type</Text>
-            <Text style={styles.stepSubtitle}>
-              Choose what kind of challenge you want to create
-            </Text>
-            <ChallengeTypeStep
-              selectedChallengeType={formData.challengeType}
-              onSelectChallengeType={(challengeType) => {
-                updateFormData({ challengeType });
-              }}
-            />
-          </View>
-        )}
-
-        {/* Removed wager step - no Bitcoin functionality in this phase */}
-
-        {currentStep === 'review_confirm' && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Review Challenge</Text>
-            <Text style={styles.stepSubtitle}>
-              Confirm the details before creating your challenge
-            </Text>
-            <ReviewConfirmStep challengeData={formData} />
-          </View>
-        )}
-
-        {currentStep === 'success' && (
-          <SuccessScreen
-            challengeData={formData}
-            onDone={() => {
-              // Reset wizard and close
-              setCurrentStep('choose_opponent');
-              setFormData({ duration: 7 });
-              onCancel();
-            }}
-          />
-        )}
-      </View>
-
-      {/* Action Button */}
-      {currentStep !== 'success' && (
+      {/* Next Button */}
+      {showNextButton && (
         <View style={styles.actionSection}>
           <TouchableOpacity
             style={[
               styles.nextButton,
-              (!isValid || isLoading) && styles.nextButtonDisabled,
+              (!canProceed() || isLoading) && styles.nextButtonDisabled,
             ]}
             onPress={handleNext}
-            disabled={!isValid || isLoading}
+            disabled={!canProceed() || isLoading}
           >
-            {isLoading && currentStep === 'review_confirm' ? (
+            {isLoading && currentStep === 'opponent' ? (
               <ActivityIndicator size="small" color={theme.colors.accentText} />
             ) : (
               <Text
                 style={[
                   styles.nextButtonText,
-                  (!isValid || isLoading) && styles.nextButtonTextDisabled,
+                  (!canProceed() || isLoading) && styles.nextButtonTextDisabled,
                 ]}
               >
-                {currentStep === 'review_confirm' ? 'Create Challenge' : 'Next'}
+                {currentStep === 'opponent' ? 'Create Challenge' : 'Next'}
               </Text>
             )}
           </TouchableOpacity>
+        </View>
+      )}
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
     </SafeAreaView>
@@ -368,6 +474,7 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 4,
+    minWidth: 60,
   },
   headerButtonDisabled: {
     opacity: 0.3,
@@ -387,6 +494,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     color: theme.colors.textMuted,
+    textAlign: 'right',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -402,26 +510,25 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.buttonBorder,
   },
   progressDotActive: {
-    backgroundColor: theme.colors.text,
+    backgroundColor: theme.colors.accent,
     width: 24,
-    borderRadius: 4,
-  },
-  progressDotCompleted: {
-    backgroundColor: theme.colors.textMuted,
   },
   content: {
+    flex: 1,
+  },
+  stepContent: {
     flex: 1,
     paddingHorizontal: 20,
   },
   stepContainer: {
     flex: 1,
+    paddingHorizontal: 20,
   },
   stepTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: 8,
-    letterSpacing: -0.5,
   },
   stepSubtitle: {
     fontSize: 15,
@@ -429,11 +536,78 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 20,
   },
-  placeholder: {
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 8,
+  },
+  typeCard: {
+    flexBasis: '47%',
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    padding: 16,
+  },
+  typeCardSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+  typeName: {
     fontSize: 16,
-    color: theme.colors.textMuted,
+    fontWeight: '600',
+    color: theme.colors.text,
     textAlign: 'center',
-    marginTop: 50,
+  },
+  typeNameSelected: {
+    color: theme.colors.accent,
+  },
+  durationOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  durationOption: {
+    flex: 1,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  durationOptionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+  durationOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  durationOptionTextSelected: {
+    color: theme.colors.accent,
+  },
+  wagerInput: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: theme.colors.text,
+  },
+  wagerHelper: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 4,
   },
   actionSection: {
     paddingHorizontal: 20,
@@ -448,6 +622,7 @@ const styles = StyleSheet.create({
   },
   nextButtonDisabled: {
     backgroundColor: theme.colors.buttonBorder,
+    opacity: 0.5,
   },
   nextButtonText: {
     fontSize: 16,
@@ -455,7 +630,7 @@ const styles = StyleSheet.create({
     color: theme.colors.accentText,
   },
   nextButtonTextDisabled: {
-    color: theme.colors.accentText,
+    color: theme.colors.textMuted,
   },
   loadingContainer: {
     flex: 1,
@@ -467,6 +642,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
     marginTop: 16,
+  },
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  doneButton: {
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 12,
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.accentText,
+  },
+  errorContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: theme.colors.prizeBackground,
+  },
+  errorText: {
+    fontSize: 14,
+    color: theme.colors.error,
     textAlign: 'center',
   },
 });

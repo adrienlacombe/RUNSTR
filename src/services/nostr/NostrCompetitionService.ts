@@ -231,7 +231,7 @@ export class NostrCompetitionService {
         ['d', competitionId],
         ['team', eventData.teamId],
         ['activity_type', eventData.activityType],
-        ['competition_type', eventData.competitionType],
+        ['competition_type', eventData.competitionType], // Deprecated: backward compat
         ['event_date', eventData.eventDate],
         ['entry_fee', eventData.entryFeesSats.toString()],
         ['max_participants', eventData.maxParticipants.toString()],
@@ -239,6 +239,26 @@ export class NostrCompetitionService {
         ['status', 'upcoming'],
         ['name', eventData.name],
       ];
+
+      // ✅ NEW: Add simplified scoring_type tag if provided
+      if (eventData.scoringType) {
+        tags.push(['scoring_type', eventData.scoringType]);
+      }
+
+      // ✅ NEW: Add duration_minutes tag if provided (for short events)
+      if (eventData.durationMinutes) {
+        tags.push(['duration_minutes', eventData.durationMinutes.toString()]);
+      }
+
+      // ✅ NEW: Add scoring_mode tag if provided
+      if (eventData.scoringMode) {
+        tags.push(['scoring_mode', eventData.scoringMode]);
+      }
+
+      // ✅ NEW: Add team_goal tag if provided
+      if (eventData.teamGoal) {
+        tags.push(['team_goal', eventData.teamGoal.toString()]);
+      }
 
       if (eventData.description) {
         tags.push(['description', eventData.description]);

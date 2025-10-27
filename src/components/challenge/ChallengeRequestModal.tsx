@@ -34,15 +34,15 @@ export interface ChallengeRequestModalProps {
   onClose: () => void;
 }
 
-// Activity icons mapping
-const ACTIVITY_ICONS: Record<string, string> = {
-  running: '🏃',
-  walking: '🚶',
-  cycling: '🚴',
-  hiking: '🥾',
-  swimming: '🏊',
-  rowing: '🚣',
-  workout: '💪',
+// Activity icons mapping (using Ionicons)
+const ACTIVITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  running: 'walk',
+  walking: 'walk',
+  cycling: 'bicycle',
+  hiking: 'trail-sign',
+  swimming: 'water',
+  rowing: 'boat',
+  workout: 'barbell',
 };
 
 export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
@@ -268,7 +268,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
     }
   };
 
-  const activityIcon = ACTIVITY_ICONS[challenge.activityType] || '🏃';
+  const activityIconName = ACTIVITY_ICONS[challenge.activityType] || 'walk';
   const challengerName = challenge.challengerName || 'Someone';
   const challengerInitial = challengerName.charAt(0).toUpperCase();
 
@@ -289,7 +289,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
               onPress={onClose}
               disabled={isAccepting || isDeclining}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={20} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -305,7 +305,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
           {/* Challenge Details Card */}
           <View style={styles.detailsCard}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>{activityIcon}</Text>
+              <Ionicons name={activityIconName} size={20} color={theme.colors.accent} style={styles.detailIcon} />
               <Text style={styles.detailText}>
                 {challenge.activityType.charAt(0).toUpperCase() +
                   challenge.activityType.slice(1)}
@@ -313,7 +313,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
             </View>
 
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>📏</Text>
+              <Ionicons name="stats-chart" size={20} color={theme.colors.textSecondary} style={styles.detailIcon} />
               <Text style={styles.detailText}>
                 {challenge.metric.charAt(0).toUpperCase() +
                   challenge.metric.slice(1)}
@@ -321,13 +321,13 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
             </View>
 
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>📅</Text>
+              <Ionicons name="calendar" size={20} color={theme.colors.textSecondary} style={styles.detailIcon} />
               <Text style={styles.detailText}>{challenge.duration} days</Text>
             </View>
 
             {challenge.wagerAmount > 0 && (
               <View style={styles.wagerRow}>
-                <Text style={styles.detailIcon}>⚡</Text>
+                <Ionicons name="flash" size={20} color={theme.colors.accent} style={styles.detailIcon} />
                 <View>
                   <Text style={styles.wagerAmount}>
                     {challenge.wagerAmount.toLocaleString()} sats
@@ -372,7 +372,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
                   color={theme.colors.accentText}
                 />
               ) : (
-                <Text style={styles.acceptButtonText}>Accept ✓</Text>
+                <Text style={styles.acceptButtonText}>Accept</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -400,7 +400,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
                   setIsAccepting(false);
                 }}
               >
-                <Text style={styles.closeButtonText}>✕</Text>
+                <Ionicons name="close" size={20} color={theme.colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -432,7 +432,7 @@ export const ChallengeRequestModal: React.FC<ChallengeRequestModalProps> = ({
               </View>
 
               <Text style={styles.lightningHelper}>
-                💡 Get a free Lightning address at getalby.com
+                Get a free Lightning address at getalby.com
               </Text>
             </View>
 
@@ -542,7 +542,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   detailIcon: {
-    fontSize: 20,
     marginRight: 12,
   },
   detailText: {

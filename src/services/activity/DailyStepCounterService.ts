@@ -5,7 +5,7 @@
  */
 
 import { Pedometer } from 'expo-sensors';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid, Linking } from 'react-native';
 
 export interface DailyStepData {
   steps: number;
@@ -47,31 +47,99 @@ export class DailyStepCounterService {
   /**
    * Request permissions for motion/activity data
    * iOS: Automatically handled by Pedometer API
-   * Android: Requires ACTIVITY_RECOGNITION permission in app.json
+   * Android: Requires ACTIVITY_RECOGNITION permission (Android 10+)
    */
   async requestPermissions(): Promise<boolean> {
     try {
-      // Pedometer.requestPermissionsAsync() doesn't exist in expo-sensors
-      // Permissions are handled by OS when first accessing step data
-      // iOS: User prompted automatically by HealthKit
-      // Android: Declared in app.json manifest
-
       const available = await this.isAvailable();
       if (!available) {
         console.warn('[DailyStepCounterService] Pedometer not available on this device');
         return false;
       }
 
-      // Test if we can access step data (will trigger permission prompt if needed)
+      // Android 10+ (API 29+) requires explicit ACTIVITY_RECOGNITION permission
+      if (Platform.OS === 'android' && Platform.Version >= 29) {
+        console.log('[DailyStepCounterService] Requesting ACTIVITY_RECOGNITION permission (Android 10+)');
+
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+          {
+            title: 'Motion Permission Required',
+            message: 'RUNSTR needs access to your motion data to count your daily steps and track walking activities.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          }
+        );
+
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.warn('[DailyStepCounterService] Motion permission denied');
+          return false;
+        }
+
+        console.log('[DailyStepCounterService] ACTIVITY_RECOGNITION permission granted');
+      }
+
+      // Test if we can access step data (iOS auto-prompts here)
       const now = new Date();
       const testStart = new Date(now.getTime() - 1000); // 1 second ago
       await Pedometer.getStepCountAsync(testStart, now);
 
-      console.log('[DailyStepCounterService] Permissions granted');
+      console.log('[DailyStepCounterService] Permissions granted - step data accessible');
       return true;
     } catch (error) {
       console.error('[DailyStepCounterService] Permission error:', error);
       return false;
+    }
+  }
+
+  /**
+   * Check if motion permission is currently granted (Android only)
+   */
+  async checkPermissionStatus(): Promise<'granted' | 'denied' | 'never_ask_again' | 'unknown'> {
+    if (Platform.OS !== 'android' || Platform.Version < 29) {
+      return 'granted'; // iOS or older Android versions don't need explicit permission
+    }
+
+    try {
+      const result = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
+      );
+
+      if (result) {
+        return 'granted';
+      }
+
+      // Permission not granted - check if we can request it
+      const requestResult = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+        {
+          title: 'Motion Permission Required',
+          message: 'RUNSTR needs access to your motion data to count your daily steps.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        }
+      );
+
+      if (requestResult === PermissionsAndroid.RESULTS.GRANTED) {
+        return 'granted';
+      } else if (requestResult === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+        return 'never_ask_again';
+      } else {
+        return 'denied';
+      }
+    } catch (error) {
+      console.error('[DailyStepCounterService] Error checking permission:', error);
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Open device settings for manual permission grant (Android)
+   */
+  openSettings(): void {
+    if (Platform.OS === 'android') {
+      console.log('[DailyStepCounterService] Opening app settings');
+      Linking.openSettings();
     }
   }
 

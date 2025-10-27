@@ -66,6 +66,12 @@ export type NostrEventCompetitionType =
   | 'Session Count'
   | 'Meal Logging';
 
+// Simplified Event Scoring System (NEW)
+export type EventScoringType = 'completion' | 'fastest_time';
+
+// Scoring mode for leaderboards
+export type ScoringMode = 'individual' | 'team-total';
+
 export type NostrScoringFrequency = 'daily' | 'weekly' | 'total';
 
 // League Definition (Kind 30100)
@@ -111,10 +117,12 @@ export interface NostrEventDefinition {
   name: string;
   description?: string;
   activityType: NostrActivityType;
-  competitionType: NostrEventCompetitionType;
+  scoringType?: EventScoringType; // NEW: Simplified scoring (completion | fastest_time)
+  competitionType: NostrEventCompetitionType; // Deprecated: Keep for backward compatibility
 
   // Timing
   eventDate: string; // ISO string
+  durationMinutes?: number; // Optional: Duration in minutes for short events (10, 120, etc.)
 
   // Settings
   entryFeesSats: number;
@@ -124,6 +132,10 @@ export interface NostrEventDefinition {
   targetUnit?: string;
   prizePoolSats?: number; // Optional prize pool amount in sats
   lightningAddress?: string; // Captain's Lightning address for receiving entry fees (e.g., "captain@getalby.com")
+
+  // Scoring
+  scoringMode?: ScoringMode; // 'individual' | 'team-total' (default: individual)
+  teamGoal?: number; // Optional: Team goal for team-total mode (e.g., 210 km)
 
   // Payment Configuration
   paymentDestination?: 'captain' | 'charity';
@@ -173,8 +185,10 @@ export interface NostrEventEventTemplate extends EventTemplate {
     | ['d', string] // unique identifier
     | ['team', string] // team ID
     | ['activity_type', NostrActivityType]
-    | ['competition_type', NostrEventCompetitionType]
+    | ['scoring_type', EventScoringType] // NEW: Simplified scoring
+    | ['competition_type', NostrEventCompetitionType] // Deprecated but kept for compat
     | ['event_date', string] // ISO string
+    | ['duration_minutes', string] // Optional: Duration in minutes for short events
     | ['entry_fee', string] // sats as string
     | ['max_participants', string]
     | ['require_approval', string] // boolean as string
@@ -184,6 +198,8 @@ export interface NostrEventEventTemplate extends EventTemplate {
     | ['target_value', string]
     | ['target_unit', string]
     | ['prize_pool', string] // Prize pool amount as string
+    | ['scoring_mode', ScoringMode] // 'individual' | 'team-total'
+    | ['team_goal', string] // Team goal value as string
   >;
 }
 

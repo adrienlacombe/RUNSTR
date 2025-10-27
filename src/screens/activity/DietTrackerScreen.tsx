@@ -259,6 +259,8 @@ export const DietTrackerScreen: React.FC = () => {
             is24Hour={false}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleTimeChange}
+            accentColor={theme.colors.orangeBright}
+            themeVariant="dark"
           />
         )}
       </View>

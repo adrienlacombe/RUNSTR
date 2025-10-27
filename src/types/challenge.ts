@@ -1,59 +1,51 @@
 /**
  * Challenge Type Definitions
  * Types for 1v1 fitness challenges using Nostr kind 30000 lists
+ * SIMPLIFIED: Trust-based model, no payment processing, 4 challenge types only
  */
 
+import type { SimpleChallengeType } from '../constants/simpleChallengePresets';
+
 export interface ChallengeMetadata {
-  id: string;
-  name: string;
-  description?: string;
-  activity:
-    | 'running'
-    | 'walking'
-    | 'cycling'
-    | 'hiking'
-    | 'swimming'
-    | 'rowing'
-    | 'workout';
-  metric: 'distance' | 'duration' | 'count' | 'calories' | 'pace';
-  target?: string; // Target value (e.g., "5000" for 5K meters)
-  wager: number; // Amount in satoshis
+  id: string; // Unique challenge ID
+  type: SimpleChallengeType; // 'pushups' | 'distance' | 'carnivore' | 'meditation'
+  name: string; // Display name (e.g., "Push-ups Challenge")
+  description?: string; // Optional description
+  duration: 1 | 7 | 30; // Challenge duration in days
+  wager: number; // Amount in satoshis (display only, not collected by app)
+
+  // Challenge status
   status: ChallengeStatus;
-  paymentStatus?: PaymentStatus; // Bitcoin payment status
-  creatorPaid?: boolean; // Has creator paid their wager
-  accepterPaid?: boolean; // Has accepter paid their wager
-  createdAt: number; // Unix timestamp
-  startsAt: number; // Unix timestamp
-  expiresAt: number; // Unix timestamp
-  challengerPubkey: string;
-  challengedPubkey: string;
-  winnerId?: string; // Pubkey of winner when completed
-  payoutHash?: string; // Lightning payment hash for winner payout
-  creatorLightningAddress?: string; // Creator's Lightning address for receiving payments
-  accepterLightningAddress?: string; // Accepter's Lightning address for receiving payments
-  creatorPaymentProof?: string; // Invoice paid by creator (optional tracking)
-  accepterPaymentProof?: string; // Invoice paid by accepter (optional tracking)
+
+  // Participants
+  challengerPubkey: string; // Creator's hex pubkey
+  challengerName: string; // Creator's display name
+  challengedPubkey: string; // Opponent's hex pubkey
+  challengedName: string; // Opponent's display name
+
+  // Timing
+  createdAt: number; // Unix timestamp when created
+  startsAt: number; // Unix timestamp when challenge becomes active
+  expiresAt: number; // Unix timestamp when challenge ends
+
+  // Completion
+  winnerId?: string; // Pubkey of winner (set when challenge completes)
+
+  // Optional: For QR challenges
+  isQRChallenge?: boolean; // True if created via QR code sharing
+  parentChallengeId?: string; // Original challenge ID if created from QR scan
 }
 
 export enum ChallengeStatus {
-  PENDING = 'pending', // Waiting for acceptance
-  AWAITING_CREATOR_PAYMENT = 'awaiting_creator_payment', // Creator needs to pay
-  AWAITING_ACCEPTER_PAYMENT = 'awaiting_accepter_payment', // Accepter needs to pay
-  ACTIVE = 'active', // Challenge accepted and ongoing (both paid)
-  COMPLETED = 'completed', // Challenge finished
-  DECLINED = 'declined', // Challenge rejected
-  EXPIRED = 'expired', // Challenge expired without response
+  PENDING = 'pending', // Waiting for acceptance (direct challenges only)
+  ACTIVE = 'active', // Challenge ongoing
+  COMPLETED = 'completed', // Challenge finished, winner determined
+  DECLINED = 'declined', // Challenge rejected (direct challenges only)
+  EXPIRED = 'expired', // Challenge expired without completion
   CANCELLED = 'cancelled', // Challenge cancelled by creator
 }
 
-export enum PaymentStatus {
-  NOT_STARTED = 'not_started',
-  AWAITING_CREATOR = 'awaiting_creator',
-  AWAITING_ACCEPTER = 'awaiting_accepter',
-  FULLY_FUNDED = 'fully_funded',
-  COMPLETED = 'completed',
-  REFUNDED = 'refunded',
-}
+// REMOVED: PaymentStatus enum - trust-based model, no payment tracking
 
 export interface ChallengeRequest {
   challengeId: string;
@@ -62,6 +54,9 @@ export interface ChallengeRequest {
   challengeDetails: ChallengeMetadata;
   requestedAt: number;
   expiresAt: number;
+
+  // For QR challenges
+  isFromQR?: boolean; // True if challenge initiated via QR scan
 }
 
 export interface ChallengeParticipant {
@@ -125,136 +120,11 @@ export enum UserActivityStatus {
   NEW = 'new', // No recorded activity
 }
 
-// Activity Configuration Types
-export interface ActivityConfiguration {
-  activityType: ActivityType;
-  metric: MetricType;
-  duration: DurationOption;
-  wagerAmount: number;
-}
+// REMOVED: Complex activity configuration - replaced with SimpleChallengeType presets
+// See: src/constants/simpleChallengePresets.ts
 
-export type ActivityType =
-  | 'running'
-  | 'walking'
-  | 'cycling'
-  | 'hiking'
-  | 'swimming'
-  | 'rowing'
-  | 'strength'
-  | 'treadmill'
-  | 'meditation'
-  | 'yoga'
-  | 'pushups'
-  | 'pullups'
-  | 'situps'
-  | 'weights'
-  | 'workout';
-
-export type MetricType =
-  | 'distance'
-  | 'duration'
-  | 'count'
-  | 'calories'
-  | 'pace'
-  | 'reps'
-  | 'sets'
-  | 'elevation'
-  | 'laps'
-  | 'poses'
-  | 'sessions'
-  | 'weight';
-
-export type DurationOption = 3 | 7 | 14 | 30; // Days
-
-export interface MetricOption {
-  value: MetricType;
-  label: string;
-  unit: string;
-}
-
-// Metric options per activity type
-export const ACTIVITY_METRICS: Record<ActivityType, MetricOption[]> = {
-  running: [
-    { value: 'distance', label: 'Distance', unit: 'km' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'pace', label: 'Pace', unit: 'min/km' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-  walking: [
-    { value: 'distance', label: 'Distance', unit: 'km' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'count', label: 'Steps', unit: 'steps' },
-  ],
-  cycling: [
-    { value: 'distance', label: 'Distance', unit: 'km' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'pace', label: 'Speed', unit: 'km/h' },
-  ],
-  hiking: [
-    { value: 'distance', label: 'Distance', unit: 'km' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'elevation', label: 'Elevation Gain', unit: 'm' },
-  ],
-  swimming: [
-    { value: 'distance', label: 'Distance', unit: 'm' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'laps', label: 'Laps', unit: 'laps' },
-  ],
-  rowing: [
-    { value: 'distance', label: 'Distance', unit: 'm' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-  ],
-  strength: [
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'sets', label: 'Sets', unit: 'sets' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-  treadmill: [
-    { value: 'distance', label: 'Distance', unit: 'km' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'pace', label: 'Pace', unit: 'min/km' },
-    { value: 'elevation', label: 'Incline', unit: '%' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-  meditation: [
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'sessions', label: 'Sessions', unit: 'sessions' },
-  ],
-  yoga: [
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'sessions', label: 'Sessions', unit: 'sessions' },
-    { value: 'poses', label: 'Poses', unit: 'poses' },
-  ],
-  pushups: [
-    { value: 'reps', label: 'Reps', unit: 'reps' },
-    { value: 'sets', label: 'Sets', unit: 'sets' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-  pullups: [
-    { value: 'reps', label: 'Reps', unit: 'reps' },
-    { value: 'sets', label: 'Sets', unit: 'sets' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-  situps: [
-    { value: 'reps', label: 'Reps', unit: 'reps' },
-    { value: 'sets', label: 'Sets', unit: 'sets' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-  weights: [
-    { value: 'reps', label: 'Reps', unit: 'reps' },
-    { value: 'sets', label: 'Sets', unit: 'sets' },
-    { value: 'weight', label: 'Weight', unit: 'kg' },
-    { value: 'duration', label: 'Duration', unit: 'min' },
-  ],
-  workout: [
-    { value: 'duration', label: 'Duration', unit: 'min' },
-    { value: 'count', label: 'Reps', unit: 'reps' },
-    { value: 'calories', label: 'Calories', unit: 'kcal' },
-  ],
-};
+// Legacy type exports for backward compatibility (will be gradually removed)
+export type DurationOption = 1 | 7 | 30; // Days
 
 // Nostr event kinds for challenges
 export const CHALLENGE_REQUEST_KIND = 1105;

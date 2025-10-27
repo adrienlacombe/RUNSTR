@@ -31,12 +31,15 @@ export interface CompetitionEvent {
   scoringType?: string; // NEW: 'completion' | 'fastest_time'
   metric: string; // Deprecated: Use scoringType instead
   eventDate: string; // ISO date
+  durationMinutes?: number; // NEW: Duration for short events (10 min, 2 hours)
   targetDistance?: number;
   targetUnit?: string;
   entryFeesSats?: number;
   lightningAddress?: string;
   paymentDestination?: 'captain' | 'charity';
   paymentRecipientName?: string;
+  scoringMode?: 'individual' | 'team-total'; // NEW: Scoring mode
+  teamGoal?: number; // NEW: Team goal for team-total mode
 }
 
 export class SimpleCompetitionService {
@@ -549,6 +552,11 @@ export class SimpleCompetitionService {
       const scoringType = getTag('scoring_type') || getTag('competition_type') || 'fastest_time';
       const activityType = getTag('activity_type') || 'Running';
 
+      // ✅ NEW: Read duration, scoring mode, and team goal
+      const durationMinutesTag = getTag('duration_minutes');
+      const scoringModeTag = getTag('scoring_mode');
+      const teamGoalTag = getTag('team_goal');
+
       return {
         id,
         teamId,
@@ -559,6 +567,7 @@ export class SimpleCompetitionService {
         scoringType, // ✅ NEW: Read simplified scoring type
         metric: getTag('competition_type') || scoringType, // Deprecated: backward compat
         eventDate: getTag('event_date') || new Date().toISOString(),
+        durationMinutes: durationMinutesTag ? parseInt(durationMinutesTag) : undefined, // ✅ NEW
         targetDistance: targetValue ? parseFloat(targetValue) : undefined,
         targetUnit: getTag('target_unit'),
         entryFeesSats: entryFee ? parseInt(entryFee) : undefined,
@@ -568,6 +577,8 @@ export class SimpleCompetitionService {
           | 'charity'
           | undefined,
         paymentRecipientName: getTag('payment_recipient_name'),
+        scoringMode: scoringModeTag as 'individual' | 'team-total' | undefined, // ✅ NEW
+        teamGoal: teamGoalTag ? parseFloat(teamGoalTag) : undefined, // ✅ NEW
       };
     } catch (error) {
       console.error('Failed to parse event:', error);

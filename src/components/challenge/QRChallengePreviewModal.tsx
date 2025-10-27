@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import type { QRChallengeData } from '../../services/challenge/QRChallengeService';
 import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
@@ -24,23 +25,23 @@ import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 import type { ActivityType } from '../../types/challenge';
 import { ChallengePaymentModal } from './ChallengePaymentModal';
 
-// Activity icons mapping
-const ACTIVITY_ICONS: Record<ActivityType, string> = {
-  running: '🏃',
-  walking: '🚶',
-  cycling: '🚴',
-  hiking: '🥾',
-  swimming: '🏊',
-  rowing: '🚣',
-  strength: '💪',
-  treadmill: '🏃',
-  meditation: '🧘',
-  yoga: '🧘',
-  pushups: '💪',
-  pullups: '💪',
-  situps: '💪',
-  weights: '🏋️',
-  workout: '💪',
+// Activity icons mapping (using Ionicons)
+const ACTIVITY_ICONS: Record<ActivityType, keyof typeof Ionicons.glyphMap> = {
+  running: 'walk',
+  walking: 'walk',
+  cycling: 'bicycle',
+  hiking: 'trail-sign',
+  swimming: 'water',
+  rowing: 'boat',
+  strength: 'barbell',
+  treadmill: 'walk',
+  meditation: 'flower',
+  yoga: 'flower',
+  pushups: 'barbell',
+  pullups: 'barbell',
+  situps: 'barbell',
+  weights: 'barbell',
+  workout: 'barbell',
 };
 
 export interface QRChallengePreviewModalProps {
@@ -200,7 +201,7 @@ export const QRChallengePreviewModal: React.FC<
     }, 300);
   };
 
-  const activityIcon = ACTIVITY_ICONS[challengeData.activity] || '🏃';
+  const activityIconName = ACTIVITY_ICONS[challengeData.activity] || 'walk';
   const challengerName = challengeData.creator_name || 'Someone';
   const challengerInitial = challengerName.charAt(0).toUpperCase();
 
@@ -223,7 +224,7 @@ export const QRChallengePreviewModal: React.FC<
               onPress={onClose}
               disabled={isAccepting || isDeclining}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={20} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -239,7 +240,7 @@ export const QRChallengePreviewModal: React.FC<
           {/* Challenge Details Card */}
           <View style={styles.detailsCard}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>{activityIcon}</Text>
+              <Ionicons name={activityIconName} size={20} color={theme.colors.accent} style={styles.detailIcon} />
               <Text style={styles.detailText}>
                 {challengeData.activity.charAt(0).toUpperCase() +
                   challengeData.activity.slice(1)}
@@ -247,7 +248,7 @@ export const QRChallengePreviewModal: React.FC<
             </View>
 
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>📏</Text>
+              <Ionicons name="stats-chart" size={20} color={theme.colors.textSecondary} style={styles.detailIcon} />
               <Text style={styles.detailText}>
                 {challengeData.metric.charAt(0).toUpperCase() +
                   challengeData.metric.slice(1)}
@@ -255,7 +256,7 @@ export const QRChallengePreviewModal: React.FC<
             </View>
 
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>📅</Text>
+              <Ionicons name="calendar" size={20} color={theme.colors.textSecondary} style={styles.detailIcon} />
               <Text style={styles.detailText}>
                 {challengeData.duration} days
               </Text>
@@ -263,7 +264,7 @@ export const QRChallengePreviewModal: React.FC<
 
             {challengeData.wager > 0 && (
               <View style={styles.wagerRow}>
-                <Text style={styles.detailIcon}>⚡</Text>
+                <Ionicons name="flash" size={20} color={theme.colors.accent} style={styles.detailIcon} />
                 <View>
                   <Text style={styles.wagerAmount}>
                     {challengeData.wager.toLocaleString()} sats
@@ -316,7 +317,7 @@ export const QRChallengePreviewModal: React.FC<
                   color={theme.colors.accentText}
                 />
               ) : (
-                <Text style={styles.acceptButtonText}>Accept ✓</Text>
+                <Text style={styles.acceptButtonText}>Accept</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -416,7 +417,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   detailIcon: {
-    fontSize: 20,
     marginRight: 12,
   },
   detailText: {

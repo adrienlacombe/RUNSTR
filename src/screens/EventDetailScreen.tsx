@@ -11,7 +11,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
@@ -21,6 +20,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../styles/theme';
 import { SimpleLeagueDisplay } from '../components/team/SimpleLeagueDisplay';
 import { EventPaymentModal } from '../components/event/EventPaymentModal';
+import { CustomAlert } from '../components/ui/CustomAlert';
+import { TeamGoalProgressCard } from '../components/team/TeamGoalProgressCard';
 import { eventJoinService } from '../services/event/EventJoinService';
 import type { RootStackParamList } from '../types';
 
@@ -53,6 +54,30 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState('');
+  const [teamGoalProgress, setTeamGoalProgress] = useState<{
+    current: number;
+    goal: number;
+    percentage: number;
+    formattedCurrent: string;
+    formattedGoal: string;
+    unit: string;
+  } | null>(null);
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
 
   useEffect(() => {
     loadEventData();
@@ -203,6 +228,19 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       setLoadingLeaderboard(false);
       console.log(`✅ Leaderboard calculated: ${rankings.length} entries`);
 
+      // Calculate team goal progress if event has team-total scoring mode
+      if (event.scoringMode === 'team-total' && event.teamGoal) {
+        console.log('🎯 Calculating team goal progress...');
+        const progress = await SimpleLeaderboardService.calculateTeamGoalProgress(
+          event,
+          participantsForLeaderboard
+        );
+        setTeamGoalProgress(progress);
+        console.log(`✅ Team goal progress: ${progress.percentage.toFixed(1)}%`);
+      } else {
+        setTeamGoalProgress(null);
+      }
+
       // ✅ CRITICAL: Save snapshot for instant future access
       if (!usedSnapshot && event) {
         try {
@@ -263,10 +301,20 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         freshParticipants
       );
 
+      // Calculate team goal progress for background refresh
+      let freshTeamGoalProgress = null;
+      if (freshEvent.scoringMode === 'team-total' && freshEvent.teamGoal) {
+        freshTeamGoalProgress = await SimpleLeaderboardService.calculateTeamGoalProgress(
+          freshEvent,
+          freshParticipants
+        );
+      }
+
       // Update UI with fresh data (only if still on this screen)
       setEventData(freshEvent);
       setParticipants(freshParticipants);
       setLeaderboard(freshLeaderboard);
+      setTeamGoalProgress(freshTeamGoalProgress);
 
       // Check user participation
       const userHexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
@@ -306,7 +354,12 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       // Get user pubkey
       const userHexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
       if (!userHexPubkey) {
-        Alert.alert('Error', 'User not authenticated');
+        setAlertConfig({
+          title: 'Error',
+          message: 'User not authenticated',
+          buttons: [{ text: 'OK', style: 'default' }],
+        });
+        setAlertVisible(true);
         return;
       }
 
@@ -383,7 +436,12 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       }
     } catch (error) {
       console.error('❌ Failed to join event:', error);
-      Alert.alert('Error', 'Failed to join event. Please try again.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to join event. Please try again.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } finally {
       setIsJoining(false);
     }
@@ -449,7 +507,12 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
       }
     } catch (error) {
       console.error('❌ Failed to submit join request:', error);
-      Alert.alert('Error', 'Failed to submit join request. Please try again.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to submit join request. Please try again.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     } finally {
       setIsJoining(false);
     }
@@ -601,7 +664,10 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           <View style={styles.eventInfoRow}>
             <Text style={styles.eventLabel}>Scoring</Text>
             <Text style={styles.eventValue}>
-              {eventData.metric?.replace('_', ' ') || 'Total distance'}
+              {/* ✅ FIX: Use scoringType instead of metric */}
+              {eventData.scoringType === 'completion' && 'Completion'}
+              {eventData.scoringType === 'fastest_time' && 'Fastest Time'}
+              {!eventData.scoringType && (eventData.metric?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Total Distance')}
             </Text>
           </View>
 
@@ -630,6 +696,18 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
             </View>
           )}
         </View>
+
+        {/* Team Goal Progress Card (for team-total scoring mode) */}
+        {teamGoalProgress && (
+          <TeamGoalProgressCard
+            current={teamGoalProgress.current}
+            goal={teamGoalProgress.goal}
+            percentage={teamGoalProgress.percentage}
+            formattedCurrent={teamGoalProgress.formattedCurrent}
+            formattedGoal={teamGoalProgress.formattedGoal}
+            unit={teamGoalProgress.unit}
+          />
+        )}
 
         {/* Participants Section */}
         <View style={styles.participantsCard}>
@@ -729,6 +807,15 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           setShowPaymentModal(false);
           setIsJoining(false);
         }}
+      />
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertVisible(false)}
       />
     </SafeAreaView>
   );

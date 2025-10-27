@@ -26,7 +26,6 @@ import {
   AppState,
   AppStateStatus,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -108,6 +107,13 @@ import { challengeCompletionService } from './services/challenge/ChallengeComple
 import { appPermissionService } from './services/initialization/AppPermissionService';
 import { PermissionRequestModal } from './components/permissions/PermissionRequestModal';
 import garminAuthService from './services/fitness/garminAuthService';
+import {
+  CustomAlertProvider,
+  CustomAlertManager,
+} from './components/ui/CustomAlert';
+import { ChallengePreviewModal } from './components/challenge/ChallengePreviewModal';
+import { parseChallengeDeepLink, type ParsedChallengeData } from './utils/challengeDeepLink';
+import { challengeRequestService } from './services/challenge/ChallengeRequestService';
 
 // Types for authenticated app navigation
 type AuthenticatedStackParamList = {
@@ -167,6 +173,10 @@ const AppContent: React.FC = () => {
   >(null);
   const [prefetchCompleted, setPrefetchCompleted] = React.useState(false);
   const [showPermissionModal, setShowPermissionModal] = React.useState(false);
+
+  // Challenge deep link state
+  const [showChallengePreview, setShowChallengePreview] = React.useState(false);
+  const [challengeData, setChallengeData] = React.useState<ParsedChallengeData | null>(null);
 
   // ✅ PERFORMANCE: Use cache-first strategy - show app immediately if ANY cache exists
   React.useEffect(() => {
@@ -261,9 +271,9 @@ const AppContent: React.FC = () => {
     checkPermissions();
   }, [isAuthenticated]);
 
-  // Handle Garmin OAuth deep link callback
+  // Handle deep links (Garmin OAuth and Challenge QR codes)
   React.useEffect(() => {
-    const handleGarminDeepLink = async ({ url }: { url: string }) => {
+    const handleDeepLink = async ({ url }: { url: string }) => {
       console.log('🔗 Deep link received:', url);
 
       const { hostname, path, queryParams } = Linking.parse(url);
@@ -282,39 +292,135 @@ const AppContent: React.FC = () => {
           );
 
           if (result.success) {
-            Alert.alert(
+            CustomAlertManager.alert(
               'Success',
               'Garmin connected! You can now sync your workouts.',
               [{ text: 'OK' }]
             );
           } else {
-            Alert.alert(
+            CustomAlertManager.alert(
               'Connection Failed',
               result.error || 'Failed to connect Garmin. Please try again.'
             );
           }
         } catch (error) {
           console.error('❌ Failed to handle Garmin OAuth callback:', error);
-          Alert.alert(
+          CustomAlertManager.alert(
             'Error',
             'Failed to connect Garmin. Please try again.'
+          );
+        }
+        return;
+      }
+
+      // Handle Challenge QR deep link: runstr://challenge?type=pushups&duration=7&wager=500&...
+      if (path === 'challenge' || url.includes('challenge?')) {
+        console.log('🏆 Challenge deep link detected');
+
+        try {
+          const parsedChallenge = parseChallengeDeepLink(url);
+          console.log('📦 Parsed challenge data:', parsedChallenge);
+
+          if (parsedChallenge.isValid) {
+            setChallengeData(parsedChallenge);
+            setShowChallengePreview(true);
+          } else {
+            console.error('❌ Invalid challenge data:', parsedChallenge.error);
+            CustomAlertManager.alert(
+              'Invalid Challenge',
+              parsedChallenge.error || 'This challenge link is invalid or expired.'
+            );
+          }
+        } catch (error) {
+          console.error('❌ Failed to parse challenge deep link:', error);
+          CustomAlertManager.alert(
+            'Error',
+            'Failed to process challenge link. Please try again.'
           );
         }
       }
     };
 
     // Listen for deep links when app is already open
-    const subscription = Linking.addEventListener('url', handleGarminDeepLink);
+    const subscription = Linking.addEventListener('url', handleDeepLink);
 
     // Check if app was opened via deep link (cold start)
     Linking.getInitialURL().then((url) => {
       if (url) {
         console.log('🔗 App opened via deep link (cold start):', url);
-        handleGarminDeepLink({ url });
+        handleDeepLink({ url });
       }
     });
 
     return () => subscription.remove();
+  }, []);
+
+  // Challenge deep link handlers
+  const handleAcceptChallenge = React.useCallback(async (challenge: ParsedChallengeData) => {
+    try {
+      console.log('🏆 Accepting challenge:', challenge);
+
+      // Get unified signer (supports both Amber and nsec)
+      const { UnifiedSigningService } = await import('./services/auth/UnifiedSigningService');
+      const signingService = UnifiedSigningService.getInstance();
+      const signer = await signingService.getSigner();
+
+      if (!signer) {
+        throw new Error('User not authenticated');
+      }
+
+      // Accept the challenge using the challengeRequestService
+      // This method already exists and handles QR challenges
+      const result = await challengeRequestService.acceptQRChallenge(
+        {
+          challenge_id: challenge.challengeId,
+          creator_pubkey: challenge.creatorPubkey,
+          type: challenge.type,
+          activity: challenge.type, // Map SimpleChallengeType to ActivityType
+          metric: challenge.type === 'pushups' ? 'reps' :
+                 challenge.type === 'distance' ? 'distance' :
+                 challenge.type === 'carnivore' ? 'days' : 'duration',
+          duration: challenge.duration,
+          wager: challenge.wager,
+        },
+        signer
+      );
+
+      if (result.success) {
+        console.log('✅ Challenge accepted successfully');
+        setShowChallengePreview(false);
+        setChallengeData(null);
+
+        CustomAlertManager.alert(
+          'Challenge Accepted!',
+          `You've accepted the challenge from ${challenge.creatorName}. Good luck!`,
+          [{ text: 'OK' }]
+        );
+
+        // TODO: Navigate to challenge leaderboard
+        // navigation.navigate('ChallengeDetail', { challengeId: challenge.challengeId });
+      } else {
+        throw new Error(result.error || 'Failed to accept challenge');
+      }
+    } catch (error) {
+      console.error('❌ Failed to accept challenge:', error);
+      CustomAlertManager.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to accept challenge. Please try again.'
+      );
+    }
+  }, []);
+
+  const handleDeclineChallenge = React.useCallback(() => {
+    console.log('❌ Declining challenge');
+    setShowChallengePreview(false);
+    setChallengeData(null);
+  }, []);
+
+  const handleCloseChallengePreview = React.useCallback(() => {
+    console.log('🔒 Closing challenge preview');
+    setShowChallengePreview(false);
+    setChallengeData(null);
   }, []);
 
   // PERFORMANCE OPTIMIZATION: App state detection for smart resume
@@ -1071,6 +1177,15 @@ const AppContent: React.FC = () => {
           onComplete={() => setShowPermissionModal(false)}
         />
       )}
+
+      {/* Challenge Preview Modal - Shows when QR code challenge is scanned */}
+      <ChallengePreviewModal
+        visible={showChallengePreview}
+        challengeData={challengeData}
+        onAccept={handleAcceptChallenge}
+        onDecline={handleDeclineChallenge}
+        onClose={handleCloseChallengePreview}
+      />
     </SafeAreaProvider>
   );
 };
@@ -1181,13 +1296,15 @@ export default function App() {
 
   return (
     <AppErrorBoundary>
-      <AuthProvider>
-        <NavigationDataProvider>
-          <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-            <AppContent />
-          </View>
-        </NavigationDataProvider>
-      </AuthProvider>
+      <CustomAlertProvider>
+        <AuthProvider>
+          <NavigationDataProvider>
+            <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+              <AppContent />
+            </View>
+          </NavigationDataProvider>
+        </AuthProvider>
+      </CustomAlertProvider>
     </AppErrorBoundary>
   );
 }

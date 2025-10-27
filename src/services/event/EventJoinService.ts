@@ -17,7 +17,7 @@ import {
 } from '../../utils/bolt11Parser';
 import type { QREventData } from './QREventService';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
-import { CustomAlert } from '../../components/ui/CustomAlert';
+import { CustomAlertManager } from '../../components/ui/CustomAlert';
 
 export interface EventJoinResult {
   success: boolean;
@@ -86,7 +86,7 @@ export class EventJoinService {
       );
 
       alertVisible = true;
-      CustomAlert.alert(
+      CustomAlertManager.alert(
         'Request Sent!',
         `Your join request has been sent to the captain. You'll be notified when approved.`,
         [{ text: 'OK', onPress: () => { alertVisible = false; } }]
@@ -102,7 +102,7 @@ export class EventJoinService {
         error instanceof Error ? error.message : 'Unknown error';
 
       if (!alertVisible) {
-        CustomAlert.alert('Join Failed', errorMessage, [{ text: 'OK' }]);
+        CustomAlertManager.alert('Join Failed', errorMessage, [{ text: 'OK' }]);
       }
 
       return {
@@ -256,7 +256,7 @@ export class EventJoinService {
       console.log(`✅ Paid join request sent for: ${eventData.event_name}`);
 
       alertVisible = true;
-      CustomAlert.alert(
+      CustomAlertManager.alert(
         'Request Sent!',
         `Your payment and join request have been sent to the captain. You'll be notified when approved.`,
         [{ text: 'OK', onPress: () => { alertVisible = false; } }]
@@ -272,7 +272,7 @@ export class EventJoinService {
         error instanceof Error ? error.message : 'Unknown error';
 
       if (!alertVisible) {
-        CustomAlert.alert('Request Failed', errorMessage, [{ text: 'OK' }]);
+        CustomAlertManager.alert('Request Failed', errorMessage, [{ text: 'OK' }]);
       }
 
       return {

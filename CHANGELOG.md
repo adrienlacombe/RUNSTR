@@ -6,6 +6,157 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.12] - 2025-10-27
+
+### Added
+- **Daily Step Counter Permission System**: Enhanced Android 10+ permission handling for background step tracking
+  - `PermissionsAndroid.request()` for ACTIVITY_RECOGNITION permission
+  - `checkPermissionStatus()` method returns granted/denied/never_ask_again states
+  - `openSettings()` deep link to device settings for manual permission grants
+  - Permission status checking before enabling background tracking
+  - Better permission flow with user education and retry logic
+
+- **Background Step Tracking Toggle**: New settings screen control for auto step counting
+  - Toggle switch in Settings → Activity Preferences section
+  - Requests permission when user enables background tracking
+  - Shows alert with "Open Settings" button if permission denied
+  - Background tracking badge shows "Auto-counting enabled" when active
+
+- **Step Goal Picker Modal**: New modal for adjusting daily step goals
+  - Component: `StepGoalPickerModal.tsx` (5KB)
+  - Clean picker interface for goal selection
+  - Integrated with DailyStepGoalCard
+
+- **Challenge System Overhaul**: Complete 1v1 challenge redesign with QR sharing
+  - **Simplified 3-Step Wizard**: Type+Config → Target → Opponent/QR
+  - **4 Challenge Types**: Push-ups, Distance, Carnivore, Meditation (trust-based, no escrow)
+  - **QR Code Challenges**: Share challenges via QR codes for instant peer-to-peer setup
+  - **Challenge Deep Links**: runstr://challenge?type=... URLs for challenge acceptance
+  - **Challenge Preview Modal**: Shows challenge details before accepting (9KB)
+  - **Challenge Target Step**: Choose Direct (pick opponent) or QR (share with anyone)
+  - **Challenge QR Step**: Display QR code with sharing options (8KB)
+  - **Challenge Presets**: simpleChallengePresets.ts with 4 challenge types and durations (2KB)
+  - **ChallengeNostrService**: New service for Nostr challenge integration (6.5KB)
+  - **challengeDeepLink.ts**: Utility for parsing and generating challenge deep links (4.6KB)
+
+- **Event System Improvements**: Enhanced event creation and management
+  - **Event Duration Constants**: New eventDurations.ts for standardized event lengths (2.3KB)
+  - **Team Goal Progress Card**: Visual progress tracking for team event goals (4KB)
+  - Better event detail screen with improved information display
+  - Enhanced captain dashboard with better management tools
+
+- **App Deep Link Support**: Challenge QR codes and Garmin OAuth
+  - Challenge deep link handling in App.tsx (runstr://challenge?...)
+  - Challenge accept/decline flow with preview modal
+  - Intent filter added to app.json for challenge deep links
+  - Existing Garmin OAuth support maintained alongside challenges
+
+### Changed
+- **DailyStepGoalCard Redesign**: Completely redesigned with compact horizontal layout (482 line changes)
+  - **3-Column Layout**: Progress ring + Text content + Action buttons
+  - **Compact Design**: Ring shows percentage, main text shows step count
+  - **Set Goal Button**: Quick access to adjust daily step goal
+  - **Post Steps Button**: Share step count as Nostr workout event
+  - **Background Active Badge**: Shows when auto-counting is enabled
+  - **Background Tracking Banner**: Prompts to enable auto-counting with benefits
+  - Improved error hints and permission status displays
+
+- **Challenge Creation Wizard**: Major refactor from complex to streamlined (677 line changes)
+  - Old: Multi-step wizard with activity selection, opponent selection, wager
+  - New: 3-step flow (Type+Config → Target → Opponent/QR)
+  - Simplified challenge types from 10+ options to 4 trust-based types
+  - Removed payment escrow complexity (challenges are now trust-based with zap button)
+  - QR code sharing for easier peer-to-peer challenge distribution
+
+- **Challenge Types Simplified**: Reduced from complex to 4 simple types (214 line changes in types/challenge.ts)
+  - Old: Multiple activity-specific challenge types with complex parameters
+  - New: SimpleChallengeType = 'pushups' | 'distance' | 'carnivore' | 'meditation'
+  - Each type has clear metric (reps, distance, days, duration)
+  - Duration options: 1 day, 7 days, 30 days
+  - Wager is optional and trust-based (no escrow)
+
+### Improved
+- **Walking Tracker Screen**: Massive 429-line enhancement with step counter integration
+  - Background step tracking with real-time updates
+  - Step goal progress display during walks
+  - Auto-counting badge when background tracking enabled
+  - Step goal picker integration
+  - Better permission handling and error states
+
+- **Event Detail Screen**: 97-line improvements to event information display
+  - Better event metadata rendering
+  - Enhanced participant management
+  - Improved payment verification flow
+
+- **Event Captain Dashboard**: 85-line enhancements for better captain management
+  - Improved join request handling
+  - Better participant administration
+  - Enhanced event management tools
+
+- **Event Creation Wizard**: 234-line improvements to event creation flow
+  - Better preset handling
+  - Improved validation and error handling
+  - Enhanced UX for event configuration
+
+- **Events Card Display**: 114-line changes improving event card presentation
+  - Better event information layout
+  - Improved visual consistency
+  - Enhanced metadata display
+
+- **Settings Screen**: 58-line additions for background tracking and notifications
+  - New Activity Preferences section
+  - Background step tracking toggle with permission flow
+  - Pull-to-refresh for settings reload
+  - Permission request modals with better UX
+
+- **Meditation Tracker Screen**: 89-line improvements to meditation tracking
+  - Enhanced tracking reliability
+  - Better session management
+  - Improved workout data quality
+
+### Fixed
+- **NWC Wallet QR Scanning**: QRCodeService.ts improvements (12 line changes)
+  - Better NWC connection string parsing
+  - Improved wallet QR code scanning reliability
+  - Enhanced error handling for invalid QR codes
+
+- **Android 10+ Step Counter Permissions**: Proper permission flow for ACTIVITY_RECOGNITION
+  - Added PermissionsAndroid.request() for runtime permission
+  - Permission status checking before access
+  - Settings deep link for manual grants
+  - Better error messages and user guidance
+
+### Technical
+- Version numbers updated across all platforms:
+  - app.json: 0.4.12 (versionCode 43)
+  - android/app/build.gradle: 0.4.12 (versionCode 43)
+  - package.json: 0.4.12
+- Modified files:
+  - **Daily Step Counter**: DailyStepCounterService.ts (+86 lines), DailyStepGoalCard.tsx (482 line changes)
+  - **Challenge System**: ChallengeCreationWizard.tsx (+677 lines), 8 new files, types/challenge.ts (214 line changes)
+  - **Event System**: EventDetailScreen.tsx (+97), EventCaptainDashboard (+85), EventCreationWizard (+234), EventsCard (+114)
+  - **Walking Tracker**: WalkingTrackerScreen.tsx (+429 lines)
+  - **App Deep Links**: App.tsx (+147 lines), app.json (added challenge intent filter)
+  - **Settings**: SettingsScreen.tsx (+58 lines)
+  - **Navigation**: navigationHandlers.ts (74 line changes)
+  - **Services**: SimpleCompetitionService (+11), SimpleLeaderboardService (+158), NostrCompetitionService (+22)
+  - **UI**: EventCreationModal (+32), RouteSelectionModal (+1), ManualWorkoutScreen (+57), MeditationTrackerScreen (+89), ProfileScreen (AllWorkoutsTab +51), DietTrackerScreen (+2)
+  - **Types**: workout.ts (+18), nostrCompetition.ts (+20)
+- New files (9 total):
+  - StepGoalPickerModal.tsx (5KB)
+  - ChallengePreviewModal.tsx (9KB)
+  - TeamGoalProgressCard.tsx (4KB)
+  - ChallengeQRStep.tsx (8KB)
+  - ChallengeTargetStep.tsx (2.7KB)
+  - eventDurations.ts (2.3KB)
+  - simpleChallengePresets.ts (2KB)
+  - ChallengeNostrService.ts (6.5KB)
+  - challengeDeepLink.ts (4.6KB)
+- 34 files changed: 2,429 insertions, 947 deletions
+- Deep link support: runstr://challenge?type=pushups&duration=7&wager=500&... with ChallengePreviewModal
+- New permissions: Android ACTIVITY_RECOGNITION with runtime request flow
+- Major UX improvements: Compact step goal card + Simplified challenge wizard + Enhanced walking tracker
+
 ## [0.4.11] - 2025-10-26
 
 ### Added

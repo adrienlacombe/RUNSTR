@@ -10,10 +10,10 @@ import {
   RefreshControl,
   Text,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
+import { CustomAlert } from '../../ui/CustomAlert';
 import { LoadingOverlay } from '../../ui/LoadingStates';
 import { EnhancedWorkoutCard } from '../shared/EnhancedWorkoutCard';
 import { EnhancedSocialShareModal } from '../shared/EnhancedSocialShareModal';
@@ -49,6 +49,22 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [signer, setSigner] = useState<NDKSigner | null>(null);
   const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
 
   const nuclear1301Service = Nuclear1301Service.getInstance();
   const publishingService = WorkoutPublishingService.getInstance();
@@ -138,10 +154,12 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
 
   const handleCompete = async (workout: Workout) => {
     if (!signer) {
-      Alert.alert(
-        'Authentication Required',
-        'Please log in with your Nostr key to enter competitions.'
-      );
+      setAlertConfig({
+        title: 'Authentication Required',
+        message: 'Please log in with your Nostr key to enter competitions.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
       return;
     }
 
@@ -155,14 +173,24 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
 
       if (result.success) {
         await statusTracker.markAsCompeted(workout.id, result.eventId);
-        Alert.alert('Success', 'Workout entered into competition!');
+        setAlertConfig({
+          title: 'Success',
+          message: 'Workout entered into competition!',
+          buttons: [{ text: 'OK', style: 'default' }],
+        });
+        setAlertVisible(true);
         await handleRefresh();
       } else {
         throw new Error(result.error || 'Failed to create competition entry');
       }
     } catch (error) {
       console.error('Failed to compete workout:', error);
-      Alert.alert('Error', 'Failed to enter competition. Please try again.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to enter competition. Please try again.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -248,6 +276,15 @@ export const AllWorkoutsTab: React.FC<AllWorkoutsTabProps> = ({
           setSelectedWorkout(null);
         }}
         onSuccess={handleShareSuccess}
+      />
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertVisible(false)}
       />
     </>
   );

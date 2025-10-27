@@ -39,6 +39,7 @@ import { ReceiveModal } from '../components/wallet/ReceiveModal';
 import { HistoryModal } from '../components/wallet/HistoryModal';
 import { useNutzap } from '../hooks/useNutzap';
 import { useWalletStore } from '../store/walletStore';
+import { dailyStepCounterService } from '../services/activity/DailyStepCounterService';
 
 interface SettingsScreenProps {
   currentTeam?: Team;
@@ -102,6 +103,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     includeSplits: false,
     announceLiveSplits: false,
   });
+  const [backgroundTrackingEnabled, setBackgroundTrackingEnabled] = useState(false);
 
   // NWC Wallet state
   const [hasNWC, setHasNWC] = useState(false);
@@ -162,6 +164,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       if (npub) {
         setUserNpub(npub);
       }
+
+      // Check if background step tracking is available and enabled
+      const available = await dailyStepCounterService.isAvailable();
+      if (available) {
+        const permissionStatus = await dailyStepCounterService.checkPermissionStatus();
+        setBackgroundTrackingEnabled(permissionStatus === 'granted');
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -199,6 +208,34 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       setAlertMessage('Failed to play test announcement');
       setAlertButtons([{ text: 'OK' }]);
       setAlertVisible(true);
+    }
+  };
+
+  const handleBackgroundTrackingToggle = async (enabled: boolean) => {
+    if (enabled) {
+      // Request permission when user toggles on
+      const granted = await dailyStepCounterService.requestPermissions();
+      setBackgroundTrackingEnabled(granted);
+
+      if (!granted) {
+        // Show alert if permission denied
+        setAlertTitle('Permission Required');
+        setAlertMessage(
+          'Background step tracking requires motion permission to automatically count steps throughout the day.\n\n' +
+          'You can enable this permission in your device settings.'
+        );
+        setAlertButtons([
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: () => dailyStepCounterService.openSettings()
+          }
+        ]);
+        setAlertVisible(true);
+      }
+    } else {
+      // Just disable the toggle - permissions stay granted on device level
+      setBackgroundTrackingEnabled(false);
     }
   };
 
@@ -613,6 +650,27 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 </TouchableOpacity>
               </View>
             )}
+          </Card>
+        </View>
+
+        {/* Activity Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ACTIVITY PREFERENCES</Text>
+          <Card style={styles.card}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingTitle}>Background Step Tracking</Text>
+                <Text style={styles.settingSubtitle}>
+                  Automatically count steps throughout the day
+                </Text>
+              </View>
+              <Switch
+                value={backgroundTrackingEnabled}
+                onValueChange={handleBackgroundTrackingToggle}
+                trackColor={{ false: '#000000', true: theme.colors.accent }}
+                thumbColor="#000000"
+              />
+            </View>
           </Card>
         </View>
 

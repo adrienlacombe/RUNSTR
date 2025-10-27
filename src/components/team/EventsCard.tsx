@@ -10,14 +10,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { FormattedEvent } from '../../types';
 import { theme } from '../../styles/theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NostrListService } from '../../services/nostr/NostrListService';
 import { EventJoinRequestService } from '../../services/events/EventJoinRequestService';
-import { getAuthenticationData } from '../../utils/nostrAuth';
-import { npubToHex } from '../../utils/ndkConversion';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
-import { Alert } from 'react-native';
 import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService';
+import { CustomAlert } from '../ui/CustomAlert';
+import { GlobalNDKService } from '../../services/nostr/GlobalNDKService';
 
 // QR Code
 import { QRDisplayModal } from '../qr/QRDisplayModal';
@@ -48,7 +46,6 @@ export const EventsCard: React.FC<EventsCardProps> = ({
   const [eventStatuses, setEventStatuses] = useState<
     Record<string, EventStatus>
   >({});
-  const [currentUserNpub, setCurrentUserNpub] = useState<string | null>(null);
   const [currentUserHex, setCurrentUserHex] = useState<string | null>(null);
   const [requestingJoin, setRequestingJoin] = useState<string | null>(null);
   const listService = NostrListService.getInstance();
@@ -63,10 +60,11 @@ export const EventsCard: React.FC<EventsCardProps> = ({
   useEffect(() => {
     const loadCurrentUser = async () => {
       try {
-        const authData = await getAuthenticationData();
-        if (authData) {
-          setCurrentUserNpub(authData.npub);
-          setCurrentUserHex(authData.hexPubkey);
+        const hexPubkey = await UnifiedSigningService.getInstance().getHexPubkey();
+        if (hexPubkey) {
+          setCurrentUserHex(hexPubkey);
+          // Note: We only need hex pubkey for event status checking
+          // npub is only used for QR code generation (captain-only feature)
         }
       } catch (error) {
         console.log('Could not load current user data');
@@ -77,7 +75,7 @@ export const EventsCard: React.FC<EventsCardProps> = ({
 
   useEffect(() => {
     const checkEventStatuses = async () => {
-      if (!currentUserNpub || !events || events.length === 0) return;
+      if (!currentUserHex || !events || events.length === 0) return;
 
       const statuses: Record<string, EventStatus> = {};
 
@@ -134,31 +132,40 @@ export const EventsCard: React.FC<EventsCardProps> = ({
     checkEventStatuses().catch((error) => {
       console.error('Failed to check event statuses:', error);
     });
-  }, [events, currentUserNpub]);
+  }, [events, currentUserHex]);
 
-  const handleShowEventQR = (event: FormattedEvent) => {
-    if (!currentUserNpub) return;
+  const handleShowEventQR = async (event: FormattedEvent) => {
+    if (!currentUserHex) return;
 
-    // Parse date to timestamp
-    const eventDate = new Date(event.startDate || event.date);
-    const startTimestamp = Math.floor(eventDate.getTime() / 1000);
-    const endTimestamp = startTimestamp + 86400; // Add 1 day
+    try {
+      // Convert hex to npub for QR code
+      const { nip19 } = await import('@nostr-dev-kit/ndk');
+      const npub = nip19.npubEncode(currentUserHex);
 
-    // Generate QR data
-    const qrData = QRCodeService.getInstance().generateEventQR(
-      event.id,
-      event.teamId || '',
-      currentUserNpub,
-      event.name,
-      startTimestamp,
-      endTimestamp,
-      event.description || event.details
-    );
+      // Parse date to timestamp
+      const eventDate = new Date(event.startDate || event.date);
+      const startTimestamp = Math.floor(eventDate.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400; // Add 1 day
 
-    // Parse to object
-    const parsedQR = JSON.parse(qrData) as EventQRData;
-    setSelectedEventQR(parsedQR);
-    setQrModalVisible(true);
+      // Generate QR data
+      const qrData = QRCodeService.getInstance().generateEventQR(
+        event.id,
+        event.teamId || '',
+        npub,
+        event.name,
+        startTimestamp,
+        endTimestamp,
+        event.description || event.details
+      );
+
+      // Parse to object
+      const parsedQR = JSON.parse(qrData) as EventQRData;
+      setSelectedEventQR(parsedQR);
+      setQrModalVisible(true);
+    } catch (error) {
+      console.error('Failed to generate event QR:', error);
+      CustomAlert.alert('Error', 'Failed to generate QR code', [{ text: 'OK' }]);
+    }
   };
 
   return (
@@ -195,9 +202,10 @@ export const EventsCard: React.FC<EventsCardProps> = ({
                 // Check if event has minimum required data
                 if (!event?.id) {
                   console.error('❌ Cannot navigate: Event missing ID');
-                  Alert.alert(
+                  CustomAlert.alert(
                     'Error',
-                    'Unable to open event. Please try refreshing the page.'
+                    'Unable to open event. Please try refreshing the page.',
+                    [{ text: 'OK' }]
                   );
                   return;
                 }
@@ -325,10 +333,17 @@ export const EventsCard: React.FC<EventsCardProps> = ({
     try {
       setRequestingJoin(event.id);
 
-      // Get auth data
-      const authData = await getAuthenticationData();
-      if (!authData?.nsec) {
-        Alert.alert('Error', 'Please log in to join events');
+      // Get signer (works for both nsec and Amber)
+      const signer = await UnifiedSigningService.getInstance().getSigner();
+      if (!signer) {
+        CustomAlert.alert('Error', 'No authentication found. Please login first.', [{ text: 'OK' }]);
+        return;
+      }
+
+      // Get user's hex pubkey
+      const userHexPubkey = await UnifiedSigningService.getInstance().getHexPubkey();
+      if (!userHexPubkey) {
+        CustomAlert.alert('Error', 'Could not determine user public key', [{ text: 'OK' }]);
         return;
       }
 
@@ -346,23 +361,16 @@ export const EventsCard: React.FC<EventsCardProps> = ({
 
       const eventTemplate = joinRequestService.prepareEventJoinRequest(
         requestData,
-        authData.hexPubkey
+        userHexPubkey
       );
 
-      // Sign and publish (works for both nsec and Amber)
-      const signer = await UnifiedSigningService.getInstance().getSigner();
-      if (!signer) {
-        Alert.alert('Error', 'No authentication found. Please login first.');
-        return;
-      }
-
-      const g = globalThis as any;
-      const ndk = g.__RUNSTR_NDK_INSTANCE__;
+      // Get global NDK instance
+      const ndk = await GlobalNDKService.getInstance();
       const ndkEvent = new NDKEvent(ndk, eventTemplate);
       await ndkEvent.sign(signer);
       await ndkEvent.publish();
 
-      Alert.alert('Success', 'Your join request has been sent to the captain');
+      CustomAlert.alert('Success', 'Your join request has been sent to the captain', [{ text: 'OK' }]);
 
       // Update status to show pending
       setEventStatuses((prev) => ({
@@ -374,7 +382,7 @@ export const EventsCard: React.FC<EventsCardProps> = ({
       }));
     } catch (error) {
       console.error('Failed to send join request:', error);
-      Alert.alert('Error', 'Failed to send join request');
+      CustomAlert.alert('Error', 'Failed to send join request', [{ text: 'OK' }]);
     } finally {
       setRequestingJoin(null);
     }

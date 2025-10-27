@@ -3,7 +3,6 @@
  * Centralized navigation logic for RUNSTR app
  */
 
-import { Alert } from 'react-native';
 import { DiscoveryTeam, TeamCreationData } from '../types';
 import { useUserStore } from '../store/userStore';
 import { AuthService } from '../services/auth/authService';
@@ -12,6 +11,7 @@ import { CaptainDetectionService } from '../services/team/captainDetectionServic
 import { isTeamMember, isTeamCaptain } from '../utils/teamUtils';
 import { DirectNostrProfileService } from '../services/user/directNostrProfileService';
 import { CaptainCache } from '../utils/captainCache';
+import { CustomAlertManager } from '../components/ui/CustomAlert';
 
 export interface NavigationHandlers {
   handleTeamJoin: (
@@ -101,7 +101,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         const nostrTeam = cachedTeams.find((t) => t.id === team.id);
 
         if (!nostrTeam) {
-          Alert.alert('Error', 'Team not found. Please refresh and try again.');
+          CustomAlertManager.alert('Error', 'Team not found. Please refresh and try again.');
           return;
         }
 
@@ -123,7 +123,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           }
 
           // Show success message
-          Alert.alert(
+          CustomAlertManager.alert(
             'Welcome to the Team!',
             `You've successfully joined ${team.name}! Start earning Bitcoin through fitness challenges.`,
             [
@@ -145,7 +145,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
             'NavigationHandlers: Team join failed:',
             joinResult.error
           );
-          Alert.alert(
+          CustomAlertManager.alert(
             'Join Failed',
             joinResult.error || 'Unable to join team. Please try again.'
           );
@@ -155,7 +155,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           'NavigationHandlers: Unexpected error joining team:',
           error
         );
-        Alert.alert(
+        CustomAlertManager.alert(
           'Error',
           'An unexpected error occurred while joining the team'
         );
@@ -166,7 +166,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       console.log('User selected team for preview:', team.name);
       // TODO: Show team preview/details modal
       // For now, we'll use an alert as placeholder
-      Alert.alert(
+      CustomAlertManager.alert(
         team.name,
         `${team.description}\n\nMembers: ${
           team.memberCount
@@ -288,7 +288,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         console.log('NavigationHandlers: Leave team pressed');
 
         // For now, use simple alert until we implement full Nostr team leaving
-        Alert.alert(
+        CustomAlertManager.alert(
           'Leave Team',
           'Team leaving functionality is being optimized for the Nostr experience. This feature will be available in the next update.',
           [
@@ -304,7 +304,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         );
       } catch (error) {
         console.error('NavigationHandlers: Error in handleLeaveTeam:', error);
-        Alert.alert('Error', 'Unable to process team leave request');
+        CustomAlertManager.alert('Error', 'Unable to process team leave request');
       }
     },
 
@@ -316,13 +316,13 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleAnnouncements: () => {
       console.log('Announcements pressed');
-      Alert.alert('Announcements', 'No new announcements');
+      CustomAlertManager.alert('Announcements', 'No new announcements');
     },
 
     handleAddEvent: (navigation: any) => {
       console.log('Add event pressed');
       // For Nostr-only MVP, disable event creation temporarily
-      Alert.alert(
+      CustomAlertManager.alert(
         'Create Event',
         'Event creation is being refined for the Nostr-only experience. Available in next update!',
         [{ text: 'OK' }]
@@ -332,7 +332,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
     handleAddChallenge: (navigation: any) => {
       console.log('Add challenge pressed');
       // For Nostr-only MVP, disable challenge creation temporarily
-      Alert.alert(
+      CustomAlertManager.alert(
         'Create Challenge',
         'Challenge creation is being optimized for Nostr workflows. Available in next update!',
         [{ text: 'OK' }]
@@ -359,7 +359,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         const user = useUserStore.getState().user;
         if (!user) {
           console.error('❌ NavigationHandlers: No user in store');
-          Alert.alert(
+          CustomAlertManager.alert(
             'Access Denied',
             'Please sign in to access the captain dashboard'
           );
@@ -409,7 +409,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           console.log(
             '❌ NavigationHandlers: User is not a captain of any team'
           );
-          Alert.alert(
+          CustomAlertManager.alert(
             'Access Denied',
             'Only team captains can access the dashboard. Create a team to become a captain.'
           );
@@ -444,7 +444,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
           '❌ NavigationHandlers: Error checking captain dashboard access:',
           error
         );
-        Alert.alert(
+        CustomAlertManager.alert(
           'Error',
           'Unable to verify captain permissions. Please try again.'
         );
@@ -493,7 +493,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         }
       } catch (error) {
         console.error('❌ Failed to create Nostr team:', error);
-        Alert.alert(
+        CustomAlertManager.alert(
           'Team Creation Failed',
           `Failed to create team: ${
             error instanceof Error ? error.message : 'Unknown error'
@@ -536,7 +536,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleOnboardingSkip: (navigation: any) => {
       console.log('User skipped onboarding');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Welcome to RUNSTR!',
         'You can join a team anytime from your profile.',
         [{ text: 'Continue', onPress: () => navigation.navigate('Team') }]
@@ -546,7 +546,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
     // Captain Dashboard Handlers
     handleSettings: () => {
       console.log('Settings pressed');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Team Settings',
         'Team settings are being enhanced for the Nostr experience. Basic team management is available through the team screen.',
         [{ text: 'OK' }]
@@ -555,12 +555,12 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleEditMember: (memberId: string) => {
       console.log('Edit member:', memberId);
-      Alert.alert('Edit Member', 'Member management coming soon!');
+      CustomAlertManager.alert('Edit Member', 'Member management coming soon!');
     },
 
     handleKickMember: (memberId: string) => {
       console.log('Kick member:', memberId);
-      Alert.alert(
+      CustomAlertManager.alert(
         'Remove Member',
         'Are you sure you want to remove this member from the team?',
         [
@@ -576,7 +576,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleEditLeague: () => {
       console.log('Edit league pressed');
-      Alert.alert('Edit League', 'League settings management coming soon!');
+      CustomAlertManager.alert('Edit League', 'League settings management coming soon!');
     },
 
     handleDistributeRewards: (distributions: RewardDistribution[]) => {
@@ -584,7 +584,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
         'Distribute rewards pressed with distributions:',
         distributions.length
       );
-      Alert.alert(
+      CustomAlertManager.alert(
         'Distribute Rewards',
         `Processing ${distributions.length} reward distribution${
           distributions.length !== 1 ? 's' : ''
@@ -596,7 +596,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
             onPress: () => {
               // TODO: Implement actual reward distribution logic
               console.log('Processing reward distributions:', distributions);
-              Alert.alert(
+              CustomAlertManager.alert(
                 'Success',
                 'Reward distributions processed successfully!'
               );
@@ -614,18 +614,18 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleViewAllActivity: () => {
       console.log('View all activity pressed');
-      Alert.alert('Activity Feed', 'Full activity feed view coming soon!');
+      CustomAlertManager.alert('Activity Feed', 'Full activity feed view coming soon!');
     },
 
     // Profile Screen Handlers
     handleEditProfile: () => {
       console.log('Edit profile pressed');
-      Alert.alert('Edit Profile', 'Profile editing functionality coming soon!');
+      CustomAlertManager.alert('Edit Profile', 'Profile editing functionality coming soon!');
     },
 
     handleProfileSend: () => {
       console.log('Profile send pressed');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Send Bitcoin',
         'Enter recipient address or Lightning invoice.'
       );
@@ -633,7 +633,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleProfileReceive: () => {
       console.log('Profile receive pressed');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Receive Bitcoin',
         'Your Lightning address:\nuser@runstr.app\n\nShare this with others to receive payments.'
       );
@@ -641,7 +641,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleWalletSend: () => {
       console.log('Wallet send pressed from PersonalWalletSection');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Send NutZap',
         'Select a team member to send Bitcoin to via NutZap.',
         [{ text: 'OK' }]
@@ -650,7 +650,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleWalletReceive: () => {
       console.log('Wallet receive pressed from PersonalWalletSection');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Receive NutZap',
         'Share your Nostr npub to receive NutZaps.\n\nYour wallet auto-claims incoming payments.',
         [{ text: 'OK' }]
@@ -666,19 +666,19 @@ export const createNavigationHandlers = (): NavigationHandlers => {
     handleSyncSourcePress: (provider: string) => {
       console.log('Sync source pressed:', provider);
       if (provider === 'nostr') {
-        Alert.alert(
+        CustomAlertManager.alert(
           'Nostr Workout Sync',
           'Your Nostr workout sync is active! Workouts from your connected relays are automatically synced.',
           [{ text: 'OK' }]
         );
       } else if (provider === 'strava' || provider === 'googlefit') {
-        Alert.alert(
+        CustomAlertManager.alert(
           `${provider} Sync`,
           `${provider} sync is not available in the Nostr-only MVP. Use Nostr 1301 workout notes instead.`,
           [{ text: 'OK' }]
         );
       } else {
-        Alert.alert(
+        CustomAlertManager.alert(
           `${provider} Settings`,
           `Manage your ${provider} sync settings.`
         );
@@ -687,7 +687,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleManageSubscription: () => {
       console.log('Manage subscription pressed');
-      Alert.alert(
+      CustomAlertManager.alert(
         'Subscription',
         'Manage your RUNSTR subscription in your device settings.'
       );
@@ -698,7 +698,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       if (navigation) {
         navigation.navigate('HelpSupport');
       } else {
-        Alert.alert(
+        CustomAlertManager.alert(
           'Help & Support',
           'Visit runstr.app/help for documentation and tutorials.'
         );
@@ -710,7 +710,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       if (navigation) {
         navigation.navigate('ContactSupport');
       } else {
-        Alert.alert(
+        CustomAlertManager.alert(
           'Contact Support',
           'Reach out to support@runstr.app for assistance.'
         );
@@ -722,7 +722,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
       if (navigation) {
         navigation.navigate('PrivacyPolicy');
       } else {
-        Alert.alert(
+        CustomAlertManager.alert(
           'Privacy Policy',
           'View our privacy policy at runstr.app/privacy'
         );
@@ -731,7 +731,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
 
     handleSignOut: (navigation: any) => {
       console.log('Sign out pressed');
-      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      CustomAlertManager.alert('Sign Out', 'Are you sure you want to sign out?', [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sign Out',
@@ -753,7 +753,7 @@ export const createNavigationHandlers = (): NavigationHandlers => {
               }
             } catch (error) {
               console.error('Error during sign out:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              CustomAlertManager.alert('Error', 'Failed to sign out. Please try again.');
             }
           },
         },

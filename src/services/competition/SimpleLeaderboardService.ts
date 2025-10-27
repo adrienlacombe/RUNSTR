@@ -107,12 +107,14 @@ export class SimpleLeaderboardService {
 
   /**
    * Calculate event leaderboard
+   * ✅ UPDATED: Support new scoringType (completion vs fastest_time)
    */
   async calculateEventLeaderboard(
     event: CompetitionEvent,
     teamMembers: string[]
   ): Promise<LeaderboardEntry[]> {
     console.log(`🏆 Calculating leaderboard for event: ${event.name}`);
+    console.log(`   Scoring type: ${event.scoringType || event.metric}`);
 
     const eventDate = new Date(event.eventDate);
     const eventStart = new Date(eventDate);
@@ -162,8 +164,9 @@ export class SimpleLeaderboardService {
       });
     }
 
-    // Calculate scores
-    const scoresByMember = this.calculateScores(relevantWorkouts, event.metric);
+    // ✅ FIX: Use scoringType instead of metric
+    const scoringType = event.scoringType || event.metric;
+    const scoresByMember = this.calculateScores(relevantWorkouts, scoringType);
 
     // CRITICAL FIX: Create entries for ALL team members, even those with 0 workouts
     const entries: LeaderboardEntry[] = teamMembers.map((npub) => {
@@ -176,7 +179,7 @@ export class SimpleLeaderboardService {
           npub,
           name: npub.slice(0, 8) + '...',
           score: memberData.score,
-          formattedScore: this.formatScore(memberData.score, event.metric),
+          formattedScore: this.formatScore(memberData.score, scoringType),
           workoutCount: memberData.workoutCount,
         };
       } else {
@@ -186,18 +189,32 @@ export class SimpleLeaderboardService {
           npub,
           name: npub.slice(0, 8) + '...',
           score: 0,
-          formattedScore: this.formatScore(0, event.metric),
+          formattedScore: this.formatScore(0, scoringType),
           workoutCount: 0,
         };
       }
     });
 
-    // Sort and rank
+    // Sort and rank based on scoring type
     entries.sort((a, b) => {
-      // For time-based metrics, lower is better
-      if (event.metric === 'fastest_time') {
+      // ✅ NEW: For completion events, everyone who completed ranks equally (or by earliest submission)
+      if (scoringType === 'completion') {
+        // Completed (score > 0) ranks above not completed (score === 0)
+        if (a.score > 0 && b.score === 0) return -1;
+        if (a.score === 0 && b.score > 0) return 1;
+        // Both completed or both not completed - maintain order (stable sort)
+        return 0;
+      }
+
+      // For time-based metrics (fastest_time), lower is better
+      if (scoringType === 'fastest_time' || event.metric === 'fastest_time') {
+        // Move zero scores (didn't complete) to bottom
+        if (a.score === 0 && b.score > 0) return 1;
+        if (a.score > 0 && b.score === 0) return -1;
         return a.score - b.score;
       }
+
+      // For all other metrics, higher is better
       return b.score - a.score;
     });
 
@@ -209,6 +226,121 @@ export class SimpleLeaderboardService {
       `✅ Event leaderboard calculated: ${entries.length} entries (${teamMembers.length} team members)`
     );
     return entries;
+  }
+
+  /**
+   * Calculate team goal progress (for team-total scoring mode)
+   * Returns combined team total and percentage of goal
+   */
+  async calculateTeamGoalProgress(
+    event: CompetitionEvent,
+    teamMembers: string[]
+  ): Promise<{
+    current: number;
+    goal: number;
+    percentage: number;
+    formattedCurrent: string;
+    formattedGoal: string;
+    unit: string;
+  }> {
+    console.log(`🎯 Calculating team goal progress for: ${event.name}`);
+    console.log(`   Team goal: ${event.teamGoal} ${event.targetUnit || 'km'}`);
+
+    const eventDate = new Date(event.eventDate);
+    let eventStart: Date;
+    let eventEnd: Date;
+
+    // Handle short duration events
+    if (event.durationMinutes) {
+      eventStart = eventDate;
+      eventEnd = new Date(eventDate.getTime() + event.durationMinutes * 60 * 1000);
+    } else {
+      // Full day event
+      eventStart = new Date(eventDate);
+      eventStart.setHours(0, 0, 0, 0);
+      eventEnd = new Date(eventDate);
+      eventEnd.setHours(23, 59, 59, 999);
+    }
+
+    // Get workouts for event period
+    const workouts = await this.getWorkouts(
+      teamMembers,
+      event.activityType,
+      eventStart,
+      eventEnd
+    );
+
+    console.log(`   Found ${workouts.length} workouts`);
+
+    // Calculate total based on metric type
+    let total = 0;
+    const metric = event.scoringType || event.metric;
+
+    for (const workout of workouts) {
+      switch (metric) {
+        case 'total_distance':
+        case 'fastest_time': // For races, sum all distances
+          total += workout.distance;
+          break;
+        case 'total_duration':
+          total += workout.duration;
+          break;
+        case 'total_calories':
+          total += workout.calories || 0;
+          break;
+        case 'most_workouts':
+          total += 1;
+          break;
+        default:
+          total += workout.distance; // Default to distance
+      }
+    }
+
+    const goal = event.teamGoal || 0;
+    const percentage = goal > 0 ? (total / goal) * 100 : 0;
+    const unit = event.targetUnit || 'km';
+
+    // Format numbers based on metric
+    const formattedCurrent = this.formatTeamGoalValue(total, metric, unit);
+    const formattedGoal = this.formatTeamGoalValue(goal, metric, unit);
+
+    console.log(
+      `✅ Team progress: ${formattedCurrent} / ${formattedGoal} (${percentage.toFixed(1)}%)`
+    );
+
+    return {
+      current: total,
+      goal,
+      percentage,
+      formattedCurrent,
+      formattedGoal,
+      unit,
+    };
+  }
+
+  /**
+   * Format team goal values for display
+   */
+  private formatTeamGoalValue(
+    value: number,
+    metric: string,
+    unit: string
+  ): string {
+    switch (metric) {
+      case 'total_distance':
+      case 'fastest_time':
+        return `${value.toFixed(1)} ${unit}`;
+      case 'total_duration':
+        const hours = Math.floor(value / 3600);
+        const minutes = Math.floor((value % 3600) / 60);
+        return `${hours}h ${minutes}m`;
+      case 'total_calories':
+        return `${Math.round(value)} cal`;
+      case 'most_workouts':
+        return `${Math.round(value)} workouts`;
+      default:
+        return `${value.toFixed(1)} ${unit}`;
+    }
   }
 
   /**
@@ -465,6 +597,12 @@ export class SimpleLeaderboardService {
       let score = existing.score;
 
       switch (metric) {
+        case 'completion':
+          // ✅ NEW: Binary completion scoring - 1 if completed, 0 if not
+          // For completion events, just having ANY workout counts as completed
+          score = 1;
+          break;
+
         case 'total_distance':
           score += workout.distance;
           break;
@@ -515,9 +653,14 @@ export class SimpleLeaderboardService {
 
   /**
    * Format score for display
+   * ✅ UPDATED: Support completion scoring type
    */
   private formatScore(score: number, metric: string): string {
     switch (metric) {
+      case 'completion':
+        // ✅ NEW: Binary completion display
+        return score > 0 ? 'Completed ✓' : 'Not completed';
+
       case 'total_distance':
         return `${score.toFixed(2)} km`;
 
@@ -533,6 +676,7 @@ export class SimpleLeaderboardService {
         return `${Math.round(score)} cal`;
 
       case 'fastest_time':
+        if (score === 0) return 'Did not complete';
         const mins = Math.floor(score / 60);
         const secs = Math.floor(score % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;

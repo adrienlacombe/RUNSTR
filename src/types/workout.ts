@@ -280,17 +280,17 @@ export interface TeammateInfo {
 }
 
 export interface ChallengeCreationData {
-  // Step 1: Choose Opponent
+  // Simplified challenge creation data
+  type?: import('../constants/simpleChallengePresets').SimpleChallengeType;
+  duration: 1 | 7 | 30; // days
+  wager: number; // satoshis (display only, trust-based)
+
+  // For direct challenges
   opponentId?: string;
   opponentInfo?: TeammateInfo;
 
-  // Step 2: Challenge Type
+  // Legacy fields (kept for backward compatibility)
   challengeType?: ChallengeType;
-
-  // Step 3: Wager Amount
-  wagerAmount: number; // satoshis
-
-  // Step 4: Review & Confirm
-  duration: number; // days - default 7
-  expiresAt?: string; // calculated deadline
+  wagerAmount?: number;
+  expiresAt?: string;
 }

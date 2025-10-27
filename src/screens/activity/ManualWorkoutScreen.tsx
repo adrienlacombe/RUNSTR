@@ -11,10 +11,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { CustomAlert } from '../../components/ui/CustomAlert';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import type { WorkoutType } from '../../types/workout';
 
@@ -65,6 +65,22 @@ export const ManualWorkoutScreen: React.FC = () => {
   const [distance, setDistance] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
   const handlePresetSelect = (presetId: string) => {
     setSelectedPreset(presetId);
     setCustomType(''); // Clear custom type when preset is selected
@@ -76,10 +92,12 @@ export const ManualWorkoutScreen: React.FC = () => {
       : customType;
 
     if (!workoutType) {
-      Alert.alert(
-        'Error',
-        'Please select a workout type or enter a custom one'
-      );
+      setAlertConfig({
+        title: 'Error',
+        message: 'Please select a workout type or enter a custom one',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
       return;
     }
 
@@ -118,16 +136,20 @@ export const ManualWorkoutScreen: React.FC = () => {
         `✅ Manual workout saved locally: ${workoutId} (${workoutType})`
       );
 
-      Alert.alert(
-        'Workout Saved!',
-        `${workoutType} has been logged successfully. Visit Workout History to post or compete.`,
-        [{ text: 'OK', onPress: resetForm }]
-      );
+      setAlertConfig({
+        title: 'Workout Saved!',
+        message: `${workoutType} has been logged successfully. Visit Workout History to post or compete.`,
+        buttons: [{ text: 'OK', style: 'default', onPress: resetForm }],
+      });
+      setAlertVisible(true);
     } catch (error) {
       console.error('❌ Failed to save manual workout:', error);
-      Alert.alert('Save Failed', 'Failed to save workout. Please try again.', [
-        { text: 'OK' },
-      ]);
+      setAlertConfig({
+        title: 'Save Failed',
+        message: 'Failed to save workout. Please try again.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -260,6 +282,15 @@ export const ManualWorkoutScreen: React.FC = () => {
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Log Workout</Text>
       </TouchableOpacity>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertVisible(false)}
+      />
     </ScrollView>
   );
 };

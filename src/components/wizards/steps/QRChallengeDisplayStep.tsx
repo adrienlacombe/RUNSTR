@@ -12,6 +12,7 @@ import {
   Alert,
   Share,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
@@ -20,15 +21,15 @@ import { theme } from '../../../styles/theme';
 import type { QRChallengeData } from '../../../services/challenge/QRChallengeService';
 import type { ActivityType } from '../../../types/challenge';
 
-// Activity icons mapping
-const ACTIVITY_ICONS: Record<ActivityType, string> = {
-  running: '🏃',
-  walking: '🚶',
-  cycling: '🚴',
-  hiking: '🥾',
-  swimming: '🏊',
-  rowing: '🚣',
-  workout: '💪',
+// Activity icons mapping (using Ionicons)
+const ACTIVITY_ICONS: Record<ActivityType, keyof typeof Ionicons.glyphMap> = {
+  running: 'walk',
+  walking: 'walk',
+  cycling: 'bicycle',
+  hiking: 'trail-sign',
+  swimming: 'water',
+  rowing: 'boat',
+  workout: 'barbell',
 };
 
 interface QRChallengeDisplayStepProps {
@@ -47,7 +48,7 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const qrCodeRef = React.useRef<View>(null);
 
-  const activityIcon = ACTIVITY_ICONS[challengeData.activity] || '🏃';
+  const activityIconName = ACTIVITY_ICONS[challengeData.activity] || 'walk';
 
   /**
    * Save QR code to device photos
@@ -94,11 +95,11 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
    */
   const handleShareCode = async () => {
     try {
-      const message = `Challenge me on RUNSTR!\n\n${activityIcon} ${
+      const message = `Challenge me on RUNSTR!\n\n${
         challengeData.activity
       } - ${challengeData.metric} - ${challengeData.duration} days${
         challengeData.wager > 0
-          ? `\n⚡ ${challengeData.wager.toLocaleString()} sats`
+          ? `\n${challengeData.wager.toLocaleString()} sats`
           : ''
       }\n\nScan the QR code or use this link:\n${deepLink}`;
 
@@ -137,7 +138,7 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
       {/* Challenge Summary */}
       <View style={styles.summaryCard}>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryIcon}>{activityIcon}</Text>
+          <Ionicons name={activityIconName} size={20} color={theme.colors.accent} style={styles.summaryIcon} />
           <Text style={styles.summaryText}>
             {challengeData.activity.charAt(0).toUpperCase() +
               challengeData.activity.slice(1)}
@@ -145,7 +146,7 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryIcon}>📏</Text>
+          <Ionicons name="stats-chart" size={20} color={theme.colors.textSecondary} style={styles.summaryIcon} />
           <Text style={styles.summaryText}>
             {challengeData.metric.charAt(0).toUpperCase() +
               challengeData.metric.slice(1)}
@@ -153,13 +154,13 @@ export const QRChallengeDisplayStep: React.FC<QRChallengeDisplayStepProps> = ({
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryIcon}>📅</Text>
+          <Ionicons name="calendar" size={20} color={theme.colors.textSecondary} style={styles.summaryIcon} />
           <Text style={styles.summaryText}>{challengeData.duration} days</Text>
         </View>
 
         {challengeData.wager > 0 && (
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryIcon}>⚡</Text>
+            <Ionicons name="flash" size={20} color={theme.colors.accent} style={styles.summaryIcon} />
             <Text style={styles.summaryText}>
               {challengeData.wager.toLocaleString()} sats
             </Text>
@@ -247,7 +248,6 @@ const styles = StyleSheet.create({
   },
 
   summaryIcon: {
-    fontSize: 20,
     marginRight: 12,
   },
 

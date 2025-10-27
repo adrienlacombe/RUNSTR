@@ -12,7 +12,6 @@ import {
   ScrollView,
   Modal,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -21,9 +20,8 @@ import { NostrCompetitionService } from '../../services/nostr/NostrCompetitionSe
 import { NostrListService } from '../../services/nostr/NostrListService';
 import { GlobalNDKService } from '../../services/nostr/GlobalNDKService';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
-import { npubToHex } from '../../utils/ndkConversion';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
-import { getAuthenticationData } from '../../utils/nostrAuth';
+import { CustomAlert } from '../ui/CustomAlert';
 import type { NostrTeam } from '../../services/nostr/NostrTeamService';
 
 interface EventCreationModalProps {
@@ -128,7 +126,7 @@ export const EventCreationModal: React.FC<EventCreationModalProps> = ({
   const handleCreateEvent = async () => {
     const validationError = validateForm();
     if (validationError) {
-      Alert.alert('Validation Error', validationError);
+      CustomAlert.alert('Validation Error', validationError, [{ text: 'OK' }]);
       return;
     }
 
@@ -137,25 +135,11 @@ export const EventCreationModal: React.FC<EventCreationModalProps> = ({
     try {
       setIsCreating(true);
 
-      // Get authentication data
-      const authData = await getAuthenticationData();
-      if (!authData || !authData.nsec) {
-        Alert.alert(
-          'Authentication Required',
-          'Please log in again to create events.',
-          [{ text: 'OK' }]
-        );
-        setIsCreating(false);
-        return;
-      }
-
-      console.log('✅ Retrieved auth data for event creation');
-
       // Get signer (works for both nsec and Amber)
       const signingService = UnifiedSigningService.getInstance();
       const signer = await signingService.getSigner();
       if (!signer) {
-        Alert.alert('Error', 'No authentication found. Please login first.');
+        CustomAlert.alert('Error', 'No authentication found. Please login first.', [{ text: 'OK' }]);
         setIsCreating(false);
         return;
       }
@@ -215,10 +199,10 @@ export const EventCreationModal: React.FC<EventCreationModalProps> = ({
           console.log('📋 Creating empty participant list for event (opt-in)');
           const listService = NostrListService.getInstance();
 
-          // Get captain's hex pubkey from npub
-          const captainHexPubkey = npubToHex(authData.npub);
+          // Get captain's hex pubkey
+          const captainHexPubkey = await signingService.getHexPubkey();
           if (!captainHexPubkey) {
-            throw new Error('Failed to convert npub to hex pubkey');
+            throw new Error('Could not determine captain public key');
           }
 
           // Prepare empty participant list (kind 30000)
@@ -287,10 +271,10 @@ export const EventCreationModal: React.FC<EventCreationModalProps> = ({
 
       onClose();
 
-      Alert.alert('Success!', successMessage, [{ text: 'OK' }]);
+      CustomAlert.alert('Success!', successMessage, [{ text: 'OK' }]);
     } catch (error) {
       console.error('❌ Failed to create event:', error);
-      Alert.alert(
+      CustomAlert.alert(
         'Error',
         `Failed to create event: ${
           error instanceof Error ? error.message : 'Unknown error'

@@ -234,6 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    flex: 1, // ✅ FIX: Enable proper flex children (FlatList needs this)
     backgroundColor: theme.colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

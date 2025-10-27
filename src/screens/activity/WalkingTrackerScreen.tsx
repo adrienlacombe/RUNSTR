@@ -5,9 +5,9 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Platform, AppState, AppStateStatus, ScrollView, View } from 'react-native';
+import { Platform, AppState, AppStateStatus, ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { BaseTrackerComponent } from '../../components/activity/BaseTrackerComponent';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
@@ -22,6 +22,9 @@ import { dailyStepCounterService } from '../../services/activity/DailyStepCounte
 import { dailyStepGoalService } from '../../services/activity/DailyStepGoalService';
 import type { DailyStepData } from '../../services/activity/DailyStepCounterService';
 import type { StepGoalProgress } from '../../services/activity/DailyStepGoalService';
+import { HoldToStartButton } from '../../components/activity/HoldToStartButton';
+import { StepGoalPickerModal } from '../../components/activity/StepGoalPickerModal';
+import { theme } from '../../styles/theme';
 
 const STEP_UPDATE_INTERVAL = 5 * 60 * 1000; // Update every 5 minutes
 
@@ -83,6 +86,10 @@ export const WalkingTrackerScreen: React.FC = () => {
   const [stepCounterError, setStepCounterError] = useState<string | null>(null);
   const [postingState, setPostingState] = useState<PostingState>('idle');
   const stepUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
+  const [showBackgroundBanner, setShowBackgroundBanner] = useState(false);
+  const [isBackgroundActive, setIsBackgroundActive] = useState(false);
+  const [goalPickerVisible, setGoalPickerVisible] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -92,9 +99,9 @@ export const WalkingTrackerScreen: React.FC = () => {
     };
   }, []);
 
-  // Daily step counter initialization and polling
+  // Daily step counter initialization (optional, non-blocking)
   useEffect(() => {
-    const fetchDailySteps = async () => {
+    const checkBackgroundTracking = async () => {
       try {
         setStepCounterLoading(true);
         setStepCounterError(null);
@@ -102,58 +109,84 @@ export const WalkingTrackerScreen: React.FC = () => {
         // Check if pedometer is available
         const available = await dailyStepCounterService.isAvailable();
         if (!available) {
-          setStepCounterError('Step counter not available on this device');
+          // Device doesn't support pedometer - GPS-only mode
           setStepCounterLoading(false);
+          setShowBackgroundBanner(false);
+          console.log('[WalkingTrackerScreen] Pedometer not available - using GPS-only mode');
           return;
         }
 
-        // Request permissions
-        const permissionsGranted = await dailyStepCounterService.requestPermissions();
-        if (!permissionsGranted) {
-          setStepCounterError('Motion permissions not granted');
-          setStepCounterLoading(false);
-          return;
-        }
+        // Check if permissions already granted (don't request yet)
+        const permissionStatus = await dailyStepCounterService.checkPermissionStatus();
 
-        // Get today's steps
-        const stepData = await dailyStepCounterService.getTodaySteps();
-        if (stepData) {
-          setDailySteps(stepData.steps);
-        }
+        if (permissionStatus === 'granted') {
+          // Permissions already granted - enable background mode
+          try {
+            const stepData = await dailyStepCounterService.getTodaySteps();
+            if (stepData) {
+              setDailySteps(stepData.steps);
+            }
 
-        // Get goal
-        const goal = await dailyStepGoalService.getGoal();
-        setStepGoal(goal);
+            const goal = await dailyStepGoalService.getGoal();
+            setStepGoal(goal);
 
-        // Calculate progress
-        if (stepData) {
-          const progress = dailyStepGoalService.calculateProgress(stepData.steps, goal);
-          setStepProgress(progress);
+            if (stepData) {
+              const progress = dailyStepGoalService.calculateProgress(stepData.steps, goal);
+              setStepProgress(progress);
+            }
+
+            setIsBackgroundActive(true);
+            setShowBackgroundBanner(false);
+            console.log(`[WalkingTrackerScreen] ✅ Background tracking active: ${stepData?.steps || 0} steps`);
+          } catch (error) {
+            console.error('[WalkingTrackerScreen] Error fetching steps:', error);
+            setIsBackgroundActive(false);
+            setShowBackgroundBanner(true);
+          }
+        } else {
+          // Permissions not granted - show optional banner
+          setIsBackgroundActive(false);
+          setShowBackgroundBanner(true);
+          console.log('[WalkingTrackerScreen] Background tracking available - showing banner');
         }
 
         setStepCounterLoading(false);
-        console.log(`[WalkingTrackerScreen] ✅ Daily steps loaded: ${stepData?.steps || 0}`);
       } catch (error) {
-        console.error('[WalkingTrackerScreen] Error fetching daily steps:', error);
-        setStepCounterError('Failed to load step count');
+        console.error('[WalkingTrackerScreen] Error checking background tracking:', error);
         setStepCounterLoading(false);
+        setShowBackgroundBanner(false);
       }
     };
 
-    // Initial fetch
-    fetchDailySteps();
+    checkBackgroundTracking();
 
-    // Set up polling (every 5 minutes)
-    stepUpdateIntervalRef.current = setInterval(() => {
-      fetchDailySteps();
-    }, STEP_UPDATE_INTERVAL);
+    // Set up polling only if background active
+    const setupPolling = async () => {
+      if (isBackgroundActive) {
+        stepUpdateIntervalRef.current = setInterval(async () => {
+          try {
+            const stepData = await dailyStepCounterService.getTodaySteps();
+            if (stepData) {
+              setDailySteps(stepData.steps);
+              const goal = await dailyStepGoalService.getGoal();
+              const progress = dailyStepGoalService.calculateProgress(stepData.steps, goal);
+              setStepProgress(progress);
+            }
+          } catch (error) {
+            console.error('[WalkingTrackerScreen] Error polling steps:', error);
+          }
+        }, STEP_UPDATE_INTERVAL);
+      }
+    };
+
+    setupPolling();
 
     return () => {
       if (stepUpdateIntervalRef.current) {
         clearInterval(stepUpdateIntervalRef.current);
       }
     };
-  }, []);
+  }, [isBackgroundActive]);
 
   // Check if daily steps already posted today
   useEffect(() => {
@@ -216,8 +249,29 @@ export const WalkingTrackerScreen: React.FC = () => {
     };
   }, [isTracking]); // Re-subscribe when tracking state changes
 
+  const handleHoldComplete = async () => {
+    console.log('[WalkingTrackerScreen] Hold complete, starting countdown...');
+
+    // Start countdown: 3 → 2 → 1 → GO!
+    setCountdown(3);
+    setTimeout(() => {
+      setCountdown(2);
+      setTimeout(() => {
+        setCountdown(1);
+        setTimeout(() => {
+          setCountdown('GO');
+          setTimeout(() => {
+            setCountdown(null);
+            // Start tracking after countdown completes
+            startTracking();
+          }, 500); // Show "GO!" for 0.5 seconds
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  };
+
   const startTracking = async () => {
-    console.log('[WalkingTrackerScreen] Starting tracking...');
+    console.log('[WalkingTrackerScreen] Starting GPS tracking...');
 
     try {
       // Simple permission and start flow
@@ -416,6 +470,54 @@ export const WalkingTrackerScreen: React.FC = () => {
     setElapsedTime(0);
   };
 
+  const handleRequestPermission = async () => {
+    console.log('[WalkingTrackerScreen] User requested background tracking permission');
+    setStepCounterLoading(true);
+    setStepCounterError(null);
+
+    try {
+      const granted = await dailyStepCounterService.requestPermissions();
+
+      if (granted) {
+        console.log('[WalkingTrackerScreen] ✅ Permission granted - activating background tracking');
+
+        // Fetch step data
+        const stepData = await dailyStepCounterService.getTodaySteps();
+        if (stepData) {
+          setDailySteps(stepData.steps);
+          const goal = await dailyStepGoalService.getGoal();
+          setStepGoal(goal);
+          const progress = dailyStepGoalService.calculateProgress(stepData.steps, goal);
+          setStepProgress(progress);
+        }
+
+        // Activate background mode
+        setIsBackgroundActive(true);
+        setShowBackgroundBanner(false);
+        setStepCounterLoading(false);
+
+        console.log(`[WalkingTrackerScreen] ✅ Background tracking activated: ${stepData?.steps || 0} steps`);
+      } else {
+        console.warn('[WalkingTrackerScreen] ⚠️ Permission denied - GPS-only mode continues');
+        setStepCounterError('Background tracking requires motion permissions');
+        setShowBackgroundBanner(true);
+        setIsBackgroundActive(false);
+        setStepCounterLoading(false);
+      }
+    } catch (error) {
+      console.error('[WalkingTrackerScreen] ❌ Error requesting permission:', error);
+      setStepCounterError('Failed to enable background tracking');
+      setShowBackgroundBanner(true);
+      setIsBackgroundActive(false);
+      setStepCounterLoading(false);
+    }
+  };
+
+  const handleOpenSettings = () => {
+    console.log('[WalkingTrackerScreen] User requested to open settings');
+    dailyStepCounterService.openSettings();
+  };
+
   const handlePostDailySteps = async () => {
     if (!dailySteps || dailySteps === 0) {
       console.warn('[WalkingTrackerScreen] Cannot post - no steps available');
@@ -481,6 +583,29 @@ export const WalkingTrackerScreen: React.FC = () => {
     }
   };
 
+  const handleSetGoal = () => {
+    console.log('[WalkingTrackerScreen] Opening goal selection modal...');
+    setGoalPickerVisible(true);
+  };
+
+  const handleGoalSelected = async (newGoal: number) => {
+    try {
+      // Update goal
+      await dailyStepGoalService.setGoal(newGoal);
+      setStepGoal(newGoal);
+
+      // Recalculate progress
+      if (dailySteps !== null) {
+        const progress = dailyStepGoalService.calculateProgress(dailySteps, newGoal);
+        setStepProgress(progress);
+      }
+
+      console.log(`[WalkingTrackerScreen] ✅ Goal updated to ${newGoal} steps`);
+    } catch (error) {
+      console.error('[WalkingTrackerScreen] ❌ Failed to update goal:', error);
+    }
+  };
+
   useEffect(() => {
     if (isTracking && !isPaused) {
       updateMetrics();
@@ -490,47 +615,100 @@ export const WalkingTrackerScreen: React.FC = () => {
   return (
     <ScrollView style={{ flex: 1 }}>
       {/* Daily Step Counter */}
-      {!isTracking && (
+      {!isTracking && !countdown && (
         <DailyStepGoalCard
           steps={dailySteps}
           progress={stepProgress}
           loading={stepCounterLoading}
           error={stepCounterError}
           onPostSteps={handlePostDailySteps}
+          onSetGoal={handleSetGoal}
           postingState={postingState}
+          showBackgroundBanner={showBackgroundBanner}
+          onEnableBackground={handleRequestPermission}
+          isBackgroundActive={isBackgroundActive}
         />
       )}
 
       {/* Walking Tracker */}
-      <BaseTrackerComponent
-        metrics={{
-          primary: {
-            label: 'Distance',
-            value: metrics.distance,
-            icon: 'navigate',
-          },
-          secondary: {
-            label: 'Duration',
-            value: metrics.duration,
-            icon: 'time',
-          },
-          tertiary: { label: 'Steps', value: metrics.steps, icon: 'walk' },
-          quaternary: {
-            label: 'Elevation',
-            value: metrics.elevation,
-            icon: 'trending-up',
-          },
-        }}
-        isTracking={isTracking}
-        isPaused={isPaused}
-        onStart={startTracking}
-        onPause={pauseTracking}
-        onResume={resumeTracking}
-        onStop={stopTracking}
-        startButtonText="Start Walk"
-        onRoutesPress={() => setRouteSelectionVisible(true)}
-        routesButtonText={selectedRoute ? selectedRoute.name : 'Routes'}
-      />
+      <View style={styles.container}>
+        {/* Metrics Display */}
+        <View style={styles.metricsContainer}>
+          <View style={styles.metricsRow}>
+            <View style={styles.metricCard}>
+              <Ionicons name="navigate" size={20} color={theme.colors.textMuted} style={styles.metricIcon} />
+              <Text style={styles.metricValue}>{metrics.distance}</Text>
+              <Text style={styles.metricLabel}>Distance</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Ionicons name="time" size={20} color={theme.colors.textMuted} style={styles.metricIcon} />
+              <Text style={styles.metricValue}>{metrics.duration}</Text>
+              <Text style={styles.metricLabel}>Duration</Text>
+            </View>
+          </View>
+          <View style={styles.metricsRow}>
+            <View style={styles.metricCard}>
+              <Ionicons name="walk" size={20} color={theme.colors.textMuted} style={styles.metricIcon} />
+              <Text style={styles.metricValue}>{metrics.steps}</Text>
+              <Text style={styles.metricLabel}>Steps</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Ionicons name="trending-up" size={20} color={theme.colors.textMuted} style={styles.metricIcon} />
+              <Text style={styles.metricValue}>{metrics.elevation}</Text>
+              <Text style={styles.metricLabel}>Elevation</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Control Buttons */}
+        <View style={styles.controlsContainer}>
+          {!isTracking && !countdown ? (
+            <>
+              <TouchableOpacity
+                style={styles.routesButton}
+                onPress={() => setRouteSelectionVisible(true)}
+              >
+                <Ionicons
+                  name={selectedRoute ? "map" : "map-outline"}
+                  size={20}
+                  color={selectedRoute ? theme.colors.accent : theme.colors.text}
+                />
+                <Text style={[
+                  styles.routesButtonText,
+                  selectedRoute && { color: theme.colors.accent }
+                ]}>
+                  {selectedRoute ? selectedRoute.name : 'Routes'}
+                </Text>
+              </TouchableOpacity>
+              <HoldToStartButton
+                label="Start Walk"
+                onHoldComplete={handleHoldComplete}
+                disabled={false}
+                holdDuration={2000}
+              />
+            </>
+          ) : !isTracking && countdown ? (
+            <View style={styles.countdownContainer}>
+              <Text style={styles.countdownText}>{countdown}</Text>
+            </View>
+          ) : (
+            <>
+              {!isPaused ? (
+                <TouchableOpacity style={styles.pauseButton} onPress={pauseTracking}>
+                  <Ionicons name="pause" size={30} color={theme.colors.text} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.resumeButton} onPress={resumeTracking}>
+                  <Ionicons name="play" size={30} color={theme.colors.background} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.stopButton} onPress={stopTracking}>
+                <Ionicons name="stop" size={30} color={theme.colors.text} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </View>
 
       {/* Workout Summary Modal */}
       {workoutData && (
@@ -567,6 +745,121 @@ export const WalkingTrackerScreen: React.FC = () => {
         }}
         onClose={() => setRouteSelectionVisible(false)}
       />
+
+      {/* Step Goal Picker Modal */}
+      <StepGoalPickerModal
+        visible={goalPickerVisible}
+        currentGoal={stepGoal}
+        onSelectGoal={handleGoalSelected}
+        onClose={() => setGoalPickerVisible(false)}
+      />
     </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    padding: 20,
+  },
+  metricsContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    padding: 20,
+    marginHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  metricIcon: {
+    marginBottom: 8,
+  },
+  metricValue: {
+    fontSize: 32,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    fontWeight: theme.typography.weights.medium,
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingBottom: 40,
+    gap: 20,
+  },
+  routesButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  routesButtonText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    letterSpacing: 0.5,
+  },
+  pauseButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  resumeButton: {
+    backgroundColor: theme.colors.orangeBright,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  countdownContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 40,
+  },
+  countdownText: {
+    fontSize: 120,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.accent,
+    textAlign: 'center',
+  },
+});

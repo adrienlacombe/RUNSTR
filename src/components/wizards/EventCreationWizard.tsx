@@ -25,10 +25,17 @@ import { NDKEvent } from '@nostr-dev-kit/ndk';
 import type {
   NostrActivityType,
   NostrEventCompetitionType,
+  EventScoringType,
 } from '../../types/nostrCompetition';
 import { getCharityById } from '../../constants/charities';
 import nostrTeamService from '../../services/nostr/NostrTeamService';
 import { ProfileService } from '../../services/user/profileService';
+import unifiedCache from '../../services/cache/UnifiedNostrCache';
+import { CacheKeys } from '../../constants/cacheTTL';
+import {
+  ALL_DURATION_OPTIONS,
+  type DurationOption,
+} from '../../constants/eventDurations';
 
 // Event Preset Interface
 interface EventPreset {
@@ -36,7 +43,8 @@ interface EventPreset {
   name: string;
   category: 'Running' | 'Strength' | 'Diet' | 'Meditation';
   activityType: NostrActivityType;
-  competitionType: NostrEventCompetitionType;
+  scoringType: EventScoringType; // NEW: Simplified scoring
+  competitionType: NostrEventCompetitionType; // Deprecated: keep for compat
   targetValue?: number;
   targetUnit?: string;
   description: string;
@@ -44,86 +52,94 @@ interface EventPreset {
 
 // 11 Event Presets
 const EVENT_PRESETS: EventPreset[] = [
-  // Running (4 presets)
+  // Running (4 presets) - Time-based races
   {
     id: '5k',
     name: '5K Race',
     category: 'Running',
     activityType: 'Running',
+    scoringType: 'fastest_time', // ← NEW: Time-based ranking
     competitionType: '5K Race',
     targetValue: 5,
     targetUnit: 'km',
-    description: '5 kilometers (3.1 miles)',
+    description: '5 kilometers race - fastest time wins',
   },
   {
     id: '10k',
     name: '10K Race',
     category: 'Running',
     activityType: 'Running',
+    scoringType: 'fastest_time', // ← NEW: Time-based ranking
     competitionType: '10K Race',
     targetValue: 10,
     targetUnit: 'km',
-    description: '10 kilometers (6.2 miles)',
+    description: '10 kilometers race - fastest time wins',
   },
   {
     id: 'half-marathon',
     name: 'Half Marathon',
     category: 'Running',
     activityType: 'Running',
+    scoringType: 'fastest_time', // ← NEW: Time-based ranking
     competitionType: 'Half Marathon',
     targetValue: 21.1,
     targetUnit: 'km',
-    description: '21.1 kilometers (13.1 miles)',
+    description: '21.1 kilometers race - fastest time wins',
   },
   {
     id: 'marathon',
     name: 'Marathon',
     category: 'Running',
     activityType: 'Running',
+    scoringType: 'fastest_time', // ← NEW: Time-based ranking
     competitionType: 'Marathon',
     targetValue: 42.2,
     targetUnit: 'km',
-    description: '42.2 kilometers (26.2 miles)',
+    description: '42.2 kilometers race - fastest time wins',
   },
 
-  // Strength (3 presets)
+  // Strength (3 presets) - Completion challenges
   {
     id: 'pushups-100',
     name: '100 Push-ups',
     category: 'Strength',
     activityType: 'Strength Training',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Workout Count',
     targetValue: 100,
     targetUnit: 'reps',
-    description: 'Complete 100 push-ups',
+    description: 'Complete 100 push-ups in one workout',
   },
   {
     id: 'pullups-50',
     name: '50 Pull-ups',
     category: 'Strength',
     activityType: 'Strength Training',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Workout Count',
     targetValue: 50,
     targetUnit: 'reps',
-    description: 'Complete 50 pull-ups',
+    description: 'Complete 50 pull-ups in one workout',
   },
   {
     id: 'situps-100',
     name: '100 Sit-ups',
     category: 'Strength',
     activityType: 'Strength Training',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Workout Count',
     targetValue: 100,
     targetUnit: 'reps',
-    description: 'Complete 100 sit-ups',
+    description: 'Complete 100 sit-ups in one workout',
   },
 
-  // Diet (3 presets)
+  // Diet (3 presets) - Completion challenges
   {
     id: 'carnivore-1d',
     name: 'Carnivore Challenge',
     category: 'Diet',
     activityType: 'Diet',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Meal Logging',
     targetValue: 1,
     targetUnit: 'day',
@@ -134,6 +150,7 @@ const EVENT_PRESETS: EventPreset[] = [
     name: '24hr Fast',
     category: 'Diet',
     activityType: 'Diet',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Nutrition Score',
     targetValue: 24,
     targetUnit: 'hours',
@@ -144,18 +161,20 @@ const EVENT_PRESETS: EventPreset[] = [
     name: '12hr Fast',
     category: 'Diet',
     activityType: 'Diet',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Nutrition Score',
     targetValue: 12,
     targetUnit: 'hours',
     description: '12 hour intermittent fast',
   },
 
-  // Meditation (2 presets)
+  // Meditation (2 presets) - Completion challenges
   {
     id: 'meditation-30min',
     name: '30min Meditation',
     category: 'Meditation',
     activityType: 'Meditation',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Duration Challenge',
     targetValue: 30,
     targetUnit: 'minutes',
@@ -166,6 +185,7 @@ const EVENT_PRESETS: EventPreset[] = [
     name: '1hr Meditation',
     category: 'Meditation',
     activityType: 'Meditation',
+    scoringType: 'completion', // ← NEW: Completion-based
     competitionType: 'Duration Challenge',
     targetValue: 60,
     targetUnit: 'minutes',
@@ -179,8 +199,10 @@ type CompetitionType = NostrEventCompetitionType;
 interface EventData {
   selectedPreset: EventPreset | null;
   activityType: ActivityType | null;
-  competitionType: CompetitionType | null;
+  scoringType: EventScoringType | null; // NEW: Simplified scoring
+  competitionType: CompetitionType | null; // Deprecated: keep for compat
   eventDate: Date | null;
+  durationMinutes?: number; // NEW: Duration for short events (10 min, 2 hours)
   entryFeesSats: number;
   maxParticipants: number;
   requireApproval: boolean;
@@ -191,6 +213,8 @@ interface EventData {
   prizePoolSats: number | undefined;
   lightningAddress?: string;
   paymentDestination: 'captain' | 'charity';
+  scoringMode: 'individual' | 'team-total'; // NEW: Scoring mode
+  teamGoal?: number; // NEW: Team goal for team-total mode
 }
 
 interface EventCreationWizardProps {
@@ -217,8 +241,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
   const [eventData, setEventData] = useState<EventData>({
     selectedPreset: null,
     activityType: null,
+    scoringType: null,
     competitionType: null,
     eventDate: null,
+    durationMinutes: undefined,
     entryFeesSats: 0,
     maxParticipants: 50,
     requireApproval: true,
@@ -227,6 +253,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
     prizePoolSats: undefined,
     lightningAddress: '',
     paymentDestination: 'captain',
+    scoringMode: 'individual',
+    teamGoal: undefined,
   });
 
   // Alert state for CustomAlert
@@ -244,8 +272,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
       setEventData({
         selectedPreset: null,
         activityType: null,
+        scoringType: null,
         competitionType: null,
         eventDate: null,
+        durationMinutes: undefined,
         entryFeesSats: 0,
         maxParticipants: 50,
         requireApproval: true,
@@ -254,6 +284,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         prizePoolSats: undefined,
         lightningAddress: '',
         paymentDestination: 'captain',
+        scoringMode: 'individual',
+        teamGoal: undefined,
       });
 
       // Fetch team charity info
@@ -370,8 +402,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         name: eventData.eventName,
         description: eventData.description,
         activityType: eventData.activityType!,
-        competitionType: eventData.competitionType!,
+        scoringType: eventData.scoringType!, // ← NEW: Pass scoring type
+        competitionType: eventData.competitionType!, // Keep for backward compat
         eventDate: eventData.eventDate!.toISOString(),
+        durationMinutes: eventData.durationMinutes, // ← NEW: Pass duration
         entryFeesSats: eventData.entryFeesSats,
         maxParticipants: eventData.maxParticipants,
         requireApproval: eventData.requireApproval,
@@ -384,6 +418,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
           eventData.paymentDestination === 'charity'
             ? getCharityById(teamCharityId)?.name
             : currentUser?.name || 'Team Captain',
+        scoringMode: eventData.scoringMode, // ← NEW: Pass scoring mode
+        teamGoal: eventData.teamGoal, // ← NEW: Pass team goal
       };
 
       console.log('🎯 Creating event:', eventCreationData);
@@ -412,11 +448,11 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
             // Get captain's hex pubkey from signer
             const captainHexPubkey = captainPubkey; // Already provided as prop
 
-            // Prepare empty participant list (kind 30000)
+            // Prepare participant list with captain as first member (kind 30000)
             const participantListData = {
               name: `${eventData.eventName} Participants`,
               description: `Participants for ${eventData.eventName}`,
-              members: [], // Start with empty list - fully opt-in
+              members: [captainHexPubkey], // ✅ FIX: Captain auto-joins their own event
               dTag: `event-${result.competitionId}-participants`,
               listType: 'people' as const,
             };
@@ -453,6 +489,10 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
             // Don't block event creation, just log the error
           }
         }
+
+        // ✅ FIX: Invalidate team events cache so new event appears immediately
+        console.log('🗑️ Invalidating team events cache for team:', teamId);
+        unifiedCache.delete(CacheKeys.TEAM_EVENTS(teamId));
 
         // Show success message with participant list status
         const successMessage = participantListCreated
@@ -496,6 +536,7 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
       ...prev,
       selectedPreset: preset,
       activityType: preset.activityType,
+      scoringType: preset.scoringType, // ← NEW: Set scoring type
       competitionType: preset.competitionType,
       targetValue: preset.targetValue,
       targetUnit: preset.targetUnit,
@@ -740,6 +781,104 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
                 ))}
               </View>
             </View>
+
+            {/* Duration Selection (NEW) */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Event Duration</Text>
+              <View style={styles.durationOptions}>
+                {ALL_DURATION_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.minutes}
+                    style={[
+                      styles.durationOption,
+                      eventData.durationMinutes === option.minutes &&
+                        styles.durationOptionSelected,
+                    ]}
+                    onPress={() =>
+                      updateSettings('durationMinutes', option.minutes)
+                    }
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.durationOptionText,
+                        eventData.durationMinutes === option.minutes &&
+                          styles.durationOptionTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Scoring Mode (NEW) */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Leaderboard Type</Text>
+              <View style={styles.scoringModeOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.scoringModeOption,
+                    eventData.scoringMode === 'individual' &&
+                      styles.scoringModeOptionSelected,
+                  ]}
+                  onPress={() => updateSettings('scoringMode', 'individual')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.scoringModeOptionText,
+                      eventData.scoringMode === 'individual' &&
+                        styles.scoringModeOptionTextSelected,
+                    ]}
+                  >
+                    Individual Rankings
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.scoringModeOption,
+                    eventData.scoringMode === 'team-total' &&
+                      styles.scoringModeOptionSelected,
+                  ]}
+                  onPress={() => updateSettings('scoringMode', 'team-total')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.scoringModeOptionText,
+                      eventData.scoringMode === 'team-total' &&
+                        styles.scoringModeOptionTextSelected,
+                    ]}
+                  >
+                    Team Goal
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Team Goal Input (only if team-total mode) */}
+            {eventData.scoringMode === 'team-total' && (
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  Team Goal ({eventData.targetUnit || 'km'})
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={eventData.teamGoal?.toString() || ''}
+                  onChangeText={(text) =>
+                    updateSettings('teamGoal', parseFloat(text) || 0)
+                  }
+                  placeholder={`e.g., 210 ${eventData.targetUnit || 'km'}`}
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.formHelper}>
+                  Combined team total needed to complete the goal
+                </Text>
+              </View>
+            )}
 
             {/* Prize Pool */}
             <View style={styles.formGroup}>
@@ -1086,6 +1225,69 @@ const styles = StyleSheet.create({
   },
 
   destinationOptionTextSelected: {
+    color: theme.colors.accent,
+  },
+
+  // Duration selection styles (NEW)
+  durationOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  durationOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+  },
+
+  durationOptionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+
+  durationOptionText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
+  },
+
+  durationOptionTextSelected: {
+    color: theme.colors.accent,
+  },
+
+  // Scoring mode styles (NEW)
+  scoringModeOptions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  scoringModeOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+
+  scoringModeOptionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+
+  scoringModeOptionText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
+  },
+
+  scoringModeOptionTextSelected: {
     color: theme.colors.accent,
   },
 });

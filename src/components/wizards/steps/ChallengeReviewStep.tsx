@@ -222,10 +222,10 @@ export const ChallengeReviewStep: React.FC<ChallengeReviewStepProps> = ({
           />
 
           <Text style={styles.lightningHelper}>
-            ⚡ Your opponent will pay this address when accepting the challenge
+            Your opponent will pay this address when accepting the challenge
           </Text>
           <Text style={styles.lightningHelper}>
-            💰 If you win, you'll receive{' '}
+            If you win, you'll receive{' '}
             {(configuration.wagerAmount * 2).toLocaleString()} sats here
           </Text>
         </View>

@@ -12,10 +12,10 @@ import {
   TextInput,
   ScrollView,
   Modal,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { CustomAlert } from '../../components/ui/CustomAlert';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { EnhancedSocialShareModal } from '../../components/profile/shared/EnhancedSocialShareModal';
 import { WorkoutPublishingService } from '../../services/nostr/workoutPublishingService';
@@ -57,6 +57,22 @@ export const MeditationTrackerScreen: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [savedWorkout, setSavedWorkout] = useState<Workout | null>(null);
   const [userId, setUserId] = useState<string>('');
+
+  // Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    buttons: Array<{
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }>;
+  }>({
+    title: '',
+    message: '',
+    buttons: [],
+  });
 
   // Timer refs
   const startTimeRef = useRef<number>(0);
@@ -184,10 +200,12 @@ export const MeditationTrackerScreen: React.FC = () => {
       // Get nsec for publishing
       const nsec = await getNsecFromStorage(userId);
       if (!nsec) {
-        Alert.alert(
-          'Authentication Required',
-          'Please log in with your Nostr key to post workouts.'
-        );
+        setAlertConfig({
+          title: 'Authentication Required',
+          message: 'Please log in with your Nostr key to post workouts.',
+          buttons: [{ text: 'OK', style: 'default' }],
+        });
+        setAlertVisible(true);
         return;
       }
 
@@ -200,17 +218,23 @@ export const MeditationTrackerScreen: React.FC = () => {
       );
 
       if (result.success) {
-        Alert.alert(
-          'Success!',
-          'Your meditation session has been saved to Nostr.',
-          [{ text: 'OK', onPress: handleDone }]
-        );
+        setAlertConfig({
+          title: 'Success!',
+          message: 'Your meditation session has been saved to Nostr.',
+          buttons: [{ text: 'OK', style: 'default', onPress: handleDone }],
+        });
+        setAlertVisible(true);
       } else {
         throw new Error(result.error || 'Failed to save to Nostr');
       }
     } catch (error) {
       console.error('❌ Failed to save to Nostr:', error);
-      Alert.alert('Error', 'Failed to save to Nostr. Please try again.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to save to Nostr. Please try again.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -231,7 +255,12 @@ export const MeditationTrackerScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Failed to prepare workout for sharing:', error);
-      Alert.alert('Error', 'Failed to prepare workout. Please try again.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to prepare workout. Please try again.',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -289,6 +318,14 @@ export const MeditationTrackerScreen: React.FC = () => {
         <TouchableOpacity style={styles.startButton} onPress={startMeditation}>
           <Text style={styles.startButtonText}>Begin Meditation</Text>
         </TouchableOpacity>
+        {/* Custom Alert */}
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={() => setAlertVisible(false)}
+        />
       </ScrollView>
     );
   }
@@ -335,6 +372,14 @@ export const MeditationTrackerScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+        {/* Custom Alert */}
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={() => setAlertVisible(false)}
+        />
       </View>
     );
   }
@@ -403,14 +448,24 @@ export const MeditationTrackerScreen: React.FC = () => {
           userId={userId}
           onClose={() => setShowShareModal(false)}
           onSuccess={() => {
-            Alert.alert(
-              'Success!',
-              'Your meditation session has been shared to Nostr with a beautiful card!',
-              [{ text: 'OK', onPress: handleDone }]
-            );
+            setAlertConfig({
+              title: 'Success!',
+              message:
+                'Your meditation session has been shared to Nostr with a beautiful card!',
+              buttons: [{ text: 'OK', style: 'default', onPress: handleDone }],
+            });
+            setAlertVisible(true);
           }}
         />
       )}
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertVisible(false)}
+      />
     </Modal>
   );
 };
