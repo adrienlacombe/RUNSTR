@@ -40,12 +40,18 @@ export class StrengthTrainingAnalytics {
 
   /**
    * Filter workouts to only strength training activities
+   * Note: Includes 'strength' type for imported Nostr workouts
    */
   private static filterStrengthWorkouts(
     workouts: LocalWorkout[]
   ): LocalWorkout[] {
     return workouts
-      .filter((w) => w.type === 'strength_training' || w.type === 'gym')
+      .filter(
+        (w) =>
+          w.type === 'strength_training' ||
+          w.type === 'gym' ||
+          w.type === 'strength'
+      )
       .sort(
         (a, b) =>
           new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
@@ -259,6 +265,7 @@ export class StrengthTrainingAnalytics {
 
   /**
    * Calculate workout density (reps per minute)
+   * Validates to avoid unrealistic values from short-duration workouts
    */
   private static calculateWorkoutDensity(
     workouts: LocalWorkout[]
@@ -270,11 +277,19 @@ export class StrengthTrainingAnalytics {
       };
     }
 
+    const MAX_REALISTIC_REPS_PER_MIN = 50; // Cap at 50 reps/min (very fast pace)
+    const MIN_WORKOUT_DURATION = 60; // Require at least 60 seconds for valid calculation
+
     // Calculate density for recent workouts
     const recentWorkouts = workouts.slice(-10); // Last 10 workouts
     const densities = recentWorkouts
-      .filter((w) => w.duration > 0 && w.reps)
-      .map((w) => w.reps! / (w.duration / 60)); // reps per minute
+      .filter((w) => w.duration >= MIN_WORKOUT_DURATION && w.reps)
+      .map((w) => {
+        const density = w.reps! / (w.duration / 60); // reps per minute
+        // Filter out unrealistic values (likely data entry errors)
+        return density <= MAX_REALISTIC_REPS_PER_MIN ? density : null;
+      })
+      .filter((d) => d !== null) as number[];
 
     if (densities.length === 0) {
       return {
@@ -289,12 +304,16 @@ export class StrengthTrainingAnalytics {
     // Compare with older workouts for trend
     const olderWorkouts = workouts.slice(-20, -10);
     const olderDensities = olderWorkouts
-      .filter((w) => w.duration > 0 && w.reps)
-      .map((w) => w.reps! / (w.duration / 60));
+      .filter((w) => w.duration >= MIN_WORKOUT_DURATION && w.reps)
+      .map((w) => {
+        const density = w.reps! / (w.duration / 60);
+        return density <= MAX_REALISTIC_REPS_PER_MIN ? density : null;
+      })
+      .filter((d) => d !== null) as number[];
 
     if (olderDensities.length === 0) {
       return {
-        avgRepsPerMinute,
+        avgRepsPerMinute: Math.round(avgRepsPerMinute * 10) / 10,
         trend: 'stable',
       };
     }

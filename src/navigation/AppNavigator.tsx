@@ -36,6 +36,7 @@ import { CompetitionsListScreen } from '../screens/CompetitionsListScreen';
 import { WorkoutHistoryScreen } from '../screens/WorkoutHistoryScreen';
 import { QRChallengeScanner } from '../screens/QRChallengeScanner';
 import { MyTeamsScreen } from '../screens/MyTeamsScreen';
+import { HealthProfileScreen } from '../screens/HealthProfileScreen';
 import type { DiscoveredNostrUser } from '../services/user/UserDiscoveryService';
 
 // Navigation Configuration
@@ -82,6 +83,7 @@ export type RootStackParamList = {
   QRChallengeScanner: undefined;
   WorkoutHistory: { userId: string; pubkey: string };
   MyTeams: undefined;
+  HealthProfile: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -577,6 +579,16 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
           presentation: 'modal',
         }}
         component={QRChallengeScanner}
+      />
+
+      {/* Health Profile Screen */}
+      <Stack.Screen
+        name="HealthProfile"
+        component={HealthProfileScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
       />
     </Stack.Navigator>
   );

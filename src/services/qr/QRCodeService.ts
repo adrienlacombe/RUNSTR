@@ -151,6 +151,13 @@ class QRCodeService {
       );
     }
 
+    if (data.type === 'nwc') {
+      return !!(
+        data.connectionString &&
+        typeof data.connectionString === 'string'
+      );
+    }
+
     return false;
   }
 

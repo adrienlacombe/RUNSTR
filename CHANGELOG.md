@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-01-28
+
+### Fixed
+- **Health Profile Navigation** - Added missing HealthProfile route to AppNavigator preventing access to Health Profile screen
+- **NWC QR Scanner** - Added proper validation for NWC wallet connection type QR codes
+- **Workout Deduplication** - Fixed issue where imported Nostr workouts were incorrectly hidden due to overly aggressive deduplication logic
+  - Imported workouts now always display in unified workout history
+  - Only GPS/manual workouts that were synced to Nostr are deduplicated
+
+### Improved
+- **Activity Tracker Performance** - Optimized GPS tracking for better accuracy and responsiveness
+  - Relaxed GPS accuracy threshold: 20m → 35m (better performance in varied conditions)
+  - Reduced GPS jump detection: 100m → 75m (prevents phantom distance from GPS errors)
+  - Increased location update frequency: 5m → 2m distance interval (more responsive tracking)
+  - Applied to BackgroundLocationTask, SimpleRunTracker, and SimpleRunTrackerTask
+
+- **Advanced Analytics Accuracy** - Enhanced data calculation and display
+  - Improved workout data aggregation logic
+  - Better handling of imported Nostr workout data
+  - Added import statistics display (total workouts, last import date)
+  - More accurate correlation calculations
+
+- **UI Consistency** - Updated analytics trend indicators to use brand orange color (#FF6B35) instead of green
+
 ## [0.5.0] - 2025-01-28
 
 ### Added

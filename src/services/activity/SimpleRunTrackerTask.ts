@@ -47,7 +47,7 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
       const validLocations = locations
         .filter((loc) => {
           const accuracy = loc.coords.accuracy || 999;
-          return accuracy <= 20; // Only keep accurate readings (< 20m)
+          return accuracy <= 35; // Only keep accurate readings (< 35m)
         })
         .map((loc) => ({
           latitude: loc.coords.latitude,

@@ -54,6 +54,10 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
   const [healthProfile, setHealthProfile] = useState<HealthProfile | null>(null);
   const [hasImported, setHasImported] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importStats, setImportStats] = useState<{
+    totalImported: number;
+    importedAt: string;
+  } | null>(null);
 
   useEffect(() => {
     initializeAnalytics();
@@ -95,6 +99,17 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
       // Check if 1301 import has been completed
       const importCompleted = await Nostr1301ImportService.hasImported();
       setHasImported(importCompleted);
+
+      // Load import stats if available
+      if (importCompleted) {
+        const stats = await localWorkoutStorage.getNostrImportStats();
+        if (stats) {
+          setImportStats({
+            totalImported: stats.totalImported,
+            importedAt: stats.importedAt,
+          });
+        }
+      }
 
       // Get ALL local workouts (includes GPS, manual, daily steps, AND imported Nostr)
       const allWorkouts = await localWorkoutStorage.getAllWorkouts();
@@ -262,18 +277,26 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
           <Text style={styles.privacyLink}>Tap to learn more →</Text>
         </TouchableOpacity>
 
-        {/* Import Nostr History Button (if not imported) */}
-        {!hasImported && (
-          <TouchableOpacity
-            style={styles.importButton}
-            onPress={handleImportNostrHistory}
-            disabled={importing}
-          >
-            <Ionicons name="cloud-download-outline" size={20} color="#000" />
-            <Text style={styles.importButtonText}>
-              {importing ? 'Importing Nostr History...' : 'Import Nostr Workout History'}
-            </Text>
-          </TouchableOpacity>
+        {/* Import Nostr History Button (always visible) */}
+        <TouchableOpacity
+          style={styles.importButton}
+          onPress={handleImportNostrHistory}
+          disabled={importing}
+        >
+          <Ionicons name="cloud-download-outline" size={20} color="#000" />
+          <Text style={styles.importButtonText}>
+            {importing
+              ? 'Importing Nostr History...'
+              : hasImported
+              ? 'Update Nostr History'
+              : 'Import Nostr Workout History'}
+          </Text>
+        </TouchableOpacity>
+        {hasImported && importStats && (
+          <Text style={styles.importStats}>
+            Last imported: {importStats.totalImported} workouts on{' '}
+            {new Date(importStats.importedAt).toLocaleDateString()}
+          </Text>
         )}
 
         {/* Check for data */}
@@ -395,6 +418,22 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
                       </Text>
                     </View>
                   )}
+                  {analytics.holisticScore.nutrition > 0 && (
+                    <View style={styles.categoryRow}>
+                      <Text style={styles.categoryName}>Nutrition</Text>
+                      <View style={styles.progressBar}>
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${analytics.holisticScore.nutrition}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.categoryScore}>
+                        {analytics.holisticScore.nutrition}
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.categoryRow}>
                     <Text style={styles.categoryName}>Balance</Text>
                     <View style={styles.progressBar}>
@@ -453,21 +492,23 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
                       ).padStart(2, '0')}{' '}
                       /km
                     </Text>
-                    <Text
-                      style={[
-                        styles.metricTrend,
-                        analytics.cardio.paceImprovement.trend ===
-                          'improving' && styles.metricTrendPositive,
-                      ]}
-                    >
-                      {analytics.cardio.paceImprovement.percentChange > 0
-                        ? '+'
-                        : ''}
-                      {analytics.cardio.paceImprovement.percentChange.toFixed(
-                        1
-                      )}
-                      %
-                    </Text>
+                    {analytics.cardio.paceImprovement.percentChange !== 0 && (
+                      <Text
+                        style={[
+                          styles.metricTrend,
+                          analytics.cardio.paceImprovement.trend ===
+                            'improving' && styles.metricTrendPositive,
+                        ]}
+                      >
+                        {analytics.cardio.paceImprovement.percentChange > 0
+                          ? '+'
+                          : ''}
+                        {analytics.cardio.paceImprovement.percentChange.toFixed(
+                          1
+                        )}
+                        %
+                      </Text>
+                    )}
                   </View>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Weekly Distance</Text>
@@ -477,21 +518,23 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
                       )}{' '}
                       km
                     </Text>
-                    <Text
-                      style={[
-                        styles.metricTrend,
-                        analytics.cardio.distanceProgression.trend ===
-                          'increasing' && styles.metricTrendPositive,
-                      ]}
-                    >
-                      {analytics.cardio.distanceProgression.percentChange > 0
-                        ? '+'
-                        : ''}
-                      {analytics.cardio.distanceProgression.percentChange.toFixed(
-                        1
-                      )}
-                      %
-                    </Text>
+                    {analytics.cardio.distanceProgression.percentChange !== 0 && (
+                      <Text
+                        style={[
+                          styles.metricTrend,
+                          analytics.cardio.distanceProgression.trend ===
+                            'increasing' && styles.metricTrendPositive,
+                        ]}
+                      >
+                        {analytics.cardio.distanceProgression.percentChange > 0
+                          ? '+'
+                          : ''}
+                        {analytics.cardio.distanceProgression.percentChange.toFixed(
+                          1
+                        )}
+                        %
+                      </Text>
+                    )}
                   </View>
                   {analytics.cardio.vo2MaxEstimate && (
                     <View style={styles.metricRow}>
@@ -509,48 +552,55 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Strength Training Section */}
-            {analytics.strength && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Strength Training</Text>
-                <View style={styles.metricCard}>
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Monthly Volume</Text>
-                    <Text style={styles.metricValue}>
-                      {
-                        analytics.strength.volumeProgression
-                          .currentMonthlyVolume
-                      }{' '}
-                      reps
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricTrend,
-                        analytics.strength.volumeProgression.trend ===
-                          'increasing' && styles.metricTrendPositive,
-                      ]}
-                    >
-                      {analytics.strength.volumeProgression.percentChange > 0
-                        ? '+'
-                        : ''}
-                      {analytics.strength.volumeProgression.percentChange.toFixed(
-                        1
+            {/* Strength Training Section - Only show if volume > 0 */}
+            {analytics.strength &&
+              analytics.strength.volumeProgression.currentMonthlyVolume > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Strength Training</Text>
+                  <View style={styles.metricCard}>
+                    <View style={styles.metricRow}>
+                      <Text style={styles.metricLabel}>Monthly Volume</Text>
+                      <Text style={styles.metricValue}>
+                        {
+                          analytics.strength.volumeProgression
+                            .currentMonthlyVolume
+                        }{' '}
+                        reps
+                      </Text>
+                      {analytics.strength.volumeProgression.percentChange !==
+                        0 && (
+                        <Text
+                          style={[
+                            styles.metricTrend,
+                            analytics.strength.volumeProgression.trend ===
+                              'increasing' && styles.metricTrendPositive,
+                          ]}
+                        >
+                          {analytics.strength.volumeProgression.percentChange >
+                          0
+                            ? '+'
+                            : ''}
+                          {analytics.strength.volumeProgression.percentChange.toFixed(
+                            1
+                          )}
+                          %
+                        </Text>
                       )}
-                      %
-                    </Text>
-                  </View>
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Workout Density</Text>
-                    <Text style={styles.metricValue}>
-                      {analytics.strength.workoutDensity.avgRepsPerMinute.toFixed(
-                        1
-                      )}{' '}
-                      reps/min
-                    </Text>
+                    </View>
+                    {analytics.strength.workoutDensity.avgRepsPerMinute > 0 && (
+                      <View style={styles.metricRow}>
+                        <Text style={styles.metricLabel}>Workout Density</Text>
+                        <Text style={styles.metricValue}>
+                          {analytics.strength.workoutDensity.avgRepsPerMinute.toFixed(
+                            1
+                          )}{' '}
+                          reps/min
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-              </View>
-            )}
+              )}
 
             {/* Wellness Section */}
             {analytics.wellness && (
@@ -586,39 +636,55 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
             )}
 
             {/* Insights & Correlations Section */}
-            {analytics.correlations && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Insights & Correlations</Text>
-                {analytics.correlations.meditationVsRecovery && (
-                  <CorrelationInsightCard
-                    title="Meditation → Recovery Time"
-                    correlation={analytics.correlations.meditationVsRecovery}
-                    icon="fitness-outline"
-                  />
-                )}
-                {analytics.correlations.strengthVsCardio && (
-                  <CorrelationInsightCard
-                    title="Strength → Cardio Performance"
-                    correlation={analytics.correlations.strengthVsCardio}
-                    icon="barbell-outline"
-                  />
-                )}
-                {analytics.correlations.consistencyVsPerformance && (
-                  <CorrelationInsightCard
-                    title="Workout Frequency → Performance"
-                    correlation={analytics.correlations.consistencyVsPerformance}
-                    icon="trending-up-outline"
-                  />
-                )}
-                {analytics.correlations.mealTimingVsAdherence && (
-                  <CorrelationInsightCard
-                    title="Meal Timing → Diet Adherence"
-                    correlation={analytics.correlations.mealTimingVsAdherence}
-                    icon="restaurant-outline"
-                  />
-                )}
-              </View>
-            )}
+            {(() => {
+              // Check if ANY correlation exists before rendering section
+              const hasAnyCorrelation =
+                analytics.correlations &&
+                (analytics.correlations.meditationVsRecovery ||
+                  analytics.correlations.strengthVsCardio ||
+                  analytics.correlations.consistencyVsPerformance ||
+                  analytics.correlations.mealTimingVsAdherence);
+
+              if (!hasAnyCorrelation) return null;
+
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>
+                    Insights & Correlations
+                  </Text>
+                  {analytics.correlations!.meditationVsRecovery && (
+                    <CorrelationInsightCard
+                      title="Meditation → Recovery Time"
+                      correlation={analytics.correlations!.meditationVsRecovery}
+                      icon="fitness-outline"
+                    />
+                  )}
+                  {analytics.correlations!.strengthVsCardio && (
+                    <CorrelationInsightCard
+                      title="Strength → Cardio Performance"
+                      correlation={analytics.correlations!.strengthVsCardio}
+                      icon="barbell-outline"
+                    />
+                  )}
+                  {analytics.correlations!.consistencyVsPerformance && (
+                    <CorrelationInsightCard
+                      title="Workout Frequency → Performance"
+                      correlation={
+                        analytics.correlations!.consistencyVsPerformance
+                      }
+                      icon="trending-up-outline"
+                    />
+                  )}
+                  {analytics.correlations!.mealTimingVsAdherence && (
+                    <CorrelationInsightCard
+                      title="Meal Timing → Diet Adherence"
+                      correlation={analytics.correlations!.mealTimingVsAdherence}
+                      icon="restaurant-outline"
+                    />
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Last Updated */}
             <Text style={styles.lastUpdated}>
@@ -935,7 +1001,7 @@ const styles = StyleSheet.create({
   },
 
   metricTrendPositive: {
-    color: '#4CAF50',
+    color: theme.colors.orangeBright,
   },
 
   metricSubtext: {
@@ -948,5 +1014,13 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: 'center',
     marginTop: 16,
+  },
+
+  importStats: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 16,
   },
 });

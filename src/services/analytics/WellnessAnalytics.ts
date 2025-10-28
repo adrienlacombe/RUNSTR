@@ -275,7 +275,8 @@ export class WellnessAnalytics {
   }
 
   /**
-   * Calculate meditation type preferences from notes
+   * Calculate meditation type preferences
+   * Prioritizes dedicated meditationType field over note parsing
    */
   private static calculateTypePreferences(
     workouts: LocalWorkout[]
@@ -289,9 +290,31 @@ export class WellnessAnalytics {
     };
 
     workouts.forEach((w) => {
+      // Check for dedicated meditationType field first (preferred)
+      if (w.meditationType) {
+        switch (w.meditationType) {
+          case 'guided':
+            typeCounts.guided++;
+            break;
+          case 'unguided':
+            typeCounts.unguided++;
+            break;
+          case 'breathwork':
+            typeCounts.breathwork++;
+            break;
+          case 'body_scan':
+            typeCounts.bodyScan++;
+            break;
+          case 'gratitude':
+            typeCounts.lovingKindness++; // Map gratitude to loving kindness
+            break;
+        }
+        return;
+      }
+
+      // Fallback: Parse meditation type from notes
       const notes = (w.notes || '').toLowerCase();
 
-      // Parse meditation type from notes
       if (notes.includes('guided')) {
         typeCounts.guided++;
       } else if (notes.includes('unguided') || notes.includes('silent')) {
@@ -420,9 +443,10 @@ export class WellnessAnalytics {
       });
 
       // Use pace as performance metric (lower is better, so invert)
+      // Note: distance stored in meters, divide by 1000 for km
       const pace =
         workout.distance && workout.duration > 0
-          ? workout.duration / 60 / workout.distance // min/km
+          ? workout.duration / 60 / (workout.distance / 1000) // min/km
           : 0;
 
       if (pace > 0) {

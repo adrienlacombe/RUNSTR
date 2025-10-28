@@ -219,6 +219,7 @@ export interface HolisticHealthScore {
   cardio: number; // 0-100
   strength: number; // 0-100
   wellness: number; // 0-100
+  nutrition: number; // 0-100
   balance: number; // 0-100 (how balanced across categories)
   trend: 'improving' | 'stable' | 'declining';
   category: 'poor' | 'fair' | 'good' | 'excellent' | 'elite';

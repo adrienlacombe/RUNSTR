@@ -280,7 +280,7 @@ export class SimpleRunTracker {
       await Location.startLocationUpdatesAsync(SIMPLE_TRACKER_TASK, {
         accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 1000, // 1 second
-        distanceInterval: 5, // 5 meters
+        distanceInterval: 2, // 2 meters
         foregroundService: {
           notificationTitle: `RUNSTR - ${activityType.charAt(0).toUpperCase() + activityType.slice(1)} Tracking`,
           notificationBody: 'Tap to return to your run',

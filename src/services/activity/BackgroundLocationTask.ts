@@ -228,7 +228,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
           const segmentDistance = calculateDistance(lastLocation, location);
 
           // Only add distance if it's reasonable (prevent GPS jumps)
-          if (segmentDistance > 0.5 && segmentDistance < 100) {
+          if (segmentDistance > 0.5 && segmentDistance < 75) {
             distanceState.totalDistance += segmentDistance;
             distanceAdded += segmentDistance;
           }

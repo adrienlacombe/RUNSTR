@@ -17,10 +17,10 @@ import type { LocationPoint } from '../services/activity/SimpleLocationTrackingS
 
 // Constants from proven reference implementation
 export const GPS_VALIDATION_CONSTANTS = {
-  MINIMUM_ACCURACY: 20, // meters - reject poor GPS signals
+  MINIMUM_ACCURACY: 35, // meters - reject poor GPS signals
   SPEED_THRESHOLD: 18, // m/s (~65 km/h) - for cycling support
   MINIMUM_DISTANCE: 0.5, // meters - filter GPS jitter
-  MAXIMUM_DISTANCE_PER_POINT: 50, // meters - reject GPS jumps
+  MAXIMUM_DISTANCE_PER_POINT: 75, // meters - reject GPS jumps
   MINIMUM_TIME_DIFF: 0.2, // seconds - prevent duplicate points
 } as const;
 

@@ -33,7 +33,8 @@ export class CardioPerformanceAnalytics {
     return {
       paceImprovement: this.calculatePaceTrend(cardioWorkouts),
       distanceProgression: this.calculateDistanceTrend(cardioWorkouts),
-      heartRateEfficiency: this.calculateHeartRateTrend(cardioWorkouts),
+      // TODO: Heart rate data not available in LocalWorkout - requires HealthKit integration
+      heartRateEfficiency: undefined,
       vo2MaxEstimate: healthProfile
         ? this.estimateVO2Max(cardioWorkouts, healthProfile)
         : undefined,
@@ -118,6 +119,7 @@ export class CardioPerformanceAnalytics {
 
   /**
    * Calculate average pace (seconds per km) from workouts
+   * Note: LocalWorkout stores distance in METERS, so we divide by 1000 for km
    */
   private static calculateAveragePace(workouts: LocalWorkout[]): number {
     if (workouts.length === 0) return 0;
@@ -130,7 +132,7 @@ export class CardioPerformanceAnalytics {
 
     if (totalDistance === 0) return 0;
 
-    // Convert meters to km and duration to seconds
+    // distance stored in meters, divide by 1000 for km
     return totalTime / (totalDistance / 1000); // seconds per km
   }
 

@@ -590,7 +590,9 @@ export class WorkoutMergeService {
         localWorkout.nostrEventId &&
         nostrByEventId.has(localWorkout.nostrEventId);
 
-      if (!matchingNostr) {
+      // ALWAYS include imported Nostr workouts, even if they duplicate with relay results
+      // Only deduplicate GPS/manual workouts that were synced
+      if (!matchingNostr || localWorkout.source === 'imported_nostr') {
         const status = postingStatus.get(localWorkout.id);
         unified.push({
           id: localWorkout.id,
@@ -613,6 +615,8 @@ export class WorkoutMergeService {
           sourceApp:
             localWorkout.source === 'gps_tracker'
               ? 'RUNSTR GPS Tracker'
+              : localWorkout.source === 'imported_nostr'
+              ? 'Imported from Nostr'
               : 'RUNSTR Manual Entry',
           sets: localWorkout.sets,
           reps: localWorkout.reps,

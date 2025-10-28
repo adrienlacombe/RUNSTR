@@ -81,6 +81,7 @@ export class HolisticHealthAnalytics {
       cardio: cardioScore,
       strength: strengthScore,
       wellness: wellnessScore,
+      nutrition: nutritionScore,
       balance,
       trend,
       category,

@@ -44,16 +44,27 @@ export class NutritionAnalytics {
 
   /**
    * Extract meal entries from workouts (diet tracking)
+   * Prioritizes dedicated mealType field over note parsing
    */
   private static extractMealEntries(workouts: LocalWorkout[]): MealEntry[] {
     const entries: MealEntry[] = [];
 
     workouts.forEach((w) => {
-      // Look for diet/meal tracking workouts
-      if (w.type === 'other' || w.type === 'wellness') {
+      // Check for dedicated mealType field first (preferred)
+      if (w.mealType) {
+        entries.push({
+          type: w.mealType,
+          time: new Date(w.mealTime || w.startTime),
+          notes: w.notes || '',
+        });
+        return;
+      }
+
+      // Fallback: Look for diet/meal tracking workouts with note parsing
+      if (w.type === 'diet' || w.type === 'other' || w.type === 'wellness') {
         const notes = (w.notes || '').toLowerCase();
 
-        // Parse meal type from notes
+        // Parse meal type from notes (fallback only)
         let mealType: MealEntry['type'] | null = null;
 
         if (notes.includes('breakfast')) {
@@ -460,9 +471,10 @@ export class NutritionAnalytics {
       const hadConsistentMeals = mainMeals.length >= 2 && mainMeals.length <= 4;
 
       // Use pace as performance metric
+      // Note: distance stored in meters, divide by 1000 for km
       const pace =
         workout.distance && workout.duration > 0
-          ? workout.duration / 60 / workout.distance
+          ? workout.duration / 60 / (workout.distance / 1000) // min/km
           : 0;
 
       if (pace > 0) {
