@@ -74,6 +74,18 @@ export type ScoringMode = 'individual' | 'team-total';
 
 export type NostrScoringFrequency = 'daily' | 'weekly' | 'total';
 
+// Recurrence Types (for recurring events)
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+
+export type RecurrenceDay =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
 // League Definition (Kind 30100)
 export interface NostrLeagueDefinition {
   // Core identification
@@ -123,6 +135,11 @@ export interface NostrEventDefinition {
   // Timing
   eventDate: string; // ISO string
   durationMinutes?: number; // Optional: Duration in minutes for short events (10, 120, etc.)
+
+  // Recurrence (NEW)
+  recurrence?: RecurrenceFrequency; // 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'
+  recurrenceDay?: RecurrenceDay; // For weekly/biweekly: which day to reset
+  recurrenceStartDate?: string; // ISO string - first occurrence date
 
   // Settings
   entryFeesSats: number;
@@ -189,6 +206,9 @@ export interface NostrEventEventTemplate extends EventTemplate {
     | ['competition_type', NostrEventCompetitionType] // Deprecated but kept for compat
     | ['event_date', string] // ISO string
     | ['duration_minutes', string] // Optional: Duration in minutes for short events
+    | ['recurrence', RecurrenceFrequency] // NEW: Recurrence frequency
+    | ['recurrence_day', RecurrenceDay] // NEW: Day of week for weekly recurrence
+    | ['recurrence_start_date', string] // NEW: First occurrence ISO string
     | ['entry_fee', string] // sats as string
     | ['max_participants', string]
     | ['require_approval', string] // boolean as string

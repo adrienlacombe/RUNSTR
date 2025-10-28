@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.card,
     borderRadius: 16,
-    padding: 10,
+    padding: 8,
     marginHorizontal: 12,
     marginVertical: 2,
     borderWidth: 1,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   loadingText: {
     marginTop: 12,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     gap: 6,
-    marginTop: 12,
+    marginTop: 8,
   },
   backgroundActiveText: {
     fontSize: 12,
@@ -283,11 +283,11 @@ const styles = StyleSheet.create({
   backgroundBanner: {
     backgroundColor: theme.colors.background,
     borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
+    padding: 10,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    gap: 12,
+    gap: 10,
   },
   bannerContent: {
     flexDirection: 'row',
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   horizontalContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   ringContainer: {
     flexShrink: 0,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   stepCountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   checkmarkInline: {
     marginRight: 4,

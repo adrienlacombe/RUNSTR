@@ -19,9 +19,12 @@ import { CustomAlert } from '../../components/ui/CustomAlert';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { EnhancedSocialShareModal } from '../../components/profile/shared/EnhancedSocialShareModal';
 import { WorkoutPublishingService } from '../../services/nostr/workoutPublishingService';
-import { getNsecFromStorage } from '../../utils/nostr';
+import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CalorieEstimationService from '../../services/fitness/CalorieEstimationService';
+import type { HealthProfile } from '../HealthProfileScreen';
 import type { Workout } from '../../types/workout';
+import type { NDKSigner } from '@nostr-dev-kit/ndk';
 
 type MeditationType =
   | 'guided'
@@ -48,6 +51,8 @@ export const MeditationTrackerScreen: React.FC = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selectedType, setSelectedType] = useState<MeditationType>('unguided');
+  const [userWeight, setUserWeight] = useState<number | undefined>(undefined);
+  const [estimatedCalories, setEstimatedCalories] = useState<number>(0);
 
   // Summary state
   const [showSummary, setShowSummary] = useState(false);
@@ -57,6 +62,7 @@ export const MeditationTrackerScreen: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [savedWorkout, setSavedWorkout] = useState<Workout | null>(null);
   const [userId, setUserId] = useState<string>('');
+  const [signer, setSigner] = useState<NDKSigner | null>(null);
 
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
@@ -81,13 +87,30 @@ export const MeditationTrackerScreen: React.FC = () => {
   const isPausedRef = useRef<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load userId on mount
+  // Load userId, signer, and health profile on mount
   useEffect(() => {
-    const loadUserId = async () => {
-      const npub = await AsyncStorage.getItem('@runstr:npub');
-      if (npub) setUserId(npub);
+    const loadUserAndSigner = async () => {
+      try {
+        const npub = await AsyncStorage.getItem('@runstr:npub');
+        if (npub) setUserId(npub);
+
+        const userSigner = await UnifiedSigningService.getInstance().getSigner();
+        if (userSigner) setSigner(userSigner);
+
+        // Load health profile for calorie estimation
+        const profileData = await AsyncStorage.getItem('@runstr:health_profile');
+        if (profileData) {
+          const profile: HealthProfile = JSON.parse(profileData);
+          if (profile.weight) {
+            setUserWeight(profile.weight);
+            console.log('[MeditationTracker] ✅ User weight loaded:', profile.weight);
+          }
+        }
+      } catch (error) {
+        console.warn('[MeditationTracker] Failed to load data:', error);
+      }
     };
-    loadUserId();
+    loadUserAndSigner();
   }, []);
 
   // Cleanup on unmount
@@ -156,6 +179,15 @@ export const MeditationTrackerScreen: React.FC = () => {
         MEDITATION_TYPES.find((t) => t.value === selectedType)?.label ||
         'Meditation';
 
+      // Estimate calories using CalorieEstimationService
+      const calorieService = CalorieEstimationService.getInstance();
+      const calories = calorieService.estimateMeditationCalories(
+        elapsedSeconds,
+        userWeight
+      );
+
+      setEstimatedCalories(calories);
+
       const workoutId = await LocalWorkoutStorageService.saveManualWorkout({
         type: 'meditation',
         duration: elapsedSeconds,
@@ -167,12 +199,13 @@ export const MeditationTrackerScreen: React.FC = () => {
               : elapsedSeconds + ' second'
           } ${meditationTypeLabel.toLowerCase()} session`,
         meditationType: selectedType,
+        calories, // Add calorie estimation
       });
 
       console.log(
         `✅ Meditation session saved locally: ${selectedType} - ${formatTime(
           elapsedSeconds
-        )}`
+        )}, ${calories} cal`
       );
 
       // Retrieve the saved workout from storage
@@ -191,15 +224,13 @@ export const MeditationTrackerScreen: React.FC = () => {
     }
   };
 
-  const saveToNostr = async () => {
+  const handleCompete = async () => {
     try {
       // Save locally first
       const workout = savedWorkout || (await saveSessionLocally());
       if (!workout) return;
 
-      // Get nsec for publishing
-      const nsec = await getNsecFromStorage(userId);
-      if (!nsec) {
+      if (!signer || !userId) {
         setAlertConfig({
           title: 'Authentication Required',
           message: 'Please log in with your Nostr key to post workouts.',
@@ -213,14 +244,17 @@ export const MeditationTrackerScreen: React.FC = () => {
       const publishingService = WorkoutPublishingService.getInstance();
       const result = await publishingService.saveWorkoutToNostr(
         workout,
-        nsec,
+        signer,
         userId
       );
 
-      if (result.success) {
+      if (result.success && result.eventId) {
+        // Mark as synced in local storage
+        await LocalWorkoutStorageService.markAsSynced(workout.id, result.eventId);
+
         setAlertConfig({
           title: 'Success!',
-          message: 'Your meditation session has been saved to Nostr.',
+          message: 'Your meditation session has been entered into competitions!',
           buttons: [{ text: 'OK', style: 'default', onPress: handleDone }],
         });
         setAlertVisible(true);
@@ -228,10 +262,10 @@ export const MeditationTrackerScreen: React.FC = () => {
         throw new Error(result.error || 'Failed to save to Nostr');
       }
     } catch (error) {
-      console.error('❌ Failed to save to Nostr:', error);
+      console.error('❌ Failed to compete meditation:', error);
       setAlertConfig({
         title: 'Error',
-        message: 'Failed to save to Nostr. Please try again.',
+        message: 'Failed to enter competition. Please try again.',
         buttons: [{ text: 'OK', style: 'default' }],
       });
       setAlertVisible(true);
@@ -246,7 +280,7 @@ export const MeditationTrackerScreen: React.FC = () => {
     setSavedWorkout(null);
   };
 
-  const openShareModal = async () => {
+  const handlePost = async () => {
     try {
       // Save locally first
       const workout = savedWorkout || (await saveSessionLocally());
@@ -399,6 +433,21 @@ export const MeditationTrackerScreen: React.FC = () => {
             </Text>
           </View>
 
+          {/* Calorie Estimate */}
+          {estimatedCalories > 0 && (
+            <View style={styles.calorieSection}>
+              <Ionicons
+                name="flame"
+                size={20}
+                color={theme.colors.orangeBright}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.calorieText}>
+                {estimatedCalories} calories burned
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.notesLabel}>Session Notes (Optional)</Text>
           <TextInput
             style={styles.notesInput}
@@ -411,27 +460,24 @@ export const MeditationTrackerScreen: React.FC = () => {
           />
 
           <View style={styles.summaryButtons}>
-            <TouchableOpacity style={styles.saveButton} onPress={saveToNostr}>
+            <TouchableOpacity style={styles.postButton} onPress={handlePost}>
               <Ionicons
-                name="cloud-upload-outline"
+                name="chatbubble-outline"
                 size={20}
                 color={theme.colors.background}
                 style={styles.buttonIcon}
               />
-              <Text style={styles.saveButtonText}>Save to Nostr</Text>
+              <Text style={styles.postButtonText}>Post</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.shareButton}
-              onPress={openShareModal}
-            >
+            <TouchableOpacity style={styles.competeButton} onPress={handleCompete}>
               <Ionicons
-                name="share-social-outline"
+                name="trophy-outline"
                 size={20}
-                color={theme.colors.text}
+                color={theme.colors.background}
                 style={styles.buttonIcon}
               />
-              <Text style={styles.shareButtonText}>Share to Social</Text>
+              <Text style={styles.competeButtonText}>Compete</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
@@ -630,6 +676,24 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: 8,
   },
+  calorieSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 157, 66, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 157, 66, 0.3)',
+  },
+  calorieText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
   notesLabel: {
     fontSize: 14,
     fontWeight: theme.typography.weights.semiBold,
@@ -654,7 +718,20 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginRight: 8,
   },
-  saveButton: {
+  postButton: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postButtonText: {
+    color: theme.colors.background,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+  },
+  competeButton: {
     flexDirection: 'row',
     backgroundColor: theme.colors.text,
     borderRadius: 12,
@@ -662,23 +739,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveButtonText: {
+  competeButtonText: {
     color: theme.colors.background,
-    fontSize: 16,
-    fontWeight: theme.typography.weights.bold,
-  },
-  shareButton: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  shareButtonText: {
-    color: theme.colors.text,
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,
   },

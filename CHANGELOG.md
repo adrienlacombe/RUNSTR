@@ -6,6 +6,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-01-28
+
+### Added
+- **Recurring Events System** - Automatic leaderboard resets for ongoing competitions
+  - 5 recurrence types: None, Daily, Weekly, Biweekly, Monthly
+  - `eventRecurrence.ts`: Period calculation engine (378 lines)
+  - `RecurrenceBadge.tsx`: Visual recurrence indicator component
+  - `PeriodDisplay.tsx`: Current period display with next reset time
+  - Client-side period calculation - no backend changes required
+  - Backwards compatible with existing one-time events
+  - New wizard step in EventCreationWizard for recurrence configuration
+  - Nostr tags: `recurrence`, `recurrence_day`, `recurrence_start_date`
+
+- **Nostr 1301 Import Service** - Download entire workout history to local storage
+  - `Nostr1301ImportService.ts`: One-time import of all kind 1301 events (258 lines)
+  - Progress tracking with percentage and current workout display
+  - Import statistics: total workouts, date range, activity types
+  - Prevents duplicate imports with completion flag
+  - 100% offline analytics after initial import
+  - Normalizes workout types from various Nostr apps
+
+- **Advanced Analytics Dashboard** - Comprehensive fitness insights
+  - **Caloric Analytics**: Daily/weekly/monthly calorie tracking and trends
+    - `CaloricAnalyticsService.ts`: Calorie balance calculations (332 lines)
+    - `CalorieBalanceCard.tsx`: Today's calorie in/out/net display
+    - `CalorieTrendChart.tsx`: 7-day and 30-day trend visualizations
+    - `CorrelationInsightCard.tsx`: Activity-calorie correlation analysis
+  - **Body Composition Analytics**: BMI calculations with health categories
+    - `BodyCompositionAnalytics.ts`: BMI and body composition tracking
+    - `HealthSnapshotCard.tsx`: Current health metrics display
+  - **Calorie Estimation Service**: Automatic calorie calculations for workouts
+    - `CalorieEstimationService.ts`: MET-based calorie burn estimation
+    - Activity-specific MET values for accurate calculations
+
+- **Health Profile Screen** - Optional health data for improved analytics
+  - `HealthProfileScreen.tsx`: Privacy-preserving health data entry (345 lines)
+  - Fields: Weight (kg), Height (cm), Age (years)
+  - All data stays on device - never published to Nostr
+  - BMR (Basal Metabolic Rate) calculations with Mifflin-St Jeor equation
+  - Enhanced calorie estimates based on user profile
+  - Privacy notice with lock icon and clear messaging
+
+- **Event Announcement Broadcasting** - Share created events as social posts
+  - `eventAnnouncementCardGenerator.ts`: SVG event card generator
+  - Beautiful event cards with black/orange RUNSTR branding
+  - Automatic kind 1 Nostr event publishing for new events
+  - Event metadata: name, dates, team, entry fee, activity type
+  - Visual event cards for social media sharing
+
+- **Event Deep Linking** - Direct links to events via QR codes or URLs
+  - `eventDeepLink.ts`: Event deep link parsing and generation
+  - URL format: `runstr://event/{eventId}?team={teamId}&name={eventName}`
+  - Automatic navigation to EventDetail screen after login
+  - Pending navigation queue for unauthenticated users
+  - Event preview in deep link handler
+
+- **Enhanced Activity Trackers**:
+  - **Diet Tracker**: Massive 523-line enhancement with meal logging
+    - Meal type selection (breakfast, lunch, dinner, snack)
+    - Calorie entry with large input field
+    - Nutrition notes and meal descriptions
+    - Visual meal icons and calorie display
+    - Integration with caloric analytics
+  - **Meditation Tracker**: 134-line improvements
+    - Duration tracking with start/stop controls
+    - Session notes and mindfulness logging
+    - Enhanced UI with meditation-specific metrics
+  - **Strength Tracker**: 258-line enhancements
+    - Sets and reps tracking improvements
+    - Better workout summary display
+    - Enhanced posting to Nostr
+
+### Changed
+- **Simplified Onboarding Flow** - Faster user onboarding experience
+  - Removed ProfileSetupStep (no longer required)
+  - Removed WalletSetupStep (no longer blocking)
+  - Removed blocking checkbox from profile setup
+  - Flow reduced from 5 steps to 3 steps: Slides → Password → Permissions
+  - Users can now complete onboarding in under 1 minute
+  - Profile and wallet setup available in Settings after onboarding
+
+- **Event Creation Wizard** - Added recurring event configuration step
+  - New 3rd step: Recurrence settings
+  - Toggle between one-time and recurring events
+  - Frequency selector: Daily, Weekly, Biweekly, Monthly
+  - Day picker for weekly/biweekly events (MON-SUN buttons)
+  - Info box explaining automatic leaderboard resets
+  - 325 lines of wizard enhancements
+
+- **Advanced Analytics Screen** - Major redesign with caloric focus
+  - New calorie tracking section with balance cards
+  - 7-day and 30-day trend charts
+  - Activity-calorie correlation insights
+  - Health snapshot integration
+  - 231 lines of improvements
+
+- **Enhanced Workout Cards** - Better workout display and posting
+  - `EnhancedWorkoutCard.tsx`: 71-line improvements
+  - Better calorie display and workout metrics
+  - Improved posting status indicators
+  - Enhanced visual design
+
+### Fixed
+- **Posting fixes** across all activity tracker screens
+  - Running tracker: 26-line posting improvements
+  - Walking tracker: 21-line posting fixes
+  - Meditation tracker: Posting integration fixes
+  - Strength tracker: Workout posting enhancements
+  - Diet tracker: Meal posting to Nostr
+
+- **LocalWorkoutStorageService** - 166-line improvements
+  - Nostr import tracking with completion flags
+  - Import statistics storage and retrieval
+  - Better workout deduplication
+  - Enhanced local storage management
+
+- **NostrCompetitionService** - 11-line recurrence tag publishing
+  - Added recurrence tag support for events
+  - Proper tag formatting for recurring events
+
+- **Workout Publishing Service** - 5-line fixes
+  - Better error handling in publishing flow
+  - Improved kind 1301 event formatting
+
+### Developer
+- Added comprehensive recurring events documentation: `RECURRING_EVENTS_IMPLEMENTATION.md` (424 lines)
+- New analytics components folder: `src/components/analytics/`
+- New analytics services folder: `src/services/analytics/`
+- New event utilities: `eventDeepLink.ts`, `eventRecurrence.ts`
+- Enhanced TypeScript types for recurring events and analytics
+
 ## [0.4.12] - 2025-10-27
 
 ### Added

@@ -411,11 +411,50 @@ export class NostrAuthProvider {
         );
       }
 
+      // Publish default profile to Nostr for new user
+      try {
+        console.log(
+          '👤 NostrAuthProvider: Publishing default profile to Nostr...'
+        );
+        const { NostrProfilePublisher } = await import(
+          '../../nostr/NostrProfilePublisher'
+        );
+        const publisher = NostrProfilePublisher.getInstance();
+
+        const defaultProfile = {
+          name: 'RUNSTR Athlete',
+          display_name: 'RUNSTR Athlete',
+          about: 'Welcome to RUNSTR! Tap to edit your profile.',
+          picture:
+            'https://blossom.primal.net/3c33216e58dcfa8f24803302b642eb4ccb069d63002b62d2cc18fdcb6981f1d4.png',
+          banner:
+            'https://blossom.primal.net/4517738732ccb674e856c000a5f77975fb7770038ce9719815189aca9fb3642b.jpg',
+        };
+
+        const result = await publisher.publishProfileUpdate(defaultProfile);
+        if (result.success) {
+          console.log(
+            '✅ NostrAuthProvider: Default profile published to Nostr successfully'
+          );
+        } else {
+          console.warn(
+            '⚠️ NostrAuthProvider: Failed to publish default profile (non-fatal):',
+            result.error
+          );
+        }
+      } catch (profileError) {
+        // Don't fail signup if profile publishing fails
+        console.warn(
+          '⚠️ NostrAuthProvider: Profile publishing failed (non-fatal):',
+          profileError
+        );
+      }
+
       // Create a basic user profile for the new identity
       console.log('👤 NostrAuthProvider: Creating user profile...');
-      const displayName = generateDisplayName(npub);
+      const displayName = 'RUNSTR Athlete';
       const now = new Date().toISOString();
-      console.log('👤 NostrAuthProvider: Generated display name:', displayName);
+      console.log('👤 NostrAuthProvider: Display name:', displayName);
 
       const user: User = {
         id: npub,
@@ -427,11 +466,13 @@ export class NostrAuthProvider {
         currentTeamId: undefined,
         createdAt: now,
         lastSyncAt: now,
-        // Nostr profile fields - empty for new user
-        bio: '',
+        // Nostr profile fields - default values for new user
+        bio: 'Welcome to RUNSTR! Tap to edit your profile.',
         website: '',
-        picture: '',
-        banner: '',
+        picture:
+          'https://blossom.primal.net/3c33216e58dcfa8f24803302b642eb4ccb069d63002b62d2cc18fdcb6981f1d4.png',
+        banner:
+          'https://blossom.primal.net/4517738732ccb674e856c000a5f77975fb7770038ce9719815189aca9fb3642b.jpg',
         lud16: '',
         displayName: displayName,
         // Hybrid model flag

@@ -25,14 +25,25 @@ import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys, CacheTTL } from '../constants/cacheTTL';
 import { Nuclear1301Service } from '../services/fitness/Nuclear1301Service';
 import type { NostrWorkout } from '../types/nostrWorkout';
-import type { AnalyticsSummary } from '../types/analytics';
+import type {
+  AnalyticsSummary,
+  HealthProfile,
+} from '../types/analytics';
 import { CardioPerformanceAnalytics } from '../services/analytics/CardioPerformanceAnalytics';
 import { StrengthTrainingAnalytics } from '../services/analytics/StrengthTrainingAnalytics';
 import { WellnessAnalytics } from '../services/analytics/WellnessAnalytics';
 import { NutritionAnalytics } from '../services/analytics/NutritionAnalytics';
 import { HolisticHealthAnalytics } from '../services/analytics/HolisticHealthAnalytics';
+import { BodyCompositionAnalytics } from '../services/analytics/BodyCompositionAnalytics';
+import { CaloricAnalyticsService } from '../services/analytics/CaloricAnalyticsService';
+import Nostr1301ImportService from '../services/fitness/Nostr1301ImportService';
+import { HealthSnapshotCard } from '../components/analytics/HealthSnapshotCard';
+import { CalorieBalanceCard } from '../components/analytics/CalorieBalanceCard';
+import { CalorieTrendChart } from '../components/analytics/CalorieTrendChart';
+import { CorrelationInsightCard } from '../components/analytics/CorrelationInsightCard';
 
 const PRIVACY_NOTICE_KEY = '@runstr:analytics_privacy_accepted';
+const HEALTH_PROFILE_KEY = '@runstr:health_profile';
 
 export const AdvancedAnalyticsScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -40,6 +51,9 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [healthProfile, setHealthProfile] = useState<HealthProfile | null>(null);
+  const [hasImported, setHasImported] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     initializeAnalytics();
@@ -71,69 +85,28 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         '[AdvancedAnalytics] Loading analytics with complete workout dataset...'
       );
 
-      // Get user's pubkey from storage
-      const userPubkey = await AsyncStorage.getItem('@runstr:npub');
-      const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-      const pubkey = hexPubkey || userPubkey;
+      // Load health profile
+      const profileData = await AsyncStorage.getItem(HEALTH_PROFILE_KEY);
+      const profile: HealthProfile | null = profileData
+        ? JSON.parse(profileData)
+        : null;
+      setHealthProfile(profile);
 
-      // Array to hold all workouts (local + Nostr)
-      let allWorkouts: (LocalWorkout | NostrWorkout)[] = [];
+      // Check if 1301 import has been completed
+      const importCompleted = await Nostr1301ImportService.hasImported();
+      setHasImported(importCompleted);
 
-      // 1. Get LOCAL unsynced workouts
-      const localWorkouts = await localWorkoutStorage.getUnsyncedWorkouts();
-      console.log(
-        `[AdvancedAnalytics] Loaded ${localWorkouts.length} local unsynced workouts`
-      );
-      allWorkouts.push(...localWorkouts);
-
-      // 2. Get CACHED or FETCH Nostr workouts
-      if (pubkey) {
-        // Try cache first (instant if PublicWorkoutsTab already loaded it)
-        let cachedNostrWorkouts = await unifiedCache.getCachedAsync<
-          NostrWorkout[]
-        >(CacheKeys.USER_WORKOUTS(pubkey));
-
-        if (cachedNostrWorkouts && cachedNostrWorkouts.length > 0) {
-          console.log(
-            `[AdvancedAnalytics] 📦 Cache hit: ${cachedNostrWorkouts.length} Nostr workouts`
-          );
-          allWorkouts.push(...cachedNostrWorkouts);
-        } else {
-          // No cache - fetch from Nostr
-          console.log(
-            '[AdvancedAnalytics] 📡 Cache miss - fetching from Nostr...'
-          );
-          const nuclear1301Service = Nuclear1301Service.getInstance();
-          const nostrWorkouts = await nuclear1301Service.getUserWorkouts(
-            pubkey
-          );
-          console.log(
-            `[AdvancedAnalytics] ✅ Fetched ${nostrWorkouts.length} workouts from Nostr`
-          );
-
-          // Cache for future use
-          await unifiedCache.set(
-            CacheKeys.USER_WORKOUTS(pubkey),
-            nostrWorkouts,
-            CacheTTL.USER_WORKOUTS
-          );
-
-          allWorkouts.push(...nostrWorkouts);
-        }
-      } else {
-        console.warn(
-          '[AdvancedAnalytics] No pubkey available - analytics will only show local workouts'
-        );
-      }
-
+      // Get ALL local workouts (includes GPS, manual, daily steps, AND imported Nostr)
+      const allWorkouts = await localWorkoutStorage.getAllWorkouts();
       console.log(
         `[AdvancedAnalytics] Total workouts for analytics: ${allWorkouts.length}`
       );
-      setWorkouts(allWorkouts as LocalWorkout[]);
+      setWorkouts(allWorkouts);
 
       // Calculate all analytics on COMPLETE dataset
-      const cardioMetrics =
-        CardioPerformanceAnalytics.calculateMetrics(allWorkouts);
+      const cardioMetrics = profile
+        ? CardioPerformanceAnalytics.calculateMetrics(allWorkouts, profile)
+        : CardioPerformanceAnalytics.calculateMetrics(allWorkouts);
       const strengthMetrics =
         StrengthTrainingAnalytics.calculateMetrics(allWorkouts);
       const wellnessMetrics = WellnessAnalytics.calculateMetrics(allWorkouts);
@@ -152,6 +125,18 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
       const correlations =
         HolisticHealthAnalytics.calculateCrossActivityCorrelations(allWorkouts);
 
+      // Calculate body composition (if health profile available)
+      const bodyComposition =
+        profile && (profile.weight || profile.height)
+          ? BodyCompositionAnalytics.calculateMetrics(profile, allWorkouts)
+          : undefined;
+
+      // Calculate caloric analytics
+      const caloricMetrics = CaloricAnalyticsService.calculateMetrics(
+        allWorkouts,
+        profile || undefined
+      );
+
       // Combine into summary
       const summary: AnalyticsSummary = {
         cardio: cardioMetrics || undefined,
@@ -160,6 +145,7 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         nutrition: nutritionMetrics || undefined,
         correlations,
         holisticScore,
+        bodyComposition: bodyComposition || undefined,
         lastUpdated: new Date().toISOString(),
       };
 
@@ -189,6 +175,45 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
 
   const handlePrivacyBannerPress = () => {
     setShowPrivacyModal(true);
+  };
+
+  const handleImportNostrHistory = async () => {
+    try {
+      setImporting(true);
+
+      // Get user's pubkey
+      const userPubkey = await AsyncStorage.getItem('@runstr:npub');
+      const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+      const pubkey = hexPubkey || userPubkey;
+
+      if (!pubkey) {
+        console.error('No pubkey found - cannot import workouts');
+        setImporting(false);
+        return;
+      }
+
+      console.log('[AdvancedAnalytics] Starting Nostr workout import...');
+
+      // Import workouts
+      const result = await Nostr1301ImportService.importUserHistory(pubkey);
+
+      if (result.success) {
+        console.log(
+          `[AdvancedAnalytics] ✅ Import successful: ${result.totalImported} workouts`
+        );
+        setHasImported(true);
+
+        // Reload analytics with newly imported data
+        await loadAnalytics();
+      } else {
+        console.error('[AdvancedAnalytics] Import failed:', result.error);
+      }
+
+      setImporting(false);
+    } catch (error) {
+      console.error('[AdvancedAnalytics] Import error:', error);
+      setImporting(false);
+    }
   };
 
   if (loading) {
@@ -237,6 +262,20 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
           <Text style={styles.privacyLink}>Tap to learn more →</Text>
         </TouchableOpacity>
 
+        {/* Import Nostr History Button (if not imported) */}
+        {!hasImported && (
+          <TouchableOpacity
+            style={styles.importButton}
+            onPress={handleImportNostrHistory}
+            disabled={importing}
+          >
+            <Ionicons name="cloud-download-outline" size={20} color="#000" />
+            <Text style={styles.importButtonText}>
+              {importing ? 'Importing Nostr History...' : 'Import Nostr Workout History'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Check for data */}
         {!analytics || workouts.length === 0 ? (
           <View style={styles.emptyState}>
@@ -253,6 +292,32 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
           </View>
         ) : (
           <>
+            {/* Health Snapshot Section */}
+            <Text style={styles.sectionTitle}>Health Snapshot</Text>
+            <HealthSnapshotCard
+              bodyComposition={analytics.bodyComposition}
+              vo2MaxData={analytics.cardio?.vo2MaxEstimate}
+            />
+
+            {/* Calorie Balance Section */}
+            {CaloricAnalyticsService.calculateMetrics(workouts, healthProfile || undefined) && (() => {
+              const caloricMetrics = CaloricAnalyticsService.calculateMetrics(workouts, healthProfile || undefined);
+              if (!caloricMetrics) return null;
+
+              const weeklyAverage = CaloricAnalyticsService.calculateWeeklyAverage(workouts);
+
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Calorie Balance</Text>
+                  <CalorieBalanceCard dailyBalance={caloricMetrics.today} />
+                  <CalorieTrendChart
+                    last7Days={caloricMetrics.last7Days}
+                    weeklyAverage={weeklyAverage}
+                  />
+                </View>
+              );
+            })()}
+
             {/* Holistic Health Score Section */}
             {analytics.holisticScore && (
               <View style={styles.section}>
@@ -520,6 +585,41 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
               </View>
             )}
 
+            {/* Insights & Correlations Section */}
+            {analytics.correlations && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Insights & Correlations</Text>
+                {analytics.correlations.meditationVsRecovery && (
+                  <CorrelationInsightCard
+                    title="Meditation → Recovery Time"
+                    correlation={analytics.correlations.meditationVsRecovery}
+                    icon="fitness-outline"
+                  />
+                )}
+                {analytics.correlations.strengthVsCardio && (
+                  <CorrelationInsightCard
+                    title="Strength → Cardio Performance"
+                    correlation={analytics.correlations.strengthVsCardio}
+                    icon="barbell-outline"
+                  />
+                )}
+                {analytics.correlations.consistencyVsPerformance && (
+                  <CorrelationInsightCard
+                    title="Workout Frequency → Performance"
+                    correlation={analytics.correlations.consistencyVsPerformance}
+                    icon="trending-up-outline"
+                  />
+                )}
+                {analytics.correlations.mealTimingVsAdherence && (
+                  <CorrelationInsightCard
+                    title="Meal Timing → Diet Adherence"
+                    correlation={analytics.correlations.mealTimingVsAdherence}
+                    icon="restaurant-outline"
+                  />
+                )}
+              </View>
+            )}
+
             {/* Last Updated */}
             <Text style={styles.lastUpdated}>
               Last updated: {new Date(analytics.lastUpdated).toLocaleString()}
@@ -624,6 +724,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FF9D42',
     fontWeight: theme.typography.weights.medium,
+  },
+
+  importButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF9D42',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    marginBottom: 24,
+  },
+
+  importButtonText: {
+    fontSize: 15,
+    fontWeight: theme.typography.weights.semiBold,
+    color: '#000',
   },
 
   emptyState: {

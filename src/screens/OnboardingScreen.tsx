@@ -9,15 +9,9 @@ import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OnboardingWizard } from '../components/onboarding/OnboardingWizard';
-import { ProfileSetupStep } from '../components/onboarding/ProfileSetupStep';
 import { PasswordNotice } from '../components/onboarding/PasswordNotice';
-import { WalletSetupStep } from '../components/onboarding/WalletSetupStep';
 import { PermissionRequestStep } from '../components/onboarding/PermissionRequestStep';
 import OnboardingCacheService from '../services/cache/OnboardingCacheService';
-import {
-  nostrProfilePublisher,
-  type EditableProfile,
-} from '../services/nostr/NostrProfilePublisher';
 import { theme } from '../styles/theme';
 
 const STORAGE_KEYS = {
@@ -38,11 +32,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 }) => {
   const navigation = useNavigation<any>();
   const [currentStep, setCurrentStep] = useState<
-    'slides' | 'profile' | 'password' | 'wallet' | 'permissions'
+    'slides' | 'password' | 'permissions'
   >('slides');
   const [isLoading, setIsLoading] = useState(false);
   const [userPassword, setUserPassword] = useState<string>('');
-  const [profileData, setProfileData] = useState<Partial<EditableProfile>>({});
 
   useEffect(() => {
     // Get the nsec from route params or storage
@@ -87,52 +80,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   }, [route?.params?.nsec, navigation]);
 
   const handleSlidesComplete = () => {
-    console.log('[Onboarding] Slides completed, showing profile setup');
-    setCurrentStep('profile');
-  };
-
-  const handleProfileContinue = async (profile: Partial<EditableProfile>) => {
-    console.log('[Onboarding] Profile setup completed:', profile);
-    setIsLoading(true);
-
-    try {
-      // Publish profile to Nostr if user provided data
-      if (Object.keys(profile).length > 0) {
-        console.log('[Onboarding] Publishing profile to Nostr...');
-        await nostrProfilePublisher.publishProfileUpdate(profile);
-      }
-
-      // Save profile data for display
-      setProfileData(profile);
-
-      // Move to password notice
-      setCurrentStep('password');
-    } catch (error) {
-      console.error('[Onboarding] Failed to publish profile:', error);
-      // Continue to password notice even if profile publish fails
-      setCurrentStep('password');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleProfileSkip = () => {
-    console.log('[Onboarding] Profile setup skipped');
+    console.log('[Onboarding] Slides completed, showing password notice');
     setCurrentStep('password');
   };
 
   const handlePasswordContinue = () => {
-    console.log('[Onboarding] Password acknowledged, moving to wallet setup');
-    setCurrentStep('wallet');
-  };
-
-  const handleWalletContinue = () => {
-    console.log('[Onboarding] Wallet setup completed, moving to permissions');
-    setCurrentStep('permissions');
-  };
-
-  const handleWalletSkip = () => {
-    console.log('[Onboarding] Wallet setup skipped, moving to permissions');
+    console.log('[Onboarding] Password acknowledged, moving to permissions');
     setCurrentStep('permissions');
   };
 
@@ -176,21 +129,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
           onComplete={handleSlidesComplete}
           isLoading={isLoading}
         />
-      ) : currentStep === 'profile' ? (
-        <ProfileSetupStep
-          onContinue={handleProfileContinue}
-          onSkip={handleProfileSkip}
-          isLoading={isLoading}
-        />
       ) : currentStep === 'password' ? (
         <PasswordNotice
           password={userPassword}
           onContinue={handlePasswordContinue}
-        />
-      ) : currentStep === 'wallet' ? (
-        <WalletSetupStep
-          onContinue={handleWalletContinue}
-          onSkip={handleWalletSkip}
         />
       ) : (
         <PermissionRequestStep

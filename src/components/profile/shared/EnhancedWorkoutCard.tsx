@@ -221,29 +221,54 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
             </Text>
             <Text style={styles.statLabel}>Duration</Text>
           </View>
-          {workout.distance !== undefined && (
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {formatDistance(workout.distance)}
-              </Text>
-              <Text style={styles.statLabel}>Distance</Text>
-            </View>
-          )}
-          {workout.calories !== undefined && (
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {workout.calories.toFixed(0)}
-              </Text>
-              <Text style={styles.statLabel}>Calories</Text>
-            </View>
-          )}
-          {workout.heartRate?.avg && (
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {workout.heartRate.avg.toFixed(0)}
-              </Text>
-              <Text style={styles.statLabel}>Avg HR</Text>
-            </View>
+          {/* Show reps/sets for strength training workouts */}
+          {workout.sets && workout.reps ? (
+            <>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.reps}</Text>
+                <Text style={styles.statLabel}>Reps</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.sets}</Text>
+                <Text style={styles.statLabel}>Sets</Text>
+              </View>
+              {/* Show calories for strength workouts if available */}
+              {workout.calories !== undefined && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {workout.calories.toFixed(0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Calories</Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {workout.distance !== undefined && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {formatDistance(workout.distance)}
+                  </Text>
+                  <Text style={styles.statLabel}>Distance</Text>
+                </View>
+              )}
+              {workout.calories !== undefined && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {workout.calories.toFixed(0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Calories</Text>
+                </View>
+              )}
+              {workout.heartRate?.avg && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {workout.heartRate.avg.toFixed(0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Avg HR</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
 

@@ -12,10 +12,19 @@ import {
   TextInput,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../styles/theme';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
+import { WorkoutPublishingService } from '../../services/nostr/workoutPublishingService';
+import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService';
+import CalorieEstimationService from '../../services/fitness/CalorieEstimationService';
+import type { HealthProfile } from '../HealthProfileScreen';
+import type { NDKSigner } from '@nostr-dev-kit/ndk';
+import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageService';
 
 type ExerciseType =
   | 'pushups'
@@ -42,6 +51,12 @@ const EXERCISE_OPTIONS: {
 const REST_DURATIONS = [30, 60, 90, 120]; // seconds
 
 export const StrengthTrackerScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
+  const publishingService = WorkoutPublishingService.getInstance();
+  const [signer, setSigner] = useState<NDKSigner | null>(null);
+  const [userId, setUserId] = useState<string>('');
+  const [userWeight, setUserWeight] = useState<number | undefined>(undefined);
+
   // Setup state
   const [selectedExercise, setSelectedExercise] =
     useState<ExerciseType>('pushups');
@@ -56,6 +71,8 @@ export const StrengthTrackerScreen: React.FC = () => {
   const [restTimeRemaining, setRestTimeRemaining] = useState(0);
   const [workoutStartTime, setWorkoutStartTime] = useState(0);
   const [workoutDuration, setWorkoutDuration] = useState(0);
+  const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
+  const [estimatedCalories, setEstimatedCalories] = useState<number>(0);
 
   // Modal state
   const [showRepsModal, setShowRepsModal] = useState(false);
@@ -64,7 +81,34 @@ export const StrengthTrackerScreen: React.FC = () => {
   // Timer refs
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Load signer and health profile on mount
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load signer
+        const userSigner = await UnifiedSigningService.getInstance().getSigner();
+        const userPubkey = await UnifiedSigningService.getHexPubkey();
+        if (userSigner && userPubkey) {
+          setSigner(userSigner);
+          setUserId(userPubkey);
+          console.log('[StrengthTracker] ✅ User signer loaded for posting');
+        }
+
+        // Load health profile for calorie estimation
+        const profileData = await AsyncStorage.getItem('@runstr:health_profile');
+        if (profileData) {
+          const profile: HealthProfile = JSON.parse(profileData);
+          if (profile.weight) {
+            setUserWeight(profile.weight);
+            console.log('[StrengthTracker] ✅ User weight loaded:', profile.weight);
+          }
+        }
+      } catch (error) {
+        console.warn('[StrengthTracker] Failed to load data:', error);
+      }
+    };
+    loadData();
+
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
@@ -104,7 +148,7 @@ export const StrengthTrackerScreen: React.FC = () => {
     setShowRepsModal(true);
   };
 
-  const confirmReps = () => {
+  const confirmReps = async () => {
     const reps = parseInt(currentRepsInput) || 0;
     const newReps = [...repsCompleted, reps];
     setRepsCompleted(newReps);
@@ -115,6 +159,10 @@ export const StrengthTrackerScreen: React.FC = () => {
     if (currentSet >= totalSets) {
       const duration = Math.floor((Date.now() - workoutStartTime) / 1000);
       setWorkoutDuration(duration);
+
+      // AUTO-SAVE: Save workout to local storage immediately
+      await saveWorkoutToLocal(newReps, duration);
+
       setPhase('summary');
     } else {
       // Start rest timer
@@ -123,40 +171,139 @@ export const StrengthTrackerScreen: React.FC = () => {
     }
   };
 
-  const saveWorkout = async () => {
+  /**
+   * Save workout to local storage
+   * Returns the workout ID for later posting to Nostr
+   */
+  const saveWorkoutToLocal = async (
+    completedReps: number[],
+    duration: number
+  ): Promise<string | null> => {
     try {
-      const totalReps = repsCompleted.reduce((sum, r) => sum + r, 0);
+      const totalReps = completedReps.reduce((sum, r) => sum + r, 0);
       const exerciseLabel =
         EXERCISE_OPTIONS.find((e) => e.value === selectedExercise)?.label ||
         'Strength Training';
 
-      const repsBreakdown = repsCompleted
+      const repsBreakdown = completedReps
         .map((r, i) => `Set ${i + 1}: ${r}`)
         .join(', ');
 
-      await LocalWorkoutStorageService.saveManualWorkout({
+      // Estimate calories using CalorieEstimationService
+      const calorieService = CalorieEstimationService.getInstance();
+      const calories = calorieService.estimateStrengthCalories(
+        totalReps,
+        totalSets,
+        duration,
+        userWeight
+      );
+
+      setEstimatedCalories(calories);
+
+      const workoutId = await LocalWorkoutStorageService.saveManualWorkout({
         type: 'strength_training',
-        duration: workoutDuration / 60, // Convert to minutes
+        duration: duration, // Duration in seconds (LocalWorkout interface expects seconds)
         reps: totalReps,
         sets: totalSets,
         notes: `${exerciseLabel} - ${repsBreakdown}`,
-        // @ts-ignore - We'll add these fields to LocalWorkout interface in Phase 5
+        calories, // Add calorie estimation
+        // Exercise-specific fields for better display and Nostr publishing
         exerciseType: selectedExercise,
-        repsBreakdown: repsCompleted,
+        repsBreakdown: completedReps,
         restTime: restDuration,
       });
 
       console.log(
-        `✅ Strength workout saved: ${selectedExercise} - ${totalReps} reps in ${totalSets} sets`
+        `✅ Strength workout auto-saved: ${selectedExercise} - ${totalReps} reps in ${totalSets} sets, ${calories} cal (ID: ${workoutId})`
       );
 
-      // Reset to setup
-      setPhase('setup');
-      setRepsCompleted([]);
-      setCurrentSet(1);
+      setSavedWorkoutId(workoutId);
+      return workoutId;
     } catch (error) {
       console.error('❌ Failed to save strength workout:', error);
+      return null;
     }
+  };
+
+  /**
+   * Post workout to Nostr as Kind 1301 (competition entry)
+   */
+  const handlePostNostr = async () => {
+    if (!savedWorkoutId) {
+      Alert.alert('Error', 'No workout to post. Please complete a workout first.');
+      return;
+    }
+
+    if (!signer || !userId) {
+      Alert.alert('Error', 'Authentication required. Please log in again.');
+      return;
+    }
+
+    try {
+      // Get the saved workout from local storage
+      const workouts = await LocalWorkoutStorageService.getAllWorkouts();
+      const workout = workouts.find((w) => w.id === savedWorkoutId);
+
+      if (!workout) {
+        Alert.alert('Error', 'Workout not found.');
+        return;
+      }
+
+      console.log(`[StrengthTracker] Posting workout ${workout.id} as kind 1301...`);
+
+      // Convert LocalWorkout to PublishableWorkout format
+      const publishableWorkout = {
+        ...workout,
+        source: 'manual' as const,
+      };
+
+      // Publish to Nostr as kind 1301 workout event
+      const result = await publishingService.saveWorkoutToNostr(
+        publishableWorkout,
+        signer,
+        userId
+      );
+
+      if (result.success && result.eventId) {
+        console.log(`[StrengthTracker] ✅ Workout published as kind 1301: ${result.eventId}`);
+
+        // Mark workout as synced
+        await LocalWorkoutStorageService.markAsSynced(workout.id, result.eventId);
+
+        Alert.alert('Success', 'Workout entered into competition!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate back to profile after posting
+              navigation.navigate('Profile' as any);
+            },
+          },
+        ]);
+      } else {
+        throw new Error(result.error || 'Failed to publish workout');
+      }
+    } catch (error) {
+      console.error('[StrengthTracker] ❌ Post to Nostr (1301) failed:', error);
+      Alert.alert('Error', 'Failed to post workout. Please try again.');
+    }
+  };
+
+  /**
+   * Post workout to Nostr as Kind 1 (social post with card)
+   */
+  const handlePostSocial = () => {
+    if (!savedWorkoutId) {
+      Alert.alert('Error', 'No workout to post. Please complete a workout first.');
+      return;
+    }
+
+    // Navigate to WorkoutHistoryScreen with saved workout ID
+    // The Private tab will show the workout with Post button
+    navigation.navigate('WorkoutHistory' as any, {
+      userId: userId,
+      pubkey: userId,
+      initialTab: 'private',
+    });
   };
 
   const formatTime = (seconds: number): string => {
@@ -426,6 +573,21 @@ export const StrengthTrackerScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Calorie Estimate */}
+          {estimatedCalories > 0 && (
+            <View style={styles.calorieSection}>
+              <Ionicons
+                name="flame"
+                size={20}
+                color={theme.colors.orangeBright}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.calorieText}>
+                {estimatedCalories} calories burned
+              </Text>
+            </View>
+          )}
+
           <View style={styles.breakdownSection}>
             <Text style={styles.breakdownTitle}>Breakdown</Text>
             {repsCompleted.map((reps, index) => (
@@ -437,19 +599,44 @@ export const StrengthTrackerScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Posting Buttons */}
         <TouchableOpacity
-          style={styles.saveWorkoutButton}
-          onPress={saveWorkout}
+          style={styles.postButton}
+          onPress={handlePostSocial}
         >
-          <Text style={styles.saveWorkoutButtonText}>Save Workout</Text>
+          <Ionicons
+            name="chatbubble-outline"
+            size={20}
+            color={theme.colors.background}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.postButtonText}>Post</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.competeButton}
+          onPress={handlePostNostr}
+        >
+          <Ionicons
+            name="trophy-outline"
+            size={20}
+            color={theme.colors.background}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.competeButtonText}>Compete</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.discardButton}
-          onPress={() => {
+          onPress={async () => {
+            // Delete the saved workout from local storage
+            if (savedWorkoutId) {
+              await LocalWorkoutStorageService.deleteWorkout(savedWorkoutId);
+            }
             setPhase('setup');
             setRepsCompleted([]);
             setCurrentSet(1);
+            setSavedWorkoutId(null);
           }}
         >
           <Text style={styles.discardButtonText}>Discard</Text>
@@ -813,6 +1000,23 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  calorieSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 157, 66, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 157, 66, 0.3)',
+  },
+  calorieText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
   breakdownSection: {
     marginTop: 8,
   },
@@ -840,14 +1044,30 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.text,
   },
-  saveWorkoutButton: {
+  postButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  postButtonText: {
+    color: theme.colors.background,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+  },
+  competeButton: {
     backgroundColor: theme.colors.text,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginBottom: 12,
   },
-  saveWorkoutButtonText: {
+  competeButtonText: {
     color: theme.colors.background,
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,

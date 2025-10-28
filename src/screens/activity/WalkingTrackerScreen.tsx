@@ -613,7 +613,7 @@ export const WalkingTrackerScreen: React.FC = () => {
   }, [elapsedTime]);
 
   return (
-    <ScrollView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       {/* Daily Step Counter */}
       {!isTracking && !countdown && (
         <DailyStepGoalCard
@@ -753,7 +753,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         onSelectGoal={handleGoalSelected}
         onClose={() => setGoalPickerVisible(false)}
       />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -761,25 +761,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: 20,
+    padding: 16,
   },
   metricsContainer: {
-    flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   metricCard: {
     flex: 1,
     backgroundColor: theme.colors.card,
     borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 8,
+    padding: 16,
+    marginHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -801,13 +800,13 @@ const styles = StyleSheet.create({
   controlsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingBottom: 40,
+    paddingBottom: 24,
     gap: 20,
   },
   routesButton: {
     backgroundColor: theme.colors.card,
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',

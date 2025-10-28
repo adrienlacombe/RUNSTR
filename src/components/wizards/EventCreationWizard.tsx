@@ -26,6 +26,8 @@ import type {
   NostrActivityType,
   NostrEventCompetitionType,
   EventScoringType,
+  RecurrenceFrequency,
+  RecurrenceDay,
 } from '../../types/nostrCompetition';
 import { getCharityById } from '../../constants/charities';
 import nostrTeamService from '../../services/nostr/NostrTeamService';
@@ -36,6 +38,8 @@ import {
   ALL_DURATION_OPTIONS,
   type DurationOption,
 } from '../../constants/eventDurations';
+import { EventAnnouncementPreview } from '../events/EventAnnouncementPreview';
+import type { EventAnnouncementData } from '../../services/nostr/eventAnnouncementCardGenerator';
 
 // Event Preset Interface
 interface EventPreset {
@@ -215,6 +219,8 @@ interface EventData {
   paymentDestination: 'captain' | 'charity';
   scoringMode: 'individual' | 'team-total'; // NEW: Scoring mode
   teamGoal?: number; // NEW: Team goal for team-total mode
+  recurrence: RecurrenceFrequency; // NEW: Recurrence frequency
+  recurrenceDay?: RecurrenceDay; // NEW: Day of week for weekly recurrence
 }
 
 interface EventCreationWizardProps {
@@ -255,6 +261,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
     paymentDestination: 'captain',
     scoringMode: 'individual',
     teamGoal: undefined,
+    recurrence: 'none',
+    recurrenceDay: undefined,
   });
 
   // Alert state for CustomAlert
@@ -264,6 +272,11 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
   const [alertButtons, setAlertButtons] = useState<
     Array<{ text: string; onPress?: () => void }>
   >([]);
+
+  // Announcement preview state
+  const [showAnnouncementPreview, setShowAnnouncementPreview] = useState(false);
+  const [createdEventData, setCreatedEventData] =
+    useState<EventAnnouncementData | null>(null);
 
   // Reset wizard when opened and fetch team/captain data
   useEffect(() => {
@@ -286,6 +299,8 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         paymentDestination: 'captain',
         scoringMode: 'individual',
         teamGoal: undefined,
+        recurrence: 'none',
+        recurrenceDay: undefined,
       });
 
       // Fetch team charity info
@@ -307,7 +322,7 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
     }
   }, [visible, teamId, captainPubkey]);
 
-  // Wizard steps configuration (2 steps only)
+  // Wizard steps configuration (3 steps: preset, settings, recurrence)
   const steps: WizardStep[] = [
     {
       id: 'preset',
@@ -318,6 +333,11 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
       id: 'settings',
       title: 'Event Details',
       isValid: eventData.eventName.length > 0 && !!eventData.eventDate,
+    },
+    {
+      id: 'recurrence',
+      title: 'Recurrence',
+      isValid: true, // Always valid (recurrence is optional)
     },
   ];
 
@@ -420,6 +440,9 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
             : currentUser?.name || 'Team Captain',
         scoringMode: eventData.scoringMode, // ← NEW: Pass scoring mode
         teamGoal: eventData.teamGoal, // ← NEW: Pass team goal
+        recurrence: eventData.recurrence, // ← NEW: Pass recurrence frequency
+        recurrenceDay: eventData.recurrenceDay, // ← NEW: Pass recurrence day
+        recurrenceStartDate: eventData.eventDate!.toISOString(), // ← NEW: First occurrence
       };
 
       console.log('🎯 Creating event:', eventCreationData);
@@ -494,7 +517,22 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         console.log('🗑️ Invalidating team events cache for team:', teamId);
         unifiedCache.delete(CacheKeys.TEAM_EVENTS(teamId));
 
-        // Show success message with participant list status
+        // Prepare announcement data for preview modal
+        const team = nostrTeamService.getTeamById(teamId);
+        const announcementData: EventAnnouncementData = {
+          eventId: result.competitionId!,
+          eventName: eventData.eventName,
+          teamId,
+          teamName: team?.name || 'Your Team',
+          activityType: eventData.activityType!,
+          eventDate: eventData.eventDate!.toISOString(),
+          entryFee: eventData.entryFeesSats,
+          prizePool: eventData.prizePoolSats,
+          captainName: currentUser?.name,
+          durationMinutes: eventData.durationMinutes,
+        };
+
+        // Show success alert first, then preview modal
         const successMessage = participantListCreated
           ? `Event "${eventData.eventName}" has been created and published to Nostr relays.\n\n✅ Participant list created successfully.`
           : participantListError
@@ -505,10 +543,14 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         setAlertMessage(successMessage);
         setAlertButtons([
           {
-            text: 'OK',
+            text: 'Continue',
             onPress: () => {
+              setAlertVisible(false);
+              // Show announcement preview modal
+              setCreatedEventData(announcementData);
+              setShowAnnouncementPreview(true);
               onEventCreated(eventData);
-              onClose();
+              onClose(); // Close wizard to show preview modal
             },
           },
         ]);
@@ -1003,6 +1045,154 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
           </ScrollView>
         );
 
+      case 2: // Recurrence Settings
+        return (
+          <ScrollView
+            style={styles.stepContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.stepDescription}>
+              Make this event repeat automatically (optional)
+            </Text>
+
+            {/* Recurrence Toggle */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Event Type</Text>
+              <View style={styles.recurrenceTypeOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.recurrenceTypeOption,
+                    eventData.recurrence === 'none' &&
+                      styles.recurrenceTypeOptionSelected,
+                  ]}
+                  onPress={() => updateSettings('recurrence', 'none')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.recurrenceTypeOptionText,
+                      eventData.recurrence === 'none' &&
+                        styles.recurrenceTypeOptionTextSelected,
+                    ]}
+                  >
+                    One-Time Event
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.recurrenceTypeOption,
+                    eventData.recurrence !== 'none' &&
+                      styles.recurrenceTypeOptionSelected,
+                  ]}
+                  onPress={() => updateSettings('recurrence', 'weekly')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.recurrenceTypeOptionText,
+                      eventData.recurrence !== 'none' &&
+                        styles.recurrenceTypeOptionTextSelected,
+                    ]}
+                  >
+                    Recurring Event
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Frequency Selection (only if recurring) */}
+            {eventData.recurrence !== 'none' && (
+              <>
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Frequency</Text>
+                  <View style={styles.frequencyOptions}>
+                    {(['daily', 'weekly', 'biweekly', 'monthly'] as const).map(
+                      (freq) => (
+                        <TouchableOpacity
+                          key={freq}
+                          style={[
+                            styles.frequencyOption,
+                            eventData.recurrence === freq &&
+                              styles.frequencyOptionSelected,
+                          ]}
+                          onPress={() => updateSettings('recurrence', freq)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.frequencyOptionText,
+                              eventData.recurrence === freq &&
+                                styles.frequencyOptionTextSelected,
+                            ]}
+                          >
+                            {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    )}
+                  </View>
+                </View>
+
+                {/* Day Selection (only for weekly/biweekly) */}
+                {(eventData.recurrence === 'weekly' ||
+                  eventData.recurrence === 'biweekly') && (
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Reset Day</Text>
+                    <View style={styles.dayOptions}>
+                      {(
+                        [
+                          'monday',
+                          'tuesday',
+                          'wednesday',
+                          'thursday',
+                          'friday',
+                          'saturday',
+                          'sunday',
+                        ] as const
+                      ).map((day) => (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.dayOption,
+                            eventData.recurrenceDay === day &&
+                              styles.dayOptionSelected,
+                          ]}
+                          onPress={() => updateSettings('recurrenceDay', day)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.dayOptionText,
+                              eventData.recurrenceDay === day &&
+                                styles.dayOptionTextSelected,
+                            ]}
+                          >
+                            {day.slice(0, 3).toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Text style={styles.formHelper}>
+                      Leaderboard will reset every{' '}
+                      {eventData.recurrence === 'biweekly' ? 'other ' : ''}
+                      {eventData.recurrenceDay || 'selected day'} at midnight
+                    </Text>
+                  </View>
+                )}
+
+                {/* Info Box */}
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoText}>
+                    Recurring events automatically reset the leaderboard on the
+                    specified schedule. The same event will run indefinitely
+                    until you manually end it.
+                  </Text>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        );
+
       default:
         return null;
     }
@@ -1036,6 +1226,21 @@ export const EventCreationWizard: React.FC<EventCreationWizardProps> = ({
         buttons={alertButtons}
         onClose={() => setAlertVisible(false)}
       />
+
+      {/* Event Announcement Preview Modal */}
+      {createdEventData && (
+        <EventAnnouncementPreview
+          visible={showAnnouncementPreview}
+          eventData={createdEventData}
+          onClose={() => {
+            setShowAnnouncementPreview(false);
+            setCreatedEventData(null);
+          }}
+          onPublished={() => {
+            console.log('✅ Event announcement published successfully');
+          }}
+        />
+      )}
     </>
   );
 };
@@ -1289,5 +1494,117 @@ const styles = StyleSheet.create({
 
   scoringModeOptionTextSelected: {
     color: theme.colors.accent,
+  },
+
+  // Recurrence type styles (NEW)
+  recurrenceTypeOptions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  recurrenceTypeOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+
+  recurrenceTypeOptionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+
+  recurrenceTypeOptionText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
+  },
+
+  recurrenceTypeOptionTextSelected: {
+    color: theme.colors.accent,
+  },
+
+  // Frequency options styles (NEW)
+  frequencyOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  frequencyOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+  },
+
+  frequencyOptionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+
+  frequencyOptionText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
+  },
+
+  frequencyOptionTextSelected: {
+    color: theme.colors.accent,
+  },
+
+  // Day options styles (NEW)
+  dayOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  dayOption: {
+    width: 48,
+    height: 48,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  dayOptionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.background,
+  },
+
+  dayOptionText: {
+    fontSize: 12,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
+  },
+
+  dayOptionTextSelected: {
+    color: theme.colors.accent,
+  },
+
+  // Info box styles (NEW)
+  infoBox: {
+    backgroundColor: theme.colors.cardBackground,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.accent,
+    padding: 12,
+    borderRadius: 4,
+    marginTop: 8,
+  },
+
+  infoText: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
   },
 });

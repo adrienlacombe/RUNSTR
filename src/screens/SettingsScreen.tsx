@@ -674,6 +674,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </Card>
         </View>
 
+        {/* Health Profile Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>HEALTH PROFILE</Text>
+          <Card style={styles.card}>
+            <SettingItem
+              title="Health Profile"
+              subtitle="Set weight, height, age for better analytics (optional)"
+              onPress={() => (navigation as any).navigate('HealthProfile')}
+            />
+          </Card>
+        </View>
+
         {/* Notifications Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>

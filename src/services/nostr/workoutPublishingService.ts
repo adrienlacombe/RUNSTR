@@ -388,7 +388,10 @@ export class WorkoutPublishingService {
     ];
 
     // Add distance for cardio activities (running, cycling, treadmill, etc.)
-    if (workout.distance && workout.distance > 0) {
+    // EXCLUDE strength training and gym workouts (they use reps/sets instead)
+    const isStrengthWorkout =
+      workout.type === 'strength_training' || workout.type === 'gym';
+    if (workout.distance && workout.distance > 0 && !isStrengthWorkout) {
       const distanceKm = (workout.distance / 1000).toFixed(2);
       const distanceUnit = workout.unitSystem === 'imperial' ? 'mi' : 'km';
       const distanceValue =

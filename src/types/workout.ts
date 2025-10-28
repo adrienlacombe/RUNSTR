@@ -13,6 +13,9 @@ export type WorkoutType =
   | 'hiking'
   | 'yoga'
   | 'strength_training'
+  | 'strength' // For imported Nostr workouts
+  | 'swimming'
+  | 'rowing'
   | 'meditation'
   | 'diet'
   | 'fasting';

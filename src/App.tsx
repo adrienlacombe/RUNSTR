@@ -114,6 +114,7 @@ import {
 import { ChallengePreviewModal } from './components/challenge/ChallengePreviewModal';
 import { parseChallengeDeepLink, type ParsedChallengeData } from './utils/challengeDeepLink';
 import { challengeRequestService } from './services/challenge/ChallengeRequestService';
+import { parseEventDeepLink, type ParsedEventData } from './utils/eventDeepLink';
 
 // Types for authenticated app navigation
 type AuthenticatedStackParamList = {
@@ -177,6 +178,10 @@ const AppContent: React.FC = () => {
   // Challenge deep link state
   const [showChallengePreview, setShowChallengePreview] = React.useState(false);
   const [challengeData, setChallengeData] = React.useState<ParsedChallengeData | null>(null);
+
+  // Event deep link state
+  const [pendingEventNavigation, setPendingEventNavigation] = React.useState<ParsedEventData | null>(null);
+  const navigationRef = React.useRef<any>(null);
 
   // ✅ PERFORMANCE: Use cache-first strategy - show app immediately if ANY cache exists
   React.useEffect(() => {
@@ -271,6 +276,30 @@ const AppContent: React.FC = () => {
     checkPermissions();
   }, [isAuthenticated]);
 
+  // Handle pending event navigation when navigation is ready
+  React.useEffect(() => {
+    if (pendingEventNavigation && navigationRef.current && isAuthenticated && currentUser) {
+      console.log('🎯 Navigating to event from deep link:', pendingEventNavigation.eventId);
+
+      // Small delay to ensure navigation stack is ready
+      setTimeout(() => {
+        try {
+          navigationRef.current?.navigate('EventDetail', {
+            eventId: pendingEventNavigation.eventId,
+          });
+          setPendingEventNavigation(null);
+        } catch (error) {
+          console.error('❌ Failed to navigate to event:', error);
+          CustomAlertManager.alert(
+            'Navigation Error',
+            'Failed to open event. Please try again.'
+          );
+          setPendingEventNavigation(null);
+        }
+      }, 500);
+    }
+  }, [pendingEventNavigation, isAuthenticated, currentUser]);
+
   // Handle deep links (Garmin OAuth and Challenge QR codes)
   React.useEffect(() => {
     const handleDeepLink = async ({ url }: { url: string }) => {
@@ -338,6 +367,36 @@ const AppContent: React.FC = () => {
             'Failed to process challenge link. Please try again.'
           );
         }
+        return;
+      }
+
+      // Handle Event deep link: runstr://event/{eventId}?team={teamId}&name={eventName}
+      if (path?.startsWith('event/') || url.includes('runstr://event/')) {
+        console.log('🎯 Event deep link detected');
+
+        try {
+          const parsedEvent = parseEventDeepLink(url);
+          console.log('📦 Parsed event data:', parsedEvent);
+
+          if (parsedEvent.isValid && parsedEvent.eventId) {
+            console.log('✅ Valid event data - storing for navigation');
+            // Store event data for navigation after app is ready
+            setPendingEventNavigation(parsedEvent);
+          } else {
+            console.error('❌ Invalid event data:', parsedEvent.error);
+            CustomAlertManager.alert(
+              'Invalid Event',
+              parsedEvent.error || 'This event link is invalid or expired.'
+            );
+          }
+        } catch (error) {
+          console.error('❌ Failed to parse event deep link:', error);
+          CustomAlertManager.alert(
+            'Error',
+            'Failed to process event link. Please try again.'
+          );
+        }
+        return;
       }
     };
 
@@ -1086,7 +1145,10 @@ const AppContent: React.FC = () => {
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
-      <NavigationContainer onStateChange={handleNavigationStateChange}>
+      <NavigationContainer
+        ref={navigationRef}
+        onStateChange={handleNavigationStateChange}
+      >
         {(() => {
           console.log(
             '🚀 AppContent: Navigation decision - isAuthenticated:',

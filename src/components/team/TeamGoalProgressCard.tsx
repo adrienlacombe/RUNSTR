@@ -69,7 +69,7 @@ export const TeamGoalProgressCard: React.FC<TeamGoalProgressCardProps> = ({
       {isComplete ? (
         <View style={styles.completeBadge}>
           <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-          <Text style={styles.completeText}>Goal Achieved! 🎉</Text>
+          <Text style={styles.completeText}>Goal Achieved</Text>
         </View>
       ) : (
         <Text style={styles.remainingText}>

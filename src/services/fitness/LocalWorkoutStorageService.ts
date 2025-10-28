@@ -15,9 +15,9 @@ export interface LocalWorkout {
   endTime: string; // ISO timestamp
   duration: number; // seconds
   distance?: number; // meters
-  calories?: number;
+  calories?: number; // NEW: Estimated or actual calorie burn/intake
   steps?: number; // Step count (for daily steps workouts)
-  source: 'gps_tracker' | 'manual_entry' | 'daily_steps';
+  source: 'gps_tracker' | 'manual_entry' | 'daily_steps' | 'imported_nostr';
 
   // GPS-specific fields
   elevation?: number; // meters
@@ -43,6 +43,7 @@ export interface LocalWorkout {
   // Diet/Fasting-specific fields
   mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   mealTime?: string; // ISO timestamp
+  mealSize?: 'small' | 'medium' | 'large' | 'xl'; // NEW: Meal portion size
   fastingDuration?: number; // seconds
 
   // Strength training-specific fields
@@ -77,6 +78,8 @@ export interface LocalWorkout {
 const STORAGE_KEYS = {
   LOCAL_WORKOUTS: 'local_workouts',
   WORKOUT_ID_COUNTER: 'local_workout_id_counter',
+  NOSTR_IMPORT_FLAG: 'nostr_workout_import_completed',
+  NOSTR_IMPORT_STATS: 'nostr_workout_import_stats',
 };
 
 export class LocalWorkoutStorageService {
@@ -217,6 +220,7 @@ export class LocalWorkoutStorageService {
     reps?: number;
     sets?: number;
     notes?: string;
+    calories?: number; // NEW: Optional calorie estimation
     // Meditation fields
     meditationType?:
       | 'guided'
@@ -228,6 +232,7 @@ export class LocalWorkoutStorageService {
     // Diet/Fasting fields
     mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
     mealTime?: string;
+    mealSize?: 'small' | 'medium' | 'large' | 'xl'; // NEW: Meal portion size
     fastingDuration?: number;
     // Strength training fields
     exerciseType?: string;
@@ -256,6 +261,7 @@ export class LocalWorkoutStorageService {
         endTime: now,
         duration: durationSeconds,
         distance: distanceMeters,
+        calories: workout.calories, // NEW: Include calorie data
         reps: workout.reps,
         sets: workout.sets,
         notes: workout.notes,
@@ -265,6 +271,7 @@ export class LocalWorkoutStorageService {
         // Diet/Fasting fields
         mealType: workout.mealType,
         mealTime: workout.mealTime,
+        mealSize: workout.mealSize, // NEW: Include meal size
         fastingDuration: workout.fastingDuration,
         // Strength training fields
         exerciseType: workout.exerciseType,
@@ -517,6 +524,161 @@ export class LocalWorkoutStorageService {
     } catch (error) {
       console.error('❌ Failed to get storage stats:', error);
       return { total: 0, synced: 0, unsynced: 0, totalStorageKB: 0 };
+    }
+  }
+
+  // ========================================================================
+  // NOSTR 1301 IMPORT METHODS
+  // ========================================================================
+
+  /**
+   * Save imported Nostr workout to local storage
+   * Used during one-time import of user's Nostr workout history
+   */
+  async saveImportedNostrWorkout(workout: {
+    id: string; // Nostr event ID
+    type: WorkoutType;
+    startTime: string;
+    endTime: string;
+    duration: number; // seconds
+    distance?: number; // meters
+    calories?: number;
+    reps?: number;
+    sets?: number;
+    notes?: string;
+  }): Promise<string> {
+    try {
+      // Check if this Nostr event ID already exists to prevent duplicates
+      const existingWorkouts = await this.getAllWorkouts();
+      const isDuplicate = existingWorkouts.some(
+        (w) => w.nostrEventId === workout.id
+      );
+
+      if (isDuplicate) {
+        console.log(
+          `⚠️ Skipping duplicate Nostr workout: ${workout.id.slice(0, 8)}...`
+        );
+        return workout.id;
+      }
+
+      const workoutId = await this.generateWorkoutId();
+
+      const localWorkout: LocalWorkout = {
+        id: workoutId,
+        type: workout.type,
+        startTime: workout.startTime,
+        endTime: workout.endTime,
+        duration: workout.duration,
+        distance: workout.distance,
+        calories: workout.calories,
+        reps: workout.reps,
+        sets: workout.sets,
+        notes: workout.notes,
+        source: 'imported_nostr',
+        createdAt: new Date().toISOString(),
+        syncedToNostr: true, // Already exists on Nostr
+        nostrEventId: workout.id, // Store original Nostr event ID
+      };
+
+      await this.saveWorkout(localWorkout);
+      console.log(
+        `✅ Imported Nostr workout: ${workoutId} (${workout.type}, ${new Date(workout.startTime).toLocaleDateString()})`
+      );
+      return workoutId;
+    } catch (error) {
+      console.error('❌ Failed to save imported Nostr workout:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if Nostr workout import has been completed
+   */
+  async hasImportedNostrWorkouts(): Promise<boolean> {
+    try {
+      const flag = await AsyncStorage.getItem(STORAGE_KEYS.NOSTR_IMPORT_FLAG);
+      return flag === 'true';
+    } catch (error) {
+      console.error('❌ Failed to check Nostr import flag:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark Nostr import as completed and save import statistics
+   */
+  async markNostrImportCompleted(stats: {
+    totalImported: number;
+    oldestDate: string;
+    newestDate: string;
+    activityTypes: string[];
+  }): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.NOSTR_IMPORT_FLAG, 'true');
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.NOSTR_IMPORT_STATS,
+        JSON.stringify({
+          ...stats,
+          importedAt: new Date().toISOString(),
+        })
+      );
+      console.log(
+        `✅ Nostr import marked complete: ${stats.totalImported} workouts`
+      );
+    } catch (error) {
+      console.error('❌ Failed to mark Nostr import completed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Nostr import statistics (for displaying to user)
+   */
+  async getNostrImportStats(): Promise<{
+    totalImported: number;
+    oldestDate: string;
+    newestDate: string;
+    activityTypes: string[];
+    importedAt: string;
+  } | null> {
+    try {
+      const statsData = await AsyncStorage.getItem(
+        STORAGE_KEYS.NOSTR_IMPORT_STATS
+      );
+      if (!statsData) return null;
+
+      return JSON.parse(statsData);
+    } catch (error) {
+      console.error('❌ Failed to get Nostr import stats:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Reset Nostr import (allows user to re-import if needed)
+   * WARNING: This does NOT delete imported workouts, only resets the flag
+   */
+  async resetNostrImport(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.NOSTR_IMPORT_FLAG);
+      await AsyncStorage.removeItem(STORAGE_KEYS.NOSTR_IMPORT_STATS);
+      console.log('✅ Nostr import flag reset');
+    } catch (error) {
+      console.error('❌ Failed to reset Nostr import:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get count of imported Nostr workouts
+   */
+  async getImportedNostrWorkoutCount(): Promise<number> {
+    try {
+      const workouts = await this.getAllWorkouts();
+      return workouts.filter((w) => w.source === 'imported_nostr').length;
+    } catch (error) {
+      console.error('❌ Failed to get imported Nostr workout count:', error);
+      return 0;
     }
   }
 }

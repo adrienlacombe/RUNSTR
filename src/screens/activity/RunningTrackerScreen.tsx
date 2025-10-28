@@ -675,7 +675,6 @@ export const RunningTrackerScreen: React.FC = () => {
       {/* Race Preset Selection */}
       {!isTracking && !countdown && (
         <View style={styles.presetContainer}>
-          <Text style={styles.presetLabel}>Race Distance (Optional)</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -827,22 +826,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   metricsContainer: {
-    flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 20,
-    paddingBottom: 20, // Ensure space for controls
+    paddingTop: 12,
+    paddingBottom: 12, // Ensure space for controls
   },
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   metricCard: {
     flex: 1,
     backgroundColor: theme.colors.card,
     borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 8,
+    padding: 16,
+    marginHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -864,13 +862,13 @@ const styles = StyleSheet.create({
   controlsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingBottom: 40,
+    paddingBottom: 24,
     gap: 20,
   },
   routesButton: {
     backgroundColor: theme.colors.card,
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -982,8 +980,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   presetContainer: {
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    marginBottom: 8,
+    paddingHorizontal: 0,
   },
   presetLabel: {
     fontSize: 14,
@@ -992,12 +990,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   presetScrollContent: {
-    gap: 12,
+    gap: 8,
     paddingRight: 20,
   },
   presetButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: theme.colors.card,
     borderWidth: 2,

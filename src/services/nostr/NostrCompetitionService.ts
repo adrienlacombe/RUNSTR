@@ -260,6 +260,17 @@ export class NostrCompetitionService {
         tags.push(['team_goal', eventData.teamGoal.toString()]);
       }
 
+      // ✅ NEW: Add recurrence tags if provided
+      if (eventData.recurrence && eventData.recurrence !== 'none') {
+        tags.push(['recurrence', eventData.recurrence]);
+        if (eventData.recurrenceDay) {
+          tags.push(['recurrence_day', eventData.recurrenceDay]);
+        }
+        if (eventData.recurrenceStartDate) {
+          tags.push(['recurrence_start_date', eventData.recurrenceStartDate]);
+        }
+      }
+
       if (eventData.description) {
         tags.push(['description', eventData.description]);
       }
