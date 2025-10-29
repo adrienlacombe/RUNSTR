@@ -294,7 +294,7 @@ export const DietTrackerScreen: React.FC = () => {
 
         setAlertConfig({
           title: 'Success!',
-          message: `Your ${summaryType === 'meal' ? 'meal' : 'fast'} has been entered into competitions!`,
+          message: `Your ${summaryType === 'meal' ? 'meal' : 'fast'} has been saved to Nostr!`,
           buttons: [{ text: 'OK', style: 'default', onPress: handleDone }],
         });
         setAlertVisible(true);
@@ -620,12 +620,12 @@ export const DietTrackerScreen: React.FC = () => {
                 ) : (
                   <>
                     <Ionicons
-                      name="trophy-outline"
+                      name="cloud-upload-outline"
                       size={20}
                       color={theme.colors.background}
                       style={styles.buttonIcon}
                     />
-                    <Text style={styles.competeButtonText}>Compete</Text>
+                    <Text style={styles.competeButtonText}>Save to Nostr</Text>
                   </>
                 )}
               </TouchableOpacity>

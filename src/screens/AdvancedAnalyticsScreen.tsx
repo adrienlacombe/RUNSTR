@@ -299,28 +299,12 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
           </Text>
         )}
 
-        {/* Check for data */}
-        {!analytics || workouts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons
-              name="fitness-outline"
-              size={64}
-              color={theme.colors.textMuted}
-            />
-            <Text style={styles.emptyStateTitle}>No Data Yet</Text>
-            <Text style={styles.emptyStateText}>
-              Start recording workouts to see your advanced analytics and
-              insights.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {/* Health Snapshot Section */}
-            <Text style={styles.sectionTitle}>Health Snapshot</Text>
-            <HealthSnapshotCard
-              bodyComposition={analytics.bodyComposition}
-              vo2MaxData={analytics.cardio?.vo2MaxEstimate}
-            />
+        {/* Health Snapshot Section - Always visible */}
+        <Text style={styles.sectionTitle}>Health Snapshot</Text>
+        <HealthSnapshotCard
+          bodyComposition={analytics?.bodyComposition}
+          vo2MaxData={analytics?.cardio?.vo2MaxEstimate}
+        />
 
             {/* Calorie Balance Section */}
             {CaloricAnalyticsService.calculateMetrics(workouts, healthProfile || undefined) && (() => {
@@ -341,32 +325,33 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
               );
             })()}
 
-            {/* Holistic Health Score Section */}
-            {analytics.holisticScore && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Overall Health Score</Text>
-                <View style={styles.scoreCard}>
-                  <View style={styles.scoreCircle}>
-                    <Text style={styles.scoreValue}>
-                      {analytics.holisticScore.overall}
-                    </Text>
-                    <Text style={styles.scoreLabel}>/ 100</Text>
+            {/* Holistic Health Score Section - Always visible */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Overall Health Score</Text>
+              {analytics?.holisticScore ? (
+                <>
+                  <View style={styles.scoreCard}>
+                    <View style={styles.scoreCircle}>
+                      <Text style={styles.scoreValue}>
+                        {analytics.holisticScore.overall}
+                      </Text>
+                      <Text style={styles.scoreLabel}>/ 100</Text>
+                    </View>
+                    <View style={styles.scoreDetails}>
+                      <Text style={styles.categoryLabel}>
+                        {analytics.holisticScore.category.toUpperCase()}
+                      </Text>
+                      <Text style={styles.trendLabel}>
+                        Trend:{' '}
+                        {analytics.holisticScore.trend === 'improving'
+                          ? '📈'
+                          : analytics.holisticScore.trend === 'declining'
+                          ? '📉'
+                          : '➡️'}{' '}
+                        {analytics.holisticScore.trend}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.scoreDetails}>
-                    <Text style={styles.categoryLabel}>
-                      {analytics.holisticScore.category.toUpperCase()}
-                    </Text>
-                    <Text style={styles.trendLabel}>
-                      Trend:{' '}
-                      {analytics.holisticScore.trend === 'improving'
-                        ? '📈'
-                        : analytics.holisticScore.trend === 'declining'
-                        ? '📉'
-                        : '➡️'}{' '}
-                      {analytics.holisticScore.trend}
-                    </Text>
-                  </View>
-                </View>
 
                 {/* Category Breakdown */}
                 <View style={styles.categoryBreakdown}>
@@ -450,33 +435,50 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Recommendations */}
-                {analytics.holisticScore.recommendations.length > 0 && (
-                  <View style={styles.recommendations}>
-                    <Text style={styles.recommendationsTitle}>
-                      Recommendations
+                  {/* Recommendations */}
+                  {analytics.holisticScore.recommendations.length > 0 && (
+                    <View style={styles.recommendations}>
+                      <Text style={styles.recommendationsTitle}>
+                        Recommendations
+                      </Text>
+                      {analytics.holisticScore.recommendations.map(
+                        (rec, index) => (
+                          <View key={index} style={styles.recommendationRow}>
+                            <Ionicons
+                              name="bulb-outline"
+                              size={16}
+                              color="#FF9D42"
+                            />
+                            <Text style={styles.recommendationText}>{rec}</Text>
+                          </View>
+                        )
+                      )}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={styles.metricCard}>
+                  <View style={styles.emptyMetricState}>
+                    <Ionicons
+                      name="bar-chart-outline"
+                      size={48}
+                      color={theme.colors.textMuted}
+                    />
+                    <Text style={styles.emptyMetricTitle}>
+                      Track workouts to see your score
                     </Text>
-                    {analytics.holisticScore.recommendations.map(
-                      (rec, index) => (
-                        <View key={index} style={styles.recommendationRow}>
-                          <Ionicons
-                            name="bulb-outline"
-                            size={16}
-                            color="#FF9D42"
-                          />
-                          <Text style={styles.recommendationText}>{rec}</Text>
-                        </View>
-                      )
-                    )}
+                    <Text style={styles.emptyMetricText}>
+                      Your overall health score will appear here once you start tracking workouts
+                    </Text>
                   </View>
-                )}
-              </View>
-            )}
+                </View>
+              )}
+            </View>
 
-            {/* Cardio Performance Section */}
-            {analytics.cardio && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Cardio Performance</Text>
+            {/* Cardio Performance Section - Always visible */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Cardio Performance</Text>
+              {analytics?.cardio ? (
                 <View style={styles.metricCard}>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Average Pace</Text>
@@ -549,63 +551,95 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
                     </View>
                   )}
                 </View>
-              </View>
-            )}
-
-            {/* Strength Training Section - Only show if volume > 0 */}
-            {analytics.strength &&
-              analytics.strength.volumeProgression.currentMonthlyVolume > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Strength Training</Text>
-                  <View style={styles.metricCard}>
-                    <View style={styles.metricRow}>
-                      <Text style={styles.metricLabel}>Monthly Volume</Text>
-                      <Text style={styles.metricValue}>
-                        {
-                          analytics.strength.volumeProgression
-                            .currentMonthlyVolume
-                        }{' '}
-                        reps
-                      </Text>
-                      {analytics.strength.volumeProgression.percentChange !==
-                        0 && (
-                        <Text
-                          style={[
-                            styles.metricTrend,
-                            analytics.strength.volumeProgression.trend ===
-                              'increasing' && styles.metricTrendPositive,
-                          ]}
-                        >
-                          {analytics.strength.volumeProgression.percentChange >
-                          0
-                            ? '+'
-                            : ''}
-                          {analytics.strength.volumeProgression.percentChange.toFixed(
-                            1
-                          )}
-                          %
-                        </Text>
-                      )}
-                    </View>
-                    {analytics.strength.workoutDensity.avgRepsPerMinute > 0 && (
-                      <View style={styles.metricRow}>
-                        <Text style={styles.metricLabel}>Workout Density</Text>
-                        <Text style={styles.metricValue}>
-                          {analytics.strength.workoutDensity.avgRepsPerMinute.toFixed(
-                            1
-                          )}{' '}
-                          reps/min
-                        </Text>
-                      </View>
-                    )}
+              ) : (
+                <View style={styles.metricCard}>
+                  <View style={styles.emptyMetricState}>
+                    <Ionicons
+                      name="walk-outline"
+                      size={48}
+                      color={theme.colors.textMuted}
+                    />
+                    <Text style={styles.emptyMetricTitle}>
+                      Track your first run
+                    </Text>
+                    <Text style={styles.emptyMetricText}>
+                      Record cardio workouts to see pace, distance, and VO₂ Max estimates
+                    </Text>
                   </View>
                 </View>
               )}
+            </View>
 
-            {/* Wellness Section */}
-            {analytics.wellness && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Wellness & Recovery</Text>
+            {/* Strength Training Section - Always visible */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Strength Training</Text>
+              {analytics?.strength &&
+              analytics.strength.volumeProgression.currentMonthlyVolume > 0 ? (
+                <View style={styles.metricCard}>
+                  <View style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Monthly Volume</Text>
+                    <Text style={styles.metricValue}>
+                      {
+                        analytics.strength.volumeProgression
+                          .currentMonthlyVolume
+                      }{' '}
+                      reps
+                    </Text>
+                    {analytics.strength.volumeProgression.percentChange !==
+                      0 && (
+                      <Text
+                        style={[
+                          styles.metricTrend,
+                          analytics.strength.volumeProgression.trend ===
+                            'increasing' && styles.metricTrendPositive,
+                        ]}
+                      >
+                        {analytics.strength.volumeProgression.percentChange >
+                        0
+                          ? '+'
+                          : ''}
+                        {analytics.strength.volumeProgression.percentChange.toFixed(
+                          1
+                        )}
+                        %
+                      </Text>
+                    )}
+                  </View>
+                  {analytics.strength.workoutDensity.avgRepsPerMinute > 0 && (
+                    <View style={styles.metricRow}>
+                      <Text style={styles.metricLabel}>Workout Density</Text>
+                      <Text style={styles.metricValue}>
+                        {analytics.strength.workoutDensity.avgRepsPerMinute.toFixed(
+                          1
+                        )}{' '}
+                        reps/min
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.metricCard}>
+                  <View style={styles.emptyMetricState}>
+                    <Ionicons
+                      name="barbell-outline"
+                      size={48}
+                      color={theme.colors.textMuted}
+                    />
+                    <Text style={styles.emptyMetricTitle}>
+                      Log your first strength workout
+                    </Text>
+                    <Text style={styles.emptyMetricText}>
+                      Track sets, reps, and exercises to see volume progression and workout density
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Wellness Section - Always visible */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Wellness & Recovery</Text>
+              {analytics?.wellness ? (
                 <View style={styles.metricCard}>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Meditation Streak</Text>
@@ -632,8 +666,24 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
                     </Text>
                   </View>
                 </View>
-              </View>
-            )}
+              ) : (
+                <View style={styles.metricCard}>
+                  <View style={styles.emptyMetricState}>
+                    <Ionicons
+                      name="flower-outline"
+                      size={48}
+                      color={theme.colors.textMuted}
+                    />
+                    <Text style={styles.emptyMetricTitle}>
+                      Try meditation or recovery activities
+                    </Text>
+                    <Text style={styles.emptyMetricText}>
+                      Track meditation, yoga, and recovery sessions to see wellness patterns
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
 
             {/* Insights & Correlations Section */}
             {(() => {
@@ -686,11 +736,11 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
               );
             })()}
 
-            {/* Last Updated */}
-            <Text style={styles.lastUpdated}>
-              Last updated: {new Date(analytics.lastUpdated).toLocaleString()}
-            </Text>
-          </>
+        {/* Last Updated */}
+        {analytics && (
+          <Text style={styles.lastUpdated}>
+            Last updated: {new Date(analytics.lastUpdated).toLocaleString()}
+          </Text>
         )}
       </ScrollView>
 
@@ -1022,5 +1072,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 16,
+  },
+
+  emptyMetricState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+  },
+
+  emptyMetricTitle: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
+  emptyMetricText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
 });

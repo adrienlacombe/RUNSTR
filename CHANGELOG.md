@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2025-01-29
+
+### Added
+- **Captain Event Deletion** - Captains can now delete events from their local dashboard
+  - Trash icon button on event cards in "My Events" section
+  - Confirmation dialog before deletion
+  - Local-only deletion (does not remove from Nostr)
+  - Clean, minimal UI with theme-consistent styling
+
+- **Improved Empty States** - Better UX when no data is available
+  - **Advanced Analytics**: Removed blocking empty state, each section now shows helpful guidance
+  - **Private Workouts**: Empty state moved to inline display with encouragement to start tracking
+  - All sections remain visible with contextual help text
+
+### Fixed
+- **Legacy Event Display** - Events with missing captain data no longer filtered out
+  - Removed strict pubkey validation in SimpleCompetitionService
+  - Legacy events now display on team screens
+  - Graceful error handling in EventDetailScreen for incomplete data
+  - Better messaging when event data is incomplete
+
+- **Empty State Blocking** - Fixed screens that showed single "No Data" message hiding all UI
+  - Advanced Analytics now shows all sections with per-section empty states
+  - Private Workouts tab always shows structure and analytics card
+  - Users can see what's available before tracking data
+
+### Improved
+- **Captain Dashboard UX** - Cleaner event card design without emojis
+- **Empty State Guidance** - Each analytics section provides specific next steps
+- **Event Card Layout** - Better spacing to accommodate delete button
+- **User Onboarding** - New users see full app structure even with zero data
+
 ## [0.5.2] - 2025-01-28
 
 ### Added

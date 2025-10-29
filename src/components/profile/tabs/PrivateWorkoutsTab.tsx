@@ -296,25 +296,6 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
     />
   );
 
-  if (workouts.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Card style={styles.emptyState}>
-          <Ionicons
-            name="phone-portrait-outline"
-            size={64}
-            color={theme.colors.textMuted}
-          />
-          <Text style={styles.emptyStateTitle}>No Local Workouts</Text>
-          <Text style={styles.emptyStateText}>
-            Record workouts with the Activity Tracker to see them here. Once
-            posted to Nostr, they'll move to the Public tab.
-          </Text>
-        </Card>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <FlatList
@@ -331,20 +312,39 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
         }
         ListHeaderComponent={
           <>
-            {/* Advanced Analytics Card */}
+            {/* Advanced Analytics Card - Always visible */}
             {onNavigateToAnalytics && (
               <AdvancedAnalyticsCard onPress={onNavigateToAnalytics} />
             )}
 
             {/* Header with workout count */}
-            <View style={styles.header}>
-              <Text style={styles.headerText}>
-                {workouts.length} local workout
-                {workouts.length !== 1 ? 's' : ''}
-              </Text>
-              <Text style={styles.headerSubtext}>Not posted to Nostr yet</Text>
-            </View>
+            {workouts.length > 0 && (
+              <View style={styles.header}>
+                <Text style={styles.headerText}>
+                  {workouts.length} local workout
+                  {workouts.length !== 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.headerSubtext}>Not posted to Nostr yet</Text>
+              </View>
+            )}
           </>
+        }
+        ListEmptyComponent={
+          <Card style={styles.emptyState}>
+            <Ionicons
+              name="phone-portrait-outline"
+              size={64}
+              color={theme.colors.textMuted}
+            />
+            <Text style={styles.emptyStateTitle}>No Local Workouts Yet</Text>
+            <Text style={styles.emptyStateText}>
+              Use the Activity Tracker to record your first workout. Track runs,
+              cycling, strength training, and more!
+            </Text>
+            <Text style={styles.emptyStateHint}>
+              Once posted to Nostr, workouts will move to the Public tab.
+            </Text>
+          </Card>
         }
       />
 
@@ -455,5 +455,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  emptyStateHint: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
   },
 });

@@ -52,8 +52,8 @@ export interface LocalWorkout {
     | 'pullups'
     | 'situps'
     | 'squats'
-    | 'planks'
-    | 'burpees'
+    | 'curls'
+    | 'bench'
     | string;
   repsBreakdown?: number[]; // Array of reps per set (e.g., [20, 18, 15])
   restTime?: number; // Rest between sets in seconds

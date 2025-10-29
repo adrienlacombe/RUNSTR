@@ -31,8 +31,8 @@ type ExerciseType =
   | 'pullups'
   | 'situps'
   | 'squats'
-  | 'planks'
-  | 'burpees';
+  | 'curls'
+  | 'bench';
 type WorkoutPhase = 'setup' | 'active' | 'rest' | 'summary';
 
 const EXERCISE_OPTIONS: {
@@ -44,8 +44,8 @@ const EXERCISE_OPTIONS: {
   { value: 'pullups', label: 'Pullups', icon: 'barbell' },
   { value: 'situps', label: 'Situps', icon: 'body' },
   { value: 'squats', label: 'Squats', icon: 'walk' },
-  { value: 'planks', label: 'Planks', icon: 'reorder-four' },
-  { value: 'burpees', label: 'Burpees', icon: 'flash' },
+  { value: 'curls', label: 'Curls', icon: 'fitness' },
+  { value: 'bench', label: 'Bench Press', icon: 'barbell' },
 ];
 
 const REST_DURATIONS = [30, 60, 90, 120]; // seconds
@@ -270,7 +270,7 @@ export const StrengthTrackerScreen: React.FC = () => {
         // Mark workout as synced
         await LocalWorkoutStorageService.markAsSynced(workout.id, result.eventId);
 
-        Alert.alert('Success', 'Workout entered into competition!', [
+        Alert.alert('Success', 'Workout saved to Nostr!', [
           {
             text: 'OK',
             onPress: () => {
@@ -618,12 +618,12 @@ export const StrengthTrackerScreen: React.FC = () => {
           onPress={handlePostNostr}
         >
           <Ionicons
-            name="trophy-outline"
+            name="cloud-upload-outline"
             size={20}
             color={theme.colors.background}
             style={{ marginRight: 8 }}
           />
-          <Text style={styles.competeButtonText}>Compete</Text>
+          <Text style={styles.competeButtonText}>Save to Nostr</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

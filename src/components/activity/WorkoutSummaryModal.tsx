@@ -353,8 +353,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
           // No reward, show success message immediately
           setAlertState({
             visible: true,
-            title: 'Competing! ✅',
-            message: 'Your workout has been entered into competitions!',
+            title: 'Saved to Nostr! ✅',
+            message: 'Your workout has been saved to Nostr!',
           });
         }
       } else {
@@ -721,7 +721,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
                     color={theme.colors.text}
                   />
                   <Text style={styles.saveButtonText}>
-                    {saved ? 'Competing' : 'Compete'}
+                    {saved ? 'Saved' : 'Save to Nostr'}
                   </Text>
                 </>
               )}
@@ -763,7 +763,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
               followers on social media
             </Text>
             <Text style={styles.infoText}>
-              <Text style={styles.infoBold}>Compete:</Text> Enter into active
+              <Text style={styles.infoBold}>Save to Nostr:</Text> Enter into active
               competitions and leaderboards
             </Text>
             {workout.gpsCoordinates && workout.gpsCoordinates.length > 0 && (
@@ -807,8 +807,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
           // Show success message after reward modal is closed
           setAlertState({
             visible: true,
-            title: 'Competing! ✅',
-            message: 'Your workout has been entered into competitions!',
+            title: 'Saved to Nostr! ✅',
+            message: 'Your workout has been saved to Nostr!',
           });
         }}
       />

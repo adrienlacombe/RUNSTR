@@ -188,6 +188,30 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
     }
   };
 
+  const handleDeleteEvent = async (eventId: string, eventName: string) => {
+    Alert.alert(
+      'Delete Event',
+      `Remove "${eventName}" from your local storage? This will not delete the event from Nostr.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await CaptainEventStore.deleteEvent(eventId);
+              await loadCaptainEvents(); // Refresh list
+              console.log(`🗑️ Deleted event: ${eventName}`);
+            } catch (error) {
+              console.error('Failed to delete event:', error);
+              Alert.alert('Error', 'Failed to delete event. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const loadActiveCompetitions = async () => {
     try {
       const competitionService = CompetitionService.getInstance();
@@ -1247,14 +1271,41 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                       borderRadius: 12,
                       padding: 16,
                       width: 200,
+                      position: 'relative',
                     }}
                   >
+                    {/* Delete Button */}
+                    <TouchableOpacity
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: theme.colors.background,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 6,
+                        padding: 6,
+                        zIndex: 10,
+                      }}
+                      onPress={() =>
+                        handleDeleteEvent(record.eventId, event.name)
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={16}
+                        color={theme.colors.error}
+                      />
+                    </TouchableOpacity>
+
                     <Text
                       style={{
                         fontSize: 16,
                         fontWeight: '600',
                         color: theme.colors.text,
                         marginBottom: 8,
+                        paddingRight: 28, // Space for delete button
                       }}
                       numberOfLines={2}
                     >
@@ -1270,7 +1321,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                         marginBottom: 4,
                       }}
                     >
-                      📅 {eventDate.toLocaleDateString()}
+                      {eventDate.toLocaleDateString()}
                     </Text>
 
                     {event.activityType && (
@@ -1281,7 +1332,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                           marginBottom: 4,
                         }}
                       >
-                        🏃 {event.activityType}
+                        {event.activityType}
                       </Text>
                     )}
 
@@ -1293,7 +1344,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                           marginBottom: 12,
                         }}
                       >
-                        💰 {event.entryFeesSats.toLocaleString()} sats
+                        {event.entryFeesSats.toLocaleString()} sats
                       </Text>
                     )}
 
@@ -1303,10 +1354,8 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                         paddingVertical: 8,
                         paddingHorizontal: 12,
                         borderRadius: 6,
-                        flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 6,
                       }}
                       onPress={() => {
                         setSelectedEventForAnnouncement(event);
@@ -1321,7 +1370,7 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
                           color: theme.colors.accentText,
                         }}
                       >
-                        📣 Announce Event
+                        Announce Event
                       </Text>
                     </TouchableOpacity>
                   </View>

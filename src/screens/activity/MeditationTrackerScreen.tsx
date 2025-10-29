@@ -254,7 +254,7 @@ export const MeditationTrackerScreen: React.FC = () => {
 
         setAlertConfig({
           title: 'Success!',
-          message: 'Your meditation session has been entered into competitions!',
+          message: 'Your meditation session has been saved to Nostr!',
           buttons: [{ text: 'OK', style: 'default', onPress: handleDone }],
         });
         setAlertVisible(true);
@@ -472,12 +472,12 @@ export const MeditationTrackerScreen: React.FC = () => {
 
             <TouchableOpacity style={styles.competeButton} onPress={handleCompete}>
               <Ionicons
-                name="trophy-outline"
+                name="cloud-upload-outline"
                 size={20}
                 color={theme.colors.background}
                 style={styles.buttonIcon}
               />
-              <Text style={styles.competeButtonText}>Compete</Text>
+              <Text style={styles.competeButtonText}>Save to Nostr</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
   },
   postButton: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.accent,
+    backgroundColor: theme.colors.text,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
