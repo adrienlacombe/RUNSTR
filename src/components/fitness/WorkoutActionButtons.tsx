@@ -1,6 +1,6 @@
 /**
  * WorkoutActionButtons - Competition & Sharing Controls for HealthKit Workouts
- * Provides "Compete" and "Post" buttons for HealthKit workouts
+ * Provides "Public" and "Post" buttons for HealthKit workouts
  * Integrates with WorkoutPublishingService and social sharing modal
  */
 
@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import type { UnifiedWorkout } from '../../services/fitness/workoutMergeService';
 import { SocialShareModal } from './SocialShareModal';
@@ -147,6 +148,9 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
       success && styles.successButtonText,
     ];
 
+    const iconName = variant === 'save' ? 'cloud-upload-outline' : 'chatbubble-outline';
+    const successText = variant === 'save' ? 'Published!' : 'Shared!';
+
     return (
       <TouchableOpacity
         style={buttonStyle}
@@ -158,9 +162,17 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
           {loading ? (
             <ActivityIndicator size="small" color="#000000" />
           ) : (
-            <Text style={textStyle}>
-              {success ? (variant === 'save' ? 'Competing!' : 'Shared!') : text}
-            </Text>
+            <>
+              <Ionicons
+                name={iconName as any}
+                size={16}
+                color={theme.colors.accentText}
+                style={styles.buttonIcon}
+              />
+              <Text style={textStyle}>
+                {success ? successText : text}
+              </Text>
+            </>
           )}
         </View>
       </TouchableOpacity>
@@ -176,7 +188,7 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
     <View style={compact ? styles.compactContainer : styles.container}>
       {workout.canSyncToNostr &&
         renderButton(
-          'Compete',
+          'Public',
           handleSaveToNostr,
           workout.canSyncToNostr,
           state.saving,
@@ -197,7 +209,7 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
       {/* Status indicators for already completed actions */}
       {workout.syncedToNostr && !workout.canSyncToNostr && (
         <View style={styles.competingButton}>
-          <Text style={styles.competingButtonText}>✓ Competing</Text>
+          <Text style={styles.competingButtonText}>✓ Public</Text>
         </View>
       )}
 
@@ -251,12 +263,12 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   saveButton: {
-    backgroundColor: '#FFB366', // Light orange background
-    borderColor: '#FFB366',
+    backgroundColor: theme.colors.accent, // #FF7B1C
+    borderColor: theme.colors.accent,
   },
   postButton: {
-    backgroundColor: '#FFB366', // Light orange background
-    borderColor: '#FFB366',
+    backgroundColor: theme.colors.accent, // #FF7B1C
+    borderColor: theme.colors.accent,
   },
   disabledButton: {
     backgroundColor: theme.colors.cardBackground,
@@ -264,22 +276,26 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   successButton: {
-    backgroundColor: '#FFB366', // Light orange for success
-    borderColor: '#FFB366',
+    backgroundColor: theme.colors.accent, // #FF7B1C for success
+    borderColor: theme.colors.accent,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+  },
+  buttonIcon: {
+    marginRight: 0,
   },
   actionButtonText: {
-    color: '#000000', // Black text on light orange
+    color: theme.colors.accentText, // Black text
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
   compactButtonText: {
-    color: '#000000', // Black text on light orange
+    color: theme.colors.accentText, // Black text
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
@@ -288,7 +304,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
   },
   successButtonText: {
-    color: '#000000', // Black text for success state
+    color: theme.colors.accentText, // Black text for success state
   },
   competingButton: {
     paddingHorizontal: 16,
@@ -296,15 +312,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     minWidth: 100,
-    backgroundColor: '#FFB366', // Light orange background
-    borderColor: '#FFB366',
+    backgroundColor: theme.colors.accent, // #FF7B1C
+    borderColor: theme.colors.accent,
     opacity: 0.6, // Inactive state
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   competingButtonText: {
-    color: '#000000', // Black text on orange
+    color: theme.colors.accentText, // Black text
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
@@ -315,15 +331,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     minWidth: 100,
-    backgroundColor: '#FFB366', // Light orange background
-    borderColor: '#FFB366',
+    backgroundColor: theme.colors.accent, // #FF7B1C
+    borderColor: theme.colors.accent,
     opacity: 0.6, // Inactive state
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   postedButtonText: {
-    color: '#000000', // Black text on orange
+    color: theme.colors.accentText, // Black text
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

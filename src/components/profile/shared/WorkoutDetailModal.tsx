@@ -378,6 +378,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                 </Text>
               </View>
             )}
+            {localWorkout.weight && (
+              <View style={styles.volumeRow}>
+                <Text style={styles.volumeLabel}>Weight</Text>
+                <Text style={styles.volumeValue}>{localWorkout.weight} lbs</Text>
+              </View>
+            )}
           </View>
         )}
 

@@ -27,9 +27,13 @@ export class CompetitionCacheService {
   private readonly CACHE_KEY_PREFIX = 'competitions';
   private readonly GLOBAL_CACHE_KEY = 'competitions_global';
   private readonly TIMESTAMP_KEY = 'competitions_fetch_time';
+  private readonly LEADERBOARD_CACHE_PREFIX = 'leaderboard_workouts';
 
   // Cache TTL: 30 minutes (competitions are stable)
   private readonly CACHE_TTL = 30 * 60 * 1000;
+
+  // Leaderboard cache TTL: 5 minutes (balance freshness vs performance)
+  private readonly LEADERBOARD_CACHE_TTL = 5 * 60 * 1000;
 
   // Background refresh after 5 minutes
   private readonly BACKGROUND_REFRESH_TIME = 5 * 60 * 1000;
@@ -256,5 +260,89 @@ export class CompetitionCacheService {
       leagueCount: cachedData?.leagues.length || 0,
       eventCount: cachedData?.events.length || 0,
     };
+  }
+
+  /**
+   * ✅ NEW: Generate cache key for leaderboard workout queries
+   * Format: leaderboard_workouts_{membersHash}_{activityType}_{startDate}_{endDate}
+   */
+  private generateLeaderboardCacheKey(
+    memberNpubs: string[],
+    activityType: string,
+    startDate: Date,
+    endDate: Date
+  ): string {
+    // Create a stable hash from member list (sorted to ensure consistency)
+    const sortedMembers = [...memberNpubs].sort();
+    const membersHash = sortedMembers.join(',').slice(0, 50); // Limit length for storage
+
+    const startTimestamp = startDate.getTime();
+    const endTimestamp = endDate.getTime();
+
+    return `${this.LEADERBOARD_CACHE_PREFIX}_${membersHash}_${activityType}_${startTimestamp}_${endTimestamp}`;
+  }
+
+  /**
+   * ✅ NEW: Cache leaderboard workout query results
+   * Stores multi-member workout queries with 5-minute TTL
+   */
+  async cacheLeaderboardWorkouts<T>(
+    memberNpubs: string[],
+    activityType: string,
+    startDate: Date,
+    endDate: Date,
+    workouts: T[]
+  ): Promise<void> {
+    const cacheKey = this.generateLeaderboardCacheKey(
+      memberNpubs,
+      activityType,
+      startDate,
+      endDate
+    );
+
+    console.log(
+      `💾 CompetitionCacheService: Caching ${workouts.length} leaderboard workouts (TTL: 5min)`
+    );
+
+    await appCache.set(cacheKey, workouts, this.LEADERBOARD_CACHE_TTL);
+  }
+
+  /**
+   * ✅ NEW: Get cached leaderboard workout query results
+   * Returns null if cache miss or expired
+   */
+  async getCachedLeaderboardWorkouts<T>(
+    memberNpubs: string[],
+    activityType: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<T[] | null> {
+    const cacheKey = this.generateLeaderboardCacheKey(
+      memberNpubs,
+      activityType,
+      startDate,
+      endDate
+    );
+
+    const cached = await appCache.get<T[]>(cacheKey);
+
+    if (cached) {
+      console.log(
+        `✅ CompetitionCacheService: Leaderboard cache hit - ${cached.length} workouts`
+      );
+      return cached;
+    }
+
+    console.log('🔄 CompetitionCacheService: Leaderboard cache miss');
+    return null;
+  }
+
+  /**
+   * ✅ NEW: Clear all leaderboard caches (useful after workout updates)
+   */
+  async clearLeaderboardCache(): Promise<void> {
+    console.log('🧹 CompetitionCacheService: Clearing leaderboard cache...');
+    await appCache.clear(this.LEADERBOARD_CACHE_PREFIX);
+    console.log('✅ CompetitionCacheService: Leaderboard cache cleared');
   }
 }

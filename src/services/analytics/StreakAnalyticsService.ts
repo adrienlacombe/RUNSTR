@@ -79,9 +79,9 @@ export class StreakAnalyticsService {
       return null;
     }
 
-    // Get unique dates (YYYY-MM-DD)
+    // Get unique dates (YYYY-MM-DD) using local timezone
     const workoutDates = new Set(
-      workouts.map((w) => w.startTime.split('T')[0])
+      workouts.map((w) => new Date(w.startTime).toLocaleDateString('en-CA'))
     );
 
     const sortedDates = Array.from(workoutDates).sort();
@@ -110,10 +110,9 @@ export class StreakAnalyticsService {
    * Calculate current streak (consecutive days from today backwards)
    */
   private static calculateCurrentStreak(sortedDates: string[]): number {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+      .toLocaleDateString('en-CA');
 
     // Streak must include today OR yesterday (grace period)
     const lastDate = sortedDates[sortedDates.length - 1];
@@ -126,7 +125,7 @@ export class StreakAnalyticsService {
 
     // Count backwards from today
     for (let i = sortedDates.length - 1; i >= 0; i--) {
-      const expectedDate = checkDate.toISOString().split('T')[0];
+      const expectedDate = checkDate.toLocaleDateString('en-CA');
 
       if (sortedDates[i] === expectedDate) {
         currentStreak++;

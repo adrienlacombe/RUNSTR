@@ -29,8 +29,8 @@ export const AdvancedAnalyticsCard: React.FC<AdvancedAnalyticsCardProps> = ({
 
       {/* Content Section */}
       <View style={styles.contentContainer}>
-        <Text style={styles.title}>Advanced Analytics</Text>
-        <Text style={styles.subtitle}>View detailed insights & trends</Text>
+        <Text style={styles.title}>Stats</Text>
+        <Text style={styles.subtitle}>View workout stats & insights</Text>
       </View>
 
       {/* Privacy Badge */}

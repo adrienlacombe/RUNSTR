@@ -345,7 +345,7 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Advanced Analytics</Text>
+        <Text style={styles.headerTitle}>Stats</Text>
         <View style={styles.headerSpacer} />
       </View>
 

@@ -489,12 +489,15 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
 
           {/* Stats Grid */}
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {formatDistance(workout.distance)}
-              </Text>
-              <Text style={styles.statLabel}>Distance</Text>
-            </View>
+            {/* Only show distance if > 0 (hide for step-only tracking) */}
+            {workout.distance > 0 && (
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>
+                  {formatDistance(workout.distance)}
+                </Text>
+                <Text style={styles.statLabel}>Distance</Text>
+              </View>
+            )}
             <View style={styles.statCard}>
               <Text style={styles.statValue}>
                 {formatDuration(workout.duration)}
@@ -691,9 +694,9 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
               ) : (
                 <>
                   <Ionicons
-                    name={posted ? 'checkmark-circle' : 'megaphone'}
+                    name={posted ? 'checkmark-circle' : 'chatbubble-outline'}
                     size={20}
-                    color={theme.colors.background}
+                    color={theme.colors.accentText}
                   />
                   <Text style={styles.postButtonText}>
                     {posted ? 'Shared' : 'Post'}
@@ -716,12 +719,12 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
               ) : (
                 <>
                   <Ionicons
-                    name={saved ? 'checkmark-circle' : 'save'}
+                    name={saved ? 'checkmark-circle' : 'cloud-upload-outline'}
                     size={20}
-                    color={theme.colors.text}
+                    color={theme.colors.accentText}
                   />
                   <Text style={styles.saveButtonText}>
-                    {saved ? 'Saved' : 'Save to Nostr'}
+                    {saved ? 'Published' : 'Public'}
                   </Text>
                 </>
               )}
@@ -763,7 +766,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
               followers on social media
             </Text>
             <Text style={styles.infoText}>
-              <Text style={styles.infoBold}>Save to Nostr:</Text> Enter into active
+              <Text style={styles.infoBold}>Public:</Text> Enter into active
               competitions and leaderboards
             </Text>
             {workout.gpsCoordinates && workout.gpsCoordinates.length > 0 && (
@@ -910,10 +913,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   postButton: {
-    backgroundColor: theme.colors.orangeDeep, // Deep orange
+    backgroundColor: theme.colors.accent, // #FF7B1C
   },
   saveButton: {
-    backgroundColor: theme.colors.orangeDeep, // Deep orange
+    backgroundColor: theme.colors.accent, // #FF7B1C
   },
   routeButton: {
     backgroundColor: theme.colors.card,
@@ -924,12 +927,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   postButtonText: {
-    color: theme.colors.background,
+    color: theme.colors.accentText,
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,
   },
   saveButtonText: {
-    color: theme.colors.background,
+    color: theme.colors.accentText,
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,
   },

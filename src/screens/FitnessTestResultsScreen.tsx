@@ -263,12 +263,12 @@ export const FitnessTestResultsScreen: React.FC = () => {
             disabled={publishing || !!testResult.kind1301EventId}
           >
             <Ionicons
-              name={testResult.kind1301EventId ? 'checkmark-circle' : 'save-outline'}
+              name={testResult.kind1301EventId ? 'checkmark-circle' : 'cloud-upload-outline'}
               size={20}
               color={
                 testResult.kind1301EventId
                   ? theme.colors.success
-                  : theme.colors.background
+                  : theme.colors.accentText
               }
             />
             <Text
@@ -278,8 +278,8 @@ export const FitnessTestResultsScreen: React.FC = () => {
               ]}
             >
               {testResult.kind1301EventId
-                ? 'Saved to Nostr (Kind 1301)'
-                : 'Save to Nostr (Kind 1301)'}
+                ? 'Published'
+                : 'Public'}
             </Text>
           </TouchableOpacity>
 
@@ -293,12 +293,12 @@ export const FitnessTestResultsScreen: React.FC = () => {
             disabled={publishing || !!testResult.kind1EventId}
           >
             <Ionicons
-              name={testResult.kind1EventId ? 'checkmark-circle' : 'share-outline'}
+              name={testResult.kind1EventId ? 'checkmark-circle' : 'chatbubble-outline'}
               size={20}
               color={
                 testResult.kind1EventId
                   ? theme.colors.success
-                  : theme.colors.background
+                  : theme.colors.accentText
               }
             />
             <Text
@@ -308,8 +308,8 @@ export const FitnessTestResultsScreen: React.FC = () => {
               ]}
             >
               {testResult.kind1EventId
-                ? 'Shared on Nostr (Kind 1)'
-                : 'Share Achievement (Kind 1)'}
+                ? 'Posted'
+                : 'Post'}
             </Text>
           </TouchableOpacity>
 
@@ -540,12 +540,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: theme.colors.orangeDeep,
+    backgroundColor: theme.colors.accent,
     paddingVertical: 14,
     borderRadius: theme.borderRadius.small,
   },
   shareButton: {
-    backgroundColor: theme.colors.orangeBright,
+    backgroundColor: theme.colors.accent,
   },
   publishedButton: {
     backgroundColor: 'transparent',
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   publishButtonText: {
     fontSize: 15,
     fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.background,
+    color: theme.colors.accentText,
   },
   publishedButtonText: {
     color: theme.colors.textSecondary,

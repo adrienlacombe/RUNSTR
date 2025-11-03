@@ -1,5 +1,5 @@
 /**
- * EnhancedWorkoutCard - Workout display with Post/Compete actions
+ * EnhancedWorkoutCard - Workout display with Post/Public actions
  * Shows source badges and status indicators
  */
 
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../styles/theme';
 import { WorkoutStatusTracker } from '../../../services/fitness/WorkoutStatusTracker';
 import { WorkoutDetailModal } from './WorkoutDetailModal';
@@ -213,26 +214,33 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
           </View>
         </View>
 
-        {/* Stats */}
+        {/* Stats - Activity Specific */}
         <View style={styles.stats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {formatDuration(workout.duration)}
-            </Text>
-            <Text style={styles.statLabel}>Duration</Text>
-          </View>
-          {/* Show reps/sets for strength training workouts */}
-          {workout.sets && workout.reps ? (
+          {/* Cardio workouts: Distance, Pace, Calories */}
+          {['running', 'walking', 'cycling', 'hiking'].includes(workout.type) && (
             <>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{workout.reps}</Text>
-                <Text style={styles.statLabel}>Reps</Text>
+                <Text style={styles.statValue}>
+                  {formatDuration(workout.duration)}
+                </Text>
+                <Text style={styles.statLabel}>Duration</Text>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{workout.sets}</Text>
-                <Text style={styles.statLabel}>Sets</Text>
-              </View>
-              {/* Show calories for strength workouts if available */}
+              {workout.distance && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {formatDistance(workout.distance)}
+                  </Text>
+                  <Text style={styles.statLabel}>Distance</Text>
+                </View>
+              )}
+              {workout.pace && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {Math.floor(workout.pace)}:{Math.floor((workout.pace % 1) * 60).toString().padStart(2, '0')}
+                  </Text>
+                  <Text style={styles.statLabel}>Pace /km</Text>
+                </View>
+              )}
               {workout.calories !== undefined && (
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>
@@ -242,9 +250,110 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
                 </View>
               )}
             </>
-          ) : (
+          )}
+
+          {/* Strength workouts: Sets × Reps, Calories */}
+          {['strength_training', 'gym'].includes(workout.type) && (
             <>
-              {workout.distance !== undefined && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatDuration(workout.duration)}
+                </Text>
+                <Text style={styles.statLabel}>Duration</Text>
+              </View>
+              {workout.sets && workout.reps && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {workout.sets} × {workout.reps}
+                  </Text>
+                  <Text style={styles.statLabel}>Sets × Reps</Text>
+                </View>
+              )}
+              {workout.calories !== undefined && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {workout.calories.toFixed(0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Calories</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Meditation: Duration, Type, 0 cal */}
+          {workout.type === 'meditation' && (
+            <>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatDuration(workout.duration)}
+                </Text>
+                <Text style={styles.statLabel}>Duration</Text>
+              </View>
+              {(workout as any).meditationType && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {((workout as any).meditationType as string).charAt(0).toUpperCase() + ((workout as any).meditationType as string).slice(1)}
+                  </Text>
+                  <Text style={styles.statLabel}>Type</Text>
+                </View>
+              )}
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Calories</Text>
+              </View>
+            </>
+          )}
+
+          {/* Diet: Meal type, Meal size, Calories */}
+          {workout.type === 'diet' && (
+            <>
+              {(workout as any).mealType && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {((workout as any).mealType as string).charAt(0).toUpperCase() + ((workout as any).mealType as string).slice(1)}
+                  </Text>
+                  <Text style={styles.statLabel}>Meal</Text>
+                </View>
+              )}
+              {(workout as any).mealSize && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {((workout as any).mealSize as string).charAt(0).toUpperCase() + ((workout as any).mealSize as string).slice(1)}
+                  </Text>
+                  <Text style={styles.statLabel}>Size</Text>
+                </View>
+              )}
+              {workout.calories !== undefined && (
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {workout.calories.toFixed(0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Calories</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Fasting: Just duration */}
+          {workout.type === 'fasting' && (
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatDuration(workout.duration)}
+              </Text>
+              <Text style={styles.statLabel}>Duration</Text>
+            </View>
+          )}
+
+          {/* Other workouts: Default display */}
+          {!['running', 'walking', 'cycling', 'hiking', 'strength_training', 'gym', 'meditation', 'diet', 'fasting'].includes(workout.type) && (
+            <>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatDuration(workout.duration)}
+                </Text>
+                <Text style={styles.statLabel}>Duration</Text>
+              </View>
+              {workout.distance && (
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>
                     {formatDistance(workout.distance)}
@@ -258,14 +367,6 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
                     {workout.calories.toFixed(0)}
                   </Text>
                   <Text style={styles.statLabel}>Calories</Text>
-                </View>
-              )}
-              {workout.heartRate?.avg && (
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {workout.heartRate.avg.toFixed(0)}
-                  </Text>
-                  <Text style={styles.statLabel}>Avg HR</Text>
                 </View>
               )}
             </>
@@ -306,9 +407,17 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
                   color={theme.colors.accentText}
                 />
               ) : (
-                <Text style={styles.actionButtonText}>
-                  {status.posted ? '✓ Posted' : 'Post'}
-                </Text>
+                <>
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={16}
+                    color={theme.colors.accentText}
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.actionButtonText}>
+                    {status.posted ? '✓ Posted' : 'Post'}
+                  </Text>
+                </>
               )}
             </TouchableOpacity>
 
@@ -327,9 +436,17 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
                   color={theme.colors.accentText}
                 />
               ) : (
-                <Text style={styles.actionButtonText}>
-                  {status.competed ? 'Competed' : 'Compete'}
-                </Text>
+                <>
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={16}
+                    color={theme.colors.accentText}
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.actionButtonText}>
+                    {status.competed ? 'In Competition' : 'Public'}
+                  </Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -468,19 +585,23 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     marginHorizontal: 4,
+    gap: 8,
+  },
+  buttonIcon: {
+    marginRight: 0,
   },
   postButton: {
     backgroundColor: theme.colors.accent,
   },
   competeButton: {
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent,
   },
   disabledButton: {
     opacity: 0.6,

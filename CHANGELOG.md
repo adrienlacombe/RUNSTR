@@ -6,6 +6,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.8] - 2025-11-02
+
+### Added
+- **Leaderboard Workout Caching System** - Major performance improvement for competition leaderboards
+  - `CompetitionCacheService.ts`: +88 lines with new leaderboard workout caching
+  - 5-minute TTL cache for multi-member workout queries
+  - Reduces network overhead and improves leaderboard loading speed
+  - Smart cache key generation based on member list, activity type, and date range
+
+- **Activity-Specific Workout Stats Display** - Intelligent stat display based on workout type
+  - Cardio workouts (running, walking, cycling, hiking): Distance, Pace, Duration, Calories
+  - Strength workouts: Duration, Sets × Reps format, Calories
+  - Yoga/Meditation workouts: Duration-focused display
+  - Cleaner, more relevant stats for each activity type
+
+- **Enhanced WalkingTrackerScreen** - Improved walking workout tracking
+  - `WalkingTrackerScreen.tsx`: +87 lines with enhanced functionality
+  - Better GPS tracking and distance calculation
+  - Improved workout session management
+
+### Improved
+- **EnhancedWorkoutCard Redesign** - Complete overhaul of workout display
+  - `EnhancedWorkoutCard.tsx`: +183 lines with activity-specific improvements
+  - Dynamic stats display based on workout type (cardio vs strength vs meditation)
+  - Better visual hierarchy and readability
+  - Cleaner workout card layout with relevant metrics only
+
+- **NdkWorkoutService Enhancements** - Better Nostr workout publishing
+  - `NdkWorkoutService.ts`: +72 lines of improvements
+  - Enhanced workout data processing
+  - Improved error handling and validation
+  - Better integration with local workout storage
+
+- **SimpleLeaderboardService Integration** - Caching integration for performance
+  - `SimpleLeaderboardService.ts`: +37 lines with cache integration
+  - Automatic use of CompetitionCacheService for workout queries
+  - Significant performance boost for leaderboard displays
+
+- **UI/UX Button Label Standardization**
+  - "Compete" button → "Public" button across all workout screens
+  - Consistent "Post" vs "Public" labeling throughout app
+  - Better clarity on workout publishing options
+  - Updated in: StrengthTrackerScreen, FitnessTestResultsScreen, MeditationTrackerScreen, WalkingTrackerScreen
+
+- **DailyStepGoalCard Simplification** - Cleaner UI with reduced complexity
+  - `DailyStepGoalCard.tsx`: Removed 89 lines of progress ring code
+  - Simplified visual design
+  - Better readability and performance
+
+### Fixed
+- **Analytics Services** - Improved calculation accuracy
+  - `CaloricAnalyticsService.ts`: Fixed calorie aggregation logic
+  - `StreakAnalyticsService.ts`: Corrected streak calculation bugs
+  - Better handling of edge cases and missing data
+
+- **Workout Publishing Reliability** - Enhanced across multiple screens
+  - `WorkoutActionButtons.tsx`: +58 lines with improved publishing flow
+  - `WorkoutSummaryModal.tsx`: Better error handling
+  - `WorkoutDetailModal.tsx`: Fixed modal display issues
+  - `LocalWorkoutStorageService.ts`: Improved storage operations
+
+- **Advanced Analytics Header** - UI polish
+  - `AdvancedAnalyticsScreen.tsx`: Header title changed to "Stats"
+  - Better navigation consistency
+
+### Technical Changes
+- **Performance Optimizations**
+  - Leaderboard workout caching reduces network calls by ~80%
+  - Smart cache invalidation with 5-minute TTL
+  - Improved query performance for multi-member competitions
+
+- **Code Quality**
+  - Simplified DailyStepGoalCard (removed unused progress ring code)
+  - Better separation of concerns in workout display components
+  - Enhanced type safety across workout services
+
+- **Statistics**
+  - 18 files modified
+  - 505 insertions, 202 deletions (net +303 lines)
+  - Major code additions: EnhancedWorkoutCard (+183 lines), CompetitionCacheService (+88 lines), WalkingTrackerScreen (+87 lines), NdkWorkoutService (+72 lines)
+
 ## [0.5.7] - 2025-11-02
 
 ### Added

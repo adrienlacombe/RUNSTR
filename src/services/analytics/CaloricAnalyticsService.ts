@@ -93,7 +93,7 @@ export class CaloricAnalyticsService {
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = date.toLocaleDateString('en-CA');
 
       const dayBalance = this.calculateDailyBalance(workouts, dateStr);
       balances.push(dayBalance);
@@ -109,9 +109,9 @@ export class CaloricAnalyticsService {
     workouts: LocalWorkout[],
     date: string // YYYY-MM-DD
   ): DailyCalorieBalance {
-    // Filter workouts for this date
+    // Filter workouts for this date using local timezone
     const dayWorkouts = workouts.filter((w) => {
-      const workoutDate = w.startTime.split('T')[0];
+      const workoutDate = new Date(w.startTime).toLocaleDateString('en-CA');
       return workoutDate === date;
     });
 

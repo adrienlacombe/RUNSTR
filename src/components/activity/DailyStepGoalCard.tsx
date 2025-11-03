@@ -66,58 +66,15 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
     achieved: false,
   };
 
-  // Calculate progress ring dimensions
-  const ringSize = 45;
-  const strokeWidth = 4;
-  const radius = (ringSize - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const progressOffset = circumference - (displayProgress.percentage / 100) * circumference;
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Today's Steps</Text>
 
-      {/* 3-Column Layout: Ring + Text + Buttons */}
+      {/* 3-Column Layout: Progress Badge + Text + Buttons */}
       <View style={styles.horizontalContent}>
-        {/* Left: Progress Ring */}
-        <View style={styles.ringContainer}>
-          <View style={[styles.ring, { width: ringSize, height: ringSize }]}>
-            <View
-              style={[
-                styles.ringBackground,
-                {
-                  width: ringSize,
-                  height: ringSize,
-                  borderRadius: ringSize / 2,
-                  borderWidth: strokeWidth,
-                },
-              ]}
-            />
-
-            {/* Progress ring (simulated with border) - only show if progress > 0 */}
-            {displayProgress.percentage > 0 && (
-              <View
-                style={[
-                  styles.ringProgress,
-                  {
-                    width: ringSize,
-                    height: ringSize,
-                    borderRadius: ringSize / 2,
-                    borderWidth: strokeWidth,
-                    transform: [{ rotate: `-90deg` }],
-                  },
-                ]}
-              >
-                {/* This is a simplified progress ring */}
-                {/* For a true circular progress, consider using react-native-svg */}
-              </View>
-            )}
-
-            {/* Center content */}
-            <View style={styles.ringCenter}>
-              <Text style={styles.percentage}>{displayProgress.percentage}%</Text>
-            </View>
-          </View>
+        {/* Left: Progress Badge */}
+        <View style={styles.progressBadge}>
+          <Text style={styles.percentage}>{displayProgress.percentage}%</Text>
         </View>
 
         {/* Middle: Text Content */}
@@ -172,7 +129,7 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
               ) : (
                 <>
                   <Ionicons
-                    name={postingState === 'posted' ? 'checkmark-circle' : 'cloud-upload'}
+                    name={postingState === 'posted' ? 'checkmark-circle' : 'chatbubble-outline'}
                     size={14}
                     color={postingState === 'posted' ? theme.colors.textMuted : theme.colors.text}
                   />
@@ -182,7 +139,7 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
                       postingState === 'posted' && styles.postButtonTextDisabled,
                     ]}
                   >
-                    {postingState === 'posted' ? 'Posted' : 'Post Steps'}
+                    {postingState === 'posted' ? 'Posted' : 'Post'}
                   </Text>
                 </>
               )}
@@ -330,12 +287,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  ringContainer: {
-    flexShrink: 0,
-  },
-  ring: {
-    justifyContent: 'center',
+  progressBadge: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   textContent: {
     flex: 1,
@@ -349,20 +310,6 @@ const styles = StyleSheet.create({
   checkmarkInline: {
     marginRight: 4,
   },
-  ringBackground: {
-    position: 'absolute',
-    borderColor: theme.colors.border,
-  },
-  ringProgress: {
-    position: 'absolute',
-    borderColor: theme.colors.accent,
-    borderRightColor: 'transparent',
-    borderBottomColor: 'transparent',
-  },
-  ringCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   stepCount: {
     fontSize: 18,
     fontWeight: theme.typography.weights.bold,
@@ -373,9 +320,9 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
   },
   percentage: {
-    fontSize: 10,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.accent,
+    fontSize: 12,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
   },
   goalText: {
     fontSize: 11,

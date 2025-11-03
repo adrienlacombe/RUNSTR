@@ -24,6 +24,11 @@ import type { DailyStepData } from '../../services/activity/DailyStepCounterServ
 import type { StepGoalProgress } from '../../services/activity/DailyStepGoalService';
 import { HoldToStartButton } from '../../components/activity/HoldToStartButton';
 import { StepGoalPickerModal } from '../../components/activity/StepGoalPickerModal';
+import { EnhancedSocialShareModal } from '../../components/profile/shared/EnhancedSocialShareModal';
+import { nostrProfileService } from '../../services/nostr/NostrProfileService';
+import type { NostrProfile } from '../../services/nostr/NostrProfileService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { PublishableWorkout } from '../../services/nostr/workoutPublishingService';
 import { theme } from '../../styles/theme';
 
 const STEP_UPDATE_INTERVAL = 5 * 60 * 1000; // Update every 5 minutes
@@ -90,6 +95,10 @@ export const WalkingTrackerScreen: React.FC = () => {
   const [showBackgroundBanner, setShowBackgroundBanner] = useState(false);
   const [isBackgroundActive, setIsBackgroundActive] = useState(false);
   const [goalPickerVisible, setGoalPickerVisible] = useState(false);
+  const [showSocialModal, setShowSocialModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
+  const [userId, setUserId] = useState<string>('');
+  const [preparedWorkout, setPreparedWorkout] = useState<PublishableWorkout | null>(null);
 
   useEffect(() => {
     return () => {
@@ -97,6 +106,27 @@ export const WalkingTrackerScreen: React.FC = () => {
       if (metricsUpdateRef.current) clearInterval(metricsUpdateRef.current);
       if (stepUpdateIntervalRef.current) clearInterval(stepUpdateIntervalRef.current);
     };
+  }, []);
+
+  // Load user profile for social sharing
+  useEffect(() => {
+    const loadProfileAndId = async () => {
+      try {
+        const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+        const npub = await AsyncStorage.getItem('@runstr:npub');
+        const activeUserId = npub || pubkey || '';
+        setUserId(activeUserId);
+
+        if (pubkey) {
+          const profile = await nostrProfileService.getProfile(pubkey);
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error('[WalkingTrackerScreen] Failed to load user profile:', error);
+      }
+    };
+
+    loadProfileAndId();
   }, []);
 
   // Daily step counter initialization (optional, non-blocking)
@@ -554,21 +584,37 @@ export const WalkingTrackerScreen: React.FC = () => {
 
       console.log(`[WalkingTrackerScreen] ✅ Daily steps saved: ${workoutId}`);
 
-      // Prepare workout data for modal
-      setWorkoutData({
+      // Create PublishableWorkout for social sharing with steps in metadata
+      const publishableWorkout: PublishableWorkout = {
+        id: workoutId,
+        userId: userId || 'unknown',
         type: 'walking',
-        distance: 0, // No distance for daily steps
+        startTime: midnight.toISOString(),
+        endTime: now.toISOString(),
         duration,
+        distance: 0, // No GPS distance tracking
         calories,
-        steps: dailySteps,
-        localWorkoutId: workoutId,
-      });
+        source: 'manual', // Device pedometer data entered manually
+        syncedAt: new Date().toISOString(),
+        sourceApp: 'RUNSTR',
+        unitSystem: 'metric',
+        canSyncToNostr: true,
+        metadata: {
+          title: 'Daily Steps',
+          sourceApp: 'RUNSTR',
+          notes: `${dailySteps.toLocaleString()} steps tracked throughout the day`,
+          steps: dailySteps, // Important: Steps must be in metadata for card generator
+        },
+      };
 
-      // Show workout summary modal
-      setSummaryModalVisible(true);
+      // Open social share modal directly (bypass WorkoutSummaryModal)
+      setPreparedWorkout(publishableWorkout);
+      setShowSocialModal(true);
 
-      // Mark as posted
-      setPostingState('posted');
+      // Reset posting state after opening modal
+      setPostingState('idle');
+
+      console.log(`[WalkingTrackerScreen] ✅ Opening social share modal for ${dailySteps} steps`);
     } catch (error) {
       console.error('[WalkingTrackerScreen] ❌ Failed to post daily steps:', error);
       setPostingState('idle');
@@ -752,6 +798,25 @@ export const WalkingTrackerScreen: React.FC = () => {
         currentGoal={stepGoal}
         onSelectGoal={handleGoalSelected}
         onClose={() => setGoalPickerVisible(false)}
+      />
+
+      {/* Enhanced Social Share Modal */}
+      <EnhancedSocialShareModal
+        visible={showSocialModal}
+        workout={preparedWorkout}
+        userId={userId}
+        userAvatar={userProfile?.picture}
+        userName={userProfile?.name || userProfile?.display_name}
+        onClose={() => {
+          setShowSocialModal(false);
+          setPreparedWorkout(null);
+        }}
+        onSuccess={() => {
+          setShowSocialModal(false);
+          setPreparedWorkout(null);
+          setPostingState('posted');
+          console.log('[WalkingTrackerScreen] ✅ Daily steps posted successfully');
+        }}
       />
     </View>
   );

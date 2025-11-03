@@ -57,6 +57,7 @@ export interface LocalWorkout {
     | string;
   repsBreakdown?: number[]; // Array of reps per set (e.g., [20, 18, 15])
   restTime?: number; // Rest between sets in seconds
+  weight?: number; // Weight used in pounds or kilograms
 
   // Weather context fields
   weather?: {
@@ -238,6 +239,7 @@ export class LocalWorkoutStorageService {
     exerciseType?: string;
     repsBreakdown?: number[];
     restTime?: number;
+    weight?: number;
   }): Promise<string> {
     try {
       const workoutId = await this.generateWorkoutId();
@@ -277,6 +279,7 @@ export class LocalWorkoutStorageService {
         exerciseType: workout.exerciseType,
         repsBreakdown: workout.repsBreakdown,
         restTime: workout.restTime,
+        weight: workout.weight,
         // Metadata
         source: 'manual_entry',
         createdAt: now,

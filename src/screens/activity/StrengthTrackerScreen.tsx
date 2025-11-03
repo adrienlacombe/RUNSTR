@@ -655,7 +655,7 @@ export const StrengthTrackerScreen: React.FC = () => {
             color={theme.colors.background}
             style={{ marginRight: 8 }}
           />
-          <Text style={styles.competeButtonText}>Save to Nostr</Text>
+          <Text style={styles.competeButtonText}>Public</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
