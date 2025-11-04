@@ -19,6 +19,16 @@ interface Workout {
   heartRate?: { avg: number };
   source: string;
   sourceApp?: string;
+  // Activity-specific fields
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  weightsPerSet?: number[];
+  meditationType?: string;
+  mealType?: string;
+  mealSize?: string;
+  exerciseType?: string;
+  notes?: string;
 }
 
 interface WorkoutCardProps {
@@ -91,33 +101,116 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
       </View>
 
       <View style={styles.workoutStats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {formatDuration(workout.duration)}
-          </Text>
-          <Text style={styles.statLabel}>Duration</Text>
-        </View>
-        {workout.distance && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {formatDistance(workout.distance)}
-            </Text>
-            <Text style={styles.statLabel}>Distance</Text>
-          </View>
+        {/* Strength Training: Show reps, sets, weight (no calories) */}
+        {(workout.type === 'strength_training' || workout.type === 'gym') && (
+          <>
+            {workout.reps && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.reps}</Text>
+                <Text style={styles.statLabel}>Reps</Text>
+              </View>
+            )}
+            {workout.sets && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.sets}</Text>
+                <Text style={styles.statLabel}>Sets</Text>
+              </View>
+            )}
+            {workout.weight && workout.weight > 0 && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.weight} lbs</Text>
+                <Text style={styles.statLabel}>Weight</Text>
+              </View>
+            )}
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatDuration(workout.duration)}
+              </Text>
+              <Text style={styles.statLabel}>Duration</Text>
+            </View>
+          </>
         )}
-        {workout.calories && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{workout.calories.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>Calories</Text>
-          </View>
+
+        {/* Meditation: Show meditation type, duration (no calories) */}
+        {workout.type === 'meditation' && (
+          <>
+            {workout.meditationType && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {workout.meditationType.charAt(0).toUpperCase() + workout.meditationType.slice(1).replace('_', ' ')}
+                </Text>
+                <Text style={styles.statLabel}>Type</Text>
+              </View>
+            )}
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatDuration(workout.duration)}
+              </Text>
+              <Text style={styles.statLabel}>Duration</Text>
+            </View>
+          </>
         )}
-        {workout.heartRate?.avg && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {workout.heartRate.avg.toFixed(0)}
-            </Text>
-            <Text style={styles.statLabel}>HR</Text>
-          </View>
+
+        {/* Diet: Show meal type, meal size (no duration, no calories by default) */}
+        {workout.type === 'diet' && (
+          <>
+            {workout.mealType && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {workout.mealType.charAt(0).toUpperCase() + workout.mealType.slice(1)}
+                </Text>
+                <Text style={styles.statLabel}>Meal</Text>
+              </View>
+            )}
+            {workout.mealSize && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {workout.mealSize.charAt(0).toUpperCase() + workout.mealSize.slice(1)}
+                </Text>
+                <Text style={styles.statLabel}>Size</Text>
+              </View>
+            )}
+            {workout.calories && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.calories.toFixed(0)}</Text>
+                <Text style={styles.statLabel}>Calories</Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Cardio (Running, Cycling, Walking): Show duration, distance, calories (default behavior) */}
+        {!['strength_training', 'gym', 'meditation', 'diet'].includes(workout.type) && (
+          <>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatDuration(workout.duration)}
+              </Text>
+              <Text style={styles.statLabel}>Duration</Text>
+            </View>
+            {workout.distance && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatDistance(workout.distance)}
+                </Text>
+                <Text style={styles.statLabel}>Distance</Text>
+              </View>
+            )}
+            {workout.calories && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{workout.calories.toFixed(0)}</Text>
+                <Text style={styles.statLabel}>Calories</Text>
+              </View>
+            )}
+            {workout.heartRate?.avg && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {workout.heartRate.avg.toFixed(0)}
+                </Text>
+                <Text style={styles.statLabel}>HR</Text>
+              </View>
+            )}
+          </>
         )}
       </View>
 

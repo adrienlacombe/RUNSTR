@@ -31,6 +31,15 @@ export interface NostrWorkoutContent {
   startTime?: string; // Start time ISO string (from 'start' tag)
   endTime?: string; // End time ISO string (from 'end' tag)
   title?: string; // Workout title (from 'title' tag)
+  // Activity-specific fields
+  sets?: number; // Strength training sets
+  reps?: number; // Strength training reps
+  weight?: number; // Strength training weight (lbs)
+  meditationType?: string; // Meditation type (guided, unguided, etc.)
+  mealType?: string; // Diet meal type (breakfast, lunch, etc.)
+  mealSize?: string; // Diet meal size (small, medium, large)
+  exerciseType?: string; // Specific exercise (pushups, bench, etc.)
+  notes?: string; // Additional notes (food description, etc.)
 }
 
 export interface NostrRoutePoint {

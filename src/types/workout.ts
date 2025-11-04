@@ -50,6 +50,14 @@ export interface Workout {
   reps?: number;
   weight?: number; // Average weight in lbs (for single-weight workouts or average of per-set weights)
   weightsPerSet?: number[]; // Weight per set in lbs (for varying weights across sets)
+  exerciseType?: string; // Specific exercise (pushups, bench, curls, etc.)
+  // Meditation fields
+  meditationType?: 'guided' | 'unguided' | 'breathwork' | 'body_scan' | 'gratitude' | string;
+  // Diet fields
+  mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack' | string;
+  mealSize?: 'small' | 'medium' | 'large' | string;
+  // Notes field (for food description, workout notes, etc.)
+  notes?: string;
   // Weather context
   weather?: {
     temp: number; // Temperature in Celsius

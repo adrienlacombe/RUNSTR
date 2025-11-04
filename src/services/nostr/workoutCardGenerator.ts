@@ -620,6 +620,13 @@ export class WorkoutCardGenerator {
    * Get clean workout type name (no underscores)
    */
   private getWorkoutTypeName(workout: PublishableWorkout): string {
+    // For strength training, show specific exercise if available
+    if ((workout.type === 'strength_training' || workout.type === 'gym') && workout.exerciseType) {
+      // Capitalize exercise type: "bench" → "Bench", "pushups" → "Pushups"
+      return workout.exerciseType.charAt(0).toUpperCase() + workout.exerciseType.slice(1);
+    }
+
+    // Fall back to generic type mapping
     const typeMap: Record<string, string> = {
       running: 'Running',
       cycling: 'Cycling',
@@ -945,9 +952,11 @@ export class WorkoutCardGenerator {
   ): Array<{ value: string; label: string }> {
     const stats = [];
 
-    // Duration
-    const duration = this.formatDurationDetailed(workout.duration);
-    stats.push({ value: duration, label: 'Duration' });
+    // Duration (skip for diet - meals don't have duration)
+    if (workout.type !== 'diet') {
+      const duration = this.formatDurationDetailed(workout.duration);
+      stats.push({ value: duration, label: 'Duration' });
+    }
 
     // Distance
     if (workout.distance) {
@@ -955,8 +964,8 @@ export class WorkoutCardGenerator {
       stats.push({ value: distance, label: 'Distance' });
     }
 
-    // Calories
-    if (workout.calories) {
+    // Calories (skip for meditation and strength training - not meaningful)
+    if (workout.calories && !['meditation', 'strength_training', 'gym'].includes(workout.type)) {
       stats.push({
         value: Math.round(workout.calories).toString(),
         label: 'Calories',
@@ -1000,8 +1009,8 @@ export class WorkoutCardGenerator {
     if (['strength_training', 'gym'].includes(workout.type)) {
       // If we have per-set weight data, show detailed breakdown
       if (workout.weightsPerSet && workout.weightsPerSet.length > 0) {
-        // Get reps breakdown from metadata if available
-        const repsBreakdown = (workout.metadata as any)?.repsBreakdown as number[] | undefined;
+        // Get reps breakdown from top-level field (saved by StrengthTrackerScreen)
+        const repsBreakdown = workout.repsBreakdown;
 
         // Show first 3 sets (to avoid overcrowding the card)
         const setsToShow = Math.min(3, workout.weightsPerSet.length);
@@ -1053,7 +1062,7 @@ export class WorkoutCardGenerator {
       });
     }
 
-    // Diet: Show meal type and meal size
+    // Diet: Show meal type, meal description, and calories (skip meal size and duration)
     if (workout.type === 'diet') {
       if (workout.mealType) {
         // Capitalize first letter
@@ -1069,6 +1078,25 @@ export class WorkoutCardGenerator {
         stats.push({
           value: mealSizeFormatted,
           label: 'Portion',
+        });
+      }
+      // Show meal description from notes (if available and not auto-generated)
+      if (workout.notes && !workout.notes.includes('at ')) {
+        // Skip auto-generated notes like "Breakfast at 8:30 AM"
+        // Show user-provided food descriptions (truncate to 30 chars for card)
+        const description = workout.notes.length > 30
+          ? workout.notes.substring(0, 27) + '...'
+          : workout.notes;
+        stats.push({
+          value: description,
+          label: 'Food',
+        });
+      }
+      // Re-add calories for diet workouts (it was removed earlier, but is useful here)
+      if (workout.calories) {
+        stats.push({
+          value: Math.round(workout.calories).toString(),
+          label: 'Calories',
         });
       }
     }

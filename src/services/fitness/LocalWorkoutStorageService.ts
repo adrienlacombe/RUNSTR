@@ -56,8 +56,9 @@ export interface LocalWorkout {
     | 'bench'
     | string;
   repsBreakdown?: number[]; // Array of reps per set (e.g., [20, 18, 15])
+  weightsPerSet?: number[]; // Array of weights per set (e.g., [135, 145, 155])
   restTime?: number; // Rest between sets in seconds
-  weight?: number; // Weight used in pounds or kilograms
+  weight?: number; // Average weight used in pounds or kilograms
 
   // Weather context fields
   weather?: {
@@ -238,6 +239,7 @@ export class LocalWorkoutStorageService {
     // Strength training fields
     exerciseType?: string;
     repsBreakdown?: number[];
+    weightsPerSet?: number[];
     restTime?: number;
     weight?: number;
   }): Promise<string> {
@@ -278,6 +280,7 @@ export class LocalWorkoutStorageService {
         // Strength training fields
         exerciseType: workout.exerciseType,
         repsBreakdown: workout.repsBreakdown,
+        weightsPerSet: workout.weightsPerSet,
         restTime: workout.restTime,
         weight: workout.weight,
         // Metadata

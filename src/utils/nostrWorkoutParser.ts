@@ -217,6 +217,15 @@ export class NostrWorkoutParser {
         startTime: tagData.start,
         endTime: tagData.end,
         title: tagData.title,
+        // Activity-specific fields
+        sets: tagData.sets,
+        reps: tagData.reps,
+        weight: tagData.weight,
+        meditationType: tagData.meditationType,
+        mealType: tagData.mealType,
+        mealSize: tagData.mealSize,
+        exerciseType: tagData.exerciseType,
+        notes: tagData.notes,
       };
     } catch (error) {
       console.log('⚠️ Failed to parse workout event:', error);
@@ -342,6 +351,30 @@ export class NostrWorkoutParser {
           break;
         case 'heart_rate_avg':
           data.averageHeartRate = parseInt(tag[1]);
+          break;
+        case 'sets':
+          data.sets = parseInt(tag[1]);
+          break;
+        case 'reps':
+          data.reps = parseInt(tag[1]);
+          break;
+        case 'weight':
+          data.weight = parseFloat(tag[1]);
+          break;
+        case 'meditation_type':
+          data.meditationType = tag[1];
+          break;
+        case 'meal_type':
+          data.mealType = tag[1];
+          break;
+        case 'meal_size':
+          data.mealSize = tag[1];
+          break;
+        case 'exercise_type':
+          data.exerciseType = tag[1];
+          break;
+        case 'notes':
+          data.notes = tag[1];
           break;
       }
     }
@@ -476,6 +509,15 @@ export class NostrWorkoutParser {
       sourceApp: event.sourceApp,
       location: event.location,
       rawNostrEvent: preserveRawEvent ? event : undefined,
+      // Activity-specific fields
+      sets: content.sets,
+      reps: content.reps,
+      weight: content.weight,
+      meditationType: content.meditationType,
+      mealType: content.mealType,
+      mealSize: content.mealSize,
+      exerciseType: content.exerciseType,
+      notes: content.notes,
     };
 
     return workout;
