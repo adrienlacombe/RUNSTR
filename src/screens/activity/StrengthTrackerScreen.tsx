@@ -53,6 +53,9 @@ const EXERCISE_OPTIONS: {
 
 const REST_DURATIONS = [30, 60, 90, 120]; // seconds
 
+// Bodyweight exercises don't require weight input
+const BODYWEIGHT_EXERCISES: ExerciseType[] = ['pushups', 'pullups', 'situps'];
+
 export const StrengthTrackerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const publishingService = WorkoutPublishingService.getInstance();
@@ -251,7 +254,8 @@ export const StrengthTrackerScreen: React.FC = () => {
         totalReps,
         totalSets,
         duration,
-        userWeight
+        userWeight,
+        averageWeight // Pass exercise weight for volume-based calculation
       );
 
       setEstimatedCalories(calories);
@@ -624,16 +628,21 @@ export const StrengthTrackerScreen: React.FC = () => {
                 placeholderTextColor={theme.colors.textMuted}
               />
 
-              <Text style={styles.inputLabel}>Weight (lbs)</Text>
-              <TextInput
-                style={styles.repsInput}
-                value={currentWeightInput}
-                onChangeText={setCurrentWeightInput}
-                keyboardType="number-pad"
-                selectTextOnFocus
-                placeholder="Enter weight"
-                placeholderTextColor={theme.colors.textMuted}
-              />
+              {/* Only show weight input for weighted exercises */}
+              {!BODYWEIGHT_EXERCISES.includes(selectedExercise) && (
+                <>
+                  <Text style={styles.inputLabel}>Weight (lbs)</Text>
+                  <TextInput
+                    style={styles.repsInput}
+                    value={currentWeightInput}
+                    onChangeText={setCurrentWeightInput}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                    placeholder="Enter weight"
+                    placeholderTextColor={theme.colors.textMuted}
+                  />
+                </>
+              )}
 
               <TouchableOpacity
                 style={styles.confirmButton}

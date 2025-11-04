@@ -16,6 +16,8 @@ import {
 import { theme } from '../../styles/theme';
 import { WizardStepContainer, WizardStep } from './WizardStepContainer';
 import { CustomAlert } from '../ui/CustomAlert';
+import { ChallengeAnnouncementPreview } from '../challenge/ChallengeAnnouncementPreview';
+import type { ChallengeAnnouncementData } from '../../services/nostr/challengeAnnouncementCardGenerator';
 import { useUserStore } from '../../store/userStore';
 import { DirectNostrProfileService } from '../../services/user/directNostrProfileService';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
@@ -69,6 +71,10 @@ export const SimplifiedChallengeWizard: React.FC<SimplifiedChallengeWizardProps>
   const [alertButtons, setAlertButtons] = useState<
     Array<{ text: string; onPress?: () => void }>
   >([]);
+
+  // Announcement preview state
+  const [showAnnouncementPreview, setShowAnnouncementPreview] = useState(false);
+  const [createdChallengeData, setCreatedChallengeData] = useState<ChallengeAnnouncementData | null>(null);
 
   // Reset wizard when opened
   useEffect(() => {
@@ -191,16 +197,31 @@ export const SimplifiedChallengeWizard: React.FC<SimplifiedChallengeWizardProps>
       if (result.success) {
         console.log('✅ Challenge published successfully:', result.challengeId);
 
-        // Show success alert
+        // Prepare announcement data for preview modal
+        const announcementData: ChallengeAnnouncementData = {
+          challengeId: result.challengeId!,
+          challengeName: preset.name,
+          distance: preset.distance,
+          duration: durationHours,
+          wager: challengeData.wagerAmount,
+          opponentName: challengeData.opponentName,
+          opponentPubkey: challengeData.opponentNpub,
+          creatorName: currentUser?.name,
+        };
+
+        // Show success alert, then open announcement preview
         setAlertTitle('Challenge Published!');
         setAlertMessage(
           `Your ${preset.name} challenge has been published!\n\n${challengeData.opponentName || 'Your opponent'} will be able to see it in their Challenges tab.`
         );
         setAlertButtons([
           {
-            text: 'Done',
+            text: 'Continue',
             onPress: () => {
               setAlertVisible(false);
+              // Show announcement preview modal
+              setCreatedChallengeData(announcementData);
+              setShowAnnouncementPreview(true);
               onChallengeCreated();
               onClose();
             },
@@ -416,7 +437,7 @@ export const SimplifiedChallengeWizard: React.FC<SimplifiedChallengeWizardProps>
                 ))}
               </View>
               <Text style={styles.formHelper}>
-                Challenge starts when opponent accepts
+                Challenge starts immediately for both participants
               </Text>
             </View>
           </ScrollView>
@@ -480,8 +501,7 @@ export const SimplifiedChallengeWizard: React.FC<SimplifiedChallengeWizardProps>
             </View>
 
             <Text style={styles.reviewNote}>
-              Your opponent will receive a notification to accept this challenge. The challenge
-              begins when they accept.
+              Your opponent will be notified and added to the challenge immediately.
             </Text>
           </ScrollView>
         );
@@ -519,6 +539,21 @@ export const SimplifiedChallengeWizard: React.FC<SimplifiedChallengeWizardProps>
         buttons={alertButtons}
         onClose={() => setAlertVisible(false)}
       />
+
+      {/* Challenge Announcement Preview Modal */}
+      {createdChallengeData && (
+        <ChallengeAnnouncementPreview
+          visible={showAnnouncementPreview}
+          challengeData={createdChallengeData}
+          onClose={() => {
+            setShowAnnouncementPreview(false);
+            setCreatedChallengeData(null);
+          }}
+          onPublished={() => {
+            console.log('✅ Challenge announcement published successfully');
+          }}
+        />
+      )}
     </>
   );
 };

@@ -53,7 +53,7 @@ export const CompetitionsListScreen: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showOpenChallengeWizard, setShowOpenChallengeWizard] = useState(false);
+  const [showChallengeWizard, setShowChallengeWizard] = useState(false);
 
   useEffect(() => {
     loadCompetitions();
@@ -294,7 +294,7 @@ export const CompetitionsListScreen: React.FC = () => {
         <View style={styles.headerSpacer} />
         <TouchableOpacity
           style={styles.challengeButton}
-          onPress={() => setShowOpenChallengeWizard(true)}
+          onPress={() => setShowChallengeWizard(true)}
         >
           <Ionicons name="shield-outline" size={20} color={theme.colors.text} />
           <Text style={styles.challengeButtonText}>CHALLENGE</Text>
@@ -337,8 +337,8 @@ export const CompetitionsListScreen: React.FC = () => {
 
       {/* Simplified Challenge Wizard Modal */}
       <SimplifiedChallengeWizard
-        visible={showOpenChallengeWizard}
-        onClose={() => setShowOpenChallengeWizard(false)}
+        visible={showChallengeWizard}
+        onClose={() => setShowChallengeWizard(false)}
         onChallengeCreated={() => {
           // Refresh competitions after challenge is created
           loadCompetitions(true);

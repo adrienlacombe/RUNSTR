@@ -1272,7 +1272,7 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {/* Challenge Preview Modal - Shows when QR code challenge is scanned */}
+      {/* Challenge Preview Modal - Shows when challenge deep link is opened (deprecated, shows migration message) */}
       <ChallengePreviewModal
         visible={showChallengePreview}
         challengeData={challengeData}

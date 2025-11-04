@@ -98,12 +98,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
     // Handle action based on type
     switch (action.type) {
-      case 'accept_challenge':
-        await handleAcceptChallenge(notification);
-        break;
-      case 'decline_challenge':
-        await handleDeclineChallenge(notification);
-        break;
       case 'view_challenge':
         handleViewChallenge(notification);
         break;
@@ -128,8 +122,8 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const handleDefaultAction = (notification: UnifiedNotification) => {
     // Default action when tapping notification (not a button)
     switch (notification.type) {
-      case 'challenge_request':
-        // Show challenge details or accept/decline
+      case 'challenge_received':
+        handleViewChallenge(notification);
         break;
       case 'competition_announcement':
       case 'competition_reminder':
@@ -147,59 +141,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
       default:
         console.log('No default action for type:', notification.type);
     }
-  };
-
-  const handleAcceptChallenge = async (notification: UnifiedNotification) => {
-    try {
-      const result = await challengeNotificationHandler.acceptChallenge(
-        notification.id
-      );
-      if (result.success) {
-        Alert.alert('Success', 'Challenge accepted! Good luck!');
-        onClose(); // Close modal after accepting
-      } else {
-        Alert.alert('Error', result.error || 'Failed to accept challenge');
-      }
-    } catch (error) {
-      console.error('Error accepting challenge:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
-    }
-  };
-
-  const handleDeclineChallenge = async (notification: UnifiedNotification) => {
-    Alert.alert(
-      'Decline Challenge',
-      'Are you sure you want to decline this challenge?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Decline',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result =
-                await challengeNotificationHandler.declineChallenge(
-                  notification.id
-                );
-              if (result.success) {
-                Alert.alert(
-                  'Challenge Declined',
-                  'The challenge has been declined'
-                );
-              } else {
-                Alert.alert(
-                  'Error',
-                  result.error || 'Failed to decline challenge'
-                );
-              }
-            } catch (error) {
-              console.error('Error declining challenge:', error);
-              Alert.alert('Error', 'An unexpected error occurred');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleViewChallenge = (notification: UnifiedNotification) => {

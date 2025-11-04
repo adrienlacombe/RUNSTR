@@ -4,6 +4,7 @@ Nostr protocol handlers, relay management, and event processing services for RUN
 
 ## Files
 
+- **challengeAnnouncementCardGenerator.ts** - SVG challenge announcement card generation (800x600) for social media posting
 - **NostrCompetitionService.ts** - Nostr competition event handling and kind processing
 - **NostrErrorRecoveryService.ts** - Error recovery and resilience for Nostr connections
 - **NostrListService.ts** - Nostr list management for teams and member lists (kind 30000/30001)

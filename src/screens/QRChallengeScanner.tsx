@@ -1,7 +1,8 @@
 /**
- * QR Challenge Scanner
- * Camera-based QR code scanner for accepting challenges
+ * QR Event Scanner
+ * Camera-based QR code scanner for joining events
  * Also includes manual code input fallback
+ * Note: Challenge QR codes are deprecated (instant challenges use wizards now)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -17,11 +18,9 @@ import {
 import { CameraView, Camera } from 'expo-camera';
 import { theme } from '../styles/theme';
 import { QRChallengeParser } from '../services/challenge/QRChallengeParser';
-import { QRChallengePreviewModal } from '../components/challenge/QRChallengePreviewModal';
 import { QREventParser } from '../services/event/QREventParser';
 import { QREventPreviewModal } from '../components/event/QREventPreviewModal';
 import { eventJoinService } from '../services/event/EventJoinService';
-import type { QRChallengeData } from '../services/challenge/QRChallengeService';
 import type { QREventData } from '../services/event/QREventService';
 
 interface QRChallengeScannerProps {
@@ -35,11 +34,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
   const [scanned, setScanned] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
-  const [challengeData, setChallengeData] = useState<QRChallengeData | null>(
-    null
-  );
   const [eventData, setEventData] = useState<QREventData | null>(null);
-  const [challengePreviewVisible, setChallengePreviewVisible] = useState(false);
   const [eventPreviewVisible, setEventPreviewVisible] = useState(false);
 
   // Request camera permissions on mount
@@ -68,9 +63,12 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
     const challengeResult = QRChallengeParser.parseQRData(data);
 
     if (challengeResult.success && challengeResult.data) {
-      // It's a challenge QR
-      setChallengeData(challengeResult.data);
-      setChallengePreviewVisible(true);
+      // Challenge QR codes are deprecated - show message
+      Alert.alert(
+        'QR Challenges Deprecated',
+        'QR code challenges are no longer supported. Use the Challenge Wizard in the Competitions tab to create instant challenges with your friends.',
+        [{ text: 'OK', onPress: () => setScanned(false) }]
+      );
       return;
     }
 
@@ -78,7 +76,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
     const eventResult = QREventParser.parseQRData(data);
 
     if (eventResult.success && eventResult.data) {
-      // It's an event QR
+      // It's an event QR - this still works
       setEventData(eventResult.data);
       setEventPreviewVisible(true);
       return;
@@ -87,7 +85,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
     // Neither challenge nor event - show error
     Alert.alert(
       'Invalid QR Code',
-      'This QR code is not a valid challenge or event',
+      'This QR code is not a valid event',
       [{ text: 'Try Again', onPress: () => setScanned(false) }]
     );
   };
@@ -105,9 +103,11 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
     const challengeResult = QRChallengeParser.parseQRData(manualCode.trim());
 
     if (challengeResult.success && challengeResult.data) {
-      // It's a challenge code
-      setChallengeData(challengeResult.data);
-      setChallengePreviewVisible(true);
+      // Challenge codes are deprecated - show message
+      Alert.alert(
+        'QR Challenges Deprecated',
+        'QR code challenges are no longer supported. Use the Challenge Wizard in the Competitions tab to create instant challenges with your friends.'
+      );
       return;
     }
 
@@ -115,34 +115,14 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
     const eventResult = QREventParser.parseQRData(manualCode.trim());
 
     if (eventResult.success && eventResult.data) {
-      // It's an event code
+      // It's an event code - this still works
       setEventData(eventResult.data);
       setEventPreviewVisible(true);
       return;
     }
 
     // Neither challenge nor event
-    Alert.alert('Invalid Code', 'This code is not a valid challenge or event');
-  };
-
-  /**
-   * Handle challenge accepted
-   */
-  const handleChallengeAccepted = () => {
-    setChallengePreviewVisible(false);
-    setChallengeData(null);
-
-    // Navigate back to main app
-    navigation.goBack();
-  };
-
-  /**
-   * Handle challenge declined or preview closed
-   */
-  const handleChallengePreviewClose = () => {
-    setChallengePreviewVisible(false);
-    setChallengeData(null);
-    setScanned(false);
+    Alert.alert('Invalid Code', 'This code is not a valid event');
   };
 
   /**
@@ -197,7 +177,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
           >
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scan QR Code</Text>
+          <Text style={styles.headerTitle}>Scan Event QR</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -229,7 +209,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan Challenge</Text>
+        <Text style={styles.headerTitle}>Scan Event QR</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -275,7 +255,7 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
         <View style={styles.manualInputContainer}>
           <Text style={styles.manualInputTitle}>Enter Code</Text>
           <Text style={styles.manualInputSubtitle}>
-            Paste the challenge or event code you received
+            Paste the event code you received
           </Text>
 
           <TextInput
@@ -308,16 +288,6 @@ export const QRChallengeScanner: React.FC<QRChallengeScannerProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      )}
-
-      {/* Challenge Preview Modal */}
-      {challengeData && (
-        <QRChallengePreviewModal
-          visible={challengePreviewVisible}
-          challengeData={challengeData}
-          onAccept={handleChallengeAccepted}
-          onClose={handleChallengePreviewClose}
-        />
       )}
 
       {/* Event Preview Modal */}

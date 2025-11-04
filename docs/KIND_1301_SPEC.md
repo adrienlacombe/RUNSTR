@@ -312,23 +312,62 @@ External leaderboards (runstr.app website) currently support **cardio activities
 }
 ```
 
-### Strength Training
+### Strength Training (Bodyweight Exercise)
 ```json
 {
   "kind": 1301,
-  "content": "Full body strength workout at the gym",
+  "content": "100 pushups in 5 minutes - new PR!",
   "tags": [
     ["d", "workout_2024-01-15_183000"],
-    ["title", "Full Body Strength"],
+    ["title", "Pushup Challenge"],
     ["exercise", "strength"],
-    ["duration", "01:15:00"],
-    ["calories", "420"],
+    ["exercise_type", "pushups"],
+    ["duration", "00:05:00"],
+    ["sets", "5"],
+    ["reps", "100"],
+    ["calories", "45"],
     ["source", "RUNSTR"],
     ["client", "RUNSTR", "0.2.6"],
     ["t", "Strength"]
   ]
 }
 ```
+
+**Note**: Bodyweight exercises (pushups, pullups, situps) do not include weight tags, as weight is implicit (user's body weight) and used in calorie calculations.
+
+### Strength Training (Weighted Exercise with Progressive Sets)
+```json
+{
+  "kind": 1301,
+  "content": "Bench press workout - increasing weight each set",
+  "tags": [
+    ["d", "workout_2024-01-15_190000"],
+    ["title", "Bench Press"],
+    ["exercise", "strength"],
+    ["exercise_type", "bench"],
+    ["duration", "00:15:30"],
+    ["sets", "5"],
+    ["reps", "25"],
+    ["weight", "165", "lbs"],
+    ["weight_set", "1", "135", "lbs"],
+    ["weight_set", "2", "155", "lbs"],
+    ["weight_set", "3", "175", "lbs"],
+    ["weight_set", "4", "185", "lbs"],
+    ["weight_set", "5", "155", "lbs"],
+    ["calories", "78"],
+    ["source", "RUNSTR"],
+    ["client", "RUNSTR", "0.2.6"],
+    ["t", "Strength"]
+  ]
+}
+```
+
+**Per-Set Weight Tags**:
+- `weight`: Average weight across all sets (165 lbs = (135+155+175+185+155)/5)
+- `weight_set`: Individual weight per set for volume-based competition scoring
+- Format: `["weight_set", "<set_number>", "<weight>", "lbs"]`
+- Enables competitions to calculate total volume: sum of (reps_per_set × weight_per_set)
+- Example volume calculation: (5×135) + (5×155) + (5×175) + (5×185) + (5×155) = 4,025 lbs total volume
 
 ### Cycling with Elevation
 ```json

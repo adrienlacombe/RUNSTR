@@ -7,9 +7,10 @@
  * All possible notification types in the app
  */
 export type UnifiedNotificationType =
-  | 'challenge_request' // Kind 1105: Someone challenges you
-  | 'challenge_accepted' // Kind 1106: Your challenge was accepted
-  | 'challenge_declined' // Kind 1107: Your challenge was declined
+  | 'challenge_received' // Kind 30102: Someone challenged you (instant challenge)
+  | 'challenge_request' // DEPRECATED: Old request/accept flow
+  | 'challenge_accepted' // DEPRECATED: Old request/accept flow
+  | 'challenge_declined' // DEPRECATED: Old request/accept flow
   | 'competition_announcement' // Kind 1101: New competition created
   | 'competition_reminder' // Kind 1103: Competition starting soon
   | 'competition_results' // Kind 1102: Competition results posted

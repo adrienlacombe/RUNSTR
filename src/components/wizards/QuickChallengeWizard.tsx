@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { theme } from '../../styles/theme';
-import { challengeRequestService } from '../../services/challenge/ChallengeRequestService';
+import { ChallengeService } from '../../services/competition/ChallengeService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 import type {
@@ -170,7 +170,7 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
   }, [currentStep]);
 
   /**
-   * Send challenge request with Lightning address
+   * Send instant challenge (kind 30102) with Nostr signing
    */
   const handleSendChallenge = useCallback(async () => {
     if (
@@ -200,29 +200,38 @@ export const QuickChallengeWizard: React.FC<QuickChallengeWizardProps> = ({
         );
       }
 
-      // Create challenge request with actual Nostr publishing
-      const result = await challengeRequestService.createChallengeRequest(
+      // Generate challenge name from activity and metric
+      const challengeName = `${activityType.charAt(0).toUpperCase() + activityType.slice(1)} ${metric === 'fastest_time' ? 'Speed' : metric === 'most_distance' ? 'Distance' : 'Challenge'}`;
+
+      // Standard distance based on activity (5km for running/walking, 20km for cycling)
+      const standardDistance = activityType === 'cycling' ? 20 : 5;
+
+      // Convert duration from days to hours
+      const durationHours = duration * 24;
+
+      // Publish challenge to Nostr (kind 30102)
+      const challengeService = ChallengeService.getInstance();
+      const result = await challengeService.publishChallengeDefinition(
         {
-          challengedPubkey: opponent.pubkey,
-          activityType: activityType,
-          metric: metric,
-          duration: duration,
-          wagerAmount: wagerAmount,
-          creatorLightningAddress: lightningAddress || undefined,
+          name: challengeName,
+          distance: standardDistance,
+          duration: durationHours,
+          wager: wagerAmount,
+          opponentPubkey: opponent.pubkey,
         },
         signer
       );
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send challenge');
+        throw new Error('Failed to publish challenge');
       }
 
-      console.log(`✅ Challenge sent successfully: ${result.challengeId}`);
+      console.log(`✅ Challenge published successfully: ${result.challengeId}`);
 
       // Show success and close
       Alert.alert(
         'Challenge Sent!',
-        `Your challenge has been sent to ${opponent.name || 'your opponent'}`,
+        `Your challenge has been sent to ${opponent.name || 'your opponent'}. They will receive a notification.`,
         [
           {
             text: 'OK',

@@ -17,7 +17,7 @@ This architecture provides a clear distinction between public (shared) and priva
 ## Files
 
 - **AccountTab.tsx** - Account settings and profile management tab content
-- **ChallengeNotificationsBox.tsx** - Displays incoming challenge requests with accept/decline buttons
+- **ChallengeNotificationsBox.tsx** - Displays incoming kind 30102 challenge notifications with "View Challenge" button
 - **CompactTeamCard.tsx** - 72px compact team card for multi-team display with avatar, badges, and rank (~250 lines)
 - **CompactWallet.tsx** - Compact wallet display with balance and action buttons
 - **NotificationBadge.tsx** - Red notification badge with unread count, positioned in bottom-right of profile header

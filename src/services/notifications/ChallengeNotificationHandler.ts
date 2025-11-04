@@ -1,40 +1,33 @@
 /**
- * ChallengeNotificationHandler - Handles challenge request notifications
- * Processes kinds 1105 (requests), 1106 (accepts), 1107 (declines)
- * Displays in-app notifications for incoming challenge requests
+ * ChallengeNotificationHandler - Handles instant challenge notifications
+ * Monitors kind 30102 events where user is tagged as participant
+ * Displays in-app notifications when challenges are received
+ *
+ * REFACTORED: Now works with instant challenges (kind 30102) instead of request/accept flow
  */
 
-import {
-  challengeRequestService,
-  type PendingChallenge,
-} from '../challenge/ChallengeRequestService';
 import { getCachedProfile } from './profileHelper';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
-import type { Event } from 'nostr-tools';
-import {
-  CHALLENGE_REQUEST_KIND,
-  CHALLENGE_ACCEPT_KIND,
-  CHALLENGE_DECLINE_KIND,
-} from '../../types/challenge';
 import { unifiedNotificationStore } from './UnifiedNotificationStore';
 import type { ChallengeNotificationMetadata } from '../../types/unifiedNotifications';
 import { TTLDeduplicator } from '../../utils/TTLDeduplicator';
+import { GlobalNDKService } from '../nostr/GlobalNDKService';
+import type { NDKEvent, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk';
+import { ChallengeService } from '../competition/ChallengeService';
 
 export interface ChallengeNotification {
   id: string;
-  type: 'request' | 'accepted' | 'declined' | 'payment_required';
+  type: 'challenge_received';
   challengeId: string;
-  challengerPubkey: string; // For requests, this is who challenged. For payment_required, this is who accepted
+  challengerPubkey: string; // Creator of the challenge
   challengerName?: string;
   challengerPicture?: string;
-  activityType: string;
-  metric: string;
-  duration: number;
+  challengeName: string;
+  distance: number; // km
+  duration: number; // hours
   wagerAmount: number;
   timestamp: number;
   read: boolean;
-  accepterPubkey?: string; // For payment_required notifications - who accepted the QR challenge
-  accepterName?: string;
 }
 
 export type ChallengeNotificationCallback = (
@@ -45,7 +38,7 @@ export class ChallengeNotificationHandler {
   private static instance: ChallengeNotificationHandler;
   private notifications: Map<string, ChallengeNotification> = new Map();
   private callbacks: Set<ChallengeNotificationCallback> = new Set();
-  private subscriptionId?: string;
+  private subscription?: NDKSubscription;
   private isActive: boolean = false;
   private deduplicator = new TTLDeduplicator(3600000, 1000); // 1hr TTL, 1000 max entries
 
@@ -62,20 +55,40 @@ export class ChallengeNotificationHandler {
   }
 
   /**
-   * Load notifications from storage (via challengeRequestService)
+   * Load notifications from existing challenges
    */
   private async loadNotifications(): Promise<void> {
     try {
-      const pendingChallenges =
-        await challengeRequestService.getPendingChallenges();
+      const userIdentifiers = await getUserNostrIdentifiers();
+      if (!userIdentifiers?.hexPubkey) {
+        console.log('No user authenticated, skipping notification load');
+        return;
+      }
 
-      for (const challenge of pendingChallenges) {
-        const notification = await this.challengeToNotification(
-          challenge,
-          'request'
-        );
-        if (notification) {
-          this.notifications.set(notification.id, notification);
+      // Get all user's challenges
+      const challengeService = ChallengeService.getInstance();
+      const challenges = await challengeService.getUserChallenges(
+        userIdentifiers.hexPubkey
+      );
+
+      console.log(`Found ${challenges.length} existing challenges`);
+
+      for (const challenge of challenges) {
+        // Only show challenges where user was challenged (not creator)
+        if (challenge.creatorPubkey !== userIdentifiers.hexPubkey) {
+          const notification = await this.challengeEventToNotification(
+            challenge.id,
+            challenge.creatorPubkey,
+            challenge.name,
+            challenge.distance,
+            challenge.duration / 24, // Convert hours to days for display
+            challenge.wager,
+            challenge.createdAt
+          );
+
+          if (notification) {
+            this.notifications.set(notification.id, notification);
+          }
         }
       }
 
@@ -86,28 +99,33 @@ export class ChallengeNotificationHandler {
   }
 
   /**
-   * Convert PendingChallenge to ChallengeNotification
+   * Convert challenge data to ChallengeNotification
    */
-  private async challengeToNotification(
-    challenge: PendingChallenge,
-    type: 'request' | 'accepted' | 'declined'
+  private async challengeEventToNotification(
+    challengeId: string,
+    challengerPubkey: string,
+    challengeName: string,
+    distance: number,
+    duration: number,
+    wagerAmount: number,
+    createdAt: number
   ): Promise<ChallengeNotification | null> {
     try {
-      const profile = await getCachedProfile(challenge.challengerPubkey);
+      const profile = await getCachedProfile(challengerPubkey);
 
       return {
-        id: challenge.challengeId,
-        type,
-        challengeId: challenge.challengeId,
-        challengerPubkey: challenge.challengerPubkey,
+        id: challengeId,
+        type: 'challenge_received',
+        challengeId,
+        challengerPubkey,
         challengerName:
           profile?.display_name || profile?.name || 'Unknown User',
         challengerPicture: profile?.picture,
-        activityType: challenge.activityType,
-        metric: challenge.metric,
-        duration: challenge.duration,
-        wagerAmount: challenge.wagerAmount,
-        timestamp: challenge.requestedAt * 1000,
+        challengeName,
+        distance,
+        duration,
+        wagerAmount,
+        timestamp: createdAt * 1000,
         read: false,
       };
     } catch (error) {
@@ -117,7 +135,38 @@ export class ChallengeNotificationHandler {
   }
 
   /**
-   * Start listening for challenge events
+   * Parse kind 30102 event into notification
+   */
+  private async parseKind30102Event(
+    event: NDKEvent
+  ): Promise<ChallengeNotification | null> {
+    try {
+      const tags = new Map(event.tags.map((t) => [t[0], t[1]]));
+
+      const challengeId = tags.get('d') || '';
+      const challengeName = tags.get('name') || 'Challenge';
+      const distance = parseFloat(tags.get('distance') || '5');
+      const durationHours = parseInt(tags.get('duration') || '24');
+      const wagerAmount = parseInt(tags.get('wager') || '0');
+      const creatorPubkey = event.pubkey;
+
+      return await this.challengeEventToNotification(
+        challengeId,
+        creatorPubkey,
+        challengeName,
+        distance,
+        durationHours,
+        wagerAmount,
+        event.created_at || Math.floor(Date.now() / 1000)
+      );
+    } catch (error) {
+      console.error('Failed to parse kind 30102 event:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Start listening for challenge events where user is tagged
    */
   async startListening(): Promise<void> {
     if (this.isActive) {
@@ -136,41 +185,56 @@ export class ChallengeNotificationHandler {
         return;
       }
 
-      // Subscribe to incoming challenge requests
-      this.subscriptionId =
-        await challengeRequestService.subscribeToIncomingChallenges(
-          async (challenge: PendingChallenge) => {
-            if (this.deduplicator.isDuplicate(challenge.challengeId)) {
-              return;
-            }
+      const ndk = await GlobalNDKService.getInstance();
 
-            // Verify this is truly a challenge request (has activity tag)
-            // Challenges use 'activity' tag, event joins use 'event-join-request' tag
-            // This filtering happens in ChallengeRequestService.parseChallengeRequest
-            // but we double-check here for safety
+      // Subscribe to kind 30102 events where user is in 'p' tags
+      const filter: NDKFilter = {
+        kinds: [30102],
+        '#p': [userIdentifiers.hexPubkey],
+      };
 
-            const notification = await this.challengeToNotification(
-              challenge,
-              'request'
-            );
-            if (notification) {
-              this.notifications.set(notification.id, notification);
-              this.notifyCallbacks(notification);
+      console.log('Subscribing to kind 30102 challenges with filter:', filter);
 
-              // Publish to unified notification store
-              await this.publishToUnifiedStore(notification);
+      this.subscription = ndk.subscribe(filter, { closeOnEose: false });
 
-              console.log(
-                `New challenge request from ${notification.challengerName}: ${notification.activityType}`
-              );
-            }
-          }
-        );
+      this.subscription.on('event', async (event: NDKEvent) => {
+        const challengeId = event.tags.find((t) => t[0] === 'd')?.[1];
+        if (!challengeId) {
+          console.warn('kind 30102 event missing d-tag:', event.id);
+          return;
+        }
+
+        // Skip if already seen
+        if (this.deduplicator.isDuplicate(challengeId)) {
+          return;
+        }
+
+        // Skip if user is the creator (don't notify yourself)
+        if (event.pubkey === userIdentifiers.hexPubkey) {
+          console.log(
+            `Skipping self-created challenge: ${challengeId}`
+          );
+          return;
+        }
+
+        console.log(`📬 New challenge received: ${challengeId}`);
+
+        const notification = await this.parseKind30102Event(event);
+        if (notification) {
+          this.notifications.set(notification.id, notification);
+          this.notifyCallbacks(notification);
+
+          // Publish to unified notification store
+          await this.publishToUnifiedStore(notification);
+
+          console.log(
+            `✅ Challenge notification from ${notification.challengerName}: ${notification.challengeName}`
+          );
+        }
+      });
 
       this.isActive = true;
-      console.log(
-        `Challenge notification monitoring active: ${this.subscriptionId}`
-      );
+      console.log('Challenge notification monitoring active');
     } catch (error) {
       console.error(
         'Failed to start challenge notification monitoring:',
@@ -186,9 +250,9 @@ export class ChallengeNotificationHandler {
   async stopListening(): Promise<void> {
     console.log('Stopping challenge notification monitoring...');
 
-    if (this.subscriptionId) {
+    if (this.subscription) {
       try {
-        await challengeRequestService.unsubscribe(this.subscriptionId);
+        this.subscription.stop();
       } catch (error) {
         console.warn(
           'Failed to unsubscribe from challenge notifications:',
@@ -197,7 +261,7 @@ export class ChallengeNotificationHandler {
       }
     }
 
-    this.subscriptionId = undefined;
+    this.subscription = undefined;
     this.isActive = false;
     this.deduplicator.clear();
 
@@ -267,91 +331,6 @@ export class ChallengeNotificationHandler {
   }
 
   /**
-   * Accept a challenge from notification
-   */
-  async acceptChallenge(
-    notificationId: string
-  ): Promise<{ success: boolean; error?: string }> {
-    try {
-      const notification = this.notifications.get(notificationId);
-      if (!notification) {
-        return { success: false, error: 'Notification not found' };
-      }
-
-      // Note: acceptChallenge requires a signer parameter but we don't have it here
-      // This is a notification handler, not the actual acceptance flow
-      // The actual acceptance should happen through the challenge UI
-      console.warn('[ChallengeNotificationHandler] acceptChallenge called from notification handler - this should be handled in UI');
-
-      // For now, just mark as success to update notification state
-      const result = { success: true };
-
-      if (result.success) {
-        // Update notification
-        notification.type = 'accepted';
-        notification.read = true;
-        this.notifications.set(notificationId, notification);
-
-        // Mark as read in unified store
-        await unifiedNotificationStore.markAsRead(notificationId);
-
-        console.log(`Challenge accepted: ${notificationId}`);
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Failed to accept challenge:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  }
-
-  /**
-   * Decline a challenge from notification
-   */
-  async declineChallenge(
-    notificationId: string,
-    reason?: string
-  ): Promise<{ success: boolean; error?: string }> {
-    try {
-      const notification = this.notifications.get(notificationId);
-      if (!notification) {
-        return { success: false, error: 'Notification not found' };
-      }
-
-      // Note: declineChallenge requires a signer parameter but we don't have it here
-      // This is a notification handler, not the actual decline flow
-      // The actual decline should happen through the challenge UI
-      console.warn('[ChallengeNotificationHandler] declineChallenge called from notification handler - this should be handled in UI');
-
-      // For now, just mark as success to update notification state
-      const result = { success: true };
-
-      if (result.success) {
-        // Update notification
-        notification.type = 'declined';
-        notification.read = true;
-        this.notifications.set(notificationId, notification);
-
-        // Mark as read in unified store
-        await unifiedNotificationStore.markAsRead(notificationId);
-
-        console.log(`Challenge declined: ${notificationId}`);
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Failed to decline challenge:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  }
-
-  /**
    * Remove a notification
    */
   removeNotification(notificationId: string): void {
@@ -367,61 +346,10 @@ export class ChallengeNotificationHandler {
   }
 
   /**
-   * Refresh notifications from pending challenges
+   * Refresh notifications from existing challenges
    */
   async refresh(): Promise<void> {
     await this.loadNotifications();
-  }
-
-  /**
-   * Create payment required notification for QR challenge creator
-   * Called when someone scans and pays their wager
-   */
-  async createPaymentRequiredNotification(
-    challengeId: string,
-    accepterPubkey: string,
-    challengeData: {
-      activityType: string;
-      metric: string;
-      duration: number;
-      wagerAmount: number;
-    }
-  ): Promise<void> {
-    try {
-      // Get accepter's profile
-      const accepterProfile = await getCachedProfile(accepterPubkey);
-
-      const notification: ChallengeNotification = {
-        id: `payment_${challengeId}`,
-        type: 'payment_required',
-        challengeId,
-        challengerPubkey: accepterPubkey, // The person who accepted (for display)
-        challengerName:
-          accepterProfile?.display_name || accepterProfile?.name || 'Someone',
-        challengerPicture: accepterProfile?.picture,
-        accepterPubkey,
-        accepterName: accepterProfile?.display_name || accepterProfile?.name,
-        activityType: challengeData.activityType,
-        metric: challengeData.metric,
-        duration: challengeData.duration,
-        wagerAmount: challengeData.wagerAmount,
-        timestamp: Date.now(),
-        read: false,
-      };
-
-      // Add to notifications
-      this.notifications.set(notification.id, notification);
-      this.notifyCallbacks(notification);
-
-      // Publish to unified store
-      await this.publishToUnifiedStore(notification);
-
-      console.log(
-        `Payment required notification created for challenge: ${challengeId}`
-      );
-    } catch (error) {
-      console.error('Failed to create payment required notification:', error);
-    }
   }
 
   /**
@@ -436,95 +364,30 @@ export class ChallengeNotificationHandler {
         challengerPubkey: notification.challengerPubkey,
         challengerName: notification.challengerName,
         challengerPicture: notification.challengerPicture,
-        activityType: notification.activityType,
-        metric: notification.metric,
+        activityType: 'running', // All challenges are running for now
+        metric: 'fastest_time',
         duration: notification.duration,
         wagerAmount: notification.wagerAmount,
       };
 
-      if (notification.type === 'payment_required') {
-        await unifiedNotificationStore.addNotification(
-          'challenge_payment_required',
-          'Pay to Activate Challenge',
-          `${
-            notification.challengerName || 'Someone'
-          } accepted your challenge! Pay ${
-            notification.wagerAmount
-          } sats to activate.`,
-          metadata,
-          {
-            icon: 'wallet',
-            actions: [
-              {
-                id: 'pay',
-                type: 'pay_challenge_wager',
-                label: 'Pay to Activate',
-                isPrimary: true,
-              },
-            ],
-            nostrEventId: notification.challengeId,
-          }
-        );
-      } else if (notification.type === 'request') {
-        await unifiedNotificationStore.addNotification(
-          'challenge_request',
-          `${notification.challengerName || 'Someone'} challenged you!`,
-          `${notification.activityType} • ${notification.metric} • ${notification.duration} days • ${notification.wagerAmount} sats`,
-          metadata,
-          {
-            icon: 'trophy',
-            actions: [
-              {
-                id: 'decline',
-                type: 'decline_challenge',
-                label: 'Decline',
-                isPrimary: false,
-              },
-              {
-                id: 'accept',
-                type: 'accept_challenge',
-                label: 'Accept',
-                isPrimary: true,
-              },
-            ],
-            nostrEventId: notification.challengeId,
-          }
-        );
-      } else if (notification.type === 'accepted') {
-        await unifiedNotificationStore.addNotification(
-          'challenge_accepted',
-          'Challenge Accepted!',
-          `${
-            notification.challengerName || 'Your opponent'
-          } accepted your challenge`,
-          metadata,
-          {
-            icon: 'checkmark-circle',
-            actions: [
-              {
-                id: 'view',
-                type: 'view_challenge',
-                label: 'View Challenge',
-                isPrimary: true,
-              },
-            ],
-            nostrEventId: notification.challengeId,
-          }
-        );
-      } else if (notification.type === 'declined') {
-        await unifiedNotificationStore.addNotification(
-          'challenge_declined',
-          'Challenge Declined',
-          `${
-            notification.challengerName || 'Your opponent'
-          } declined your challenge`,
-          metadata,
-          {
-            icon: 'close-circle',
-            nostrEventId: notification.challengeId,
-          }
-        );
-      }
+      await unifiedNotificationStore.addNotification(
+        'challenge_received',
+        `${notification.challengerName || 'Someone'} challenged you!`,
+        `${notification.challengeName} • ${notification.distance} km • ${notification.duration}h${notification.wagerAmount > 0 ? ` • ${notification.wagerAmount} sats` : ''}`,
+        metadata,
+        {
+          icon: 'trophy',
+          actions: [
+            {
+              id: 'view',
+              type: 'view_challenge',
+              label: 'View Challenge',
+              isPrimary: true,
+            },
+          ],
+          nostrEventId: notification.challengeId,
+        }
+      );
     } catch (error) {
       console.error(
         '[ChallengeNotificationHandler] Failed to publish to unified store:',

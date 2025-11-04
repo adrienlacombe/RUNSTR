@@ -339,6 +339,10 @@ export class WorkoutCardGenerator {
 
     // Key stats with null safety
     const stats = this.getWorkoutStats(workout);
+
+    // For strength training, show all sets; for other workouts, show primary + secondary stat
+    const isStrengthTraining = ['strength_training', 'gym'].includes(workout.type);
+
     const primaryStat = stats[0] || {
       value: this.formatDurationDetailed(workout.duration),
       label: 'Duration'
@@ -395,50 +399,79 @@ export class WorkoutCardGenerator {
         opacity="0.5"
       >${date}</text>
 
-      <!-- Primary stat (duration) -->
-      <text
-        x="${padding}"
-        y="${options.userName ? 180 : 160}"
-        font-family="${serifFont}"
-        font-size="64"
-        font-weight="300"
-        fill="#FFFFFF"
-        letter-spacing="-1"
-      >${primaryStat.value}</text>
+      ${isStrengthTraining ? `
+        <!-- Strength training: Show all sets -->
+        ${stats.map((stat, index) => {
+          const yOffset = options.userName ? 160 : 140;
+          const statY = yOffset + (index * 70); // 70px spacing between sets
+          return `
+            <text
+              x="${padding}"
+              y="${statY}"
+              font-family="${serifFont}"
+              font-size="36"
+              font-weight="300"
+              fill="#FFFFFF"
+            >${stat.value}</text>
 
-      <text
-        x="${padding}"
-        y="${options.userName ? 210 : 190}"
-        font-family="${sansFont}"
-        font-size="12"
-        font-weight="500"
-        fill="#FFFFFF"
-        opacity="0.5"
-        letter-spacing="1"
-      >${primaryStat.label.toUpperCase()}</text>
-
-      <!-- Secondary stat (distance, calories, etc.) -->
-      ${secondaryStat ? `
+            <text
+              x="${padding}"
+              y="${statY + 25}"
+              font-family="${sansFont}"
+              font-size="12"
+              font-weight="500"
+              fill="#FFFFFF"
+              opacity="0.5"
+              letter-spacing="1"
+            >${stat.label.toUpperCase()}</text>
+          `;
+        }).join('')}
+      ` : `
+        <!-- Primary stat (duration) -->
         <text
           x="${padding}"
-          y="${options.userName ? 270 : 250}"
+          y="${options.userName ? 180 : 160}"
           font-family="${serifFont}"
-          font-size="36"
+          font-size="64"
           font-weight="300"
           fill="#FFFFFF"
-        >${secondaryStat.value}</text>
+          letter-spacing="-1"
+        >${primaryStat.value}</text>
 
         <text
           x="${padding}"
-          y="${options.userName ? 295 : 275}"
+          y="${options.userName ? 210 : 190}"
           font-family="${sansFont}"
           font-size="12"
           font-weight="500"
           fill="#FFFFFF"
           opacity="0.5"
           letter-spacing="1"
-        >${secondaryStat.label.toUpperCase()}</text>
-      ` : ''}
+        >${primaryStat.label.toUpperCase()}</text>
+
+        <!-- Secondary stat (distance, calories, etc.) -->
+        ${secondaryStat ? `
+          <text
+            x="${padding}"
+            y="${options.userName ? 270 : 250}"
+            font-family="${serifFont}"
+            font-size="36"
+            font-weight="300"
+            fill="#FFFFFF"
+          >${secondaryStat.value}</text>
+
+          <text
+            x="${padding}"
+            y="${options.userName ? 295 : 275}"
+            font-family="${sansFont}"
+            font-size="12"
+            font-weight="500"
+            fill="#FFFFFF"
+            opacity="0.5"
+            letter-spacing="1"
+          >${secondaryStat.label.toUpperCase()}</text>
+        ` : ''}
+      `}
 
       <!-- Motivational quote -->
       ${quoteTspans ? `
@@ -582,6 +615,25 @@ export class WorkoutCardGenerator {
             : ''
         }
 
+        ${
+          // Show reps and sets for strength training
+          ['strength_training', 'gym'].includes(workout.type) && (workout.reps || workout.sets)
+            ? `
+        <!-- Reps and Sets (for strength training) -->
+        <text
+          x="${centerX}"
+          y="${distance ? '520' : '480'}"
+          font-family="${sansFont}"
+          font-size="20"
+          font-weight="500"
+          text-anchor="middle"
+          fill="#FFFFFF"
+          opacity="0.8"
+        >${workout.reps || 0} REPS • ${workout.sets || 0} SETS</text>
+        `
+            : ''
+        }
+
         <!-- RUNSTR branding (bottom) -->
         <text
           x="${centerX}"
@@ -656,6 +708,23 @@ export class WorkoutCardGenerator {
       other: 'Workout',
     };
     return typeMap[workout.type] || 'Workout';
+  }
+
+  /**
+   * Check if exercise is bodyweight-only (no external weight)
+   */
+  private isBodyweightExercise(exerciseType: string | undefined): boolean {
+    if (!exerciseType) return false;
+
+    const bodyweightExercises = [
+      'pushups', 'pullups', 'chinups', 'situps', 'crunches',
+      'plank', 'burpees', 'jumping jacks', 'mountain climbers',
+      'dips', 'handstand', 'muscle ups', 'lunges', 'squats' // bodyweight squats
+    ];
+
+    return bodyweightExercises.some(ex =>
+      exerciseType.toLowerCase().includes(ex)
+    );
   }
 
   /**
@@ -850,9 +919,8 @@ export class WorkoutCardGenerator {
     y: number,
     accentColor: string
   ): string {
-    const workoutType =
-      workout.type.charAt(0).toUpperCase() +
-      workout.type.slice(1).replace('_', ' ');
+    // Use getWorkoutTypeName() to show specific exercise names (e.g., "Pushups" instead of "Strength Training")
+    const workoutType = this.getWorkoutTypeName(workout);
     const completedText = 'Workout Complete!';
 
     return `
@@ -949,13 +1017,15 @@ export class WorkoutCardGenerator {
     y: number,
     accentColor: string
   ): string {
+    // Use specific exercise name for hashtag (e.g., #pushups instead of #strengthtraining)
+    const workoutName = this.getWorkoutTypeName(workout);
     return `
       <g transform="translate(40, ${y})">
         <text x="0" y="0" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="${accentColor}60">
           💪 Tracked with RUNSTR
         </text>
         <text x="600" y="0" font-family="Arial, sans-serif" font-size="12" text-anchor="end" fill="${accentColor}40">
-          #fitness #${this.sanitizeHashtag(workout.type)} #RUNSTR
+          #fitness #${this.sanitizeHashtag(workoutName)} #RUNSTR
         </text>
       </g>
     `;
@@ -969,8 +1039,9 @@ export class WorkoutCardGenerator {
   ): Array<{ value: string; label: string }> {
     const stats = [];
 
-    // Duration (skip for diet - meals don't have duration)
-    if (workout.type !== 'diet') {
+    // Duration (skip for diet and strength training)
+    // Strength training primary stats are reps/sets, not duration
+    if (!['diet', 'strength_training', 'gym'].includes(workout.type)) {
       const duration = this.formatDurationDetailed(workout.duration);
       stats.push({ value: duration, label: 'Duration' });
     }
@@ -1031,11 +1102,15 @@ export class WorkoutCardGenerator {
 
         // Show first 3 sets (to avoid overcrowding the card)
         const setsToShow = Math.min(3, workout.weightsPerSet.length);
+        const isBodyweight = this.isBodyweightExercise(workout.exerciseType);
+
         for (let i = 0; i < setsToShow; i++) {
           const reps = repsBreakdown?.[i] || 0;
           const weight = workout.weightsPerSet[i];
+
+          // For bodyweight exercises, skip weight display; otherwise show "reps @ weight lbs"
           stats.push({
-            value: `${reps} @ ${weight} lbs`,
+            value: isBodyweight ? `${reps} reps` : `${reps} @ ${weight} lbs`,
             label: `Set ${i + 1}`,
           });
         }
@@ -1165,9 +1240,105 @@ export class WorkoutCardGenerator {
   }
 
   /**
-   * Get motivational message
+   * Get motivational message (with exercise-specific messages for strength training)
    */
   private getMotivationalMessage(workout: PublishableWorkout): string {
+    // Exercise-specific messages for strength training
+    if ((workout.type === 'strength_training' || workout.type === 'gym') && workout.exerciseType) {
+      const exerciseType = workout.exerciseType.toLowerCase();
+
+      const exerciseMessages: Record<string, string[]> = {
+        pushups: [
+          'Every pushup is a step toward a stronger you.',
+          'The floor is your foundation. Push through and rise.',
+          'Your strength is not in your arms, but in your will to continue.',
+        ],
+        pullups: [
+          'Pull yourself up, one rep at a time. Your goals are within reach.',
+          'The bar is waiting. Show it who\'s boss.',
+          'Every pullup is proof that you can rise above.',
+        ],
+        bench: [
+          'Press through the pain. The bar is your friend, not your enemy.',
+          'Your chest, your power. Push it to new limits.',
+          'Strength isn\'t built in comfort zones. Lift heavy, grow stronger.',
+        ],
+        squats: [
+          'Squat low, rise high. Your legs are your foundation.',
+          'The weight on your shoulders is nothing compared to what you can handle.',
+          'Build your throne, one squat at a time.',
+        ],
+        deadlifts: [
+          'Pick it up. Put it down. Repeat. That\'s how legends are made.',
+          'The deadlift doesn\'t lie. It shows exactly what you\'re made of.',
+          'Lift from the ground up. Your power comes from within.',
+        ],
+        curls: [
+          'Curl your way to greatness, one rep at a time.',
+          'Your biceps are calling. Answer with strength.',
+          'Every curl is a commitment to your stronger self.',
+        ],
+        situps: [
+          'Core strength starts with discipline, not with motivation.',
+          'Your core is your center. Strengthen it, strengthen everything.',
+          'Every situp is a victory over yesterday\'s limits.',
+        ],
+        plank: [
+          'Hold steady. Your core is stronger than you think.',
+          'Time stands still when your body is on fire. Keep holding.',
+          'The plank reveals your true strength. Don\'t give up.',
+        ],
+      };
+
+      // Find matching exercise
+      for (const [key, messages] of Object.entries(exerciseMessages)) {
+        if (exerciseType.includes(key)) {
+          return messages[Math.floor(Math.random() * messages.length)];
+        }
+      }
+    }
+
+    // Meditation type-specific messages
+    if (workout.type === 'meditation' && workout.meditationType) {
+      const meditationType = workout.meditationType.toLowerCase();
+
+      const meditationMessages: Record<string, string[]> = {
+        gratitude: [
+          'Gratitude turns what we have into enough, and more.',
+          'In every moment of gratitude, we find peace.',
+          'Count your blessings, not your problems. Today, you chose gratitude.',
+        ],
+        breathwork: [
+          'Your breath is the bridge between body and mind.',
+          'Breathe in peace, breathe out stress. You are in control.',
+          'Every breath is a new beginning. Inhale possibility, exhale doubt.',
+        ],
+        body_scan: [
+          'Every part of your body holds wisdom. Listen closely.',
+          'Scan inward, find stillness. Your body knows what it needs.',
+          'Mindfulness begins in the body. You are present, you are aware.',
+        ],
+        guided: [
+          'You showed up and followed through. That is strength.',
+          'Guided meditation is not about perfection, but presence.',
+          'Every guided session builds your inner sanctuary.',
+        ],
+        unguided: [
+          'You sat with yourself. That takes courage.',
+          'In silence, you found your own way. Trust that wisdom.',
+          'Self-directed meditation reveals your inner teacher.',
+        ],
+      };
+
+      // Find matching meditation type
+      for (const [key, messages] of Object.entries(meditationMessages)) {
+        if (meditationType.includes(key)) {
+          return messages[Math.floor(Math.random() * messages.length)];
+        }
+      }
+    }
+
+    // Fallback to workout type messages
     const messages = {
       running: [
         'Every step forward is a step toward achieving something bigger and better than your current situation.',

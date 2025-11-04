@@ -430,6 +430,20 @@ export class WorkoutPublishingService {
       tags.push(['weight', workout.weight.toString(), 'lbs']);
     }
 
+    // Add per-set weight data for strength training (enables volume-based competition scoring)
+    if (workout.weightsPerSet && Array.isArray(workout.weightsPerSet)) {
+      workout.weightsPerSet.forEach((weight, index) => {
+        if (weight > 0) {
+          tags.push([
+            'weight_set',
+            (index + 1).toString(), // Set number (1-indexed)
+            weight.toString(),
+            'lbs',
+          ]);
+        }
+      });
+    }
+
     // Add meditation subtype for meditation workouts
     if (workout.meditationType) {
       tags.push(['meditation_type', workout.meditationType]);

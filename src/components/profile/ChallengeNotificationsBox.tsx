@@ -62,10 +62,9 @@ export const ChallengeNotificationsBox: React.FC = () => {
   const loadNotifications = () => {
     try {
       const allNotifications = challengeNotificationHandler.getNotifications();
-      // Show both request-type and payment_required notifications that haven't been read
+      // Show challenge_received notifications that haven't been read
       const pendingNotifications = allNotifications.filter(
-        (n) =>
-          (n.type === 'request' || n.type === 'payment_required') && !n.read
+        (n) => n.type === 'challenge_received' && !n.read
       );
       setNotifications(pendingNotifications);
     } catch (error) {
@@ -75,68 +74,18 @@ export const ChallengeNotificationsBox: React.FC = () => {
     }
   };
 
-  const handleAccept = async (notificationId: string) => {
-    setProcessingId(notificationId);
-    try {
-      const result = await challengeNotificationHandler.acceptChallenge(
-        notificationId
-      );
+  const handleViewChallenge = async (notification: ChallengeNotification) => {
+    // Mark as read
+    challengeNotificationHandler.markAsRead(notification.id);
 
-      if (result.success) {
-        // Remove from pending list
-        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-        CustomAlertManager.alert('Success', 'Challenge accepted! Good luck!');
-      } else {
-        CustomAlertManager.alert('Error', result.error || 'Failed to accept challenge');
-      }
-    } catch (error) {
-      console.error('Error accepting challenge:', error);
-      CustomAlertManager.alert('Error', 'An unexpected error occurred');
-    } finally {
-      setProcessingId(null);
-    }
-  };
+    // Remove from list
+    setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
 
-  const handleDecline = async (notificationId: string) => {
+    // TODO: Navigate to ChallengeLeaderboard with challengeId
+    // For now, just show alert
     CustomAlertManager.alert(
-      'Decline Challenge',
-      'Are you sure you want to decline this challenge?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Decline',
-          style: 'destructive',
-          onPress: async () => {
-            setProcessingId(notificationId);
-            try {
-              const result =
-                await challengeNotificationHandler.declineChallenge(
-                  notificationId
-                );
-
-              if (result.success) {
-                // Remove from pending list
-                setNotifications((prev) =>
-                  prev.filter((n) => n.id !== notificationId)
-                );
-              } else {
-                CustomAlertManager.alert(
-                  'Error',
-                  result.error || 'Failed to decline challenge'
-                );
-              }
-            } catch (error) {
-              console.error('Error declining challenge:', error);
-              CustomAlertManager.alert('Error', 'An unexpected error occurred');
-            } finally {
-              setProcessingId(null);
-            }
-          },
-        },
-      ]
+      'Challenge Leaderboard',
+      `Opening challenge: ${notification.challengeName}\nDistance: ${notification.distance} km\nDuration: ${notification.duration}h`
     );
   };
 
@@ -282,72 +231,25 @@ export const ChallengeNotificationsBox: React.FC = () => {
 
               {/* Action Buttons */}
               <View style={styles.actions}>
-                {notification.type === 'payment_required' ? (
-                  // Payment Required: Show single "Pay to Activate" button
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      styles.payToActivateButton,
-                      processingId === notification.id && styles.disabledButton,
-                    ]}
-                    onPress={() => handlePayToActivate(notification)}
-                    disabled={processingId === notification.id}
-                  >
-                    {processingId === notification.id ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={theme.colors.accentText}
-                      />
-                    ) : (
-                      <Text style={styles.payToActivateButtonText}>
-                        Pay {notification.wagerAmount} sats to Activate
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                ) : (
-                  // Regular Request: Show Accept/Decline buttons
-                  <>
-                    <TouchableOpacity
-                      style={[
-                        styles.actionButton,
-                        styles.declineButton,
-                        processingId === notification.id &&
-                          styles.disabledButton,
-                      ]}
-                      onPress={() => handleDecline(notification.id)}
-                      disabled={processingId === notification.id}
-                    >
-                      {processingId === notification.id ? (
-                        <ActivityIndicator
-                          size="small"
-                          color={theme.colors.textMuted}
-                        />
-                      ) : (
-                        <Text style={styles.declineButtonText}>Decline</Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.actionButton,
-                        styles.acceptButton,
-                        processingId === notification.id &&
-                          styles.disabledButton,
-                      ]}
-                      onPress={() => handleAccept(notification.id)}
-                      disabled={processingId === notification.id}
-                    >
-                      {processingId === notification.id ? (
-                        <ActivityIndicator
-                          size="small"
-                          color={theme.colors.accentText}
-                        />
-                      ) : (
-                        <Text style={styles.acceptButtonText}>Accept</Text>
-                      )}
-                    </TouchableOpacity>
-                  </>
-                )}
+                {/* Instant Challenge: Show single "View Challenge" button */}
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    styles.viewButton,
+                    processingId === notification.id && styles.disabledButton,
+                  ]}
+                  onPress={() => handleViewChallenge(notification)}
+                  disabled={processingId === notification.id}
+                >
+                  {processingId === notification.id ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.colors.accentText}
+                    />
+                  ) : (
+                    <Text style={styles.viewButtonText}>View Challenge</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -476,32 +378,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  declineButton: {
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  acceptButton: {
+  viewButton: {
     backgroundColor: theme.colors.text,
+    flex: 1,
   },
   disabledButton: {
     opacity: 0.5,
   },
-  declineButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.textMuted,
-  },
-  acceptButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.background,
-  },
-  payToActivateButton: {
-    backgroundColor: '#FF8C00', // Orange for payment action
-    flex: 1,
-  },
-  payToActivateButtonText: {
+  viewButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.background,

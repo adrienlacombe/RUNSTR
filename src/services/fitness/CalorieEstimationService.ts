@@ -34,22 +34,36 @@ export class CalorieEstimationService {
 
   /**
    * Estimate calories for strength training
-   * Simple formula: ~5 calories per minute, scaled by weight
+   * Volume-based formula: accounts for weight × reps (total work performed)
+   * Formula: (total_volume × conversion_factor) + (duration × base_rate)
    */
   estimateStrengthCalories(
     reps: number,
     sets: number,
     durationSeconds: number,
-    userWeight?: number
+    userWeight?: number,
+    averageExerciseWeight?: number
   ): number {
-    const weight = userWeight || DEFAULT_WEIGHT_KG;
+    const bodyWeight = userWeight || DEFAULT_WEIGHT_KG;
+    const bodyWeightLbs = bodyWeight * 2.20462; // Convert kg to lbs
     const durationMinutes = durationSeconds / 60;
 
-    // Base: 5 calories per minute for average person
-    // Scale linearly by weight ratio
-    const caloriesPerMinute = 5 * (weight / DEFAULT_WEIGHT_KG);
+    // For bodyweight exercises (no weight specified), use user's body weight
+    const weightUsed = averageExerciseWeight || bodyWeightLbs;
 
-    return Math.round(durationMinutes * caloriesPerMinute);
+    // Calculate total volume (total pounds moved)
+    const totalVolume = reps * weightUsed;
+
+    // Volume-based calorie calculation
+    // Research: ~0.002-0.003 calories per pound moved through typical ROM
+    // Using 0.0025 as middle ground (generous for user motivation)
+    const volumeCalories = totalVolume * 0.0025;
+
+    // Add time component for rest periods and metabolic overhead
+    // 3 cal/min accounts for elevated heart rate between sets
+    const timeCalories = durationMinutes * 3;
+
+    return Math.round(volumeCalories + timeCalories);
   }
 
   /**
