@@ -14,7 +14,7 @@ import {
   MonthlyWorkoutGroup,
   groupWorkoutsByMonth,
 } from '../shared/MonthlyWorkoutGroup';
-import { WorkoutLevelRing } from '../WorkoutLevelRing';
+// import { WorkoutLevelRing } from '../WorkoutLevelRing'; // Hidden for alpha release
 import { Nuclear1301Service } from '../../../services/fitness/Nuclear1301Service';
 import unifiedCache from '../../../services/cache/UnifiedNostrCache';
 import { CacheKeys, CacheTTL } from '../../../constants/cacheTTL';
@@ -247,10 +247,10 @@ export const PublicWorkoutsTab: React.FC<PublicWorkoutsTabProps> = ({
         }
         ListHeaderComponent={
           <>
-            {/* Workout Level Ring */}
-            {pubkey && workouts.length > 0 && (
+            {/* Workout Level Ring - Hidden for alpha release */}
+            {/* {pubkey && workouts.length > 0 && (
               <WorkoutLevelRing workouts={workouts} pubkey={pubkey} />
-            )}
+            )} */}
           </>
         }
       />
