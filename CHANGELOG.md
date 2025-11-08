@@ -6,6 +6,118 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2025-11-08
+
+### Added
+- **Simplified Challenge System** - Streamlined 1v1 challenge creation and management
+  - Reduced to 4 running distances only (5K, 10K, Half Marathon, Marathon)
+  - Fixed 1-day duration for all challenges (removed custom duration options)
+  - Instant challenge creation (removed acceptance/request flow)
+  - Wagers displayed as social agreements (text-only, not enforced)
+  - `ChallengeAnnouncementPreview.tsx`: +465 lines with new announcement cards
+  - `challengeAnnouncementCardGenerator.ts`: +327 lines with social card generation
+  - `test-challenge-flow.ts`: +581 lines comprehensive challenge testing script
+
+- **Event Location & Charity Display** - Enhanced event creation with charity integration
+  - Optional location field in event creation wizard
+  - Charity display showing "100% of entry fees support [charity name]"
+  - Location icon and charity card on EventDetailScreen
+
+- **Activity-Specific Workout Stats** - Smarter workout data display by activity type
+  - **Strength workouts**: Exercise type, reps, sets, weight (calories hidden)
+  - **Meditation workouts**: Meditation type, duration (calories hidden)
+  - **Diet entries**: Meal type, meal size, food description, calories (duration hidden)
+  - Social cards show specific exercise names (e.g., "Bench Press" vs generic "Strength Training")
+
+- **Comprehensive Testing Infrastructure** - New diagnostic and testing tools
+  - `diagnose-event-display.js`: +207 lines event display debugging
+  - `EVENT_SYSTEM_TROUBLESHOOTING.md`: +375 lines troubleshooting documentation
+  - Enhanced KIND_1301_SPEC.md with strength training examples
+
+### Improved
+- **Tag-Based Challenge Architecture** - Complete migration from lists to tags
+  - Migrated from kind 30000 participant lists to kind 30102 tag-based queries
+  - Participants stored directly in 'p' tags (no separate list events)
+  - All challenge queries use NDKFilter with '#p' tags for better performance
+  - `ChallengeService.ts`: Major refactor with `getChallengeEvent()`, `extractParticipants()`, `parseChallengeEvent()`
+  - Reduced WebSocket overhead by eliminating kind 30000 list creation
+
+- **Volume-Based Strength Calorie Calculation** - More accurate strength training calories
+  - New formula: `(reps × weight × sets × 0.0025) + (duration × 3)`
+  - Accounts for actual work performed, not just time
+  - Example: 145 lb bench × 20 reps × 3 sets = 58 calories (vs 13 with old formula)
+  - Bodyweight exercises auto-use user's body weight
+  - `CalorieEstimationService.ts`: Updated with volume-based calculations
+
+- **Per-Set Weight Tags in Nostr Events** - Enhanced workout tracking
+  - Added per-set weight tags to kind 1301 strength events
+  - Tag format: `['weight_set', '<set_number>', '<weight>', 'lbs']`
+  - Enables volume-based competition scoring
+  - Supports progressive overload tracking
+
+- **Event Display System Enhancements** - Better event discovery
+  - Extended date filtering window from 48 hours to 7 days
+  - Comprehensive debug logging showing date boundaries and filtering decisions
+  - More permissive event retention for improved discovery
+  - `SimpleCompetitionService.ts`: Enhanced with detailed logging
+
+- **UI/UX Refinements** - Cleaner user experience
+  - Bottom navigation updated (removed RUNSTR Season competition tab)
+  - QR code scanner moved to Settings (specifically for NWC setup)
+  - Tapping zap button opens external zapping mechanism
+  - Hide weight input for bodyweight exercises (pushups, pullups, situps)
+  - Enhanced workout cards with per-set breakdowns (e.g., "25 @ 135 lbs for Set 1")
+  - Simplified success alert flow after event creation
+
+### Fixed
+- **Event Display Issues** - Resolved critical event visibility problems
+  - Fixed events not displaying in SimpleTeamScreen (showed "No events scheduled")
+  - Fixed success modal not appearing after event creation
+  - Fixed events being filtered out too aggressively (48-hour → 7-day window)
+  - Events now clickable and showing detail screens correctly
+  - `EventCreationWizard.tsx`, `SimpleTeamScreen.tsx`: Multiple fixes applied
+
+- **Workout Data Completeness** - Missing fields now properly propagated
+  - Added missing activity-specific fields to workout objects
+  - Fixed exerciseType, meditationType, mealType, mealSize, notes propagation
+  - `StrengthTrackerScreen.tsx`, `MeditationTrackerScreen.tsx`: Field handling fixed
+
+- **Social Card Generator** - Accurate workout type display
+  - Fixed showing specific exercise name instead of generic "Strength Training"
+  - Fixed using top-level `workout.repsBreakdown` instead of `workout.metadata.repsBreakdown`
+  - `workoutCardGenerator.ts`: Stats display logic corrected
+
+### Technical Changes
+- **Code Cleanup - Removed 2,800+ Lines of Deprecated Components**
+  - Deleted `ChallengeRequestService.ts` (-926 lines) - acceptance flow deprecated
+  - Deleted `ChallengeRequestModal.tsx` (-646 lines) - no longer needed
+  - Deleted `ChallengeRequestCard.tsx` (-372 lines) - request notifications removed
+  - Deleted `OpenChallengeWizard.tsx` (-368 lines) - simplified to instant challenges
+  - Deleted `QRChallengePreviewModal.tsx` (-488 lines) - deprecated QR acceptance flow
+
+- **Component Refactoring** - Simplified architecture
+  - Complete rewrite of `ChallengeDetailScreen.tsx` for instant challenges
+  - Updated `ChallengeLeaderboardScreen.tsx` with fastest-time HH:MM:SS formatting
+  - Simplified `ChallengeNotificationsBox.tsx` (reduced complexity)
+  - Updated `QuickChallengeWizard.tsx` and `SimplifiedChallengeWizard.tsx` for instant flow
+
+- **Alpha Release Preparation** - Feature flags and cleanup
+  - Hidden charity level ring in PublicWorkoutsTab (can re-enable post-alpha)
+  - Charity donation functionality on team pages remains intact
+  - Stats screen updated with performance improvements
+
+- **Architecture Improvements** - Better performance patterns
+  - All challenge queries migrated to tag-based NDKFilter patterns
+  - Single source of truth (kind 30102 tags) for better data consistency
+  - Improved debug logging throughout event system
+
+- **Statistics**
+  - 27 files modified in main refactor
+  - +3,560 insertions, -2,494 deletions (net +1,066 lines)
+  - 5 major files deleted (2,800+ lines removed)
+  - 3 new files added (test scripts, documentation)
+  - Major additions: ChallengeAnnouncementPreview (+465), test-challenge-flow (+581), challengeAnnouncementCardGenerator (+327)
+
 ## [0.5.9] - 2025-11-03
 
 ### Added
