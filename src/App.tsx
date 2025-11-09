@@ -556,6 +556,14 @@ const AppContent: React.FC = () => {
         ) {
           backgroundTime.current = Date.now();
           console.log('[AppState] App going to background');
+
+          // ✅ FIX: Stop challenge monitoring to prevent dangling async calls during background
+          try {
+            challengeCompletionService.stopMonitoring();
+            console.log('[AppState] 🛑 Challenge monitoring stopped for background');
+          } catch (error) {
+            console.error('[AppState] Failed to stop challenge monitoring:', error);
+          }
         }
 
         // App returning to foreground
@@ -569,6 +577,15 @@ const AppContent: React.FC = () => {
           console.log(
             `[AppState] App returning to foreground (${secondsInBackground}s in background)`
           );
+
+          // ✅ FIX: Restart challenge monitoring safely with error handling
+          try {
+            challengeCompletionService.startMonitoring();
+            console.log('[AppState] ✅ Challenge monitoring restarted');
+          } catch (error) {
+            console.error('[AppState] Failed to restart challenge monitoring:', error);
+            // Non-critical - app continues without monitoring
+          }
 
           // ❌ CASHU WALLET REFRESH DISABLED: Removed in favor of NWC (v0.2.4+)
           // Smart refresh strategy previously triggered Cashu wallet sync on app resume
@@ -672,10 +689,21 @@ const AppContent: React.FC = () => {
           }
           */
 
-          // ✅ CHALLENGE COMPLETION: Start monitoring active challenges
-          console.log('[App] 🏁 Starting challenge completion monitoring...');
-          challengeCompletionService.startMonitoring();
-          console.log('[App] ✅ Challenge completion monitoring active');
+          // ✅ CHALLENGE COMPLETION: Defer monitoring start to prevent startup crashes
+          console.log('[App] 🏁 Challenge monitoring will start in 5 seconds (deferred start)...');
+          setTimeout(() => {
+            try {
+              if (appState.current === 'active') {
+                challengeCompletionService.startMonitoring();
+                console.log('[App] ✅ Challenge completion monitoring active (deferred start)');
+              } else {
+                console.log('[App] ⏸️  App not active, skipping challenge monitoring start');
+              }
+            } catch (error) {
+              console.error('[App] ⚠️  Failed to start challenge monitoring:', error);
+              // Non-critical - app continues without monitoring
+            }
+          }, 5000);
 
           // ✅ PERFORMANCE: Mark initialization as complete
           await AsyncStorage.setItem('@runstr:app_init_completed', 'true');

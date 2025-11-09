@@ -606,6 +606,13 @@ export class ChallengeService {
     try {
       const ndk = await GlobalNDKService.getInstance();
 
+      // ✅ FIX: Check if NDK instance has connected relays before querying
+      const status = GlobalNDKService.getStatus();
+      if (status.connectedRelays === 0) {
+        console.warn('⚠️  No connected relays - cannot fetch user challenges');
+        return []; // Graceful degradation instead of crash
+      }
+
       // Query kind 30102 events with user's pubkey in 'p' tags
       const filter: NDKFilter = {
         kinds: [30102],
@@ -628,8 +635,8 @@ export class ChallengeService {
 
       return challenges;
     } catch (error) {
-      console.error('Error fetching user challenges:', error);
-      return [];
+      console.error('❌ Error fetching user challenges:', error);
+      return []; // ✅ Always return empty array instead of throwing
     }
   }
 

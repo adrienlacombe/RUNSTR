@@ -78,6 +78,12 @@ export class ChallengeCompletionService {
    */
   private async checkExpiredChallenges(): Promise<void> {
     try {
+      // ✅ FIX: Early exit if monitoring is stopped (prevents background execution)
+      if (!this.monitoringInterval) {
+        console.log('⏸️  Monitoring stopped, skipping challenge check');
+        return;
+      }
+
       // Get all active challenges from challengeService
       const activeChallenges = await challengeService.getActiveChallenges();
 
@@ -100,11 +106,14 @@ export class ChallengeCompletionService {
             await this.completeChallenge(challenge.id);
           }
         } catch (error) {
-          console.error(`Error checking challenge ${challenge.id}:`, error);
+          console.error(`❌ Error checking challenge ${challenge.id}:`, error);
+          // Continue processing other challenges - don't crash entire loop
         }
       }
     } catch (error) {
-      console.error('Error checking expired challenges:', error);
+      console.error('❌ Error checking expired challenges:', error);
+      // ✅ FIX: Gracefully handle errors without crashing app
+      // This prevents unhandled promise rejections from reaching React
     }
   }
 

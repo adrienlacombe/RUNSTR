@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2025-11-09
+
+### Fixed
+- **Android Background Crash** - CRITICAL: Resolved persistent white screen crashes when backgrounding app for 4+ seconds
+  - Root cause: `ChallengeCompletionService` monitoring service (added in v0.6.2) continued running async Nostr queries during background state
+  - OS suspends JavaScript execution after ~4 seconds → dangling Promises crash app on resume
+  - **App.tsx (lines 560-566, 581-588)**: Stop challenge monitoring when app goes to background, restart on foreground
+  - **App.tsx (lines 693-706)**: Defer initial challenge monitoring start by 5 seconds to prevent startup crashes
+  - **ChallengeCompletionService.ts (lines 81-85)**: Added early exit check if monitoring is stopped (prevents background execution)
+  - **ChallengeCompletionService.ts (lines 109-116)**: Enhanced error handling with comments explaining crash prevention
+  - **ChallengeService.ts (lines 609-614)**: Guard GlobalNDKService queries with relay connection check
+  - **ChallengeService.ts (line 638-639)**: Return empty array instead of throwing when NDK unavailable
+  - App now handles background/foreground transitions gracefully like v0.5.9 did (4+ hour workouts supported)
+
+### Improved
+- **AppState Lifecycle Management** - Professional background service handling
+  - Services now stop cleanly during background transitions
+  - Safe restart with error boundaries on foreground return
+  - Deferred initialization prevents race conditions during app startup
+  - All service operations wrapped in try-catch to prevent unhandled rejections
+
+### Technical
+- Bumped version code from 55 to 56 (Android)
+- Added comprehensive error logging with emoji prefixes for easier debugging
+- Graceful degradation when Nostr relays unavailable (return empty arrays vs crashing)
+
 ## [0.6.3] - 2025-11-09
 
 ### Fixed
