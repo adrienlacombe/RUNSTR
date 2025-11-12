@@ -7,6 +7,7 @@ import * as Speech from 'expo-speech';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { Platform } from 'react-native';
 import { TTSPreferencesService } from './TTSPreferencesService';
+import { AppStateManager } from '../core/AppStateManager';
 import type { Split } from './SplitTrackingService';
 
 interface WorkoutData {
@@ -25,6 +26,7 @@ export class TTSAnnouncementService {
   private static isInitialized = false;
   private static isSpeaking = false;
   private static speechQueue: string[] = [];
+  private static appStateUnsubscribe: (() => void) | null = null;
 
   /**
    * Initialize audio session with ducking support
@@ -38,21 +40,24 @@ export class TTSAnnouncementService {
     try {
       console.log('🔊 Initializing TTS service with audio ducking...');
 
-      // Configure audio session for TTS with ducking
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-
-        // iOS: Duck other audio (music, podcasts, etc.)
-        interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-
-        // Android: Duck other audio
-        shouldDuckAndroid: true,
-        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-
-        playThroughEarpieceAndroid: false,
+      // Set up AppState listener for audio cleanup
+      const appStateManager = AppStateManager.getInstance();
+      this.appStateUnsubscribe = appStateManager.onStateChange(async (isActive) => {
+        if (!isActive) {
+          // App going to background - release audio session
+          console.log('🔊 App backgrounding, releasing audio session...');
+          await this.releaseAudioSession();
+        } else {
+          // App returned to foreground - reinitialize if needed
+          if (this.isSpeaking) {
+            console.log('🔊 App foregrounded, restoring audio session...');
+            await this.setupAudioSession();
+          }
+        }
       });
+
+      // Configure audio session for TTS with ducking
+      await this.setupAudioSession();
 
       this.isInitialized = true;
       console.log('✅ TTS service initialized with audio ducking');
@@ -381,9 +386,63 @@ export class TTSAnnouncementService {
   /**
    * Cleanup resources
    */
+  /**
+   * Set up audio session with ducking configuration
+   */
+  private static async setupAudioSession(): Promise<void> {
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+
+      // iOS: Duck other audio (music, podcasts, etc.)
+      interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+
+      // Android: Duck other audio
+      shouldDuckAndroid: true,
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+
+      playThroughEarpieceAndroid: false,
+    });
+  }
+
+  /**
+   * Release audio session when app backgrounds
+   */
+  private static async releaseAudioSession(): Promise<void> {
+    try {
+      // Stop any ongoing speech
+      if (this.isSpeaking) {
+        await Speech.stop();
+        this.isSpeaking = false;
+      }
+
+      // Reset audio mode to release audio focus
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: false,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: false,
+      });
+
+      console.log('✅ Audio session released');
+    } catch (error) {
+      console.error('❌ Failed to release audio session:', error);
+    }
+  }
+
   static async cleanup(): Promise<void> {
     try {
       await this.stopSpeaking();
+
+      // Clean up AppState listener
+      if (this.appStateUnsubscribe) {
+        this.appStateUnsubscribe();
+        this.appStateUnsubscribe = null;
+      }
+
+      // Release audio session
+      await this.releaseAudioSession();
+
       this.isInitialized = false;
       console.log('🔊 TTS service cleanup complete');
     } catch (error) {

@@ -7,7 +7,7 @@
 // Note: Global polyfills are now applied in index.js
 
 import { NWCClient } from '@getalby/sdk';
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { NWCStorageService } from './NWCStorageService';
 
 /**
@@ -86,7 +86,7 @@ export interface WalletBalance {
 class NWCWalletServiceClass {
   private nwcClient: NWCClient | null = null;
   private initializationPromise: Promise<void> | null = null;
-  private appStateSubscription: any = null;
+  // private appStateSubscription: any = null; // DISABLED: Causes background crashes
   private connectionString: string | null = null;
   private lastActiveTime: number = Date.now();
 
@@ -95,19 +95,23 @@ class NWCWalletServiceClass {
   }
 
   /**
-   * iOS backgrounding handler - critical for maintaining connections
-   * iOS severs WebSocket connections when app backgrounds
+   * iOS backgrounding handler - DISABLED to prevent background crashes
+   * Network operations while backgrounded cause crashes on both iOS and Android
    */
   private setupAppStateHandling(): void {
+    // DISABLED: AppState listener causing background crashes
+    // WebSocket operations on killed connections = instant crash
+    /*
     if (Platform.OS === 'ios') {
       this.appStateSubscription = AppState.addEventListener(
         'change',
         this.handleAppStateChange
       );
     }
+    */
   }
 
-  private handleAppStateChange = async (nextAppState: AppStateStatus): Promise<void> => {
+  private handleAppStateChange = async (nextAppState: any): Promise<void> => {
     console.log(`[NWC] App state changed to: ${nextAppState}`);
 
     if (Platform.OS === 'ios' && nextAppState === 'active') {
@@ -804,10 +808,12 @@ class NWCWalletServiceClass {
    * Clean up resources (called when app is closing)
    */
   cleanup(): void {
+    /* DISABLED: AppState listener removed to prevent crashes
     if (this.appStateSubscription) {
       this.appStateSubscription.remove();
       this.appStateSubscription = null;
     }
+    */
     this.close();
   }
 }

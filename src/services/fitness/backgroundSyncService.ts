@@ -53,7 +53,7 @@ export class BackgroundSyncService {
   private isSyncing = false;
   private lastSyncTime = 0;
   private syncConfig = DEFAULT_SYNC_CONFIG;
-  private appStateListener: any = null;
+  // private appStateListener: any = null; // DISABLED: Causes background crashes
   private retryTimeouts = new Map<string, NodeJS.Timeout>();
   private failureCount = 0; // Track consecutive failures for backoff
 
@@ -167,8 +167,12 @@ export class BackgroundSyncService {
 
   /**
    * Setup app state listener for foreground/background sync
+   * DISABLED: Network operations while backgrounded cause crashes
    */
   private setupAppStateListener(): void {
+    // DISABLED: AppState listener causing background crashes
+    // Sync operations on background cause network crashes
+    /*
     this.appStateListener = AppState.addEventListener(
       'change',
       (nextAppState) => {
@@ -191,6 +195,7 @@ export class BackgroundSyncService {
         }
       }
     );
+    */
   }
 
   /**
@@ -475,10 +480,12 @@ export class BackgroundSyncService {
     this.retryTimeouts.clear();
 
     // Remove app state listener
+    /* DISABLED: AppState listener removed to prevent crashes
     if (this.appStateListener) {
       this.appStateListener.remove();
       this.appStateListener = null;
     }
+    */
 
     console.log('BackgroundSync: Service stopped');
   }

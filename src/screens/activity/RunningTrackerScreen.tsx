@@ -10,8 +10,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  AppState,
-  AppStateStatus,
   ScrollView,
   InteractionManager,
 } from 'react-native';
@@ -45,6 +43,7 @@ import { RoutePRComparison } from '../../components/activity/RoutePRComparison';
 import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
 import type { SavedRoute } from '../../services/routes/RouteStorageService';
 import { HoldToStartButton } from '../../components/activity/HoldToStartButton';
+import { AppStateManager } from '../../services/core/AppStateManager';
 
 // Constants
 const TIMER_INTERVAL_MS = 1000; // Update timer every second
@@ -149,6 +148,12 @@ export const RunningTrackerScreen: React.FC = () => {
 
   // Extract metrics update logic to reusable function (defined early for useEffect)
   const updateMetrics = () => {
+    // CRITICAL: Don't update UI if app is backgrounded
+    const appStateManager = AppStateManager.getInstance();
+    if (!appStateManager.isActive()) {
+      return;
+    }
+
     const session = simpleRunTracker.getCurrentSession(); // NOW SYNCHRONOUS!
 
     if (session && session.distance !== undefined && session.duration !== undefined) {
@@ -225,12 +230,34 @@ export const RunningTrackerScreen: React.FC = () => {
     };
   }, []);
 
-  // AppState listener for background/foreground transitions
+  // AppState listener for background/foreground transitions - using AppStateManager
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active' && isTracking) {
-        // App returned to foreground - sync GPS points from storage
-        console.log('[RunningTrackerScreen] App returned to foreground, syncing...');
+    const appStateManager = AppStateManager.getInstance();
+    const unsubscribe = appStateManager.onStateChange(async (isActive) => {
+      if (!isActive) {
+        // App going to background - clear timers to prevent crashes
+        console.log('[RunningTrackerScreen] App backgrounding, clearing timers...');
+        if (metricsUpdateRef.current) {
+          clearInterval(metricsUpdateRef.current);
+          metricsUpdateRef.current = null;
+        }
+        if (routeCheckRef.current) {
+          clearInterval(routeCheckRef.current);
+          routeCheckRef.current = null;
+        }
+      } else if (isActive && isTracking) {
+        // App returned to foreground - restart timers and sync data
+        console.log('[RunningTrackerScreen] App returned to foreground, restarting timers and syncing...');
+
+        // Restart timers
+        if (!metricsUpdateRef.current) {
+          metricsUpdateRef.current = setInterval(() => {
+            updateMetrics();
+          }, METRICS_UPDATE_INTERVAL_MS);
+        }
+        if (!routeCheckRef.current) {
+          routeCheckRef.current = setInterval(checkForRouteMatch, ROUTE_CHECK_INTERVAL_MS);
+        }
 
         // Sync GPS points from AsyncStorage to cache
         await simpleRunTracker.syncGpsPointsFromStorage();
@@ -276,12 +303,10 @@ export const RunningTrackerScreen: React.FC = () => {
           );
         }
       }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    });
 
     return () => {
-      subscription.remove();
+      unsubscribe();
     };
   }, [isTracking]); // Re-subscribe when tracking state changes
 
@@ -422,6 +447,12 @@ export const RunningTrackerScreen: React.FC = () => {
   };
 
   const checkForRouteMatch = async () => {
+    // CRITICAL: Don't update UI if app is backgrounded
+    const appStateManager = AppStateManager.getInstance();
+    if (!appStateManager.isActive()) {
+      return;
+    }
+
     const session = simpleRunTracker.getCurrentSession(); // NOW SYNCHRONOUS!
     if (!session || !session.gpsPoints || session.gpsPoints.length < 10) {
       return; // Need at least 10 GPS points to attempt matching

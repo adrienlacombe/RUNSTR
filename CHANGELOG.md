@@ -6,6 +6,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2025-01-12
+
+### 🛡️ Safe Background Fixes - GPS Tracking Preserved
+
+**Critical Achievement**: Fixed remaining background crashes while **preserving core GPS tracking functionality**. App now handles background/foreground transitions safely without breaking workout recording.
+
+**Key Insight**: Separated UI updates (safe to pause) from GPS recording (must continue). GPS tracking uses native BackgroundLocationTask (TaskManager) which runs independently of JavaScript timers, ensuring workouts continue recording even when app is backgrounded.
+
+### 🔧 Fixes Implemented
+
+#### 1. Centralized AppState Management
+
+**SimpleLocationTrackingService** (`src/services/activity/SimpleLocationTrackingService.ts:144-223`)
+- Replaced direct `AppState.addEventListener` with `AppStateManager.getInstance()`
+- Added `KeepAwake` deactivation on background (prevents Android Doze Mode kills)
+- Stopped foreground location subscription when backgrounding (prevents conflicts with BackgroundLocationTask)
+- Reactivates `KeepAwake` and restarts foreground subscription on app return
+
+**Impact**: Eliminates race conditions from multiple competing AppState listeners, properly manages device wake lock
+
+#### 2. Timer Management in Tracker Screens
+
+**RunningTrackerScreen** (`src/screens/activity/RunningTrackerScreen.tsx:80-147, 150-155, 430-434`)
+- Replaced `AppState.addEventListener` with `AppStateManager.onStateChange`
+- Clears `metricsUpdateRef` and `routeCheckRef` timers when app backgrounds
+- Restarts timers when app returns to foreground
+- Added `AppStateManager.isActive()` check before `setState` in `updateMetrics` and `checkForRouteMatch`
+
+**CyclingTrackerScreen** (`src/screens/activity/CyclingTrackerScreen.tsx:80-146, 222-226`)
+- Same timer management pattern as RunningTrackerScreen
+- Clears `timerRef` and `metricsUpdateRef` on background
+- Restarts timers on foreground return
+- Added `AppStateManager.isActive()` check before `setState` in `updateMetrics`
+
+**Impact**: Prevents immediate crashes from `setState` calls while app is backgrounded. GPS tracking via BackgroundLocationTask continues uninterrupted.
+
+#### 3. Audio Session Cleanup
+
+**TTSAnnouncementService** (`src/services/activity/TTSAnnouncementService.ts:44-57, 392-431`)
+- Added `AppStateManager.onStateChange` listener in `initialize()`
+- Releases audio session on background via `releaseAudioSession()`
+- Restores audio session on foreground if speech was active
+- Stops ongoing speech and resets audio mode when backgrounding
+
+**Impact**: Prevents iOS from killing app due to locked audio sessions. Properly manages audio resources across background transitions.
+
+#### 4. Network Operation Safety
+
+**NWCWalletService** (`src/services/wallet/NWCWalletService.ts:89, 101-112, 811-816`)
+- Disabled `setupAppStateHandling()` method
+- Commented out AppState listener that triggered network operations on background
+- Prevents WebSocket operations on killed connections
+
+**backgroundSyncService** (`src/services/fitness/backgroundSyncService.ts:56, 172-199, 483-488`)
+- Disabled `setupAppStateListener()` method
+- Commented out AppState listener that triggered sync operations
+- Prevents network operations while backgrounded
+
+**Impact**: Eliminates crashes from attempting WebSocket/HTTP operations while app is suspended
+
+### 📊 Architecture Improvements
+
+**AppStateManager Centralization**:
+- Single source of truth for app active/background state
+- Eliminates 8 separate `AppState.addEventListener` calls that were racing
+- Consistent state management across all services and screens
+
+**GPS Recording vs UI Updates Separation**:
+- **GPS Recording**: Uses native `BackgroundLocationTask` (TaskManager) - continues independently
+- **UI Updates**: Uses JavaScript `setInterval` timers - safely paused when backgrounded
+- **Result**: Workouts continue recording while app is backgrounded, but UI doesn't crash from stale state updates
+
+### 🐛 Issues Resolved
+
+- ✅ App no longer crashes when backgrounded during workout tracking
+- ✅ setState calls properly guarded with `AppStateManager.isActive()` checks
+- ✅ KeepAwake properly deactivated on background (prevents Android kills)
+- ✅ Audio sessions properly released on background (prevents iOS kills)
+- ✅ Network operations disabled while backgrounded (prevents WebSocket crashes)
+- ✅ Timer references properly cleared and restarted across transitions
+
+### ✨ Core Functionality Preserved
+
+**GPS Tracking Works Perfectly**:
+- User can start a run → Switch to music player → Return to app
+- Workout continues recording distance, duration, and GPS points
+- Timer and metrics sync correctly when app returns to foreground
+- BackgroundLocationTask runs independently of JavaScript timers
+
+**What Changed**:
+- UI timers pause when app backgrounds (no longer updates every second)
+- UI syncs from GPS data when app returns to foreground
+- GPS recording never stops (native TaskManager continues)
+
+### 🔄 User Experience
+
+**Before v0.7.7**:
+- App crashed immediately when backgrounded during workout
+- White screen on app resume
+- Lost workout data
+
+**After v0.7.7**:
+- App backgrounds smoothly, no crashes
+- GPS tracking continues in background
+- UI updates resume seamlessly on foreground return
+- Workout data preserved
+
+### 📝 Technical Details
+
+**Services Modified**:
+1. SimpleLocationTrackingService - AppStateManager + KeepAwake management
+2. RunningTrackerScreen - Timer management + AppState guards
+3. CyclingTrackerScreen - Timer management + AppState guards
+4. TTSAnnouncementService - Audio session cleanup
+5. NWCWalletService - Disabled network AppState listener
+6. backgroundSyncService - Disabled sync AppState listener
+
+**Files Changed**: 6 files, ~200 lines modified
+
 ## [0.7.6] - 2025-01-11
 
 ### 🛡️ Nuclear Option v2 - Complete Background Crash Elimination

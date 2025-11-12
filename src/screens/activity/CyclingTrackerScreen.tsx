@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Platform, AppState, AppStateStatus } from 'react-native';
+import { Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { AppStateManager } from '../../services/core/AppStateManager';
 import { BaseTrackerComponent } from '../../components/activity/BaseTrackerComponent';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
@@ -75,12 +76,40 @@ export const CyclingTrackerScreen: React.FC = () => {
     };
   }, []);
 
-  // AppState listener for background/foreground transitions
+  // AppState listener for background/foreground transitions - using AppStateManager
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active' && isTracking) {
-        // App returned to foreground while tracking - sync immediately
-        console.log('[CyclingTrackerScreen] App returned to foreground, syncing metrics...');
+    const appStateManager = AppStateManager.getInstance();
+    const unsubscribe = appStateManager.onStateChange((isActive) => {
+      if (!isActive) {
+        // App going to background - clear timers to prevent crashes
+        console.log('[CyclingTrackerScreen] App backgrounding, clearing timers...');
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        if (metricsUpdateRef.current) {
+          clearInterval(metricsUpdateRef.current);
+          metricsUpdateRef.current = null;
+        }
+      } else if (isActive && isTracking) {
+        // App returned to foreground while tracking - restart timers and sync
+        console.log('[CyclingTrackerScreen] App returned to foreground, restarting timers and syncing...');
+
+        // Restart timers
+        if (!timerRef.current) {
+          timerRef.current = setInterval(() => {
+            if (!isPausedRef.current) {
+              const now = Date.now();
+              const totalElapsed = Math.floor(
+                (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
+              );
+              setElapsedTime(totalElapsed);
+            }
+          }, 1000);
+        }
+        if (!metricsUpdateRef.current) {
+          metricsUpdateRef.current = setInterval(updateMetrics, 1000);
+        }
 
         // Force immediate sync of metrics
         const session = simpleLocationTrackingService.getCurrentSession();
@@ -110,12 +139,10 @@ export const CyclingTrackerScreen: React.FC = () => {
           );
         }
       }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    });
 
     return () => {
-      subscription.remove();
+      unsubscribe();
     };
   }, [isTracking]); // Re-subscribe when tracking state changes
 
@@ -192,6 +219,12 @@ export const CyclingTrackerScreen: React.FC = () => {
   };
 
   const updateMetrics = () => {
+    // CRITICAL: Don't update UI if app is backgrounded
+    const appStateManager = AppStateManager.getInstance();
+    if (!appStateManager.isActive()) {
+      return;
+    }
+
     const session = simpleLocationTrackingService.getCurrentSession();
     if (session) {
       // Calculate current speed based on distance and time

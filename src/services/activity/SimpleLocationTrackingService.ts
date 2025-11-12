@@ -11,13 +11,14 @@
 
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { Platform, AppState, AppStateStatus } from 'react-native';
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { locationPermissionService } from './LocationPermissionService';
 import { KalmanFilter } from '../../utils/KalmanFilter';
 import { filterLocation } from '../../utils/gpsValidation';
 import { appPermissionService } from '../initialization/AppPermissionService';
+import { AppStateManager } from '../core/AppStateManager';
 import {
   startBackgroundLocationTracking,
   stopBackgroundLocationTracking,
@@ -103,8 +104,8 @@ export class SimpleLocationTrackingService {
   // Background sync timer (for real-time background updates)
   private backgroundSyncTimer: NodeJS.Timeout | null = null;
 
-  // AppState subscription for background/foreground detection
-  private appStateSubscription: any = null;
+  // AppState subscription for background/foreground detection - now using AppStateManager
+  private appStateUnsubscribe: (() => void) | null = null;
 
   // GPS signal tracking
   private lastGPSUpdate: number = 0;
@@ -141,13 +142,13 @@ export class SimpleLocationTrackingService {
    * This ensures only ONE location listener is active at a time (Android limitation)
    */
   private setupAppStateListener(): void {
-    this.appStateSubscription = AppState.addEventListener(
-      'change',
-      async (nextAppState: AppStateStatus) => {
-        if (nextAppState === 'background') {
+    // Use centralized AppStateManager to prevent conflicts
+    const appStateManager = AppStateManager.getInstance();
+    this.appStateUnsubscribe = appStateManager.onStateChange(async (isActive) => {
+        if (!isActive) {
           // App went to background
           console.log(
-            '[SimpleLocationTrackingService] App backgrounded - stopping foreground subscription'
+            '[SimpleLocationTrackingService] App backgrounded (via AppStateManager) - stopping foreground subscription'
           );
 
           // CRITICAL FIX: Stop foreground location subscription to prevent conflict
@@ -162,11 +163,19 @@ export class SimpleLocationTrackingService {
           if (this.backgroundSyncTimer) {
             this.stopBackgroundSyncPolling();
           }
-        } else if (nextAppState === 'active') {
+
+          // CRITICAL: Deactivate KeepAwake when backgrounding
+          try {
+            deactivateKeepAwake('activity-tracking');
+            console.log('[SimpleLocationTrackingService] ✅ KeepAwake deactivated on background');
+          } catch (error) {
+            console.warn('[SimpleLocationTrackingService] Failed to deactivate KeepAwake on background:', error);
+          }
+        } else {
           // App returned to foreground
           if (this.isTracking && !this.isPaused) {
             console.log(
-              '[SimpleLocationTrackingService] App foregrounded, restarting foreground subscription...'
+              '[SimpleLocationTrackingService] App foregrounded (via AppStateManager), restarting tracking...'
             );
 
             // Step 1: Immediately sync background data BEFORE resuming
@@ -198,6 +207,14 @@ export class SimpleLocationTrackingService {
             // Step 3: Resume polling for ongoing background sync
             if (!this.backgroundSyncTimer) {
               this.startBackgroundSyncPolling();
+            }
+
+            // Step 4: Reactivate KeepAwake if still tracking
+            try {
+              await activateKeepAwakeAsync('activity-tracking');
+              console.log('[SimpleLocationTrackingService] ✅ KeepAwake reactivated on foreground');
+            } catch (error) {
+              console.warn('[SimpleLocationTrackingService] Failed to reactivate KeepAwake on foreground:', error);
             }
           }
         }
@@ -765,6 +782,12 @@ export class SimpleLocationTrackingService {
 
     // Stop background sync polling
     this.stopBackgroundSyncPolling();
+
+    // Clean up AppState listener
+    if (this.appStateUnsubscribe) {
+      this.appStateUnsubscribe();
+      this.appStateUnsubscribe = null;
+    }
 
     // Stop background task and merge locations (iOS and Android)
     await stopBackgroundLocationTracking();
