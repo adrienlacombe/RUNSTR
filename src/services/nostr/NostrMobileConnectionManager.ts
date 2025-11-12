@@ -203,6 +203,14 @@ export class NostrMobileConnectionManager {
       // ⚠️ FIX: Defer WebSocket access to avoid Android instant crash
       // Android kills WebSockets immediately on background
       setTimeout(() => {
+        // ✅ CRITICAL: Check if app is still active before WebSocket access
+        const { AppStateManager } = require('../core/AppStateManager');
+        if (!AppStateManager.canDoNetworkOps()) {
+          console.log('🔴 App backgrounded, skipping WebSocket status check');
+          this.emit('connectionsPaused', { total: 0, connected: 0, connecting: 0, disconnected: 0, error: 0 });
+          return;
+        }
+
         try {
           const stats = nostrRelayManager.getConnectionStatus();
           console.log(`📊 Pausing ${stats.connected} connected relays`);

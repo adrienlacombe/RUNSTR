@@ -48,14 +48,18 @@ export const ChallengeNotificationsBox: React.FC = () => {
       }
     );
 
-    // Start listening for incoming challenges
+    // ❌ DISABLED: Persistent NDK subscription causing Android/iOS crashes
+    // This was starting a background subscription that stays active when app backgrounds
+    // Notifications now load only when user views ProfileScreen (pull-to-refresh pattern)
+    /* COMMENTED OUT FOR STABILITY:
     challengeNotificationHandler.startListening().catch((error) => {
       console.error('Failed to start challenge notifications:', error);
     });
+    */
 
     return () => {
       unsubscribe();
-      challengeNotificationHandler.stopListening();
+      // challengeNotificationHandler.stopListening(); // No longer needed since we don't start
     };
   }, []);
 

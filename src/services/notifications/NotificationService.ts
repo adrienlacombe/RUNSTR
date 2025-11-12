@@ -81,8 +81,14 @@ export class NotificationService {
     this.userId = userId;
     await this.expoProvider.initialize(userId);
 
-    // Start competition event monitoring
+    // ❌ DISABLED: Persistent NDK subscription causing Android/iOS crashes
+    // This NostrNotificationEventHandler starts a background subscription that stays active
+    // when app backgrounds, causing instant crashes when WebSockets are killed
+    // Notifications now load only on-demand when user views notification screens
+    /* COMMENTED OUT FOR STABILITY:
     await this.startCompetitionEventMonitoring();
+    */
+    console.log('[NotificationService] ⚠️ Competition event monitoring DISABLED for stability');
   }
 
   // Schedule a notification

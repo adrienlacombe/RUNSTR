@@ -125,15 +125,18 @@ export class NotificationCleanupService {
   }
 
   /**
-   * Restart all notification handlers
-   * Called after re-authentication
+   * ❌ DISABLED: Restart all notification handlers
+   * This method was creating persistent NDK subscriptions that cause Android/iOS crashes
+   * Notifications now use pull-to-refresh pattern instead of persistent subscriptions
    */
   async restartAllHandlers(): Promise<void> {
-    console.log('[NotificationCleanup] Restarting all notification handlers...');
+    console.log('[NotificationCleanup] ⚠️ restartAllHandlers() DISABLED for stability');
+    console.log('[NotificationCleanup] Persistent notification subscriptions are disabled');
+    console.log('[NotificationCleanup] Use pull-to-refresh to load notifications on-demand');
 
+    /* COMMENTED OUT FOR STABILITY:
     const startTasks: Promise<void>[] = [];
 
-    // Start challenge notifications
     try {
       startTasks.push(challengeNotificationHandler.startListening());
       console.log('[NotificationCleanup] Starting challenge notifications...');
@@ -141,7 +144,6 @@ export class NotificationCleanupService {
       console.error('[NotificationCleanup] Failed to start challenge notifications:', error);
     }
 
-    // Start challenge response notifications
     try {
       startTasks.push(challengeResponseHandler.startListening());
       console.log('[NotificationCleanup] Starting challenge response notifications...');
@@ -149,7 +151,6 @@ export class NotificationCleanupService {
       console.error('[NotificationCleanup] Failed to start challenge response notifications:', error);
     }
 
-    // Start team join notifications
     try {
       startTasks.push(teamJoinNotificationHandler.startListening());
       console.log('[NotificationCleanup] Starting team join notifications...');
@@ -157,7 +158,6 @@ export class NotificationCleanupService {
       console.error('[NotificationCleanup] Failed to start team join notifications:', error);
     }
 
-    // Start event join notifications
     try {
       startTasks.push(eventJoinNotificationHandler.startListening());
       console.log('[NotificationCleanup] Starting event join notifications...');
@@ -165,7 +165,6 @@ export class NotificationCleanupService {
       console.error('[NotificationCleanup] Failed to start event join notifications:', error);
     }
 
-    // Start Nostr competition event notifications
     try {
       const nostrEventHandler = NostrNotificationEventHandler.getInstance();
       startTasks.push(nostrEventHandler.startListening());
@@ -174,10 +173,9 @@ export class NotificationCleanupService {
       console.error('[NotificationCleanup] Failed to start Nostr event notifications:', error);
     }
 
-    // Wait for all start tasks to complete
     await Promise.allSettled(startTasks);
-
     console.log('[NotificationCleanup] ✅ Restart complete');
+    */
   }
 
   /**
