@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.9] - 2025-01-13
+
+### 🛡️ Critical Stability Fix - 30-Minute Idle Crash
+
+**Achievement**: Fixed the critical 30-minute idle crash that was causing the app to crash when left idle for extended periods.
+
+### 🔧 Main Fix
+
+#### Fixed 30-Minute Idle Crash (GlobalNDK Keepalive)
+**Problem**: NDK keepalive timer running indefinitely without lifecycle management, accumulating memory and causing crashes after ~30 minutes idle.
+
+**Solution**: Added keepalive lifecycle management with pause/resume based on app state.
+
+**Files Fixed**:
+- `src/services/nostr/GlobalNDKService.ts`:
+  - Added `pauseKeepalive()` method to stop timer when backgrounded
+  - Added `resumeKeepalive()` method to restart when foregrounded
+  - Added AppState listener for automatic lifecycle management
+
+**Impact**: App no longer crashes when idle for extended periods. GPS workout tracking unaffected.
+
+### 🐛 Issues Resolved
+- ✅ 30-minute idle crash eliminated
+- ✅ Activity tracker race conditions fixed (from 0.7.8)
+- ✅ Authentication persistence improved (from 0.7.8)
+- ✅ Memory leak fixes (from 0.7.8)
+
 ## [0.7.8] - 2025-01-12
 
 ### 🛡️ Critical Stability Fixes - Race Conditions & Import Errors

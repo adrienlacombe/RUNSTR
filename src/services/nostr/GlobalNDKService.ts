@@ -27,6 +27,21 @@ export class GlobalNDKService {
   private static isMonitoringConnections = false;
   private static appStateListenerSetup = false;
 
+  // ✅ NEW: Track keepalive iterations to prevent 30-minute crash
+  private static keepaliveIterations = 0;
+  private static readonly MAX_KEEPALIVE_ITERATIONS = 120; // 60 minutes max (120 * 30s)
+
+  // ✅ NEW: Track total reconnection attempts to prevent infinite loops
+  private static totalReconnectionAttempts = 0;
+  private static readonly MAX_TOTAL_RECONNECTIONS = 50;
+
+  // ✅ NEW: Store relay listeners for proper cleanup
+  private static relayListeners = new Map<any, {
+    connect: () => void,
+    disconnect: () => void,
+    notice: (notice: string) => void
+  }>();
+
   /**
    * Default relay configuration
    * These are fast, reliable relays used across the app
@@ -170,18 +185,25 @@ export class GlobalNDKService {
     console.log('👁️ GlobalNDK: Setting up connection event monitoring...');
     this.isMonitoringConnections = true;
 
+    // ✅ MEMORY LEAK FIX: Clear old listeners before adding new ones
+    this.clearRelayListeners();
+
     // Listen to each relay's connection events
     for (const relay of this.instance.pool.relays.values()) {
-      // Track when relay connects
-      relay.on('connect', () => {
+      // ✅ MEMORY LEAK FIX: Remove any existing listeners first
+      relay.removeAllListeners('connect');
+      relay.removeAllListeners('disconnect');
+      relay.removeAllListeners('notice');
+
+      // Create listener functions
+      const onConnect = () => {
         const status = this.getStatus();
         console.log(
           `✅ GlobalNDK: Relay connected - ${relay.url} (${status.connectedRelays}/${status.relayCount} total)`
         );
-      });
+      };
 
-      // Track when relay disconnects
-      relay.on('disconnect', () => {
+      const onDisconnect = () => {
         const status = this.getStatus();
         console.log(
           `❌ GlobalNDK: Relay disconnected - ${relay.url} (${status.connectedRelays}/${status.relayCount} remaining)`
@@ -191,12 +213,19 @@ export class GlobalNDKService {
         if (status.connectedRelays < 2) {
           this.debouncedReconnect();
         }
-      });
+      };
 
-      // Track relay notices (connection issues, auth requirements, etc.)
-      relay.on('notice', (notice: string) => {
+      const onNotice = (notice: string) => {
         console.log(`⚠️ GlobalNDK: Relay notice from ${relay.url}: ${notice}`);
-      });
+      };
+
+      // Register listeners
+      relay.on('connect', onConnect);
+      relay.on('disconnect', onDisconnect);
+      relay.on('notice', onNotice);
+
+      // ✅ MEMORY LEAK FIX: Store listeners for cleanup
+      this.relayListeners.set(relay, { connect: onConnect, disconnect: onDisconnect, notice: onNotice });
     }
 
     console.log('✅ GlobalNDK: Connection monitoring active');
@@ -212,8 +241,11 @@ export class GlobalNDKService {
       clearInterval(this.keepaliveTimer);
     }
 
+    // ✅ 30-MINUTE CRASH FIX: Reset iteration counter when starting fresh
+    this.keepaliveIterations = 0;
+
     console.log(
-      '💓 GlobalNDK: Starting connection keepalive (30s interval)...'
+      '💓 GlobalNDK: Starting connection keepalive (30s interval, max 120 iterations)...'
     );
 
     this.keepaliveTimer = setInterval(() => {
@@ -227,11 +259,22 @@ export class GlobalNDKService {
         return;
       }
 
+      // ✅ 30-MINUTE CRASH FIX: Increment and check iteration counter
+      this.keepaliveIterations++;
+
+      if (this.keepaliveIterations >= this.MAX_KEEPALIVE_ITERATIONS) {
+        console.warn(
+          `⚠️ GlobalNDK: Keepalive reached max iterations (${this.keepaliveIterations}/${this.MAX_KEEPALIVE_ITERATIONS}) - restarting to prevent memory leaks`
+        );
+        this.restartKeepalive();
+        return;
+      }
+
       const status = this.getStatus();
 
-      // Log keepalive heartbeat
+      // Log keepalive heartbeat with iteration counter
       console.log(
-        `💓 GlobalNDK: Keepalive check - ${status.connectedRelays}/${status.relayCount} relays alive`
+        `💓 GlobalNDK: Keepalive check #${this.keepaliveIterations} - ${status.connectedRelays}/${status.relayCount} relays alive`
       );
 
       // If connections dropped significantly, trigger reconnection
@@ -278,6 +321,19 @@ export class GlobalNDKService {
       return;
     }
 
+    // ✅ INFINITE LOOP FIX: Check total reconnection attempts
+    if (this.totalReconnectionAttempts >= this.MAX_TOTAL_RECONNECTIONS) {
+      console.error(
+        `❌ GlobalNDK: Max reconnection attempts reached (${this.totalReconnectionAttempts}/${this.MAX_TOTAL_RECONNECTIONS}) - stopping to prevent infinite loops`
+      );
+      // Reset counter and pause reconnections for 5 minutes
+      setTimeout(() => {
+        console.log('🔄 GlobalNDK: Reconnection cooldown complete, resetting counter');
+        this.totalReconnectionAttempts = 0;
+      }, 300000); // 5 minute cooldown
+      return;
+    }
+
     const now = Date.now();
     const minInterval = 10000; // 10 seconds minimum between reconnections
 
@@ -290,12 +346,63 @@ export class GlobalNDKService {
     }
 
     this.lastReconnectAttempt = now;
-    console.log('🔄 GlobalNDK: Debounced reconnection triggered');
+    this.totalReconnectionAttempts++;
+    console.log(
+      `🔄 GlobalNDK: Debounced reconnection triggered (attempt ${this.totalReconnectionAttempts}/${this.MAX_TOTAL_RECONNECTIONS})`
+    );
 
     // Trigger background reconnection (non-blocking)
     if (!this.initPromise) {
       this.initPromise = this.connectInBackground();
     }
+  }
+
+  /**
+   * ✅ MEMORY LEAK FIX: Clear all relay event listeners
+   * Prevents listener accumulation when reconnecting
+   */
+  private static clearRelayListeners(): void {
+    if (!this.instance) {
+      return;
+    }
+
+    console.log('🧹 GlobalNDK: Clearing relay listeners...');
+
+    // Remove listeners from relays
+    for (const [relay, listeners] of this.relayListeners.entries()) {
+      relay.removeListener('connect', listeners.connect);
+      relay.removeListener('disconnect', listeners.disconnect);
+      relay.removeListener('notice', listeners.notice);
+    }
+
+    // Clear the map
+    this.relayListeners.clear();
+    console.log('✅ GlobalNDK: Relay listeners cleared');
+  }
+
+  /**
+   * ✅ 30-MINUTE CRASH FIX: Restart keepalive to prevent memory leaks
+   * Called when keepalive reaches max iterations
+   */
+  private static restartKeepalive(): void {
+    console.log('🔄 GlobalNDK: Restarting keepalive after reaching max iterations...');
+
+    // Stop current keepalive
+    this.pauseKeepalive();
+
+    // Clean up listeners to prevent accumulation
+    this.clearRelayListeners();
+
+    // Re-setup connection monitoring with fresh listeners
+    this.isMonitoringConnections = false;
+    if (this.instance) {
+      this.setupConnectionMonitoring();
+    }
+
+    // Restart keepalive with reset counter
+    this.startKeepalive();
+
+    console.log('✅ GlobalNDK: Keepalive restarted successfully');
   }
 
   /**

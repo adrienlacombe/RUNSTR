@@ -204,11 +204,11 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           // DEBUG: Log what we're querying for
           console.log('🔍 Querying Nostr for event participants:');
           console.log(`  - Captain pubkey: ${event.captainPubkey.slice(0, 20)}...`);
-          console.log(`  - d-tag: event-${eventId}-participants`);
+          console.log(`  - d-tag: event-${event.id}-participants`);
 
           eventParticipants = await NostrListService.getListMembers(
             event.captainPubkey, // Author of the participant list
-            `event-${eventId}-participants` // Event-specific d-tag
+            `event-${event.id}-participants` // Event-specific d-tag (use event.id not route param)
           );
 
           console.log(
@@ -414,7 +414,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
 
       const freshParticipants = await NostrListService.getListMembers(
         freshEvent.captainPubkey,
-        `event-${eventId}-participants`
+        `event-${freshEvent.id}-participants` // Use freshEvent.id (d-tag) not route param
       );
 
       const freshLeaderboard = await SimpleLeaderboardService.calculateEventLeaderboard(
