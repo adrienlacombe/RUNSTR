@@ -30,7 +30,8 @@ interface SyncSource {
 
 const syncSources: SyncSource[] = [
   { id: 'apple', name: 'Apple Health', icon: '', available: true },
-  { id: 'garmin', name: 'Garmin Connect', icon: '', available: false },
+  // GARMIN: Hidden until CRITICAL security issues fixed (client_secret in bundle, deep link validation)
+  // { id: 'garmin', name: 'Garmin Connect', icon: '', available: false },
   { id: 'google', name: 'Google Fit', icon: '', available: false },
 ];
 

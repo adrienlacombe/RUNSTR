@@ -19,9 +19,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import SimpleCompetitionService from '../services/competition/SimpleCompetitionService';
+import SimpleLeaderboardService from '../services/competition/SimpleLeaderboardService';
+import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
 import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys } from '../constants/cacheTTL';
 import { CharitySection } from '../components/team/CharitySection';
+import { DailyLeaderboardCard } from '../components/team/DailyLeaderboardCard';
 import { TeamMembershipService } from '../services/team/teamMembershipService';
 import { publishJoinRequest } from '../utils/joinRequestPublisher';
 import { useNavigationData } from '../contexts/NavigationDataContext';
@@ -60,11 +63,12 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
   console.log('[SimpleTeamScreen] 🚀 Rendering with minimal dependencies');
 
   const { team } = data || {};
-  const [events, setEvents] = useState<any[]>([]);
-  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [leaderboards, setLeaderboards] = useState<any>(null);
+  const [loadingLeaderboards, setLoadingLeaderboards] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(userIsMemberProp);
+  const [isCompetitionTeam, setIsCompetitionTeam] = useState(false);
 
   // Navigation data context for optimistic updates
   const navigationData = useNavigationData();
@@ -91,7 +95,7 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
         abortControllerRef.current = null;
       }
 
-      const fetchEvents = async () => {
+      const fetchLeaderboards = async () => {
         console.log(
           '[SimpleTeamScreen] 🔍 useFocusEffect triggered - Team data check:',
           {
@@ -105,85 +109,49 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
 
         if (!team?.id) {
           console.warn(
-            '[SimpleTeamScreen] ⚠️ No team.id found, cannot fetch events'
+            '[SimpleTeamScreen] ⚠️ No team.id found, cannot fetch leaderboards'
           );
-          setLoadingEvents(false);
+          setLoadingLeaderboards(false);
           return;
         }
 
-        // ✅ PERFORMANCE FIX: Check team-specific cache (no global filtering needed)
-        const cachedEvents = unifiedCache.getCached(CacheKeys.TEAM_EVENTS(team.id));
-        if (cachedEvents && Array.isArray(cachedEvents)) {
-          console.log(
-            '[SimpleTeamScreen] ⚡ Cache hit: Displaying',
-            cachedEvents.length,
-            'cached events INSTANTLY for team',
-            team.id
-          );
-          setEvents(cachedEvents);
-          setLoadingEvents(false); // ✅ Hide spinner immediately - UI is instant
-        } else {
-          console.log(
-            '[SimpleTeamScreen] 📱 Cache miss: No cached events for team',
-            team.id,
-            '- will show spinner'
-          );
-          setLoadingEvents(true); // Only show spinner on first load when no cache
-        }
+        // Check if this is user's competition team
+        const competitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
+        setIsCompetitionTeam(competitionTeam === team.id);
 
-        // ✅ FIX: Create new AbortController for this fetch
-        abortControllerRef.current = new AbortController();
-        const signal = abortControllerRef.current.signal;
-
-        // ✅ NON-BLOCKING: Fetch fresh data in background (UI already responsive)
+        // Fetch daily leaderboards
         console.log(
-          '[SimpleTeamScreen] 🔄 Starting background fetch for fresh events...'
+          '[SimpleTeamScreen] 🔄 Fetching daily leaderboards for team:',
+          team.id
         );
 
         try {
-          const freshEvents = await SimpleCompetitionService.getInstance()
-            .getTeamEvents(team.id, signal);
-
-          // Check if request was aborted
-          if (signal.aborted) {
-            console.log('[SimpleTeamScreen] ⚠️ Background fetch was aborted - user navigated away');
-            return;
-          }
+          const dailyLeaderboards = await SimpleLeaderboardService.getTeamDailyLeaderboards(team.id);
 
           console.log(
-            '[SimpleTeamScreen] ✅ Background fetch complete:',
-            freshEvents.length,
-            'events'
+            '[SimpleTeamScreen] ✅ Leaderboards loaded:',
+            {
+              '5k': dailyLeaderboards.leaderboard5k.length,
+              '10k': dailyLeaderboards.leaderboard10k.length,
+              'half': dailyLeaderboards.leaderboardHalf.length,
+              'marathon': dailyLeaderboards.leaderboardMarathon.length,
+            }
           );
 
-          // Ensure all events have teamId and captainPubkey (use team context if missing)
-          const eventsWithTeamId = freshEvents.map(event => ({
-            ...event,
-            teamId: event.teamId || team.id,
-            captainPubkey: event.captainPubkey || team.captainId
-          }));
-
-          setEvents(eventsWithTeamId);
-          setLoadingEvents(false);
+          setLeaderboards(dailyLeaderboards);
+          setLoadingLeaderboards(false);
         } catch (error: any) {
-          // Ignore abort errors
-          if (error?.name === 'AbortError') {
-            console.log('[SimpleTeamScreen] ℹ️ Background fetch cancelled - user navigated away');
-            return;
-          }
-
           console.error(
-            '[SimpleTeamScreen] ❌ Background fetch error:',
+            '[SimpleTeamScreen] ❌ Leaderboard fetch error:',
             error
           );
-          setLoadingEvents(false);
-          // Keep showing cached data if background fetch fails
+          setLoadingLeaderboards(false);
         }
       };
 
       // ✅ DEBOUNCE: Only fetch if user stays on page for 150ms (prevents rapid back-forward)
       debounceTimerRef.current = setTimeout(() => {
-        fetchEvents();
+        fetchLeaderboards();
       }, 150);
 
       // Cleanup: cancel pending fetch if user navigates away quickly
@@ -200,14 +168,19 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
     }, [team?.id, data, team])
   );
 
-  // ✅ Join Team Handler - Following working pattern from TeamCard.tsx
+  // ✅ Join Team Handler - Set as competition team for leaderboard participation
   const handleJoinTeam = useCallback(async () => {
     if (!currentUserNpub || !team?.id || isJoining) return;
 
     try {
       setIsJoining(true);
 
-      // 1. Join locally - instant bookmark, no captain approval needed
+      // 1. Set as competition team (appears on leaderboards)
+      await LocalTeamMembershipService.setCompetitionTeam(team.id);
+
+      console.log(`✅ Team set as competition team: ${team.name}`);
+
+      // 2. Also join locally for backwards compatibility
       await membershipService.joinTeamLocally(
         team.id,
         team.name,
@@ -215,10 +188,9 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
         currentUserNpub
       );
 
-      console.log(`✅ Team joined locally: ${team.name}`);
-
-      // 2. Update button state to show member status
+      // 3. Update button state to show member status
       setIsMember(true);
+      setIsCompetitionTeam(true);
 
       // 3. ✅ Optimistic ProfileData Update - Instantly add to My Teams
       if (navigationData.profileData?.teams && !navigationData.profileData.teams.some(t => t.id === team.id)) {
@@ -243,10 +215,10 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
         console.log(`⚡ Optimistically added ${team.name} to profileData (instant My Teams update)`);
       }
 
-      // 4. ✅ Success Alert - Inform user with navigation hint
+      // 4. ✅ Success Alert - Inform user
       CustomAlertManager.alert(
         'Success!',
-        `You've joined ${team.name}. View it in My Teams.`
+        `${team.name} is now your competition team. Your workouts will appear on their leaderboards!`
       );
 
       // 5. ✅ Background: Publish join request to Nostr (fire-and-forget)
@@ -304,16 +276,14 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
     setRefreshing(true);
     try {
       console.log(
-        '[SimpleTeamScreen] 🔄 Pull-to-refresh: Fetching events for team:',
+        '[SimpleTeamScreen] 🔄 Pull-to-refresh: Fetching leaderboards for team:',
         team.id
       );
-      const teamEvents =
-        await SimpleCompetitionService.getInstance().getTeamEvents(team.id, undefined);
+      const dailyLeaderboards = await SimpleLeaderboardService.getTeamDailyLeaderboards(team.id);
       console.log(
-        '[SimpleTeamScreen] ✅ Pull-to-refresh: Found events:',
-        teamEvents.length
+        '[SimpleTeamScreen] ✅ Pull-to-refresh: Leaderboards loaded'
       );
-      setEvents(teamEvents);
+      setLeaderboards(dailyLeaderboards);
     } catch (error) {
       console.error('[SimpleTeamScreen] ❌ Pull-to-refresh error:', error);
     } finally {
@@ -405,8 +375,8 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
               </TouchableOpacity>
             )}
 
-            {/* Join Team Button */}
-            {showJoinButton && !isMember && (
+            {/* Competition Team Button */}
+            {showJoinButton && !isCompetitionTeam && (
               <TouchableOpacity
                 style={[styles.joinButton, isJoining && styles.joinButtonDisabled]}
                 activeOpacity={0.8}
@@ -416,33 +386,33 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
                 {isJoining ? (
                   <ActivityIndicator color={theme.colors.background} size="small" />
                 ) : (
-                  <Text style={styles.joinButtonText}>Join Team</Text>
+                  <Text style={styles.joinButtonText}>Compete on This Team</Text>
                 )}
               </TouchableOpacity>
             )}
 
-            {/* Member Badge */}
-            {isMember && !userIsCaptain && (
+            {/* Competition Team Badge */}
+            {isCompetitionTeam && !userIsCaptain && (
               <View style={styles.memberBadge}>
                 <Ionicons
                   name="checkmark-circle"
                   size={20}
                   color={theme.colors.success}
                 />
-                <Text style={styles.memberBadgeText}>Team Member</Text>
+                <Text style={styles.memberBadgeText}>Your Competition Team</Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* Events Section */}
+        {/* Daily Leaderboards Section */}
         <View style={styles.eventsSection}>
           <Text style={styles.sectionTitle}>Events</Text>
 
-          {loadingEvents ? (
+          {loadingLeaderboards ? (
             // ✅ SKELETON UI: Show lightweight placeholders instead of spinner
             <View style={styles.contentList}>
-              {[1, 2, 3].map((i) => (
+              {[1, 2].map((i) => (
                 <View key={`skeleton-${i}`} style={styles.skeletonCard}>
                   <View style={styles.skeletonHeader}>
                     <View style={styles.skeletonIcon} />
@@ -453,85 +423,83 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
                   </View>
                   <View style={styles.skeletonFooter}>
                     <View style={styles.skeletonBadge} />
-                    <View style={styles.skeletonBadge} />
                   </View>
                 </View>
               ))}
             </View>
-          ) : events.length === 0 ? (
+          ) : !leaderboards || (
+            leaderboards.leaderboard5k.length === 0 &&
+            leaderboards.leaderboard10k.length === 0 &&
+            leaderboards.leaderboardHalf.length === 0 &&
+            leaderboards.leaderboardMarathon.length === 0
+          ) ? (
             <View style={styles.emptyContainer}>
               <Ionicons
-                name="calendar-outline"
+                name="trophy-outline"
                 size={48}
                 color={theme.colors.textMuted}
               />
-              <Text style={styles.emptyText}>No events scheduled</Text>
-              {userIsCaptain && (
+              <Text style={styles.emptyText}>No activity today</Text>
+              {isCompetitionTeam ? (
                 <Text style={styles.emptySubtext}>
-                  Create an event from the Captain Dashboard
+                  Be the first to run and create today's events!
+                </Text>
+              ) : (
+                <Text style={styles.emptySubtext}>
+                  Set this as your competition team to participate
                 </Text>
               )}
             </View>
           ) : (
             <View style={styles.contentList}>
-              {events.map((event) => (
-                <TouchableOpacity
-                  key={event.id}
-                  style={styles.eventCard}
-                  onPress={() => onEventPress && onEventPress(event.id, event)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.cardHeader}>
-                    <View style={styles.iconContainer}>
-                      <Ionicons
-                        name="flag"
-                        size={20}
-                        color={theme.colors.accent}
-                      />
-                    </View>
-                    <View style={styles.cardInfo}>
-                      <Text style={styles.cardName}>{event.name}</Text>
-                      <Text style={styles.cardDate}>
-                        {new Date(event.eventDate).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={theme.colors.textMuted}
-                    />
-                  </View>
+              {leaderboards.leaderboard5k.length > 0 && (
+                <DailyLeaderboardCard
+                  title="5K Today"
+                  distance="5km"
+                  participants={leaderboards.leaderboard5k.length}
+                  topRunner={leaderboards.leaderboard5k[0]}
+                  onPress={() => {
+                    // TODO: Navigate to full leaderboard screen
+                    console.log('Navigate to 5K leaderboard');
+                  }}
+                />
+              )}
 
-                  <View style={styles.cardDetails}>
-                    <View style={styles.detailItem}>
-                      <Ionicons
-                        name="footsteps"
-                        size={16}
-                        color={theme.colors.textMuted}
-                      />
-                      <Text style={styles.detailText}>
-                        {event.activityType}
-                      </Text>
-                    </View>
-                    {event.targetDistance && (
-                      <View style={styles.detailItem}>
-                        <Ionicons
-                          name="flag-outline"
-                          size={16}
-                          color={theme.colors.textMuted}
-                        />
-                        <Text style={styles.detailText}>
-                          {event.targetDistance} {event.targetUnit}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {leaderboards.leaderboard10k.length > 0 && (
+                <DailyLeaderboardCard
+                  title="10K Today"
+                  distance="10km"
+                  participants={leaderboards.leaderboard10k.length}
+                  topRunner={leaderboards.leaderboard10k[0]}
+                  onPress={() => {
+                    console.log('Navigate to 10K leaderboard');
+                  }}
+                />
+              )}
+
+              {leaderboards.leaderboardHalf.length > 0 && (
+                <DailyLeaderboardCard
+                  title="Half Marathon Today"
+                  distance="21.1km"
+                  participants={leaderboards.leaderboardHalf.length}
+                  topRunner={leaderboards.leaderboardHalf[0]}
+                  onPress={() => {
+                    console.log('Navigate to Half Marathon leaderboard');
+                  }}
+                />
+              )}
+
+              {leaderboards.leaderboardMarathon.length > 0 && (
+                <DailyLeaderboardCard
+                  title="Marathon Today"
+                  distance="42.2km"
+                  participants={leaderboards.leaderboardMarathon.length}
+                  topRunner={leaderboards.leaderboardMarathon[0]}
+                  onPress={() => {
+                    console.log('Navigate to Marathon leaderboard');
+                  }}
+                />
+              )}
             </View>
           )}
         </View>

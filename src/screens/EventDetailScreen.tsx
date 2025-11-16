@@ -22,7 +22,6 @@ import { SimpleLeagueDisplay } from '../components/team/SimpleLeagueDisplay';
 import { EventPaymentModal } from '../components/event/EventPaymentModal';
 import { CustomAlert } from '../components/ui/CustomAlert';
 import { TeamGoalProgressCard } from '../components/team/TeamGoalProgressCard';
-import { eventJoinService } from '../services/event/EventJoinService';
 import type { RootStackParamList } from '../types';
 
 type EventDetailRouteProp = RouteProp<RootStackParamList, 'EventDetail'>;
@@ -735,29 +734,6 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
         <View style={styles.eventCard}>
           <Text style={styles.eventName}>{eventData.name}</Text>
 
-          {/* Captain Dashboard Button */}
-          {isCaptain && (
-            <TouchableOpacity
-              style={styles.captainDashboardButton}
-              onPress={() =>
-                navigation.navigate('EventCaptainDashboard', {
-                  eventId,
-                  eventData,
-                })
-              }
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="shield"
-                size={18}
-                color={theme.colors.background}
-              />
-              <Text style={styles.captainDashboardButtonText}>
-                Captain Dashboard
-              </Text>
-            </TouchableOpacity>
-          )}
-
           {/* Status Badge */}
           <View style={styles.statusBadgeContainer}>
             <View
@@ -1260,22 +1236,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-  },
-  captainDashboardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.accent,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-    gap: 8,
-  },
-  captainDashboardButtonText: {
-    color: theme.colors.background,
-    fontSize: 15,
-    fontWeight: '600',
   },
   // ✅ NEW: Participation type selector styles
   participationTypeContainer: {

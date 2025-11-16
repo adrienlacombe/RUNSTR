@@ -15,8 +15,9 @@ import {
 import { theme } from '../../styles/theme';
 import { Avatar } from './Avatar';
 import { NWCLightningButton } from '../lightning/NWCLightningButton';
-import { ChallengeIconButton } from './ChallengeIconButton';
-import { SimpleChallengeWizardV2 } from '../wizards/SimpleChallengeWizardV2';
+import { CharityZapIconButton } from './CharityZapIconButton';
+import { ExternalZapModal } from '../nutzap/ExternalZapModal';
+import { CharitySelectionService } from '../../services/charity/CharitySelectionService';
 import { useNostrProfile } from '../../hooks/useCachedData';
 
 interface ZappableUserRowProps {
@@ -45,7 +46,8 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
   hideActionsForCurrentUser = false,
 }) => {
   const { profile } = useNostrProfile(npub);
-  const [challengeWizardVisible, setChallengeWizardVisible] = useState(false);
+  const [charityModalVisible, setCharityModalVisible] = useState(false);
+  const [selectedCharity, setSelectedCharity] = useState<{ name: string; address: string } | null>(null);
 
   // Resolve display name with fallback chain
   const displayName =
@@ -56,8 +58,17 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
 
   const avatarUrl = profile?.picture;
 
-  const handleChallengePress = () => {
-    setChallengeWizardVisible(true);
+  const handleCharityZap = async () => {
+    try {
+      const charity = await CharitySelectionService.getSelectedCharity();
+      setSelectedCharity({
+        name: charity.name,
+        address: charity.lightningAddress,
+      });
+      setCharityModalVisible(true);
+    } catch (error) {
+      console.error('[ZappableUserRow] Error loading charity:', error);
+    }
   };
 
   return (
@@ -79,15 +90,15 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
                 {displayName}
               </Text>
 
-              {/* Challenge & Zap buttons next to name */}
+              {/* Charity & Zap buttons next to name */}
               {!hideActionsForCurrentUser && (
                 <View style={styles.actionButtons}>
                   {showChallengeButton && (
-                    <ChallengeIconButton
+                    <CharityZapIconButton
                       userPubkey={npub}
                       userName={displayName}
                       disabled={disabled}
-                      onPress={handleChallengePress}
+                      onPress={handleCharityZap}
                     />
                   )}
                   {showQuickZap && (
@@ -112,15 +123,21 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
         )}
       </View>
 
-      {/* Challenge Wizard Modal */}
-      <SimpleChallengeWizardV2
-        visible={challengeWizardVisible}
-        onClose={() => setChallengeWizardVisible(false)}
-        preSelectedOpponent={{
-          pubkey: npub,
-          name: displayName,
-        }}
-      />
+      {/* Charity Zap Modal */}
+      {selectedCharity && (
+        <ExternalZapModal
+          visible={charityModalVisible}
+          onClose={() => setCharityModalVisible(false)}
+          recipientNpub={selectedCharity.address}
+          recipientName={selectedCharity.name}
+          amount={21}
+          memo={`Donation to ${selectedCharity.name}`}
+          onSuccess={() => {
+            setCharityModalVisible(false);
+            console.log('Charity donation sent from ZappableUserRow!');
+          }}
+        />
+      )}
     </>
   );
 };

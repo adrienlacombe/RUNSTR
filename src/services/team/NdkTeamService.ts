@@ -29,6 +29,9 @@ import type {
   TeamDiscoveryFilters,
 } from '../nostr/NostrTeamService';
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
+import { HARDCODED_TEAMS } from '../../constants/hardcodedTeams';
+import { LocalTeamStorageService } from './LocalTeamStorageService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface NdkTeamQueryResult {
   success: boolean;
@@ -219,174 +222,108 @@ export class NdkTeamService {
   }
 
   /**
-   * MAIN DISCOVERY METHOD: Global NDK team discovery
-   * ULTRA-SIMPLE: Find ALL 33404 events from ALL time from ANY author
+   * MAIN DISCOVERY METHOD: Returns hardcoded teams (NO Nostr query)
+   *
+   * PERFORMANCE OPTIMIZATION: Teams are hardcoded to eliminate 4-6 seconds
+   * of Nostr queries on app startup. Hardcoded teams are updated weekly.
    */
   async discoverAllTeams(filters?: TeamDiscoveryFilters): Promise<NostrTeam[]> {
-    // Starting global team discovery
-
-    // Wait for NDK to be ready (10s timeout, but returns immediately if already connected)
-    const isReady = await this.awaitNDKReady(10000);
-    if (!isReady) {
-      console.error('❌ NDK not ready for team discovery after 10s timeout');
-      console.error(
-        '   This usually means GlobalNDK failed to connect to any relays'
-      );
-      return [];
-    }
-
+    console.log('📋 Using hardcoded teams (no Nostr query)');
     const startTime = Date.now();
-    const allEvents: NDKEvent[] = [];
-    const collectionEventIds = new Set<string>(); // For deduplicating during collection
-    const processedEventIds = new Set<string>(); // For tracking processing (starts empty)
-    const teams: NostrTeam[] = [];
-    let subscriptionStats = {
-      subscriptionsCreated: 0,
-      eventsReceived: 0,
-      timeoutsCaught: 0,
-    };
 
     try {
-      // ULTRA-SIMPLE STRATEGY: Global team discovery
-      const globalResult = await this.executeGlobalTeamDiscovery(
-        allEvents,
-        collectionEventIds, // Use separate set for collection
-        subscriptionStats
-      );
+      // Convert hardcoded teams to NostrTeam format
+      const teams: NostrTeam[] = HARDCODED_TEAMS.map((hardcodedTeam) => {
+        // Extract metadata from raw event tags
+        const tags = hardcodedTeam.rawEvent.tags || [];
+        const charityTag = tags.find((t: any[]) => t[0] === 'charity');
+        const bannerTag = tags.find((t: any[]) => t[0] === 'banner' || t[0] === 'image');
+        const shopTag = tags.find((t: any[]) => t[0] === 'shop');
+        const flashTag = tags.find((t: any[]) => t[0] === 'flash');
+        const aboutTag = tags.find((t: any[]) => t[0] === 'about');
 
-      // Convert collected events to basic teams with minimal filtering
-
-      const seenTeamNames = new Set<string>(); // Track team names to prevent duplicates
-
-      for (const ndkEvent of allEvents) {
-        try {
-          // Extract basic info directly from NDK event
-          const nameTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'name');
-          const teamName = nameTag?.[1] || 'Unnamed Team';
-
-          // Filter 1: Skip "Deleted" teams
-          if (teamName.toLowerCase() === 'deleted') {
-            continue;
+        // Extract description from content or tags
+        let description = hardcodedTeam.description;
+        if (!description && hardcodedTeam.rawEvent.content) {
+          try {
+            // Try parsing as JSON
+            const parsed = JSON.parse(hardcodedTeam.rawEvent.content);
+            description = parsed.about || parsed.description || '';
+          } catch {
+            // Use plain text content
+            description = hardcodedTeam.rawEvent.content;
           }
-
-          // Filter 2: Skip duplicate team names (keep first occurrence)
-          const teamNameLower = teamName.toLowerCase();
-          if (seenTeamNames.has(teamNameLower)) {
-            continue;
-          }
-          seenTeamNames.add(teamNameLower);
-
-          const captainTag = ndkEvent.tags?.find(
-            (tag: any) => tag[0] === 'captain'
-          );
-          const captainId = captainTag?.[1] || ndkEvent.pubkey || 'unknown';
-
-          const dTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'd');
-          const teamId = dTag?.[1] || ndkEvent.id || 'unknown';
-
-          // Extract charity ID from tags
-          const charityTag = ndkEvent.tags?.find(
-            (tag: any) => tag[0] === 'charity'
-          );
-          const charityId = charityTag?.[1] || undefined;
-
-          // Extract banner image from tags
-          const bannerTag = ndkEvent.tags?.find(
-            (tag: any) => tag[0] === 'banner' || tag[0] === 'image'
-          );
-          const bannerImage = bannerTag?.[1] || undefined;
-
-          // Banner image handled silently
-
-          // Extract shop and flash URLs from tags
-          const shopTag = ndkEvent.tags?.find((tag: any) => tag[0] === 'shop');
-          const shopUrl = shopTag?.[1] || undefined;
-
-          const flashTag = ndkEvent.tags?.find(
-            (tag: any) => tag[0] === 'flash'
-          );
-          const flashUrl = flashTag?.[1] || undefined;
-
-          // Extract description - handle both old JSON format and new tag format
-          const description = (() => {
-            try {
-              // Check for 'about' tag first (new format)
-              const aboutTag = ndkEvent.tags?.find(
-                (tag: any) => tag[0] === 'about'
-              );
-              if (aboutTag?.[1]) {
-                return aboutTag[1];
-              }
-
-              // Try parsing content as JSON (old format - e.g., Bitcoin Runners)
-              if (ndkEvent.content && ndkEvent.content.startsWith('{')) {
-                const parsed = JSON.parse(ndkEvent.content);
-                if (parsed.about) {
-                  return parsed.about;
-                }
-              }
-
-              // Fall back to content as plain text if it exists and is not just the team name
-              // Many teams store their about/description directly in the content field
-              if (ndkEvent.content && ndkEvent.content.trim() !== '' &&
-                  ndkEvent.content !== teamName &&
-                  ndkEvent.content.toLowerCase() !== teamName.toLowerCase()) {
-                return ndkEvent.content;
-              }
-
-              // No valid about information found
-              return '';
-            } catch (error) {
-              // If JSON parse fails, check if content is valid plain text
-              if (ndkEvent.content && ndkEvent.content.trim() !== '' &&
-                  ndkEvent.content !== teamName &&
-                  ndkEvent.content.toLowerCase() !== teamName.toLowerCase()) {
-                return ndkEvent.content;
-              }
-              return '';
-            }
-          })();
-
-          // Create minimal team object
-          const simpleTeam: NostrTeam = {
-            id: teamId,
-            name: teamName,
-            description: description,
-            captain: captainId, // Add captain field
-            captainId: captainId,
-            captainNpub: captainId, // For compatibility
-            memberCount: 1, // Default
-            isPublic: true, // Default - show everything else
-            activityType: 'general',
-            charityId: charityId, // Include charity ID if present
-            bannerImage: bannerImage, // Include banner image if present
-            shopUrl: shopUrl, // Include shop URL if present
-            flashUrl: flashUrl, // Include Flash URL if present
-            tags: [],
-            createdAt: ndkEvent.created_at || Math.floor(Date.now() / 1000),
-            nostrEvent: this.convertNdkEventToStandard(ndkEvent), // Add nostrEvent using correct method name
-            hasListSupport: false, // Default
-            memberListId: undefined, // Default
-          };
-
-          teams.push(simpleTeam);
-        } catch (error) {
-          console.warn(
-            `⚠️ Error creating simple team from event ${ndkEvent.id}:`,
-            error
-          );
         }
+        if (!description && aboutTag) {
+          description = aboutTag[1];
+        }
+
+        const nostrTeam: NostrTeam = {
+          id: hardcodedTeam.id,
+          name: hardcodedTeam.name,
+          description: description || '',
+          captain: hardcodedTeam.captainHex,
+          captainId: hardcodedTeam.captainHex,
+          captainNpub: hardcodedTeam.captain,
+          memberCount: 1,
+          isPublic: true,
+          activityType: 'general',
+          charityId: charityTag?.[1],
+          bannerImage: bannerTag?.[1] || hardcodedTeam.image,
+          shopUrl: shopTag?.[1],
+          flashUrl: flashTag?.[1],
+          tags: [],
+          createdAt: hardcodedTeam.createdAt,
+          nostrEvent: hardcodedTeam.rawEvent,
+          hasListSupport: false,
+          memberListId: undefined,
+        };
+
+        return nostrTeam;
+      });
+
+      // Load locally-created teams from AsyncStorage
+      const currentUserNpub = await AsyncStorage.getItem('@runstr:npub');
+      let localTeams: NostrTeam[] = [];
+
+      if (currentUserNpub) {
+        const localTeamData = await LocalTeamStorageService.getTeamsByCaptain(currentUserNpub);
+
+        // Convert LocalTeam to NostrTeam format
+        localTeams = localTeamData.map(localTeam => ({
+          id: localTeam.id,
+          name: localTeam.name,
+          description: localTeam.description,
+          captain: localTeam.captainId,
+          captainId: localTeam.captainId,
+          captainNpub: localTeam.captainId,
+          memberCount: localTeam.memberCount || 1,
+          isPublic: true,
+          activityType: 'general',
+          charityId: localTeam.charityId,
+          bannerImage: localTeam.bannerImage,
+          shopUrl: localTeam.shopUrl,
+          flashUrl: undefined,
+          tags: [],
+          createdAt: new Date(localTeam.createdAt).getTime(),
+          nostrEvent: {} as any, // Local teams don't have real Nostr events yet
+          hasListSupport: false,
+          memberListId: undefined,
+        }));
+
+        console.log(`📱 Loaded ${localTeams.length} locally-created teams for captain`);
       }
 
+      // Merge hardcoded and local teams (local teams first for captain visibility)
+      const allTeams = [...localTeams, ...teams];
+
       const queryTime = Date.now() - startTime;
-      console.log(`✅ Found ${teams.length} teams in ${queryTime}ms`);
-      // Performance metrics logged
+      console.log(`✅ Loaded ${teams.length} hardcoded + ${localTeams.length} local teams in ${queryTime}ms (was 4-6 seconds with Nostr query)`);
 
-      // Teams processed successfully
-
-      return teams.sort((a, b) => b.createdAt - a.createdAt);
+      // Sort by creation date (newest first)
+      return allTeams.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error) {
-      console.error('❌ NdkTeamService: Error discovering teams:', error);
+      console.error('❌ NdkTeamService: Error loading hardcoded teams:', error);
       return [];
     }
   }

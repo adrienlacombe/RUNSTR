@@ -28,17 +28,7 @@ import {
 import { theme } from '../styles/theme';
 import { CustomAlertManager } from '../components/ui/CustomAlert';
 // BottomNavigation removed - Captain Dashboard has back button
-// import { ZappableUserRow } from '../components/ui/ZappableUserRow'; // REMOVED: No longer needed without member list
-import { QuickActionsSection } from '../components/team/QuickActionsSection';
-import { ActivityFeedSection } from '../components/team/ActivityFeedSection';
-import { JoinRequestsSection } from '../components/team/JoinRequestsSection'; // RESTORED: For team join requests with kind 30000 approval
-import { EventJoinRequestsSection } from '../components/captain/EventJoinRequestsSection';
-import { TeamMembersSection } from '../components/captain/TeamMembersSection';
-import { SimpleEventWizardV2 } from '../components/wizards/SimpleEventWizardV2';
-import { LeagueCreationWizard } from '../components/wizards/LeagueCreationWizard';
-import { CompetitionParticipantsSection } from '../components/captain/CompetitionParticipantsSection';
-import { ActiveEventsSection } from '../components/captain/ActiveEventsSection';
-import { QREventDisplayModal } from '../components/event/QREventDisplayModal';
+// REMOVED: All management section components - Captain dashboard simplified to Edit Team only
 import { CompetitionService } from '../services/competition/competitionService';
 import { qrEventService } from '../services/event/QREventService';
 import type { QREventData } from '../services/event/QREventService';
@@ -48,6 +38,7 @@ import { GlobalNDKService } from '../services/nostr/GlobalNDKService';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import { TeamMemberCache } from '../services/team/TeamMemberCache';
 import { TeamCacheService } from '../services/cache/TeamCacheService';
+import { LocalTeamStorageService } from '../services/team/LocalTeamStorageService';
 import { getTeamListDetector } from '../utils/teamListDetector';
 import NostrTeamCreationService from '../services/nostr/NostrTeamCreationService';
 import {
@@ -68,7 +59,6 @@ export interface CaptainDashboardData {
     name: string;
     memberCount: number;
     activeEvents: number;
-    activeChallenges: number;
     prizePool: number;
     shopUrl?: string;
   };
@@ -674,6 +664,23 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
       if (publishResult) {
         setShowEditTeamModal(false);
 
+        // Update AsyncStorage if this is a locally-created team
+        try {
+          const isLocalTeam = await LocalTeamStorageService.isLocalTeam(teamId);
+          if (isLocalTeam) {
+            await LocalTeamStorageService.updateCreatedTeam(teamId, {
+              name: editedTeamName.trim(),
+              description: editedTeamDescription.trim(),
+              bannerImage: editedBannerUrl.trim() || currentTeamData?.bannerImage,
+              charityId: editedCharityId,
+            });
+            console.log('✅ Local team updated in AsyncStorage');
+          }
+        } catch (storageError) {
+          console.error('Failed to update local team storage:', storageError);
+          // Don't fail the whole process if local storage fails
+        }
+
         // Clear cache after a delay to allow relay propagation
         setTimeout(async () => {
           console.log(
@@ -1230,220 +1237,19 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
         {/* REMOVED: Team Charity Section - charity feature removed */}
 
-        {/* Quick Actions */}
-        <QuickActionsSection
-          onCreateEvent={handleShowEventWizard}
-          // onCreateLeague={handleShowLeagueWizard} // REMOVED: Moving away from leagues
-          onEditTeam={() => setShowEditTeamModal(true)}
-          // onManageFlash={() => setShowFlashModal(true)} // REMOVED: Removing Flash subscription management
-        />
+        {/* Edit Team Button - Simplified Captain Actions */}
+        <View style={styles.managementSection}>
+          <TouchableOpacity
+            style={styles.editTeamButton}
+            onPress={() => setShowEditTeamModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={20} color={theme.colors.text} />
+            <Text style={styles.editTeamButtonText}>Edit Team</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* My Events Section - Captain-created events with announcement buttons */}
-        {captainEvents.length > 0 && (
-          <View style={styles.managementSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Events</Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: theme.colors.textMuted,
-                }}
-              >
-                {captainEvents.length} event{captainEvents.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
-            >
-              {captainEvents.map((record) => {
-                const event = record.eventData;
-                const eventDate = new Date(event.eventDate);
-                const isPast = eventDate < new Date();
-
-                return (
-                  <View
-                    key={record.eventId}
-                    style={{
-                      backgroundColor: theme.colors.cardBackground,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 12,
-                      padding: 16,
-                      width: 200,
-                      position: 'relative',
-                    }}
-                  >
-                    {/* Delete Button */}
-                    <TouchableOpacity
-                      style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        backgroundColor: theme.colors.background,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        borderRadius: 6,
-                        padding: 6,
-                        zIndex: 10,
-                      }}
-                      onPress={() =>
-                        handleDeleteEvent(record.eventId, event.name)
-                      }
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={16}
-                        color={theme.colors.error}
-                      />
-                    </TouchableOpacity>
-
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        color: theme.colors.text,
-                        marginBottom: 8,
-                        paddingRight: 28, // Space for delete button
-                      }}
-                      numberOfLines={2}
-                    >
-                      {event.name}
-                    </Text>
-
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: isPast
-                          ? theme.colors.textMuted
-                          : theme.colors.text,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {eventDate.toLocaleDateString()}
-                    </Text>
-
-                    {event.activityType && (
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: theme.colors.textSecondary,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {event.activityType}
-                      </Text>
-                    )}
-
-                    {event.entryFeesSats && event.entryFeesSats > 0 && (
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: theme.colors.textSecondary,
-                          marginBottom: 12,
-                        }}
-                      >
-                        {event.entryFeesSats.toLocaleString()} sats
-                      </Text>
-                    )}
-
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: theme.colors.accent,
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        borderRadius: 6,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      onPress={() => {
-                        setSelectedEventForAnnouncement(event);
-                        setShowAnnouncementModal(true);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: '600',
-                          color: theme.colors.accentText,
-                        }}
-                      >
-                        Announce Event
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Active Events with QR */}
-        <ActiveEventsSection
-          events={activeCompetitions}
-          onShowQR={handleShowEventQR}
-        />
-
-        {/* Team Join Requests - For kind 30000 member list approval */}
-        <JoinRequestsSection
-          teamId={teamId}
-          captainPubkey={captainId}
-          onMemberApproved={(requesterPubkey) => {
-            console.log('Team member approved:', requesterPubkey);
-            // Refresh member list if needed
-            loadTeamMembers();
-          }}
-        />
-
-        {/* Team Members List - Display and manage current members */}
-        {/* Show when loading OR when members exist OR when has kind 30000 list */}
-        {(isLoadingMembers || teamMembers.length > 0 || hasKind30000List) && (
-          <TeamMembersSection
-            teamId={teamId}
-            captainPubkey={captainId}
-            members={teamMembers}
-            isLoading={isLoadingMembers}
-            onRemoveMember={handleRemoveMember}
-            onRefresh={loadTeamMembers}
-          />
-        )}
-
-        {/* Event Join Requests */}
-        <EventJoinRequestsSection
-          captainPubkey={captainId}
-          teamId={data.team.id}
-          onMemberApproved={(eventId, requesterPubkey) => {
-            console.log(
-              'Event participant approved:',
-              eventId,
-              requesterPubkey
-            );
-            // Could refresh event participants if needed
-          }}
-        />
-
-        {/* Competition Participants Management */}
-        {activeCompetitions
-          .filter((comp) => comp.requireApproval)
-          .map((competition) => (
-            <CompetitionParticipantsSection
-              key={competition.id}
-              competitionId={competition.id}
-              competitionName={competition.name}
-              requireApproval={competition.requireApproval}
-              onParticipantUpdate={loadActiveCompetitions}
-            />
-          ))}
-
-        {/* Recent Activity */}
-        <ActivityFeedSection
-          activities={data.recentActivity}
-          onViewAllActivity={onViewAllActivity}
-        />
+        {/* REMOVED: All management sections - Captain dashboard simplified to Edit Team only */}
       </ScrollView>
 
       {/* Bottom Navigation removed - Captain Dashboard has back button */}
@@ -1623,32 +1429,8 @@ export const CaptainDashboardScreen: React.FC<CaptainDashboardScreenProps> = ({
 
       {/* REMOVED: Flash Subscription Modal - Flash feature removed */}
 
-      {/* Wizard Modals */}
-      <SimpleEventWizardV2
-        visible={eventWizardVisible}
-        teamId={data.team.id}
-        captainPubkey={captainId}
-        onClose={handleCloseEventWizard}
-      />
-
-      <LeagueCreationWizard
-        visible={leagueWizardVisible}
-        teamId={data.team.id}
-        captainPubkey={captainId}
-        onClose={handleCloseLeagueWizard}
-        onLeagueCreated={handleLeagueCreated}
-      />
-
-      {/* Event QR Display Modal */}
-      {selectedEventForQR && (
-        <QREventDisplayModal
-          visible={showEventQRModal}
-          eventData={selectedEventForQR}
-          qrString={selectedEventQRString}
-          deepLink={selectedEventDeepLink}
-          onClose={handleCloseEventQR}
-        />
-      )}
+      {/* REMOVED: Wizard modals - captain dashboard simplified to Edit Team only */}
+      {/* REMOVED: QR Event Display Modal - no event management */}
 
       {/* REMOVED: Add Member Modal - teams no longer require member management */}
 
@@ -1759,6 +1541,23 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.large,
     padding: 16,
     marginBottom: 16,
+  },
+
+  editTeamButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+
+  editTeamButtonText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
   },
 
   sectionHeader: {

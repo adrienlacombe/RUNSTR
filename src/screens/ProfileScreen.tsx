@@ -47,7 +47,6 @@ import { getUserNostrIdentifiers } from '../utils/nostr';
 import type { QRData } from '../services/qr/QRCodeService';
 import { AppStateManager } from '../services/core/AppStateManager';
 import JoinRequestService from '../services/competition/JoinRequestService';
-import { EventJoinRequestService } from '../services/events/EventJoinRequestService';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import { GlobalNDKService } from '../services/nostr/GlobalNDKService';
 import { NDKEvent } from '@nostr-dev-kit/ndk';

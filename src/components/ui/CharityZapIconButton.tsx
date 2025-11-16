@@ -1,26 +1,26 @@
 /**
- * ChallengeIconButton - Compact challenge icon for user lists
- * Appears next to usernames throughout the app for quick 1v1 challenge creation
+ * CharityZapIconButton - Compact charity zap icon for user lists
+ * Appears next to usernames throughout the app for quick charity donations
+ * Replaces the old ChallengeIconButton (shield icon) with heart icon
+ * Taps donate to the current user's selected charity
  */
 
 import React, { useState } from 'react';
 import {
   TouchableOpacity,
-  Text,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 
-export interface ChallengeIconButtonProps {
+export interface CharityZapIconButtonProps {
   userPubkey: string;
   userName: string;
   disabled?: boolean;
   onPress: () => void;
 }
 
-export const ChallengeIconButton: React.FC<ChallengeIconButtonProps> = ({
+export const CharityZapIconButton: React.FC<CharityZapIconButtonProps> = ({
   userPubkey,
   userName,
   disabled = false,
@@ -56,18 +56,18 @@ export const ChallengeIconButton: React.FC<ChallengeIconButtonProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled}
       activeOpacity={0.7}
-      accessibilityLabel={`Challenge ${userName}`}
-      accessibilityHint="Opens challenge wizard"
+      accessibilityLabel={`Support charity for ${userName}`}
+      accessibilityHint="Opens charity donation modal"
       accessibilityRole="button"
     >
       <Ionicons
-        name="shield"
+        name="heart-outline"
         size={14}
         color={
           disabled
             ? theme.colors.textMuted
             : isPressed
-            ? theme.colors.orangeBright
+            ? '#FF9D42' // Orange heart when pressed
             : theme.colors.textMuted
         }
         style={{ opacity: disabled ? 0.3 : isPressed ? 1 : 0.6 }}

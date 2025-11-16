@@ -27,12 +27,12 @@ import { DeleteAccountService } from '../services/auth/DeleteAccountService';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { CustomAlert } from '../components/ui/CustomAlert';
-import { NotificationsTab } from '../components/profile/NotificationsTab';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { NWCStorageService } from '../services/wallet/NWCStorageService';
+import { NWCWalletService } from '../services/wallet/NWCWalletService';
 import { WalletConfigModal } from '../components/wallet/WalletConfigModal';
 import { SendModal } from '../components/wallet/SendModal';
 import { ReceiveModal } from '../components/wallet/ReceiveModal';
@@ -47,6 +47,12 @@ import { CharitySelectionService } from '../services/charity/CharitySelectionSer
 import type { Charity } from '../constants/charities';
 import { Alert } from 'react-native';
 import { CharitySelectionModal } from '../components/charity/CharitySelectionModal';
+import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
+import { useCoachRunstr } from '../services/ai/useCoachRunstr';
+import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
+import { TeamMembershipService, type LocalMembership } from '../services/team/teamMembershipService';
+import { TeamSelectionModal } from '../components/team/TeamSelectionModal';
+import { useNavigationData } from '../contexts/NavigationDataContext';
 
 interface SettingsScreenProps {
   currentTeam?: Team;
@@ -100,6 +106,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onSignOut,
 }) => {
   const navigation = useNavigation();
+  const { profileData } = useNavigationData();
   const [userRole, setUserRole] = useState<'captain' | 'member' | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [userNsec, setUserNsec] = useState<string | null>(null);
@@ -112,9 +119,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   });
   const [backgroundTrackingEnabled, setBackgroundTrackingEnabled] = useState(false);
 
+  // Competition Team state
+  const [competitionTeam, setCompetitionTeam] = useState<string | null>(null);
+  const [followedTeams, setFollowedTeams] = useState<LocalMembership[]>([]);
+  const [showTeamSelectionModal, setShowTeamSelectionModal] = useState(false);
+
   // Charity Selection state
   const [selectedCharity, setSelectedCharity] = useState<Charity | null>(null);
   const [showCharityModal, setShowCharityModal] = useState(false);
+
+  // Coach RUNSTR AI state
+  const [showPPQModal, setShowPPQModal] = useState(false);
+  const { apiKeyConfigured } = useCoachRunstr();
 
   // NWC Wallet state
   const [hasNWC, setHasNWC] = useState(false);
@@ -151,6 +167,26 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     loadSettings();
   }, []);
 
+  // ✅ Load teams from NavigationDataContext (includes captain + joined teams)
+  useEffect(() => {
+    if (profileData?.teams && Array.isArray(profileData.teams)) {
+      const navigationTeams = profileData.teams;
+      const localMemberships: LocalMembership[] = navigationTeams.map((team: any) => ({
+        teamId: team.id,
+        teamName: team.name,
+        captainPubkey: team.captainPubkey || team.captain || '',
+        joinedAt: team.joinedAt || Date.now(),
+        status: team.role === 'captain' ? 'official' : (team.status || 'local'),
+      }));
+
+      console.log(`[SettingsScreen] Loaded ${localMemberships.length} teams from NavigationDataContext (including captain teams)`);
+      setFollowedTeams(localMemberships);
+    } else {
+      console.log('[SettingsScreen] No teams found in NavigationDataContext');
+      setFollowedTeams([]);
+    }
+  }, [profileData?.teams]);
+
   const loadSettings = async () => {
     try {
       // Load TTS settings
@@ -173,9 +209,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         setUserNpub(npub);
       }
 
-      // Check NWC wallet status (don't initialize to prevent infinite loop)
+      // Check NWC wallet status
       const nwcAvailable = await NWCStorageService.hasNWC();
       setHasNWC(nwcAvailable);
+
+      // Load wallet balance if NWC is configured
+      if (nwcAvailable) {
+        await loadWalletBalance();
+      }
 
       // Check if background step tracking is available and enabled
       const available = await dailyStepCounterService.isAvailable();
@@ -187,8 +228,27 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Load selected charity
       const charity = await CharitySelectionService.getSelectedCharity();
       setSelectedCharity(charity);
+
+      // Load competition team
+      const currentCompetitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
+      setCompetitionTeam(currentCompetitionTeam);
     } catch (error) {
       console.error('Error loading settings:', error);
+    }
+  };
+
+  const loadWalletBalance = async () => {
+    try {
+      const walletService = NWCWalletService;
+      const result = await walletService.getBalance();
+
+      if (result.balance !== undefined) {
+        setWalletBalance(result.balance);
+      } else if (result.error) {
+        console.error('[Settings] Failed to load wallet balance:', result.error);
+      }
+    } catch (error) {
+      console.error('[Settings] Error loading wallet balance:', error);
     }
   };
 
@@ -503,6 +563,52 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setShowCharityModal(false);
   };
 
+  const handleChangeCompetitionTeam = (teamId: string | null) => {
+    // If selecting the same team, just close modal
+    if (teamId === competitionTeam) {
+      setShowTeamSelectionModal(false);
+      return;
+    }
+
+    // Close the modal first
+    setShowTeamSelectionModal(false);
+
+    // Show confirmation for actual change
+    setAlertTitle('Change Competition Team?');
+    setAlertMessage(
+      teamId
+        ? `Your workouts will appear on ${
+            followedTeams.find((t) => t.teamId === teamId)?.teamName || 'this team'
+          }'s leaderboards`
+        : 'Your workouts will not appear on any team leaderboards'
+    );
+    setAlertButtons([
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Confirm',
+        onPress: async () => {
+          try {
+            if (teamId) {
+              await LocalTeamMembershipService.setCompetitionTeam(teamId);
+            } else {
+              await LocalTeamMembershipService.clearCompetitionTeam();
+            }
+            setCompetitionTeam(teamId);
+          } catch (error) {
+            console.error('Error changing competition team:', error);
+            setTimeout(() => {
+              setAlertTitle('Error');
+              setAlertMessage('Failed to change competition team. Please try again.');
+              setAlertButtons([{ text: 'OK' }]);
+              setAlertVisible(true);
+            }, 100);
+          }
+        },
+      },
+    ]);
+    setAlertVisible(true);
+  };
+
   const handleBackupPassword = () => {
     if (!userNsec) {
       setAlertTitle('Error');
@@ -629,6 +735,31 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </Card>
         </View>
 
+        {/* Coach RUNSTR AI Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>COACH RUNSTR AI</Text>
+          <Card style={styles.card}>
+            <SettingItem
+              title="PPQ.AI API Key"
+              subtitle={
+                apiKeyConfigured
+                  ? 'Configured - AI insights enabled'
+                  : 'Not configured - Tap to set up'
+              }
+              onPress={() => setShowPPQModal(true)}
+              rightElement={
+                <View style={styles.securityIcon}>
+                  <Ionicons
+                    name={apiKeyConfigured ? 'checkmark-circle' : 'add-circle-outline'}
+                    size={20}
+                    color={apiKeyConfigured ? '#FF9D42' : theme.colors.textMuted}
+                  />
+                </View>
+              }
+            />
+          </Card>
+        </View>
+
         {/* Wallet Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>WALLET</Text>
@@ -645,10 +776,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   </View>
                   <TouchableOpacity
                     style={styles.refreshButton}
-                    onPress={() => {
-                      // Balance refresh removed to prevent infinite loop
-                      console.log('[Settings] Balance refresh disabled');
-                    }}
+                    onPress={loadWalletBalance}
                   >
                     <Ionicons
                       name="refresh"
@@ -661,6 +789,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 {/* Wallet Actions */}
                 <View style={styles.walletActions}>
                   <TouchableOpacity
+                    key="send-button"
                     style={styles.walletActionButton}
                     onPress={() => setShowSendModal(true)}
                   >
@@ -673,6 +802,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   </TouchableOpacity>
 
                   <TouchableOpacity
+                    key="receive-button"
                     style={styles.walletActionButton}
                     onPress={() => setShowReceiveModal(true)}
                   >
@@ -685,6 +815,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   </TouchableOpacity>
 
                   <TouchableOpacity
+                    key="history-button"
                     style={styles.walletActionButton}
                     onPress={() => setShowHistoryModal(true)}
                   >
@@ -724,6 +855,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
                 {/* Two connection options */}
                 <TouchableOpacity
+                  key="scan-qr-button"
                   style={styles.connectWalletButton}
                   onPress={() => setShowQRScanner(true)}
                 >
@@ -739,6 +871,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  key="manual-entry-button"
                   style={[styles.connectWalletButton, styles.connectWalletButtonSecondary]}
                   onPress={() => setShowWalletConfig(true)}
                 >
@@ -790,6 +923,38 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </Card>
         </View>
 
+        {/* Competition Team Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>COMPETITION TEAM</Text>
+          <Card style={styles.card}>
+            <TouchableOpacity
+              style={styles.competitionTeamSelector}
+              onPress={() => setShowTeamSelectionModal(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingTitle}>Your Competition Team</Text>
+                <Text style={styles.competitionTeamName}>
+                  {competitionTeam
+                    ? followedTeams.find((t) => t.teamId === competitionTeam)
+                        ?.teamName || competitionTeam
+                    : 'No team selected'}
+                </Text>
+                <Text style={styles.settingSubtitle}>
+                  {competitionTeam
+                    ? 'Workouts appear on team leaderboards'
+                    : 'Tap to select a team'}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={theme.colors.textMuted}
+              />
+            </TouchableOpacity>
+          </Card>
+        </View>
+
         {/* Charity Selection Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CHARITY SUPPORT</Text>
@@ -812,14 +977,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 </View>
               }
             />
-          </Card>
-        </View>
-
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
-          <Card style={styles.card}>
-            <NotificationsTab />
           </Card>
         </View>
 
@@ -1049,8 +1206,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <CharitySelectionModal
         visible={showCharityModal}
         charities={CharitySelectionService.getAllCharities()}
+        selectedCharityId={selectedCharity?.id}
         onSelect={handleCharitySelect}
         onCancel={handleCharityCancel}
+      />
+
+      {/* PPQ.AI API Key Configuration Modal */}
+      <PPQAPIKeyModal
+        visible={showPPQModal}
+        onClose={() => setShowPPQModal(false)}
+        onSuccess={() => {
+          setShowPPQModal(false);
+          // Reload settings to update UI
+          loadSettings();
+        }}
       />
 
       {/* Wallet Configuration Modal */}
@@ -1100,6 +1269,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onSuccess={handleNWCConnected}
         />
       )}
+
+      {/* Team Selection Modal */}
+      <TeamSelectionModal
+        visible={showTeamSelectionModal}
+        teams={followedTeams}
+        currentTeamId={competitionTeam}
+        onSelect={handleChangeCompetitionTeam}
+        onCancel={() => setShowTeamSelectionModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -1450,5 +1628,21 @@ const styles = StyleSheet.create({
   // Charity Selection Styles
   charityIcon: {
     marginLeft: 8,
+  },
+
+  // Competition Team Styles
+  competitionTeamSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+
+  competitionTeamName: {
+    fontSize: 18,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.accent,
+    marginTop: 4,
+    marginBottom: 4,
   },
 });

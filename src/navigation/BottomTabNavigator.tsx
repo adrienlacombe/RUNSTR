@@ -109,7 +109,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
           let iconName: keyof typeof Ionicons.glyphMap = 'help-outline';
 
           if (route.name === 'Teams') {
-            iconName = focused ? 'search' : 'search-outline';
+            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Activity') {
             iconName = focused ? 'fitness' : 'fitness-outline';
           } else if (route.name === 'Profile') {
@@ -132,7 +132,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
       <Tab.Screen
         name="Teams"
         options={{
-          title: 'Discover',
+          title: 'Teams',
           headerShown: false,
         }}
         listeners={{

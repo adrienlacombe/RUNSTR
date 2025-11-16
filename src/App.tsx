@@ -129,11 +129,8 @@ import { AppNavigator } from './navigation/AppNavigator';
 import { BottomTabNavigator } from './navigation/BottomTabNavigator';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TeamCreationWizard } from './components/wizards/TeamCreationWizard';
-import { GlobalChallengeWizard } from './components/wizards/GlobalChallengeWizard';
 import { EventDetailScreen } from './screens/EventDetailScreen';
-import { EventCaptainDashboardScreen } from './screens/EventCaptainDashboardScreen';
 import { LeagueDetailScreen } from './screens/LeagueDetailScreen';
-import { ChallengeDetailScreen } from './screens/ChallengeDetailScreen';
 // Use SimpleTeamScreen instead of EnhancedTeamScreen to avoid freeze issues
 const SimpleTeamScreen = React.lazy(() => import('./screens/SimpleTeamScreen'));
 import { CaptainDashboardScreen } from './screens/CaptainDashboardScreen';
@@ -165,10 +162,6 @@ import {
   CustomAlertProvider,
   CustomAlertManager,
 } from './components/ui/CustomAlert';
-import { ChallengePreviewModal } from './components/challenge/ChallengePreviewModal';
-import { parseChallengeDeepLink, type ParsedChallengeData } from './utils/challengeDeepLink';
-// REMOVED: Challenge request service (instant challenges only now)
-// import { challengeRequestService } from './services/challenge/ChallengeRequestService';
 import { parseEventDeepLink, type ParsedEventData } from './utils/eventDeepLink';
 
 // Types for authenticated app navigation
@@ -189,9 +182,7 @@ type AuthenticatedStackParamList = {
     teamId?: string;  // ✅ NEW: Team context for fallback
     captainPubkey?: string;  // ✅ NEW: Captain context for fallback
   };
-  EventCaptainDashboard: { eventId: string; eventData: any };
   LeagueDetail: { leagueId: string; leagueData?: any };
-  ChallengeDetail: { challengeId: string };
   CaptainDashboard: {
     teamId?: string;
     teamName?: string;
@@ -204,8 +195,6 @@ type AuthenticatedStackParamList = {
   ContactSupport: undefined;
   PrivacyPolicy: undefined;
   CompetitionsList: undefined;
-  ChallengeWizard: undefined;
-  ChallengeLeaderboard: { challengeId: string };
   WorkoutHistory: { userId: string; pubkey: string };
   MyTeams: undefined;
   ProfileEdit: undefined;
@@ -236,10 +225,6 @@ const AppContent: React.FC = () => {
 
   const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
   const [showPermissionModal, setShowPermissionModal] = React.useState(false);
-
-  // Challenge deep link state
-  const [showChallengePreview, setShowChallengePreview] = React.useState(false);
-  const [challengeData, setChallengeData] = React.useState<ParsedChallengeData | null>(null);
 
   // Event deep link state
   const [pendingEventNavigation, setPendingEventNavigation] = React.useState<ParsedEventData | null>(null);
@@ -355,34 +340,6 @@ const AppContent: React.FC = () => {
         return;
       }
 
-      // Handle Challenge QR deep link: runstr://challenge?type=pushups&duration=7&wager=500&...
-      if (path === 'challenge' || url.includes('challenge?')) {
-        console.log('🏆 Challenge deep link detected');
-
-        try {
-          const parsedChallenge = parseChallengeDeepLink(url);
-          console.log('📦 Parsed challenge data:', parsedChallenge);
-
-          if (parsedChallenge.isValid) {
-            setChallengeData(parsedChallenge);
-            setShowChallengePreview(true);
-          } else {
-            console.error('❌ Invalid challenge data:', parsedChallenge.error);
-            CustomAlertManager.alert(
-              'Invalid Challenge',
-              parsedChallenge.error || 'This challenge link is invalid or expired.'
-            );
-          }
-        } catch (error) {
-          console.error('❌ Failed to parse challenge deep link:', error);
-          CustomAlertManager.alert(
-            'Error',
-            'Failed to process challenge link. Please try again.'
-          );
-        }
-        return;
-      }
-
       // Handle Event deep link: runstr://event/{eventId}?team={teamId}&name={eventName}
       if (path?.startsWith('event/') || url.includes('runstr://event/')) {
         console.log('🎯 Event deep link detected');
@@ -425,71 +382,6 @@ const AppContent: React.FC = () => {
     });
 
     return () => subscription.remove();
-  }, []);
-
-  // Challenge deep link handlers
-  // TODO: Update for instant challenge flow (no acceptance needed)
-  // QR challenges are deprecated - use GlobalChallengeWizard instead
-  const handleAcceptChallenge = React.useCallback(async (challenge: ParsedChallengeData) => {
-    try {
-      console.warn('⚠️ QR challenge acceptance deprecated - use GlobalChallengeWizard for instant challenges');
-      CustomAlertManager.alert(
-        'Challenge Flow Updated',
-        'Challenge creation has been simplified. Please use the Challenge Wizard to create new challenges.',
-        [{ text: 'OK', onPress: () => {
-          setShowChallengePreview(false);
-          setChallengeData(null);
-        }}]
-      );
-    } catch (error) {
-      console.error('Error in handleAcceptChallenge:', error);
-      setShowChallengePreview(false);
-      setChallengeData(null);
-    }
-    /* DEPRECATED: Instant challenges only now (no acceptance flow)
-    try {
-      console.log('🏆 Accepting challenge:', challenge);
-
-      const { UnifiedSigningService } = await import('./services/auth/UnifiedSigningService');
-      const signingService = UnifiedSigningService.getInstance();
-      const signer = await signingService.getSigner();
-
-      if (!signer) {
-        throw new Error('User not authenticated');
-      }
-
-      // OLD: Used challengeRequestService.acceptQRChallenge() which no longer exists
-      // NEW: Challenges are created instantly with both participants via GlobalChallengeWizard
-
-      console.log('✅ Challenge accepted successfully');
-      setShowChallengePreview(false);
-      setChallengeData(null);
-
-      CustomAlertManager.alert(
-        'Challenge Accepted!',
-        `You've accepted the challenge from ${challenge.creatorName}. Good luck!`,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('❌ Failed to accept challenge:', error);
-      CustomAlertManager.alert(
-        'Error',
-        error instanceof Error ? error.message : 'Failed to accept challenge. Please try again.'
-      );
-    }
-    */
-  }, []);
-
-  const handleDeclineChallenge = React.useCallback(() => {
-    console.log('❌ Declining challenge');
-    setShowChallengePreview(false);
-    setChallengeData(null);
-  }, []);
-
-  const handleCloseChallengePreview = React.useCallback(() => {
-    console.log('🔒 Closing challenge preview');
-    setShowChallengePreview(false);
-    setChallengeData(null);
   }, []);
 
   // PERFORMANCE OPTIMIZATION: App state detection for smart resume
@@ -719,7 +611,6 @@ const AppContent: React.FC = () => {
                     team: team,
                     leaderboard: [],
                     events: [],
-                    challenges: [],
                   }}
                   onBack={() => navigation.goBack()}
                   onCaptainDashboard={() => {
@@ -765,7 +656,6 @@ const AppContent: React.FC = () => {
                       userNpub: currentUserNpub,
                     });
                   }}
-                  onAddChallenge={() => console.log('Add challenge')}
                   onEventPress={(eventId, eventData) => {
                     console.log('📍 Navigation: Team → Event Detail');
                     console.log('  eventId:', eventId);
@@ -793,11 +683,6 @@ const AppContent: React.FC = () => {
                       leagueData,
                     });
                   }}
-                  onChallengePress={(challengeId) => {
-                    console.log('📍 Navigation: Team → Challenge Detail');
-                    console.log('  challengeId:', challengeId);
-                    navigation.navigate('ChallengeDetail', { challengeId });
-                  }}
                   showJoinButton={!userIsMember}
                   userIsMemberProp={userIsMember}
                   currentUserNpub={currentUserNpub}
@@ -821,21 +706,6 @@ const AppContent: React.FC = () => {
           )}
         </AuthenticatedStack.Screen>
 
-        {/* Event Captain Dashboard Screen */}
-        <AuthenticatedStack.Screen
-          name="EventCaptainDashboard"
-          options={{
-            headerShown: false,
-          }}
-        >
-          {({ navigation, route }) => (
-            <EventCaptainDashboardScreen
-              route={route}
-              navigation={navigation}
-            />
-          )}
-        </AuthenticatedStack.Screen>
-
         {/* League Detail Screen */}
         <AuthenticatedStack.Screen
           name="LeagueDetail"
@@ -845,18 +715,6 @@ const AppContent: React.FC = () => {
         >
           {({ navigation, route }) => (
             <LeagueDetailScreen route={route} navigation={navigation} />
-          )}
-        </AuthenticatedStack.Screen>
-
-        {/* Challenge Detail Screen */}
-        <AuthenticatedStack.Screen
-          name="ChallengeDetail"
-          options={{
-            headerShown: false,
-          }}
-        >
-          {({ navigation, route }) => (
-            <ChallengeDetailScreen route={route} navigation={navigation} />
           )}
         </AuthenticatedStack.Screen>
 
@@ -878,7 +736,6 @@ const AppContent: React.FC = () => {
                     name: teamName || 'Team',
                     memberCount: 0,
                     activeEvents: 0,
-                    activeChallenges: 0,
                     prizePool: 0,
                   },
                   members: [],
@@ -1021,77 +878,6 @@ const AppContent: React.FC = () => {
           }}
           component={HealthProfileScreen}
         />
-
-        {/* Challenge Wizard Screen */}
-        <AuthenticatedStack.Screen
-          name="ChallengeWizard"
-          options={{
-            headerShown: false,
-            presentation: 'modal',
-          }}
-        >
-          {({ navigation }) => (
-            <GlobalChallengeWizard
-              onComplete={() => {
-                console.log('Challenge created successfully');
-                navigation.goBack();
-              }}
-              onCancel={() => navigation.goBack()}
-            />
-          )}
-        </AuthenticatedStack.Screen>
-
-        {/* Challenge Leaderboard Screen (placeholder) */}
-        <AuthenticatedStack.Screen
-          name="ChallengeLeaderboard"
-          options={{
-            headerShown: false,
-          }}
-        >
-          {({ navigation, route }) => (
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: '#000',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  color: theme.colors.textBright,
-                  fontSize: 18,
-                  marginBottom: 20,
-                }}
-              >
-                Challenge Leaderboard
-              </Text>
-              <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
-                Challenge ID: {route.params?.challengeId}
-              </Text>
-              <Text
-                style={{
-                  color: theme.colors.textMuted,
-                  fontSize: 14,
-                  marginTop: 10,
-                }}
-              >
-                Coming Soon
-              </Text>
-              <TouchableOpacity
-                style={{
-                  marginTop: 30,
-                  padding: 12,
-                  backgroundColor: theme.colors.orangeDeep,
-                  borderRadius: 8,
-                }}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={{ color: '#000' }}>Go Back</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </AuthenticatedStack.Screen>
       </AuthenticatedStack.Navigator>
     );
   };
@@ -1168,15 +954,6 @@ const AppContent: React.FC = () => {
           onComplete={() => setShowPermissionModal(false)}
         />
       )}
-
-      {/* Challenge Preview Modal - Shows when challenge deep link is opened (deprecated, shows migration message) */}
-      <ChallengePreviewModal
-        visible={showChallengePreview}
-        challengeData={challengeData}
-        onAccept={handleAcceptChallenge}
-        onDecline={handleDeclineChallenge}
-        onClose={handleCloseChallengePreview}
-      />
     </SafeAreaProvider>
   );
 };

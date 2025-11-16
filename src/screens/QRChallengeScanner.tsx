@@ -20,7 +20,6 @@ import { theme } from '../styles/theme';
 import { QRChallengeParser } from '../services/challenge/QRChallengeParser';
 import { QREventParser } from '../services/event/QREventParser';
 import { QREventPreviewModal } from '../components/event/QREventPreviewModal';
-import { eventJoinService } from '../services/event/EventJoinService';
 import type { QREventData } from '../services/event/QREventService';
 
 interface QRChallengeScannerProps {

@@ -31,9 +31,9 @@ const STORAGE_KEYS = {
 };
 
 // Garmin OAuth 2.0 PKCE endpoints (per official OAuth2PKCE_1.pdf specification)
-// CRITICAL: Use /tools/oauth2/authorizeUser for initial authorization (NOT oauth2Confirm)
+// CRITICAL: Use /oauth2Confirm for OAuth 2.0 PKCE authorization (NOT /tools/oauth2/authorizeUser which is OAuth 1.0a)
 const OAUTH_ENDPOINTS = {
-  AUTHORIZE: 'https://apis.garmin.com/tools/oauth2/authorizeUser',
+  AUTHORIZE: 'https://connect.garmin.com/oauth2Confirm',
   TOKEN: 'https://diauth.garmin.com/di-oauth2-service/oauth/token',
 };
 

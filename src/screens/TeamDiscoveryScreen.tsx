@@ -18,7 +18,6 @@ import {
 import { theme } from '../styles/theme';
 import { DiscoveryTeam } from '../types';
 import { TeamCard } from '../components/team/TeamCard';
-import { EventCard } from '../components/discovery/EventCard';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { analytics } from '../utils/analytics';
 import {
@@ -27,11 +26,6 @@ import {
 } from '../services/nostr/NostrTeamService';
 import { CaptainDetectionService } from '../services/team/captainDetectionService';
 import { TeamCacheService } from '../services/cache/TeamCacheService';
-import NostrCompetitionService from '../services/nostr/NostrCompetitionService';
-import type {
-  NostrLeagueDefinition,
-  NostrEventDefinition,
-} from '../types/nostrCompetition';
 import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys } from '../constants/cacheTTL';
 
@@ -123,13 +117,7 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
   onCaptainDashboard,
   navigation,
 }) => {
-  const [discoveryMode, setDiscoveryMode] = useState<'teams' | 'events'>(
-    'teams'
-  );
   const [teams, setTeams] = useState<DiscoveryTeam[]>(propTeams || []);
-  const [events, setEvents] = useState<
-    (NostrLeagueDefinition | NostrEventDefinition)[]
-  >([]);
   const [isLoading, setIsLoading] = useState(propIsLoading);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,7 +125,6 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(['Running'])
   ); // Start with Running expanded
-  const [eventTab, setEventTab] = useState<'upcoming' | 'active'>('upcoming');
   const [captainStatus, setCaptainStatus] = useState<{
     showCaptainDashboard: boolean;
     primaryTeam: NostrTeam | null;
@@ -153,23 +140,17 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     // Track when team discovery opens
     analytics.trackTeamDiscoveryOpened('direct');
 
-    // Load data based on discovery mode
-    if (discoveryMode === 'teams') {
-      // PERFORMANCE FIX: Only fetch if no teams provided via props
-      // This prevents double-fetching when NavigationDataContext already loaded teams
-      if (!propTeams || propTeams.length === 0) {
-        console.log(
-          '🚀 TeamDiscoveryScreen: No prop teams, loading from cache...'
-        );
-        fetchTeams(false); // Don't force refresh on initial load
-      } else {
-        console.log(
-          '✅ TeamDiscoveryScreen: Using teams from props, skipping fetch'
-        );
-      }
+    // PERFORMANCE FIX: Only fetch if no teams provided via props
+    // This prevents double-fetching when NavigationDataContext already loaded teams
+    if (!propTeams || propTeams.length === 0) {
+      console.log(
+        '🚀 TeamDiscoveryScreen: No prop teams, loading from cache...'
+      );
+      fetchTeams(false); // Don't force refresh on initial load
     } else {
-      console.log('🎯 TeamDiscoveryScreen: Loading events...');
-      fetchEvents();
+      console.log(
+        '✅ TeamDiscoveryScreen: Using teams from props, skipping fetch'
+      );
     }
 
     // Capture current session for cleanup
@@ -179,18 +160,18 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     return () => {
       currentSession.complete();
     };
-  }, [discoveryMode]);
+  }, []);
 
   // Update local teams state when prop teams change
   useEffect(() => {
-    if (propTeams && propTeams.length > 0 && discoveryMode === 'teams') {
+    if (propTeams && propTeams.length > 0) {
       console.log(
         `📦 TeamDiscoveryScreen: Updating from prop teams (${propTeams.length})`
       );
       setTeams(propTeams);
       setIsLoading(false);
     }
-  }, [propTeams, discoveryMode]);
+  }, [propTeams]);
 
   // Captain detection effect
   useEffect(() => {
@@ -283,56 +264,10 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     }
   };
 
-  const fetchEvents = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-
-      console.log('🎯 Fetching competition events from Nostr...');
-
-      const competitionService = NostrCompetitionService;
-      const result = await competitionService.queryCompetitions({
-        kinds: [30100, 30101], // Both leagues and events
-        limit: 100,
-      });
-
-      // Combine leagues and events
-      const allEvents = [...result.leagues, ...result.events];
-
-      console.log(`✅ Loaded ${allEvents.length} competition events`);
-      setEvents(allEvents);
-
-      if (allEvents.length === 0) {
-        setError('No events found. Check back later for competitions.');
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to load events';
-      console.error('Failed to fetch events:', error);
-      setError(errorMessage);
-      setEvents([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleTeamSelect = (team: DiscoveryTeam) => {
     analytics.trackTeamCardSelected(team);
     discoverySession.current.trackTeamSelected(team.id);
     onTeamSelect?.(team);
-  };
-
-  const handleEventSelect = (
-    event: NostrLeagueDefinition | NostrEventDefinition
-  ) => {
-    console.log(`🎯 Event selected: ${event.name}`);
-    if (navigation) {
-      // Navigate to EventDetailScreen with event data
-      navigation.navigate('EventDetail', {
-        eventId: event.id,
-        eventData: event,
-      });
-    }
   };
 
   const handleTeamJoin = async (team: DiscoveryTeam) => {
@@ -492,48 +427,6 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
     return result;
   }, [teams, searchQuery, selectedCategory]);
 
-  // Get events for display
-  const displayEvents = useMemo(() => {
-    let result = events;
-    const now = new Date();
-
-    // Apply search filter
-    if (searchQuery) {
-      result = result.filter((event) =>
-        event.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply temporal filter
-    if (eventTab === 'upcoming') {
-      result = result.filter((event) => {
-        if ('duration' in event) {
-          const startDate = new Date(event.startDate);
-          return startDate > now;
-        } else {
-          const eventDate = new Date(event.eventDate);
-          return eventDate > now;
-        }
-      });
-    } else if (eventTab === 'active') {
-      result = result.filter((event) => {
-        if ('duration' in event) {
-          const startDate = new Date(event.startDate);
-          const endDate = new Date(event.endDate);
-          return startDate <= now && now <= endDate;
-        } else {
-          const eventDate = new Date(event.eventDate);
-          const eventStart = new Date(eventDate);
-          eventStart.setHours(0, 0, 0, 0);
-          const eventEnd = new Date(eventDate);
-          eventEnd.setHours(23, 59, 59, 999);
-          return eventStart <= now && now <= eventEnd;
-        }
-      });
-    }
-
-    return result;
-  }, [events, searchQuery, eventTab]);
 
   const toggleCategoryExpansion = (category: string) => {
     setExpandedCategories((prev) => {
@@ -588,95 +481,13 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Toggle between Teams and Events */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[
-            styles.toggleButton,
-            discoveryMode === 'teams' && styles.toggleButtonActive,
-          ]}
-          onPress={() => setDiscoveryMode('teams')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.toggleButtonText,
-              discoveryMode === 'teams' && styles.toggleButtonTextActive,
-            ]}
-          >
-            Teams
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.toggleButton,
-            discoveryMode === 'events' && styles.toggleButtonActive,
-          ]}
-          onPress={() => setDiscoveryMode('events')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.toggleButtonText,
-              discoveryMode === 'events' && styles.toggleButtonTextActive,
-            ]}
-          >
-            Events
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Temporal tabs for Events */}
-      {discoveryMode === 'events' && (
-        <View style={styles.eventTabsContainer}>
-          <TouchableOpacity
-            style={[
-              styles.eventTab,
-              eventTab === 'upcoming' && styles.eventTabActive,
-            ]}
-            onPress={() => setEventTab('upcoming')}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.eventTabText,
-                eventTab === 'upcoming' && styles.eventTabTextActive,
-              ]}
-            >
-              Upcoming
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.eventTab,
-              eventTab === 'active' && styles.eventTabActive,
-            ]}
-            onPress={() => setEventTab('active')}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.eventTabText,
-                eventTab === 'active' && styles.eventTabTextActive,
-              ]}
-            >
-              Active
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* Search bar */}
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder={
-              discoveryMode === 'teams'
-                ? 'Search teams by name...'
-                : 'Search events by name...'
-            }
+            placeholder="Search teams by name..."
             placeholderTextColor={theme.colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -693,40 +504,38 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
           )}
         </View>
 
-        {/* Enhanced Category Filter Pills - Only show for teams */}
-        {discoveryMode === 'teams' && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterContainer}
-            contentContainerStyle={styles.filterContent}
-          >
-            {filterCategories.map((filter) => (
-              <TouchableOpacity
-                key={filter.id}
+        {/* Enhanced Category Filter Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterContainer}
+          contentContainerStyle={styles.filterContent}
+        >
+          {filterCategories.map((filter) => (
+            <TouchableOpacity
+              key={filter.id}
+              style={[
+                styles.filterPill,
+                selectedCategory === filter.id && styles.filterPillActive,
+              ]}
+              onPress={() =>
+                setSelectedCategory(
+                  filter.id === selectedCategory ? 'all' : filter.id
+                )
+              }
+            >
+              <Text
                 style={[
-                  styles.filterPill,
-                  selectedCategory === filter.id && styles.filterPillActive,
+                  styles.filterPillText,
+                  selectedCategory === filter.id &&
+                    styles.filterPillTextActive,
                 ]}
-                onPress={() =>
-                  setSelectedCategory(
-                    filter.id === selectedCategory ? 'all' : filter.id
-                  )
-                }
               >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    selectedCategory === filter.id &&
-                      styles.filterPillTextActive,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Team Display */}
@@ -734,7 +543,7 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
       {isLoading && teams.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.text} />
-          <Text style={styles.loadingText}>Loading {discoveryMode}...</Text>
+          <Text style={styles.loadingText}>Loading teams...</Text>
         </View>
       ) : error && teams.length === 0 ? (
         <View style={styles.errorContainer}>
@@ -819,118 +628,68 @@ export const TeamDiscoveryScreen: React.FC<TeamDiscoveryScreenProps> = ({
         </View>
       ) : (
         <>
-          {/* Display teams or events based on mode */}
+          {/* Teams display */}
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            {discoveryMode === 'teams' ? (
-              // Teams display
-              <>
-                {searchQuery && (
-                  <Text style={styles.searchResultsText}>
-                    {displayTeams.length} team
-                    {displayTeams.length !== 1 ? 's' : ''} found
-                  </Text>
-                )}
+            {searchQuery && (
+              <Text style={styles.searchResultsText}>
+                {displayTeams.length} team
+                {displayTeams.length !== 1 ? 's' : ''} found
+              </Text>
+            )}
 
-                {/* Show filtered teams or categorized teams */}
-                {selectedCategory !== 'all' || searchQuery ? (
-                  // Filtered or searched view - show flat list
-                  displayTeams.map((team) => {
-                    discoverySession.current.trackTeamViewed(team.id);
-                    analytics.trackTeamCardViewed(team);
+            {/* Show filtered teams or categorized teams */}
+            {selectedCategory !== 'all' || searchQuery ? (
+              // Filtered or searched view - show flat list
+              displayTeams.map((team) => {
+                discoverySession.current.trackTeamViewed(team.id);
+                analytics.trackTeamCardViewed(team);
 
-                    return (
-                      <TeamCard
-                        key={team.id}
-                        team={team}
-                        onPress={handleTeamSelect}
-                        currentUserNpub={currentUserPubkey}
-                      />
-                    );
-                  })
-                ) : (
-                  // All teams view - show by category
-                  <>
-                    {categories.map((category) =>
-                      renderCategorySection({ item: category })
-                    )}
-
-                    {/* Create Team Button - Bottom of list after Other category */}
-                    {onCreateTeam && (
-                      <View style={styles.bottomCreateTeamContainer}>
-                        <PrimaryButton
-                          text="Create Team"
-                          onPress={onCreateTeam}
-                        />
-                      </View>
-                    )}
-                  </>
-                )}
-
-                {displayTeams.length === 0 && searchQuery && (
-                  <View style={styles.noResultsContainer}>
-                    <Text style={styles.noResultsText}>
-                      No teams found matching "{searchQuery}"
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.clearSearchButton}
-                      onPress={() => setSearchQuery('')}
-                    >
-                      <Text style={styles.clearSearchButtonText}>
-                        Clear Search
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </>
-            ) : (
-              // Events display
-              <>
-                {searchQuery && (
-                  <Text style={styles.searchResultsText}>
-                    {displayEvents.length} event
-                    {displayEvents.length !== 1 ? 's' : ''} found
-                  </Text>
-                )}
-
-                {displayEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    onPress={handleEventSelect}
+                return (
+                  <TeamCard
+                    key={team.id}
+                    team={team}
+                    onPress={handleTeamSelect}
+                    currentUserNpub={currentUserPubkey}
                   />
-                ))}
-
-                {displayEvents.length === 0 && searchQuery && (
-                  <View style={styles.noResultsContainer}>
-                    <Text style={styles.noResultsText}>
-                      No events found matching "{searchQuery}"
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.clearSearchButton}
-                      onPress={() => setSearchQuery('')}
-                    >
-                      <Text style={styles.clearSearchButtonText}>
-                        Clear Search
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                );
+              })
+            ) : (
+              // All teams view - show by category
+              <>
+                {categories.map((category) =>
+                  renderCategorySection({ item: category })
                 )}
 
-                {displayEvents.length === 0 && !searchQuery && (
-                  <View style={styles.noResultsContainer}>
-                    <Text style={styles.noResultsText}>
-                      No {eventTab} events available
-                    </Text>
-                    <Text style={styles.noResultsSubtext}>
-                      Check back later for new competitions
-                    </Text>
+                {/* Create Team Button - Bottom of list after Other category */}
+                {onCreateTeam && (
+                  <View style={styles.bottomCreateTeamContainer}>
+                    <PrimaryButton
+                      text="Create Team"
+                      onPress={onCreateTeam}
+                    />
                   </View>
                 )}
               </>
+            )}
+
+            {displayTeams.length === 0 && searchQuery && (
+              <View style={styles.noResultsContainer}>
+                <Text style={styles.noResultsText}>
+                  No teams found matching "{searchQuery}"
+                </Text>
+                <TouchableOpacity
+                  style={styles.clearSearchButton}
+                  onPress={() => setSearchQuery('')}
+                >
+                  <Text style={styles.clearSearchButtonText}>
+                    Clear Search
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
           </ScrollView>
         </>
@@ -1384,36 +1143,29 @@ const styles = StyleSheet.create({
     color: theme.colors.background,
   },
 
-  // Event tabs styles
-  eventTabsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    gap: 8,
+  // Leaderboard styles
+  leaderboardHeader: {
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    marginBottom: 16,
   },
 
-  eventTab: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-
-  eventTabActive: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
-  },
-
-  eventTabText: {
-    fontSize: 13,
-    fontWeight: theme.typography.weights.medium,
+  leaderboardTitle: {
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
+    marginBottom: 4,
   },
 
-  eventTabTextActive: {
-    color: theme.colors.accentText,
+  leaderboardSubtitle: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: theme.typography.weights.medium,
+  },
+
+  leaderboardCard: {
+    marginBottom: 16,
   },
 
   noResultsSubtext: {

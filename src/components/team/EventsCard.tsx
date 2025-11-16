@@ -11,7 +11,6 @@ import { Card } from '../ui/Card';
 import { FormattedEvent } from '../../types';
 import { theme } from '../../styles/theme';
 import { NostrListService } from '../../services/nostr/NostrListService';
-import { EventJoinRequestService } from '../../services/events/EventJoinRequestService';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
 import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService';
 import { CustomAlert } from '../ui/CustomAlert';
@@ -71,7 +70,6 @@ export const EventsCard: React.FC<EventsCardProps> = ({
   const [currentUserHex, setCurrentUserHex] = useState<string | null>(null);
   const [requestingJoin, setRequestingJoin] = useState<string | null>(null);
   const listService = NostrListService.getInstance();
-  const joinRequestService = EventJoinRequestService.getInstance();
 
   // QR Code state
   const [qrModalVisible, setQrModalVisible] = useState(false);
@@ -120,14 +118,8 @@ export const EventsCard: React.FC<EventsCardProps> = ({
           );
           const isJoined = participants.includes(currentUserHex || '');
 
-          // Check if user has pending join request
-          const joinRequests = await joinRequestService.getEventJoinRequests(
-            captainHex,
-            event.id
-          );
-          const hasRequestedJoin = joinRequests.some(
-            (r) => r.requesterId === currentUserHex
-          );
+          // NOTE: Join request functionality removed (old event system)
+          const hasRequestedJoin = false;
 
           statuses[event.id] = {
             isJoined,
@@ -390,18 +382,9 @@ export const EventsCard: React.FC<EventsCardProps> = ({
         message: `Request to join ${event.name}`,
       };
 
-      const eventTemplate = joinRequestService.prepareEventJoinRequest(
-        requestData,
-        userHexPubkey
-      );
-
-      // Get global NDK instance
-      const ndk = await GlobalNDKService.getInstance();
-      const ndkEvent = new NDKEvent(ndk, eventTemplate);
-      await ndkEvent.sign(signer);
-      await ndkEvent.publish();
-
-      CustomAlert.alert('Success', 'Your join request has been sent to the captain', [{ text: 'OK' }]);
+      // NOTE: Join request functionality disabled (old event system)
+      // EventJoinRequestService was removed during migration to daily leaderboards
+      CustomAlert.alert('Info', 'Event join requests are currently unavailable. Please contact the team captain directly.', [{ text: 'OK' }]);
 
       // Update status to show pending
       setEventStatuses((prev) => ({

@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
-// import nutzapService from '../../services/nutzap/nutzapService';
+import { NWCWalletService } from '../../services/wallet/NWCWalletService';
 import { nip19 } from 'nostr-tools';
 import { FEATURES } from '../../config/features';
 import { NWCStorageService } from '../../services/wallet/NWCStorageService';
@@ -75,12 +75,8 @@ export const SendModal: React.FC<SendModalProps> = ({
 
   const handleSend = async () => {
     if (sendMethod === 'lightning') {
-      // Feature flag guard: Require NWC when Cashu is disabled
-      if (
-        FEATURES.ENABLE_NWC_WALLET &&
-        !FEATURES.ENABLE_CASHU_WALLET &&
-        !hasNWC
-      ) {
+      // Require NWC wallet to be connected
+      if (!hasNWC) {
         Alert.alert(
           'Wallet Not Connected',
           'Please connect a Lightning wallet in Settings to send payments.',
@@ -124,20 +120,12 @@ export const SendModal: React.FC<SendModalProps> = ({
       try {
         const sats = parseInt(amount) || 0;
 
-        // Route to PaymentRouter when NWC is enabled, otherwise use Cashu
-        let result;
-        if (FEATURES.ENABLE_NWC_WALLET && !FEATURES.ENABLE_CASHU_WALLET) {
-          result = await PaymentRouter.payInvoice(
-            recipient,
-            sats > 0 ? sats : undefined
-          );
-        } else {
-          // Preserve Cashu logic for when ENABLE_CASHU_WALLET is true
-          result = await nutzapService.payLightningInvoice(
-            recipient,
-            sats > 0 ? sats : undefined
-          );
-        }
+        // Use NWCWalletService for payment
+        const walletService = NWCWalletService;
+        const result = await walletService.sendPayment(
+          recipient,
+          sats > 0 ? sats : undefined
+        );
 
         if (result.success) {
           Alert.alert(
@@ -200,7 +188,7 @@ export const SendModal: React.FC<SendModalProps> = ({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
                 Amount{' '}
-                {sendMethod === 'lightning' && paymentType !== 'invoice'
+                {sendMethod === 'lightning' && paymentType === 'address'
                   ? '(Required for Lightning address)'
                   : ''}
               </Text>
@@ -263,17 +251,17 @@ export const SendModal: React.FC<SendModalProps> = ({
             style={[
               styles.primaryButton,
               (isSending ||
-                !recipient ||
-                (paymentType === 'address' && !amount) ||
-                (recipient && paymentType === 'unknown')) &&
+                recipient.trim() === '' ||
+                (paymentType === 'address' && amount.trim() === '') ||
+                (recipient.trim() !== '' && paymentType === 'unknown')) &&
                 styles.buttonDisabled,
             ]}
             onPress={handleSend}
             disabled={
               isSending ||
-              !recipient ||
-              (paymentType === 'address' && !amount) ||
-              (recipient && paymentType === 'unknown')
+              recipient.trim() === '' ||
+              (paymentType === 'address' && amount.trim() === '') ||
+              (recipient.trim() !== '' && paymentType === 'unknown')
             }
           >
             {isSending ? (

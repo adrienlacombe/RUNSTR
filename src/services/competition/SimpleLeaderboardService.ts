@@ -6,7 +6,7 @@
 
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
 import { CompetitionCacheService } from '../cache/CompetitionCacheService';
-import { EventJoinRequestService } from '../events/EventJoinRequestService';
+import { UnifiedCacheService } from '../cache/UnifiedCacheService';
 import type { NDKFilter, NDKEvent } from '@nostr-dev-kit/ndk';
 import type { League, CompetitionEvent } from './SimpleCompetitionService';
 
@@ -34,10 +34,10 @@ export interface Workout {
 
 export class SimpleLeaderboardService {
   private static instance: SimpleLeaderboardService;
-  private cacheService: CompetitionCacheService;
+  private cacheService: typeof UnifiedCacheService;
 
   private constructor() {
-    this.cacheService = CompetitionCacheService.getInstance();
+    this.cacheService = UnifiedCacheService;
   }
 
   static getInstance(): SimpleLeaderboardService {
@@ -818,6 +818,219 @@ export class SimpleLeaderboardService {
       default:
         return score.toFixed(2);
     }
+  }
+
+  /**
+   * Get team daily leaderboards (5K/10K/Half/Marathon)
+   * Returns singleton leaderboards based on split count in kind 1301 events
+   * ✅ NEW: Fully open teams with auto-activating leaderboards
+   */
+  async getTeamDailyLeaderboards(teamId: string): Promise<{
+    teamId: string;
+    date: string;
+    leaderboard5k: LeaderboardEntry[];
+    leaderboard10k: LeaderboardEntry[];
+    leaderboardHalf: LeaderboardEntry[];
+    leaderboardMarathon: LeaderboardEntry[];
+  }> {
+    const todayMidnight = this.getTodayMidnightUTC();
+    const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    console.log(`📊 Loading daily leaderboards for team: ${teamId}`);
+
+    // Check cache first (5-minute TTL)
+    const cacheKey = `team:${teamId}:daily:${todayDate}`;
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) {
+      console.log(`   ✅ Cache hit for ${teamId} daily leaderboards`);
+      return cached;
+    }
+
+    // Query ALL kind 1301 events tagged with this team from today
+    const ndk = await GlobalNDKService.getInstance();
+    const filter: NDKFilter = {
+      kinds: [1301],
+      '#team': [teamId],
+      since: todayMidnight,
+    };
+
+    // Query with 1.5s timeout for fast UX (long enough for relay responses)
+    const timeoutPromise = new Promise<Set<NDKEvent>>((resolve) => {
+      setTimeout(() => {
+        console.log(`   ⚠️ Query timed out after 1.5s, returning empty results`);
+        resolve(new Set<NDKEvent>());
+      }, 1500);
+    });
+
+    const events = await Promise.race([
+      ndk.fetchEvents(filter),
+      timeoutPromise
+    ]);
+    console.log(`   Found ${events.size} workouts for team ${teamId} today`);
+
+    // Parse workouts and extract split data (reuse existing parseWorkout)
+    const workouts: Workout[] = [];
+    for (const event of events) {
+      const workout = this.parseWorkoutEvent(event as NDKEvent);
+      if (workout) {
+        workouts.push(workout);
+      }
+    }
+
+    // Filter by split count (5K needs ≥5 splits, 10K needs ≥10, etc.)
+    const eligible5k = workouts.filter((w) => w.splits && w.splits.size >= 5);
+    const eligible10k = workouts.filter((w) => w.splits && w.splits.size >= 10);
+    const eligibleHalf = workouts.filter((w) => w.splits && w.splits.size >= 21);
+    const eligibleMarathon = workouts.filter((w) => w.splits && w.splits.size >= 42);
+
+    console.log(`   Eligible: 5K=${eligible5k.length}, 10K=${eligible10k.length}, Half=${eligibleHalf.length}, Marathon=${eligibleMarathon.length}`);
+
+    // Calculate leaderboards using split-based time extraction
+    const result = {
+      teamId,
+      date: todayDate,
+      leaderboard5k: this.buildLeaderboard(eligible5k, 5),
+      leaderboard10k: this.buildLeaderboard(eligible10k, 10),
+      leaderboardHalf: this.buildLeaderboard(eligibleHalf, 21.1),
+      leaderboardMarathon: this.buildLeaderboard(eligibleMarathon, 42.2),
+    };
+
+    // Cache for 5 minutes
+    await this.cacheService.set(cacheKey, result, 300);
+
+    return result;
+  }
+
+  /**
+   * Get global daily leaderboards (5K/10K/Half/Marathon)
+   * Queries ALL kind 1301 events from today across all teams
+   * Returns singleton leaderboards based on split count
+   */
+  async getGlobalDailyLeaderboards(): Promise<{
+    date: string;
+    leaderboard5k: LeaderboardEntry[];
+    leaderboard10k: LeaderboardEntry[];
+    leaderboardHalf: LeaderboardEntry[];
+    leaderboardMarathon: LeaderboardEntry[];
+  }> {
+    const todayMidnight = this.getTodayMidnightUTC();
+    const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    console.log(`🌍 Loading GLOBAL daily leaderboards for ${todayDate}`);
+
+    // Check cache first (5-minute TTL)
+    const cacheKey = `global:daily:${todayDate}`;
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) {
+      console.log(`   ✅ Cache hit for global daily leaderboards`);
+      return cached;
+    }
+
+    // Query ALL kind 1301 events from today (no team filter)
+    const ndk = await GlobalNDKService.getInstance();
+    const filter: NDKFilter = {
+      kinds: [1301],
+      since: todayMidnight,
+    };
+
+    // Query with 2s timeout for global query (slightly longer than team query)
+    const timeoutPromise = new Promise<Set<NDKEvent>>((resolve) => {
+      setTimeout(() => {
+        console.log(`   ⚠️ Global query timed out after 2s, returning empty results`);
+        resolve(new Set<NDKEvent>());
+      }, 2000);
+    });
+
+    const events = await Promise.race([
+      ndk.fetchEvents(filter),
+      timeoutPromise
+    ]);
+    console.log(`   Found ${events.size} workouts globally today`);
+
+    // Parse workouts and extract split data
+    const workouts: Workout[] = [];
+    for (const event of events) {
+      const workout = this.parseWorkoutEvent(event as NDKEvent);
+      if (workout) {
+        workouts.push(workout);
+      }
+    }
+
+    // Filter by split count (5K needs ≥5 splits, 10K needs ≥10, etc.)
+    const eligible5k = workouts.filter((w) => w.splits && w.splits.size >= 5);
+    const eligible10k = workouts.filter((w) => w.splits && w.splits.size >= 10);
+    const eligibleHalf = workouts.filter((w) => w.splits && w.splits.size >= 21);
+    const eligibleMarathon = workouts.filter((w) => w.splits && w.splits.size >= 42);
+
+    console.log(`   Global eligible: 5K=${eligible5k.length}, 10K=${eligible10k.length}, Half=${eligibleHalf.length}, Marathon=${eligibleMarathon.length}`);
+
+    // Calculate global leaderboards
+    const result = {
+      date: todayDate,
+      leaderboard5k: this.buildLeaderboard(eligible5k, 5),
+      leaderboard10k: this.buildLeaderboard(eligible10k, 10),
+      leaderboardHalf: this.buildLeaderboard(eligibleHalf, 21.1),
+      leaderboardMarathon: this.buildLeaderboard(eligibleMarathon, 42.2),
+    };
+
+    // Cache for 5 minutes
+    await this.cacheService.set(cacheKey, result, 300);
+
+    return result;
+  }
+
+  /**
+   * Build leaderboard for specific distance
+   * Uses split data to extract time at target distance
+   */
+  private buildLeaderboard(workouts: Workout[], targetKm: number): LeaderboardEntry[] {
+    return workouts
+      .map((w) => {
+        const time = this.extractTargetDistanceTime(w, targetKm);
+        return {
+          npub: w.npub,
+          name: w.npub.slice(0, 8) + '...',
+          time,
+          pace: time / targetKm, // seconds per km
+          splits: w.splits,
+          timestamp: w.timestamp,
+          workoutId: w.id,
+          score: time, // Use time as score for sorting
+          formattedScore: this.formatTime(time),
+          workoutCount: 1,
+          rank: 0, // Will be set after sorting
+        };
+      })
+      .sort((a, b) => a.time - b.time) // Fastest first
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+      }));
+  }
+
+  /**
+   * Get midnight UTC timestamp for today
+   */
+  private getTodayMidnightUTC(): number {
+    const now = new Date();
+    const midnight = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    return Math.floor(midnight.getTime() / 1000);
+  }
+
+  /**
+   * Format time in seconds to MM:SS or HH:MM:SS
+   */
+  private formatTime(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }
 }
 

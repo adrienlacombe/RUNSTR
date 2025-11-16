@@ -7,7 +7,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { theme } from '../../styles/theme';
-import { ChallengeIconButton } from './ChallengeIconButton';
+import { CharityZapIconButton } from './CharityZapIconButton';
 
 export interface UserListItemProps {
   pubkey: string;
@@ -70,10 +70,10 @@ export const UserListItem: React.FC<UserListItemProps> = ({
         </View>
       </View>
 
-      {/* Challenge Button - Isolated touch zone */}
+      {/* Charity Zap Button - Isolated touch zone */}
       {showChallengeButton && onChallengePress && (
         <View style={styles.rightSection}>
-          <ChallengeIconButton
+          <CharityZapIconButton
             userPubkey={pubkey}
             userName={name}
             onPress={handleChallengePress}

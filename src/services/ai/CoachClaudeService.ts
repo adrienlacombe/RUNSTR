@@ -1,0 +1,281 @@
+/**
+ * CoachClaudeService - AI-Powered Fitness Coach using Claude Haiku via PPQ.AI
+ *
+ * Provides workout analysis using PPQ.AI's API (OpenAI-compatible).
+ * Fast, reliable, and powered by anonymous Bitcoin payments.
+ *
+ * Cost: ~$0.0010 per workout analysis (~$1.00 per 1,000 workouts)
+ * API: https://api.ppq.ai/chat/completions
+ * Model: claude-haiku-4.5
+ */
+
+import type { LocalWorkout } from '../fitness/LocalWorkoutStorageService';
+
+// In-memory cache for recent analyses
+const ANALYSIS_CACHE = new Map<string, { analysis: string; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export type PromptType = 'weekly' | 'trends' | 'tips';
+
+export interface CoachInsight {
+  type: PromptType;
+  bullets: string[];
+  generatedAt: number;
+}
+
+/**
+ * Format workout data for Claude context
+ */
+function formatWorkoutsForContext(workouts: LocalWorkout[]): string {
+  // Sort by date (newest first) and limit to last 20 workouts for cost efficiency
+  const sortedWorkouts = [...workouts]
+    .sort(
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    )
+    .slice(0, 20);
+
+  const formatted = sortedWorkouts.map((w) => {
+    const distance = w.distance ? `${(w.distance / 1000).toFixed(2)}km` : undefined;
+    const duration = w.duration ? `${Math.round(w.duration / 60)}min` : undefined;
+    const pace = w.pace ? `${formatPace(w.pace)}/km` : undefined;
+
+    return {
+      date: w.startTime.split('T')[0],
+      type: w.type || 'unknown',
+      distance,
+      duration,
+      pace,
+      calories: w.calories || undefined,
+    };
+  });
+
+  return JSON.stringify(formatted, null, 2);
+}
+
+/**
+ * Format pace in seconds/km to MM:SS format
+ */
+function formatPace(paceSecondsPerKm: number): string {
+  const minutes = Math.floor(paceSecondsPerKm / 60);
+  const seconds = Math.round(paceSecondsPerKm % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Get system prompt for each insight type
+ */
+function getSystemPrompt(type: PromptType): string {
+  const basePrompt = `You are Coach RUNSTR, a professional fitness coach analyzing workout data. Provide insights in exactly 3 bullet points. Be specific with numbers and dates. Keep each bullet point concise (1-2 sentences max).`;
+
+  switch (type) {
+    case 'weekly':
+      return `${basePrompt}
+
+Analyze the last 7 days of workouts. Provide exactly 3 bullet points covering:
+1. Total distance/time and workout frequency
+2. Average pace or notable performance metrics
+3. One specific achievement or observation
+
+Format each point starting with •`;
+
+    case 'trends':
+      return `${basePrompt}
+
+Analyze all-time workout history. Provide exactly 3 bullet points identifying:
+1. Long-term improvement trends
+2. Consistency patterns
+3. One area showing progress or needing attention
+
+Format each point starting with •`;
+
+    case 'tips':
+      return `${basePrompt}
+
+Based on all workout data, provide exactly 3 actionable training tips:
+1. One tip for recovery or rest
+2. One tip for progression or improvement
+3. One tip for variety or cross-training
+
+Format each point starting with •`;
+  }
+}
+
+/**
+ * Parse Claude response into bullet points
+ */
+function parseBullets(response: string): string[] {
+  // Split by bullet point markers
+  const bulletRegex = /^[\s]*[•\-\*\d\.]+[\s]*(.*?)$/gm;
+  const matches = Array.from(response.matchAll(bulletRegex));
+
+  if (matches.length >= 3) {
+    return matches.slice(0, 3).map((m) => m[1].trim());
+  }
+
+  // Fallback: split by newlines
+  const lines = response
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  return lines.slice(0, 3);
+}
+
+/**
+ * Generate cache key for workout analysis
+ */
+function getCacheKey(type: PromptType, workouts: LocalWorkout[]): string {
+  const workoutHashes = workouts
+    .slice(0, 5) // Use first 5 workouts for cache key
+    .map((w) => `${w.startTime}${w.distance}${w.duration}`)
+    .join('|');
+  return `${type}:${workoutHashes}`;
+}
+
+/**
+ * Coach Claude Service
+ */
+class CoachClaudeService {
+  private apiKey: string | null = null;
+
+  /**
+   * Initialize the service with API key
+   */
+  initialize(apiKey: string) {
+    this.apiKey = apiKey;
+    console.log('[CoachClaude] Service initialized with PPQ.AI');
+  }
+
+  /**
+   * Check if service is ready
+   */
+  isReady(): boolean {
+    return this.apiKey !== null;
+  }
+
+  /**
+   * Generate AI-powered insight
+   */
+  async generateInsight(
+    type: PromptType,
+    workouts: LocalWorkout[],
+    options?: { useCache?: boolean }
+  ): Promise<CoachInsight> {
+    if (!this.apiKey) {
+      throw new Error('CoachClaude not initialized. Call initialize() with API key first.');
+    }
+
+    const useCache = options?.useCache !== false;
+
+    // Check cache first
+    if (useCache) {
+      const cacheKey = getCacheKey(type, workouts);
+      const cached = ANALYSIS_CACHE.get(cacheKey);
+
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        console.log(`[CoachClaude] Using cached ${type} insight`);
+        const bullets = parseBullets(cached.analysis);
+        return {
+          type,
+          bullets: bullets.slice(0, 3),
+          generatedAt: cached.timestamp,
+        };
+      }
+    }
+
+    try {
+      console.log(`[CoachClaude] Generating ${type} insight via PPQ.AI...`);
+
+      // Format workout data
+      const workoutContext = formatWorkoutsForContext(workouts);
+      const systemPrompt = getSystemPrompt(type);
+
+      // Call PPQ.AI API (OpenAI-compatible)
+      const response = await fetch('https://api.ppq.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4.5',
+          max_tokens: 200,
+          temperature: 0.7,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt,
+            },
+            {
+              role: 'user',
+              content: `Here is my workout history:\n\n${workoutContext}\n\nProvide 3 specific insights.`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`PPQ.AI API error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      const responseText = data.choices?.[0]?.message?.content || '';
+
+      console.log(`[CoachClaude] Generation complete, response:`, responseText);
+
+      // Parse response into bullets
+      const bullets = parseBullets(responseText);
+
+      // Ensure we have exactly 3 bullets
+      while (bullets.length < 3) {
+        bullets.push('Continue your great work!');
+      }
+
+      const insight: CoachInsight = {
+        type,
+        bullets: bullets.slice(0, 3),
+        generatedAt: Date.now(),
+      };
+
+      // Cache the result
+      if (useCache) {
+        const cacheKey = getCacheKey(type, workouts);
+        ANALYSIS_CACHE.set(cacheKey, {
+          analysis: responseText,
+          timestamp: Date.now(),
+        });
+      }
+
+      console.log(`[CoachClaude] Generated ${type} insight successfully`);
+      return insight;
+    } catch (error) {
+      console.error(`[CoachClaude] Failed to generate ${type} insight:`, error);
+
+      if (error instanceof Error) {
+        // Handle specific PPQ.AI API errors
+        if (error.message.includes('401') || error.message.includes('403')) {
+          throw new Error('Invalid API key. Please check your PPQ.AI API key in Settings.');
+        } else if (error.message.includes('429')) {
+          throw new Error('Rate limit exceeded. Please try again in a moment.');
+        } else if (error.message.includes('402')) {
+          throw new Error('Insufficient credits. Please add more Bitcoin to your PPQ.AI account.');
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Clear analysis cache
+   */
+  clearCache() {
+    ANALYSIS_CACHE.clear();
+    console.log('[CoachClaude] Cache cleared');
+  }
+}
+
+// Export singleton instance
+export const coachClaude = new CoachClaudeService();

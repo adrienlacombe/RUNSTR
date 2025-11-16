@@ -38,6 +38,10 @@ export const TeamBasicsStep: React.FC<TeamBasicsStepProps> = ({
     onUpdate({ flashUrl: url });
   };
 
+  const handleBannerImageChange = (url: string) => {
+    onUpdate({ bannerImage: url });
+  };
+
   // Character count helpers
   const getCharacterCountStyle = (current: number, max: number) => {
     const percentage = current / max;
@@ -109,6 +113,25 @@ export const TeamBasicsStep: React.FC<TeamBasicsStepProps> = ({
             {getCharityById(data.charityId)?.description}
           </Text>
         )}
+      </View>
+
+      {/* Banner Image URL */}
+      <View style={styles.formGroup}>
+        <Text style={styles.formLabel}>Team Banner Image (Optional)</Text>
+        <Text style={styles.formHelperText}>
+          Add a banner image URL to personalize your team page. This appears at
+          the top of your team profile.
+        </Text>
+        <TextInput
+          style={styles.formInput}
+          placeholder="https://example.com/banner.jpg"
+          placeholderTextColor={theme.colors.textMuted}
+          value={data.bannerImage || ''}
+          onChangeText={handleBannerImageChange}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+        />
       </View>
 
       {/* Flash Subscription URL - HIDDEN FOR NOW */}

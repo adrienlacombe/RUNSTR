@@ -18,7 +18,6 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { CompactTeamCard } from '../components/profile/CompactTeamCard';
-import { TeammatesView } from '../components/teammates/TeammatesView';
 import { useNavigationData } from '../contexts/NavigationDataContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Team } from '../types';
@@ -30,7 +29,6 @@ export const MyTeamsScreen: React.FC = () => {
   const [userNpub, setUserNpub] = useState<string>('');
   const [userHexPubkey, setUserHexPubkey] = useState<string>('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [activeTab, setActiveTab] = useState<'teams' | 'teammates'>('teams');
 
   // Load user npub and hex pubkey on mount
   useEffect(() => {
@@ -178,34 +176,8 @@ export const MyTeamsScreen: React.FC = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Tab Switcher */}
-      <View style={styles.tabHeader}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'teams' && styles.activeTab]}
-          onPress={() => setActiveTab('teams')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabText, activeTab === 'teams' && styles.activeTabText]}>
-            Teams
-          </Text>
-          {activeTab === 'teams' && <View style={styles.activeIndicator} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'teammates' && styles.activeTab]}
-          onPress={() => setActiveTab('teammates')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabText, activeTab === 'teammates' && styles.activeTabText]}>
-            Teammates
-          </Text>
-          {activeTab === 'teammates' && <View style={styles.activeIndicator} />}
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      {activeTab === 'teams' ? (
-        <ScrollView
+      {/* Content - Teams Only */}
+      <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
@@ -265,16 +237,7 @@ export const MyTeamsScreen: React.FC = () => {
             )}
           </View>
         )}
-        </ScrollView>
-      ) : (
-        /* Teammates Tab */
-        <TeammatesView
-          teams={teams}
-          userNpub={userNpub}
-          onRefresh={handleRefresh}
-          isLoadingTeams={isLoadingTeam}
-        />
-      )}
+      </ScrollView>
     </SafeAreaView>
   );
 };

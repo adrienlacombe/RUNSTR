@@ -16,25 +16,20 @@ import {
 } from 'react-native';
 import { theme } from '../../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
-// import nutzapService from '../../services/nutzap/nutzapService';
+import { NWCWalletService } from '../../services/wallet/NWCWalletService';
 
 interface Transaction {
   id: string;
-  type:
-    | 'nutzap_sent'
-    | 'nutzap_received'
-    | 'lightning_received'
-    | 'lightning_sent'
-    | 'cashu_sent'
-    | 'cashu_received';
-  amount: number;
-  timestamp: number;
-  memo?: string;
-  recipient?: string;
-  sender?: string;
+  type: 'incoming' | 'outgoing';
   invoice?: string;
-  token?: string;
-  fee?: number;
+  description?: string;
+  preimage?: string;
+  payment_hash: string;
+  amount: number;
+  fees_paid?: number;
+  created_at: number;
+  settled_at?: number;
+  metadata?: any;
 }
 
 interface HistoryModalProps {
@@ -59,10 +54,32 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   const loadTransactions = async () => {
     try {
       setIsLoading(true);
-      const history = await nutzapService.getTransactionHistory(50);
-      setTransactions(history);
+      const walletService = NWCWalletService;
+      const result = await walletService.listTransactions({ limit: 50 });
+
+      if (result.success && result.transactions) {
+        // Convert NWC transaction format to UI format
+        const formattedTransactions: Transaction[] = result.transactions.map((tx) => ({
+          id: tx.payment_hash,
+          type: tx.type,
+          invoice: tx.invoice,
+          description: tx.description,
+          preimage: tx.preimage,
+          payment_hash: tx.payment_hash,
+          amount: tx.amount,
+          fees_paid: tx.fees_paid,
+          created_at: tx.created_at,
+          settled_at: tx.settled_at,
+          metadata: tx.metadata,
+        }));
+        setTransactions(formattedTransactions);
+      } else {
+        console.error('Failed to load transactions:', result.error);
+        setTransactions([]);
+      }
     } catch (error) {
       console.error('Failed to load transaction history:', error);
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +92,8 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   };
 
   const formatTime = (timestamp: number): string => {
-    const date = new Date(timestamp);
+    // NWC timestamps are in seconds, convert to milliseconds
+    const date = new Date(timestamp * 1000);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -89,33 +107,18 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
     return date.toLocaleDateString();
   };
 
-  const getTransactionIcon = (type: string): string => {
-    if (type.includes('sent')) return 'arrow-up-circle';
-    return 'arrow-down-circle';
+  const getTransactionIcon = (type: 'incoming' | 'outgoing'): string => {
+    return type === 'outgoing' ? 'arrow-up-circle' : 'arrow-down-circle';
   };
 
-  const getTransactionColor = (type: string): string => {
-    if (type.includes('sent')) return theme.colors.textMuted; // Muted orange for sent
-    return theme.colors.orangeBright; // Bright orange for received
+  const getTransactionColor = (type: 'incoming' | 'outgoing'): string => {
+    return type === 'outgoing'
+      ? theme.colors.textMuted // Muted orange for sent
+      : theme.colors.orangeBright; // Bright orange for received
   };
 
-  const getTransactionTitle = (type: string): string => {
-    switch (type) {
-      case 'lightning_sent':
-        return 'Lightning Payment';
-      case 'lightning_received':
-        return 'Lightning Invoice Paid';
-      case 'nutzap_sent':
-        return 'Lightning Zap Sent';
-      case 'nutzap_received':
-        return 'Lightning Zap Received';
-      case 'cashu_sent':
-        return 'Lightning Payment Sent';
-      case 'cashu_received':
-        return 'Lightning Payment Received';
-      default:
-        return type.includes('sent') ? 'Sent' : 'Received';
-    }
+  const getTransactionTitle = (type: 'incoming' | 'outgoing'): string => {
+    return type === 'outgoing' ? 'Lightning Payment Sent' : 'Lightning Payment Received';
   };
 
   const renderTransaction = ({ item }: { item: Transaction }) => (
@@ -132,23 +135,23 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
         <Text style={styles.transactionTitle}>
           {getTransactionTitle(item.type)}
         </Text>
-        {item.memo && (
+        {item.description && (
           <Text style={styles.transactionMemo} numberOfLines={1}>
-            {item.memo}
+            {item.description}
           </Text>
         )}
-        <Text style={styles.transactionTime}>{formatTime(item.timestamp)}</Text>
+        <Text style={styles.transactionTime}>{formatTime(item.created_at)}</Text>
       </View>
 
       <View style={styles.transactionAmount}>
         <Text
           style={[styles.amountText, { color: getTransactionColor(item.type) }]}
         >
-          {item.type.includes('sent') ? '-' : '+'}
+          {item.type === 'outgoing' ? '-' : '+'}
           {item.amount}
         </Text>
         <Text style={styles.amountUnit}>sats</Text>
-        {item.fee && <Text style={styles.feeText}>fee: {item.fee}</Text>}
+        {item.fees_paid && <Text style={styles.feeText}>fee: {item.fees_paid}</Text>}
       </View>
     </View>
   );

@@ -37,6 +37,8 @@ import Nostr1301ImportService from '../services/fitness/Nostr1301ImportService';
 import { HealthSnapshotCard } from '../components/analytics/HealthSnapshotCard';
 import { CalorieBalanceCard } from '../components/analytics/CalorieBalanceCard';
 import { WeeklySummaryAccordion } from '../components/analytics/WeeklySummaryAccordion';
+import { CoachRunstrCard } from '../components/analytics/CoachRunstrCard';
+import { GoalsHabitsCard } from '../components/analytics/GoalsHabitsCard';
 import { FitnessTestInstructionsModal } from '../components/fitness/FitnessTestInstructionsModal';
 import FitnessTestService from '../services/fitness/FitnessTestService';
 
@@ -373,6 +375,9 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         {/* Section 2: Weekly Summary Breakdown */}
         <WeeklySummaryAccordion workouts={workouts} />
 
+        {/* Section 3: Goals & Habits */}
+        <GoalsHabitsCard />
+
         {/* Today's Caloric Balance */}
         {caloricMetrics && (
           <CalorieBalanceCard
@@ -441,6 +446,9 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
             </>
           )}
         </View>
+
+        {/* COACH RUNSTR - AI-Powered Insights */}
+        <CoachRunstrCard workouts={workouts} />
 
         {/* Nostr Health Sync Card */}
         <View style={styles.fitnessTestCard}>

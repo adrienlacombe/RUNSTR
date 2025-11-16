@@ -3,8 +3,9 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
 // import { NutzapLightningButton } from '../nutzap/NutzapLightningButton';
-import { ChallengeIconButton } from '../ui/ChallengeIconButton';
-import { SimpleChallengeWizardV2 } from '../wizards/SimpleChallengeWizardV2';
+import { CharityZapIconButton } from '../ui/CharityZapIconButton';
+import { ExternalZapModal } from '../nutzap/ExternalZapModal';
+import { CharitySelectionService } from '../../services/charity/CharitySelectionService';
 import { FormattedLeaderboardEntry } from '../../types';
 import { theme } from '../../styles/theme';
 
@@ -17,18 +18,20 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
   leaderboard,
   title = 'League',
 }) => {
-  const [challengeWizardVisible, setChallengeWizardVisible] = useState(false);
-  const [selectedOpponent, setSelectedOpponent] = useState<{
-    pubkey: string;
-    name: string;
-  } | null>(null);
+  const [charityModalVisible, setCharityModalVisible] = useState(false);
+  const [selectedCharity, setSelectedCharity] = useState<{ name: string; address: string } | null>(null);
 
-  const handleChallengePress = (entry: FormattedLeaderboardEntry) => {
-    setSelectedOpponent({
-      pubkey: entry.npub!,
-      name: entry.name,
-    });
-    setChallengeWizardVisible(true);
+  const handleCharityZap = async () => {
+    try {
+      const charity = await CharitySelectionService.getSelectedCharity();
+      setSelectedCharity({
+        name: charity.name,
+        address: charity.lightningAddress,
+      });
+      setCharityModalVisible(true);
+    } catch (error) {
+      console.error('[LeaderboardCard] Error loading charity:', error);
+    }
   };
 
   return (
@@ -66,10 +69,10 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
 
             {entry.npub && (
               <View style={styles.actions}>
-                <ChallengeIconButton
+                <CharityZapIconButton
                   userPubkey={entry.npub}
                   userName={entry.name}
-                  onPress={() => handleChallengePress(entry)}
+                  onPress={handleCharityZap}
                 />
                 {/* <NutzapLightningButton
                   recipientNpub={entry.npub}
@@ -83,15 +86,21 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
         ))}
       </Card>
 
-      {/* Challenge Wizard Modal */}
-      <SimpleChallengeWizardV2
-        visible={challengeWizardVisible}
-        onClose={() => {
-          setChallengeWizardVisible(false);
-          setSelectedOpponent(null);
-        }}
-        preSelectedOpponent={selectedOpponent || undefined}
-      />
+      {/* Charity Zap Modal */}
+      {selectedCharity && (
+        <ExternalZapModal
+          visible={charityModalVisible}
+          onClose={() => setCharityModalVisible(false)}
+          recipientNpub={selectedCharity.address}
+          recipientName={selectedCharity.name}
+          amount={21}
+          memo={`Donation to ${selectedCharity.name}`}
+          onSuccess={() => {
+            setCharityModalVisible(false);
+            console.log('Charity donation sent from LeaderboardCard!');
+          }}
+        />
+      )}
     </>
   );
 };

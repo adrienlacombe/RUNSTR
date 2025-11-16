@@ -7,12 +7,14 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Charity } from '../../types/charity';
 import { theme } from '../../styles/theme';
 
 interface CharitySelectionModalProps {
   visible: boolean;
   charities: Charity[];
+  selectedCharityId?: string | null;
   onSelect: (charity: Charity) => void;
   onCancel: () => void;
 }
@@ -20,6 +22,7 @@ interface CharitySelectionModalProps {
 export const CharitySelectionModal: React.FC<CharitySelectionModalProps> = ({
   visible,
   charities,
+  selectedCharityId,
   onSelect,
   onCancel,
 }) => {
@@ -45,19 +48,36 @@ export const CharitySelectionModal: React.FC<CharitySelectionModalProps> = ({
             style={styles.charityList}
             showsVerticalScrollIndicator={false}
           >
-            {charities.map((charity) => (
-              <TouchableOpacity
-                key={charity.id}
-                style={styles.charityButton}
-                onPress={() => onSelect(charity)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.charityName}>{charity.name}</Text>
-                <Text style={styles.charityDescription}>
-                  {charity.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {charities.map((charity) => {
+              const isSelected = selectedCharityId === charity.id;
+              return (
+                <TouchableOpacity
+                  key={charity.id}
+                  style={[
+                    styles.charityButton,
+                    isSelected && styles.charityButtonActive,
+                  ]}
+                  onPress={() => onSelect(charity)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.charityContent}>
+                    <View style={styles.charityInfo}>
+                      <Text style={styles.charityName}>{charity.name}</Text>
+                      <Text style={styles.charityDescription}>
+                        {charity.description}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={theme.colors.accent}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* Cancel Button */}
@@ -117,22 +137,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   charityButton: {
-    backgroundColor: theme.colors.orangeDeep,
+    backgroundColor: theme.colors.cardBackground,
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.colors.orangeBright,
+    borderColor: theme.colors.border,
+  },
+  charityButtonActive: {
+    backgroundColor: 'rgba(255, 140, 0, 0.1)',
+    borderColor: theme.colors.accent,
+    borderWidth: 2,
+  },
+  charityContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  charityInfo: {
+    flex: 1,
+    marginRight: 12,
   },
   charityName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.text,
     marginBottom: 6,
   },
   charityDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
   cancelButton: {

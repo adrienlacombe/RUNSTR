@@ -5,10 +5,6 @@
  */
 
 import { TTLDeduplicator } from '../../utils/TTLDeduplicator';
-import {
-  EventJoinRequestService,
-  type EventJoinRequest,
-} from '../events/EventJoinRequestService';
 import { getCachedProfile } from './profileHelper';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 import { unifiedNotificationStore } from './UnifiedNotificationStore';
@@ -55,165 +51,44 @@ export class EventJoinNotificationHandler {
 
   /**
    * Load notifications from storage (via EventJoinRequestService)
+   * NOTE: Disabled - EventJoinRequestService removed during migration to daily leaderboards
    */
   private async loadNotifications(): Promise<void> {
-    try {
-      const userIdentifiers = await getUserNostrIdentifiers();
-      if (!userIdentifiers?.hexPubkey) {
-        console.log('[EventJoinNotifications] User not authenticated');
-        return;
-      }
-
-      const requestService = EventJoinRequestService.getInstance();
-      const joinRequests = await requestService.getEventJoinRequests(
-        userIdentifiers.hexPubkey
-      );
-
-      for (const request of joinRequests) {
-        const notification = await this.requestToNotification(request);
-        if (notification) {
-          this.notifications.set(notification.id, notification);
-        }
-      }
-
-      console.log(
-        `[EventJoinNotifications] Loaded ${this.notifications.size} event join notifications`
-      );
-    } catch (error) {
-      console.error(
-        '[EventJoinNotifications] Failed to load notifications:',
-        error
-      );
-    }
+    // Event join request system disabled - return early
+    console.log('[EventJoinNotifications] Event join request system disabled');
+    return;
   }
 
   /**
    * Convert EventJoinRequest to EventJoinNotification
+   * NOTE: Disabled - EventJoinRequestService removed during migration to daily leaderboards
    */
   private async requestToNotification(
-    request: EventJoinRequest
+    request: any
   ): Promise<EventJoinNotification | null> {
-    try {
-      const profile = await getCachedProfile(request.requesterId);
-
-      return {
-        id: request.id,
-        type: 'join_request',
-        requestId: request.id,
-        requesterId: request.requesterId,
-        requesterName: profile?.display_name || profile?.name || 'Unknown User',
-        requesterPicture: profile?.picture,
-        eventId: request.eventId,
-        eventName: request.eventName,
-        teamId: request.teamId,
-        message: request.message,
-        timestamp: request.timestamp * 1000,
-        read: false,
-      };
-    } catch (error) {
-      console.error(
-        '[EventJoinNotifications] Failed to create notification from request:',
-        error
-      );
-      return null;
-    }
+    // Event join request system disabled - return null
+    console.log('[EventJoinNotifications] Event join request system disabled');
+    return null;
   }
 
   /**
    * Start listening for event join requests
+   * NOTE: Disabled - EventJoinRequestService removed during migration to daily leaderboards
    */
   async startListening(): Promise<void> {
-    if (this.isActive) {
-      console.log('[EventJoinNotifications] Handler already active');
-      return;
-    }
-
-    console.log('[EventJoinNotifications] Starting monitoring...');
-
-    try {
-      const userIdentifiers = await getUserNostrIdentifiers();
-      if (!userIdentifiers?.hexPubkey) {
-        console.warn(
-          '[EventJoinNotifications] User not authenticated, cannot start'
-        );
-        return;
-      }
-
-      const requestService = EventJoinRequestService.getInstance();
-
-      // Subscribe to incoming event join requests
-      const subscription = await requestService.subscribeToEventJoinRequests(
-        userIdentifiers.hexPubkey,
-        async (request: EventJoinRequest) => {
-          if (this.deduplicator.isDuplicate(request.id)) {
-            return;
-          }
-
-          // Verify this is truly an event join request (has event-join-request tag)
-          const hasEventJoinTag = request.nostrEvent.tags.some(
-            t => t[0] === 't' && t[1] === 'event-join-request'
-          );
-
-          if (!hasEventJoinTag) {
-            // This is likely a challenge request, skip it
-            return;
-          }
-
-          const notification = await this.requestToNotification(request);
-          if (notification) {
-            this.notifications.set(notification.id, notification);
-            this.notifyCallbacks(notification);
-
-            // Publish to unified notification store
-            await this.publishToUnifiedStore(notification);
-
-            console.log(
-              `[EventJoinNotifications] New request from ${notification.requesterName} for ${notification.eventName}`
-            );
-          }
-        }
-      );
-
-      // Store subscription ID (NDKSubscription object has an id property)
-      this.subscriptionId = subscription.toString();
-
-      this.isActive = true;
-      console.log(
-        `[EventJoinNotifications] Monitoring active: ${this.subscriptionId}`
-      );
-    } catch (error) {
-      console.error(
-        '[EventJoinNotifications] Failed to start monitoring:',
-        error
-      );
-      throw error;
-    }
+    // Event join request system disabled - return early
+    console.log('[EventJoinNotifications] Event join request system disabled');
+    return;
   }
 
   /**
    * Stop listening for event join requests
+   * NOTE: Disabled - EventJoinRequestService removed during migration to daily leaderboards
    */
   async stopListening(): Promise<void> {
-    console.log('[EventJoinNotifications] Stopping monitoring...');
-
-    if (this.subscriptionId) {
-      try {
-        const requestService = EventJoinRequestService.getInstance();
-        // Note: EventJoinRequestService doesn't expose unsubscribe method
-        // This is handled by NostrRelayManager cleanup
-        console.log(
-          `[EventJoinNotifications] Stopped subscription: ${this.subscriptionId}`
-        );
-      } catch (error) {
-        console.warn('[EventJoinNotifications] Failed to unsubscribe:', error);
-      }
-    }
-
-    this.subscriptionId = undefined;
-    this.isActive = false;
-    this.deduplicator.clear();
-
-    console.log('[EventJoinNotifications] Monitoring stopped');
+    // Event join request system disabled - return early
+    console.log('[EventJoinNotifications] Event join request system disabled');
+    return;
   }
 
   /**

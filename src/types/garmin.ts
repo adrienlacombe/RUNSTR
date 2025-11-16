@@ -218,8 +218,8 @@ export const GARMIN_ACTIVITY_TYPE_MAP: Record<string, string> = {
  * Reference: OAuth2PKCE_1.pdf specification from Garmin Developer Portal
  */
 export const GARMIN_ENDPOINTS = {
-  // OAuth 2.0 PKCE endpoints (correct as of 2024)
-  OAUTH_AUTHORIZE: 'https://apis.garmin.com/tools/oauth2/authorizeUser',
+  // OAuth 2.0 PKCE endpoints (correct as of 2025)
+  OAUTH_AUTHORIZE: 'https://connect.garmin.com/oauth2Confirm',
   OAUTH_TOKEN: 'https://diauth.garmin.com/di-oauth2-service/oauth/token',
   // Health API endpoints
   ACTIVITIES: 'https://apis.garmin.com/wellness-api/rest/activities',

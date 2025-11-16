@@ -18,6 +18,7 @@ import { CacheInvalidationService } from '../cache/CacheInvalidationService';
 import { DailyRewardService } from '../rewards/DailyRewardService';
 import { FEATURES } from '../../config/features';
 import { ImageUploadService } from '../media/ImageUploadService';
+import { LocalTeamMembershipService } from '../team/LocalTeamMembershipService';
 
 // Import split type for race replay data
 import type { Split } from '../activity/SplitTrackingService';
@@ -142,11 +143,14 @@ export class WorkoutPublishingService {
         pubkey = user.pubkey;
       }
 
+      // Get competition team for tagging
+      const competitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
+
       // Create unsigned NDKEvent
       const ndkEvent = new NDKEvent(ndk);
       ndkEvent.kind = 1301;
       ndkEvent.content = this.generateWorkoutDescription(workout);
-      ndkEvent.tags = this.createNIP101eWorkoutTags(workout, pubkey);
+      ndkEvent.tags = await this.createNIP101eWorkoutTags(workout, pubkey, competitionTeam);
       ndkEvent.created_at = Math.floor(
         new Date(workout.startTime).getTime() / 1000
       );
@@ -356,11 +360,13 @@ export class WorkoutPublishingService {
   /**
    * Create runstr-compatible tags for kind 1301 workout events
    * Matches the exact format used by runstr GitHub implementation
+   * ✅ UPDATED: Now includes competition team tag for leaderboard participation
    */
-  private createNIP101eWorkoutTags(
+  private async createNIP101eWorkoutTags(
     workout: PublishableWorkout,
-    pubkey: string
-  ): string[][] {
+    pubkey: string,
+    competitionTeam: string | null
+  ): Promise<string[][]> {
     // Map workout type to simple exercise verb (run, walk, cycle)
     const exerciseVerb = this.getExerciseVerb(workout.type);
 
@@ -529,9 +535,11 @@ export class WorkoutPublishingService {
       tags.push(['workout_start_time', startTimestamp]);
     }
 
-    // TODO: Add team and challenge associations when available
-    // ['team', '33404:pubkey:uuid', 'relay', 'teamName']
-    // ['challenge_uuid', 'uuid']
+    // Add competition team tag (for daily leaderboards)
+    if (competitionTeam) {
+      tags.push(['team', competitionTeam]);
+      console.log(`   ✅ Added team tag: ${competitionTeam}`);
+    }
 
     return tags;
   }
@@ -1015,6 +1023,7 @@ export class WorkoutPublishingService {
    * Generate social post content with clean format
    * If imageUrl is provided, content is minimal (image + hashtags only)
    * Otherwise, full text stats are included
+   * ✅ UPDATED: Now includes competition team hashtag
    */
   private async generateSocialPostContent(
     workout: PublishableWorkout,
@@ -1024,9 +1033,16 @@ export class WorkoutPublishingService {
     let content = '';
     const activityHashtag = this.getActivityHashtag(workout.type);
 
+    // Get competition team for hashtag
+    const competitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
+
     // If we have an image, keep it minimal - the card has all the stats
     if (imageUrl) {
       content = `${imageUrl}\n\n#RUNSTR #${activityHashtag}`;
+      if (competitionTeam) {
+        const teamHashtag = competitionTeam.replace(/-/g, '');
+        content += ` #${teamHashtag}`;
+      }
       return content;
     }
 
@@ -1067,8 +1083,12 @@ export class WorkoutPublishingService {
     // Add workout stats in vertical format
     content += this.formatWorkoutStats(workout) + '\n\n';
 
-    // Add hashtags
+    // Add hashtags (including team hashtag if user has competition team)
     content += `#RUNSTR #${activityHashtag}`;
+    if (competitionTeam) {
+      const teamHashtag = competitionTeam.replace(/-/g, '');
+      content += ` #${teamHashtag}`;
+    }
 
     return content.trim();
   }

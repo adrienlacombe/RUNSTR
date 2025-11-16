@@ -1,6 +1,7 @@
 /**
- * CompetitionsListScreen
- * Displays all user's competitions (teams, leagues, events, challenges) in a tabbed view
+ * CompetitionsListScreen - Transformed to Daily Leaderboards View
+ * Shows user's competition team's daily leaderboards (5K, 10K, Half, Marathon)
+ * Replaces old events/challenges tabs with simple leaderboard display
  */
 
 import React, { useState, useEffect } from 'react';
@@ -9,353 +10,255 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   SafeAreaView,
-  FlatList,
-  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { NostrCompetitionDiscoveryService } from '../services/competition/NostrCompetitionDiscoveryService';
-import { getUserNostrIdentifiers } from '../utils/nostr';
-import type { UserCompetition } from '../types/challenge';
+import { SimpleLeaderboardService } from '../services/competition/SimpleLeaderboardService';
+import { DailyLeaderboardCard } from '../components/team/DailyLeaderboardCard';
+import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
 import { theme } from '../styles/theme';
-import { GlobalChallengeWizard } from '../components/wizards/GlobalChallengeWizard';
-import { EventParticipationStore } from '../services/event/EventParticipationStore';
-
-type RootStackParamList = {
-  ChallengeLeaderboard: { challengeId: string };
-  EnhancedTeamScreen: {
-    team: any;
-    userIsMember?: boolean;
-    currentUserNpub?: string;
-    userIsCaptain?: boolean;
-  };
-  LeagueLeaderboard: { leagueId: string };
-  EventDetail: { eventId: string; eventData?: any };
-  ChallengeWizard: undefined;
-  // Add other screens as needed
-};
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-type TabType = 'events' | 'challenges';
 
 export const CompetitionsListScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const [activeTab, setActiveTab] = useState<TabType>('events');
-  const [competitions, setCompetitions] = useState<UserCompetition[]>([]);
-  const [filteredCompetitions, setFilteredCompetitions] = useState<
-    UserCompetition[]
-  >([]);
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showChallengeWizard, setShowChallengeWizard] = useState(false);
+  const [competitionTeamId, setCompetitionTeamId] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState<string>('');
+  const [userNpub, setUserNpub] = useState<string | null>(null);
+  const [leaderboards, setLeaderboards] = useState<{
+    leaderboard5k: any[];
+    leaderboard10k: any[];
+    leaderboardHalf: any[];
+    leaderboardMarathon: any[];
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCompetitions();
+    loadDailyLeaderboards();
   }, []);
 
-  useEffect(() => {
-    filterCompetitions();
-  }, [activeTab, competitions]);
-
-  const loadCompetitions = async (isRefresh = false) => {
+  const loadDailyLeaderboards = async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
+      setError(null);
 
-      const userIdentifiers = await getUserNostrIdentifiers();
-      if (!userIdentifiers?.hexPubkey) {
-        console.log('No user authenticated');
+      // Get user's npub for filtering leaderboards
+      const npub = await AsyncStorage.getItem('@runstr:npub');
+      setUserNpub(npub);
+
+      // Get user's competition team using LocalTeamMembershipService
+      const teamId = await LocalTeamMembershipService.getCompetitionTeam();
+
+      if (!teamId) {
+        setCompetitionTeamId(null);
+        setLeaderboards(null);
         return;
       }
 
-      // Load local event participations FIRST (instant UX)
-      const localEvents = await EventParticipationStore.getParticipations();
+      setCompetitionTeamId(teamId);
 
-      // Convert to UserCompetition format
-      // ✅ Store eventData for later retrieval (avoid defaults in buildEventDataFromCompetition)
-      const localCompetitions: UserCompetition[] = localEvents.map((event) => ({
-        id: event.eventId,
-        name: event.eventData.name,
-        type: 'event' as const,
-        status: event.status === 'approved' ? ('active' as const) : ('upcoming' as const),
-        participantCount: 1, // At least the user
-        yourRole: 'member' as const,
-        startsAt: new Date(event.eventData.eventDate).getTime() / 1000,
-        prizePool: event.entryFeePaid,
-        eventData: event.eventData, // ✅ Include full event data
-      }));
+      // Load daily leaderboards for this team
+      const leaderboardService = SimpleLeaderboardService.getInstance();
+      const data = await leaderboardService.getTeamDailyLeaderboards(teamId);
 
-      // Show local events immediately for fast UX
-      if (localCompetitions.length > 0) {
-        setCompetitions(localCompetitions);
-      }
+      setLeaderboards(data);
 
-      // Load from Nostr in background
-      const discoveryService = NostrCompetitionDiscoveryService.getInstance();
-      if (isRefresh) {
-        discoveryService.clearCache(userIdentifiers.hexPubkey);
-      }
-
-      const userCompetitions = await discoveryService.getUserCompetitions(
-        userIdentifiers.hexPubkey
-      );
-
-      // Merge local + Nostr (dedupe by ID)
-      const merged = [...localCompetitions];
-      userCompetitions.forEach((comp) => {
-        if (!merged.some((m) => m.id === comp.id)) {
-          merged.push(comp);
+      // Get team name from cache or default
+      const cachedTeams = await AsyncStorage.getItem('@runstr:joined_teams');
+      if (cachedTeams) {
+        const teams = JSON.parse(cachedTeams);
+        const team = teams.find((t: any) => t.id === teamId);
+        if (team) {
+          setTeamName(team.name);
         }
-      });
-
-      setCompetitions(merged);
-    } catch (error) {
-      console.error('Error loading competitions:', error);
+      }
+    } catch (error: any) {
+      console.error('[CompetitionsListScreen] Error loading leaderboards:', error);
+      setError(error.message || 'Failed to load daily leaderboards');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const filterCompetitions = () => {
-    // Map tab to competition type (remove 's' from plural)
-    const type: UserCompetition['type'] =
-      activeTab === 'events' ? 'event' : 'challenge';
-    setFilteredCompetitions(competitions.filter((c) => c.type === type));
+  const handleRefresh = () => {
+    loadDailyLeaderboards(true);
   };
 
-  /**
-   * Build event data from competition for instant display
-   * ✅ FIX: Use stored eventData if available (from local participations)
-   */
-  const buildEventDataFromCompetition = (comp: UserCompetition) => {
-    if (comp.type !== 'event') return null;
-
-    // ✅ If we have full event data stored, use it directly
-    if (comp.eventData) {
-      return comp.eventData;
-    }
-
-    // Fallback to partial data (for events from Nostr without local participation)
-    // ✅ FIX: Use undefined instead of empty strings so EventDetailScreen can fetch fresh data
-    return {
-      id: comp.id,
-      name: comp.name,
-      activityType: 'Any',
-      eventDate: comp.startsAt
-        ? new Date(comp.startsAt * 1000).toISOString()
-        : new Date().toISOString(),
-      metric: 'total_distance',
-      teamId: undefined,  // ✅ Let EventDetailScreen fetch fresh
-      captainPubkey: undefined,  // ✅ Let EventDetailScreen fetch fresh
-      pubkey: undefined,  // ✅ Will be fetched from Nostr event
-      description: undefined,
-      entryFeesSats: comp.prizePool,
-    };
+  const handleSelectTeam = () => {
+    // Navigate to Settings where user can select competition team
+    navigation.navigate('Settings');
   };
 
-  const handleCompetitionPress = (competition: UserCompetition) => {
-    // Navigate based on competition type
-    switch (competition.type) {
-      case 'team':
-        // Need to fetch team data for navigation
-        navigation.navigate('EnhancedTeamScreen', {
-          team: { id: competition.id, name: competition.name },
-        });
-        break;
-      case 'league':
-        navigation.navigate('LeagueLeaderboard', { leagueId: competition.id });
-        break;
-      case 'event':
-        // ✅ FIX: Pass eventData for instant display
-        navigation.navigate('EventDetail', {
-          eventId: competition.id,
-          eventData: buildEventDataFromCompetition(competition),
-        });
-        break;
-      case 'challenge':
-        navigation.navigate('ChallengeLeaderboard', {
-          challengeId: competition.id,
-        });
-        break;
-    }
-  };
-
-  const handleCreateChallenge = () => {
-    navigation.navigate('ChallengeWizard');
-  };
-
-  const renderTab = (tab: TabType, label: string) => (
-    <TouchableOpacity
-      key={tab}
-      style={[styles.tab, activeTab === tab && styles.activeTab]}
-      onPress={() => setActiveTab(tab)}
-    >
-      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderCompetitionItem = ({ item }: { item: UserCompetition }) => {
-    const getStatusColor = () => {
-      switch (item.status) {
-        case 'active':
-          return '#FF9D42';
-        case 'upcoming':
-          return '#ffa500';
-        case 'completed':
-          return '#666';
-        default:
-          return '#999';
-      }
-    };
-
-    const getTypeIcon = () => {
-      switch (item.type) {
-        case 'team':
-          return 'people';
-        case 'league':
-          return 'trophy';
-        case 'event':
-          return 'calendar';
-        case 'challenge':
-          return 'flash';
-        default:
-          return 'help';
-      }
-    };
-
+  // No competition team selected
+  if (!loading && !competitionTeamId) {
     return (
-      <TouchableOpacity
-        style={styles.competitionItem}
-        onPress={() => handleCompetitionPress(item)}
-      >
-        <View style={styles.competitionIcon}>
-          <Ionicons name={getTypeIcon() as any} size={24} color="#FF9D42" />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Events</Text>
         </View>
 
-        <View style={styles.competitionInfo}>
-          <Text style={styles.competitionName}>{item.name}</Text>
-          <View style={styles.competitionMeta}>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: getStatusColor() + '20' },
-              ]}
-            >
-              <Text style={[styles.statusText, { color: getStatusColor() }]}>
-                {item.status.toUpperCase()}
-              </Text>
-            </View>
-            {item.wager && (
-              <Text style={styles.wager}>
-                <Ionicons name="flash" size={12} color="#FF9D42" /> {item.wager}{' '}
-                sats
-              </Text>
-            )}
-          </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="trophy-outline" size={64} color={theme.colors.textMuted} />
+          <Text style={styles.emptyStateTitle}>No Competition Team Selected</Text>
+          <Text style={styles.emptyStateDescription}>
+            Select a competition team in Settings to see daily leaderboards
+          </Text>
+          <TouchableOpacity
+            style={styles.selectTeamButton}
+            onPress={handleSelectTeam}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.selectTeamButtonText}>Select Team</Text>
+            <Ionicons name="arrow-forward" size={20} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
-
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
+      </SafeAreaView>
     );
-  };
+  }
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="trophy-outline" size={64} color="#333" />
-      <Text style={styles.emptyTitle}>No {activeTab} yet</Text>
-      <Text style={styles.emptySubtext}>
-        {activeTab === 'challenges'
-          ? 'Create a challenge to get started!'
-          : 'Join a team or event to see them here'}
-      </Text>
-      {activeTab === 'challenges' && (
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={handleCreateChallenge}
-        >
-          <Text style={styles.createButtonText}>Create Challenge</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  // Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Events</Text>
+        </View>
 
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={theme.colors.text} />
+          <Text style={styles.loadingText}>Loading daily leaderboards...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Events</Text>
+        </View>
+
+        <View style={styles.errorState}>
+          <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
+          <Text style={styles.errorTitle}>Error Loading Leaderboards</Text>
+          <Text style={styles.errorDescription}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => loadDailyLeaderboards()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Main content - show leaderboards
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FF9D42" />
-        </TouchableOpacity>
-        <View style={styles.headerSpacer} />
-        <TouchableOpacity
-          style={styles.challengeButton}
-          onPress={() => setShowChallengeWizard(true)}
-        >
-          <Ionicons name="shield-outline" size={20} color={theme.colors.text} />
-          <Text style={styles.challengeButtonText}>CHALLENGE</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        {renderTab('events', 'Events')}
-        {renderTab('challenges', 'Challenges')}
-      </View>
-
-      {/* Content */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF9D42" />
-          <Text style={styles.loadingText}>Loading competitions...</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.text}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Events</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+          {teamName && (
+            <Text style={styles.subtitle}>{teamName}</Text>
+          )}
         </View>
-      ) : (
-        <FlatList
-          data={filteredCompetitions}
-          keyExtractor={(item) => item.id}
-          renderItem={renderCompetitionItem}
-          ListEmptyComponent={renderEmptyState}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => loadCompetitions(true)}
-              tintColor="#fff"
-              colors={['#fff']}
-            />
-          }
-          contentContainerStyle={
-            filteredCompetitions.length === 0
-              ? styles.emptyListContainer
-              : styles.listContent
-          }
-        />
-      )}
 
-      {/* Challenge Wizard Modal */}
-      {showChallengeWizard && (
-        <GlobalChallengeWizard
-          onCancel={() => setShowChallengeWizard(false)}
-          onComplete={() => {
-            // Refresh competitions after challenge is created
-            setShowChallengeWizard(false);
-            loadCompetitions(true);
-          }}
-        />
-      )}
+        {/* Daily Leaderboard Cards - Only show if user qualifies */}
+        {leaderboards && (() => {
+          // Check which leaderboards the user appears on
+          const userOn5K = userNpub && leaderboards.leaderboard5k.some((entry: any) => entry.pubkey === userNpub);
+          const userOn10K = userNpub && leaderboards.leaderboard10k.some((entry: any) => entry.pubkey === userNpub);
+          const userOnHalf = userNpub && leaderboards.leaderboardHalf.some((entry: any) => entry.pubkey === userNpub);
+          const userOnMarathon = userNpub && leaderboards.leaderboardMarathon.some((entry: any) => entry.pubkey === userNpub);
+
+          const hasAnyWorkouts = userOn5K || userOn10K || userOnHalf || userOnMarathon;
+
+          // If user has no qualifying workouts, show empty state
+          if (!hasAnyWorkouts) {
+            return (
+              <View style={styles.noDataState}>
+                <Ionicons name="fitness-outline" size={64} color={theme.colors.textMuted} />
+                <Text style={styles.noDataTitle}>No Workouts Today</Text>
+                <Text style={styles.noDataDescription}>
+                  Be the first to complete a workout and appear on the leaderboard!
+                </Text>
+              </View>
+            );
+          }
+
+          // Show only leaderboards where user appears
+          return (
+            <View style={styles.leaderboardsContainer}>
+              {userOn5K && (
+                <DailyLeaderboardCard
+                  distance="5K"
+                  leaderboard={leaderboards.leaderboard5k}
+                  style={styles.leaderboardCard}
+                />
+              )}
+
+              {userOn10K && (
+                <DailyLeaderboardCard
+                  distance="10K"
+                  leaderboard={leaderboards.leaderboard10k}
+                  style={styles.leaderboardCard}
+                />
+              )}
+
+              {userOnHalf && (
+                <DailyLeaderboardCard
+                  distance="Half Marathon"
+                  leaderboard={leaderboards.leaderboardHalf}
+                  style={styles.leaderboardCard}
+                />
+              )}
+
+              {userOnMarathon && (
+                <DailyLeaderboardCard
+                  distance="Marathon"
+                  leaderboard={leaderboards.leaderboardMarathon}
+                  style={styles.leaderboardCard}
+                />
+              )}
+            </View>
+          );
+        })()}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -365,171 +268,172 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+
+  scrollContent: {
+    paddingBottom: 32,
+  },
+
   header: {
+    padding: 20,
+    paddingBottom: 16,
+  },
+
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  challengeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 6,
-  },
-  challengeButtonText: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textBright,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    maxHeight: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.orangeDeep,
-  },
-  tabText: {
-    fontSize: 14,
-    color: theme.colors.textMuted,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: theme.colors.textBright,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: theme.colors.textDark,
-  },
-  listContent: {
-    padding: 16,
-  },
-  competitionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-  },
-  competitionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  competitionInfo: {
-    flex: 1,
-  },
-  competitionName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textBright,
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
-  competitionMeta: {
-    flexDirection: 'row',
+
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+
+  headerSpacer: {
+    width: 40, // Match back button width for centered title
   },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  pendingBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: theme.colors.orangeBright + '20',
-    borderWidth: 1,
-    borderColor: theme.colors.orangeBright,
-  },
-  pendingBadgeText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: theme.colors.orangeBright,
-  },
-  participantCount: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-  },
-  wager: {
-    fontSize: 12,
-    color: theme.colors.textBright,
-  },
-  emptyListContainer: {
+
+  title: {
+    fontSize: 28,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
     flex: 1,
+    textAlign: 'center',
   },
+
+  subtitle: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    fontWeight: theme.typography.weights.medium,
+  },
+
+  leaderboardsContainer: {
+    paddingHorizontal: 20,
+  },
+
+  leaderboardCard: {
+    marginBottom: 20,
+  },
+
+  // Loading State
+  loadingState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+
+  loadingText: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    marginTop: 16,
+  },
+
+  // Empty State (No Team Selected)
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
+    paddingVertical: 60,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textMuted,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#444',
+
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    marginTop: 24,
+    marginBottom: 12,
     textAlign: 'center',
-    marginBottom: 24,
   },
-  createButton: {
-    backgroundColor: theme.colors.orangeDeep, // Deep orange button
+
+  emptyStateDescription: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+
+  selectTeamButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 14,
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 12,
   },
-  createButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.accentText, // Black text on orange
+
+  selectTeamButtonText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+
+  // Error State
+  errorState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+  },
+
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.error,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  errorDescription: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+
+  retryButton: {
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+
+  // No Data State (No Workouts Today)
+  noDataState: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+  },
+
+  noDataTitle: {
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  noDataDescription: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

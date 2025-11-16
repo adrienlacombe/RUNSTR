@@ -19,8 +19,9 @@ import type {
   SeasonActivityType,
 } from '../../types/season';
 import { calculatePrize } from '../../types/season';
-import { ChallengeIconButton } from '../ui/ChallengeIconButton';
-import { SimpleChallengeWizardV2 } from '../wizards/SimpleChallengeWizardV2';
+import { CharityZapIconButton } from '../ui/CharityZapIconButton';
+import { ExternalZapModal } from '../nutzap/ExternalZapModal';
+import { CharitySelectionService } from '../../services/charity/CharitySelectionService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
 // import { NutzapLightningButton } from '../nutzap/NutzapLightningButton';
 
@@ -38,12 +39,8 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
   const [currentUserPubkey, setCurrentUserPubkey] = useState<string | null>(
     null
   );
-  const [challengeWizardVisible, setChallengeWizardVisible] = useState(false);
-  const [selectedOpponent, setSelectedOpponent] = useState<{
-    pubkey: string;
-    name: string;
-    picture?: string;
-  } | null>(null);
+  const [charityModalVisible, setCharityModalVisible] = useState(false);
+  const [selectedCharity, setSelectedCharity] = useState<{ name: string; address: string } | null>(null);
 
   // Get current user's pubkey
   useEffect(() => {
@@ -71,17 +68,17 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
     return 'Anonymous';
   };
 
-  const handleChallengePress = (
-    pubkey: string,
-    name?: string,
-    picture?: string
-  ) => {
-    setSelectedOpponent({
-      pubkey,
-      name: name || pubkey.slice(0, 8) + '...',
-      picture,
-    });
-    setChallengeWizardVisible(true);
+  const handleCharityZap = async () => {
+    try {
+      const charity = await CharitySelectionService.getSelectedCharity();
+      setSelectedCharity({
+        name: charity.name,
+        address: charity.lightningAddress,
+      });
+      setCharityModalVisible(true);
+    } catch (error) {
+      console.error('[Season1Leaderboard] Error loading charity:', error);
+    }
   };
 
   if (isLoading) {
@@ -163,23 +160,17 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
                     {formatName(participant.name, participant.pubkey)}
                   </Text>
 
-                  {/* Challenge Icon & Zap Button - Right next to username */}
+                  {/* Charity Zap Icon & Zap Button - Right next to username */}
                   {currentUserPubkey &&
                     participant.pubkey !== currentUserPubkey && (
                       <View style={styles.actionButtonsContainer}>
-                        <ChallengeIconButton
+                        <CharityZapIconButton
                           userPubkey={participant.pubkey}
                           userName={formatName(
                             participant.name,
                             participant.pubkey
                           )}
-                          onPress={() =>
-                            handleChallengePress(
-                              participant.pubkey,
-                              participant.name,
-                              participant.picture
-                            )
-                          }
+                          onPress={handleCharityZap}
                         />
                         {/* <NutzapLightningButton
                           recipientNpub={participant.pubkey}
@@ -223,15 +214,21 @@ export const Season1LeaderboardComponent: React.FC<Season1LeaderboardProps> = ({
         </Text>
       )}
 
-      {/* Challenge Wizard Modal */}
-      <SimpleChallengeWizardV2
-        visible={challengeWizardVisible}
-        onClose={() => {
-          setChallengeWizardVisible(false);
-          setSelectedOpponent(null);
-        }}
-        preSelectedOpponent={selectedOpponent || undefined}
-      />
+      {/* Charity Zap Modal */}
+      {selectedCharity && (
+        <ExternalZapModal
+          visible={charityModalVisible}
+          onClose={() => setCharityModalVisible(false)}
+          recipientNpub={selectedCharity.address}
+          recipientName={selectedCharity.name}
+          amount={21}
+          memo={`Donation to ${selectedCharity.name}`}
+          onSuccess={() => {
+            setCharityModalVisible(false);
+            console.log('Charity donation sent from Season1Leaderboard!');
+          }}
+        />
+      )}
     </View>
   );
 };

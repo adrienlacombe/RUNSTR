@@ -16,6 +16,7 @@ import { CustomAlert } from '../../ui/CustomAlert';
 import { TeamCreationStepProps, User } from '../../../types';
 import NostrTeamCreationService from '../../../services/nostr/NostrTeamCreationService';
 import UnifiedSigningService from '../../../services/auth/UnifiedSigningService';
+import { LocalTeamStorageService } from '../../../services/team/LocalTeamStorageService';
 import { nip19 } from 'nostr-tools';
 
 interface ReviewLaunchStepProps extends TeamCreationStepProps {
@@ -121,6 +122,29 @@ export const ReviewLaunchStep: React.FC<ReviewLaunchStepProps> = ({
           'ReviewLaunchStep: Team created successfully with kind 30000 list:',
           result.teamId
         );
+
+        // Save team to AsyncStorage for local captain access
+        try {
+          await LocalTeamStorageService.saveCreatedTeam({
+            id: result.teamId,
+            name: data.teamName,
+            description: data.teamAbout,
+            captainId: currentUser.npub,
+            bannerImage: data.bannerImage,
+            charityId: data.charityId,
+            prizePool: 0,
+            memberCount: 1, // Captain is first member
+            exitFee: 2000,
+            createdAt: new Date().toISOString(),
+            isActive: true,
+            publishedToNostr: true,
+          });
+
+          console.log('ReviewLaunchStep: Team saved to AsyncStorage');
+        } catch (storageError) {
+          console.error('ReviewLaunchStep: Failed to save team to AsyncStorage:', storageError);
+          // Don't fail the whole process if local storage fails
+        }
 
         if (onLaunchComplete) {
           onLaunchComplete(code, result.teamId); // Pass both code and teamId

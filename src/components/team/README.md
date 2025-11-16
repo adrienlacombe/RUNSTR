@@ -31,5 +31,6 @@ Team discovery, management, and display components for RUNSTR team functionality
 - **TeamMemberItem.tsx** - Individual team member display component
 - **TeamMembersSection.tsx** - Section for displaying all team members
 - **TeamPrizeSection.tsx** - Team prize pool and reward information section
+- **TeamSelectionModal.tsx** - Modal for selecting competition team in Settings screen
 - **TeamStatsGrid.tsx** - Grid displaying team statistics and metrics
 - **TeamWalletSection.tsx** - Team wallet information and balance display

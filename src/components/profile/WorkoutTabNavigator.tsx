@@ -14,7 +14,9 @@ import { AppleHealthTab } from './tabs/AppleHealthTab';
 import { GarminHealthTab } from './tabs/GarminHealthTab';
 import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageService';
 
-export type WorkoutTabType = 'public' | 'private' | 'apple' | 'garmin';
+// GARMIN: Removed 'garmin' from WorkoutTabType until security issues fixed
+// PUBLIC TAB: Hidden from UI (local-first architecture), but code kept for potential future use
+export type WorkoutTabType = 'public' | 'private' | 'apple'; // | 'garmin';
 
 interface WorkoutTabNavigatorProps {
   userId: string;
@@ -65,7 +67,8 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           {activeTab === 'private' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* PUBLIC TAB: Hidden (local-first architecture - Nostr is cloud backup, not primary view) */}
+        {/* <TouchableOpacity
           style={[styles.tab, activeTab === 'public' && styles.tabActive]}
           onPress={() => setActiveTab('public')}
           activeOpacity={0.7}
@@ -79,7 +82,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             Public
           </Text>
           {activeTab === 'public' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {Platform.OS === 'ios' && (
           <TouchableOpacity
@@ -99,7 +102,8 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
+        {/* GARMIN: Hidden until CRITICAL security issues fixed (client_secret in bundle, deep link validation) */}
+        {/* <TouchableOpacity
           style={[styles.tab, activeTab === 'garmin' && styles.tabActive]}
           onPress={() => setActiveTab('garmin')}
           activeOpacity={0.7}
@@ -113,7 +117,7 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             Garmin
           </Text>
           {activeTab === 'garmin' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Tab Content */}

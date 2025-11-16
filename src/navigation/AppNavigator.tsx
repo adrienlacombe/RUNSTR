@@ -24,16 +24,11 @@ import { WalletScreen } from '../screens/WalletScreen';
 import { TeamDiscoveryScreen } from '../screens/TeamDiscoveryScreen';
 import { CaptainDashboardScreen } from '../screens/CaptainDashboardScreen';
 import { TeamCreationWizard } from '../components/wizards/TeamCreationWizard';
-import { GlobalChallengeWizard } from '../components/wizards/GlobalChallengeWizard';
 import { EventDetailScreen } from '../screens/EventDetailScreen';
-import { EventCaptainDashboardScreen } from '../screens/EventCaptainDashboardScreen';
 import { LeagueDetailScreen } from '../screens/LeagueDetailScreen';
-import { ChallengeDetailScreen } from '../screens/ChallengeDetailScreen';
-import { ChallengeLeaderboardScreen } from '../screens/ChallengeLeaderboardScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { CompetitionsListScreen } from '../screens/CompetitionsListScreen';
 import { WorkoutHistoryScreen } from '../screens/WorkoutHistoryScreen';
-import { QRChallengeScanner } from '../screens/QRChallengeScanner';
 import { MyTeamsScreen } from '../screens/MyTeamsScreen';
 import { HealthProfileScreen } from '../screens/HealthProfileScreen';
 import { FitnessTestResultsScreen } from '../screens/FitnessTestResultsScreen';
@@ -72,13 +67,8 @@ export type RootStackParamList = {
   };
   TeamCreation: undefined;
   EventDetail: { eventId: string; eventData?: any };
-  EventCaptainDashboard: { eventId: string; eventData: any };
   LeagueDetail: { leagueId: string; leagueData?: any };
-  ChallengeDetail: { challengeId: string };
   CompetitionsList: undefined;
-  ChallengeLeaderboard: { challengeId: string };
-  ChallengeWizard: { preselectedOpponent?: DiscoveredNostrUser };
-  QRChallengeScanner: undefined;
   WorkoutHistory: { userId: string; pubkey: string };
   MyTeams: undefined;
   HealthProfile: undefined;
@@ -368,7 +358,6 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
               name: teamName || 'Team',
               memberCount: 0,
               activeEvents: 0,
-              activeChallenges: 0,
               prizePool: 0,
             },
             members: [],
@@ -474,16 +463,6 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
         component={EventDetailScreen}
       />
 
-      {/* Event Captain Dashboard Screen */}
-      <Stack.Screen
-        name="EventCaptainDashboard"
-        component={EventCaptainDashboardScreen}
-        options={{
-          ...defaultScreenOptions,
-          headerShown: false,
-        }}
-      />
-
       {/* League Detail Screen */}
       <Stack.Screen
         name="LeagueDetail"
@@ -492,13 +471,6 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
           headerShown: false,
         }}
         component={LeagueDetailScreen}
-      />
-
-      {/* Challenge Detail Screen */}
-      <Stack.Screen
-        name="ChallengeDetail"
-        options={screenConfigurations.ChallengeDetail}
-        component={ChallengeDetailScreen}
       />
 
       {/* Competitions List Screen */}
@@ -529,48 +501,6 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
           headerShown: false,
         }}
         component={MyTeamsScreen}
-      />
-
-      {/* Challenge Leaderboard Screen */}
-      <Stack.Screen
-        name="ChallengeLeaderboard"
-        component={ChallengeLeaderboardScreen}
-        options={{
-          ...defaultScreenOptions,
-          headerShown: false,
-        }}
-      />
-
-      {/* Global Challenge Wizard Screen */}
-      <Stack.Screen
-        name="ChallengeWizard"
-        options={{
-          ...defaultScreenOptions,
-          headerShown: false,
-          presentation: 'modal',
-        }}
-      >
-        {({ navigation, route }) => (
-          <GlobalChallengeWizard
-            onComplete={() => {
-              navigation.goBack();
-              refresh(); // Refresh competitions list
-            }}
-            onCancel={() => navigation.goBack()}
-            preselectedOpponent={route.params?.preselectedOpponent}
-          />
-        )}
-      </Stack.Screen>
-
-      {/* QR Challenge Scanner - Scan QR codes to accept challenges */}
-      <Stack.Screen
-        name="QRChallengeScanner"
-        options={{
-          ...defaultScreenOptions,
-          headerShown: false,
-          presentation: 'modal',
-        }}
-        component={QRChallengeScanner}
       />
 
       {/* Health Profile Screen */}
