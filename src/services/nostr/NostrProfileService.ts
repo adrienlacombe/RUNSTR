@@ -292,7 +292,7 @@ export class NostrProfileService {
         name: pubkey.slice(0, 8),
         display_name: `User ${pubkey.slice(0, 8)}`,
         about: 'Profile could not be fetched from Nostr relays',
-        picture: `https://robohash.org/${pubkey.slice(0, 8)}.png`,
+        picture: undefined, // No picture URL - will trigger orange ostrich fallback in Avatar component
         pubkey: pubkey,
         npub: this.hexToNpub(pubkey),
         lastUpdated: new Date(),

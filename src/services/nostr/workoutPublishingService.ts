@@ -58,6 +58,8 @@ export interface PublishableWorkout extends Workout {
   exerciseType?: string;
   repsBreakdown?: number[];
   restTime?: number;
+  // Competition team for leaderboard participation
+  competitionTeam?: string | null;
 }
 
 export interface WorkoutPublishResult {
@@ -143,8 +145,8 @@ export class WorkoutPublishingService {
         pubkey = user.pubkey;
       }
 
-      // Get competition team for tagging
-      const competitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
+      // Get competition team for tagging (use workout's team if available, otherwise fetch current)
+      const competitionTeam = workout.competitionTeam || await LocalTeamMembershipService.getCompetitionTeam();
 
       // Create unsigned NDKEvent
       const ndkEvent = new NDKEvent(ndk);

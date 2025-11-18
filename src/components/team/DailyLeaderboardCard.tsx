@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import type { LeaderboardEntry } from '../../services/competition/SimpleLeaderboardService';
+import { ZappableUserRow } from '../ui/ZappableUserRow';
 
 interface DailyLeaderboardCardProps {
   title: string; // "5K Today"
@@ -64,7 +65,15 @@ export const DailyLeaderboardCard: React.FC<DailyLeaderboardCardProps> = ({
           <View style={styles.rankBadge}>
             <Text style={styles.rankText}>1</Text>
           </View>
-          <Text style={styles.runnerName}>{topRunner.name}</Text>
+          <View style={styles.userRowContainer}>
+            <ZappableUserRow
+              npub={topRunner.npub}
+              fallbackName={topRunner.name}
+              showQuickZap={true}
+              showChallengeButton={true}
+              zapAmount={21}
+            />
+          </View>
           <Text style={styles.runnerTime}>{topRunner.formattedScore}</Text>
         </View>
       )}
@@ -146,11 +155,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000', // Black text on orange
   },
-  runnerName: {
+  userRowContainer: {
     flex: 1,
-    fontSize: 14,
-    color: theme.colors.text,
-    fontWeight: '500',
+    marginRight: 10,
   },
   runnerTime: {
     fontSize: 14,

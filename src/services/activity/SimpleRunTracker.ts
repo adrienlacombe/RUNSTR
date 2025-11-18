@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { SplitTrackingService, type Split } from './SplitTrackingService';
 
 // Storage keys
 const GPS_POINTS_KEY = '@runstr:gps_points';
@@ -33,13 +34,6 @@ export interface GPSPoint {
   speed?: number;
 }
 
-export interface Split {
-  splitNumber: number; // 1, 2, 3, etc.
-  distance: number; // meters
-  duration: number; // seconds (cumulative time at this split)
-  pace: number; // seconds per km/mile
-}
-
 export interface RunSession {
   id: string;
   activityType: 'running' | 'walking' | 'cycling';
@@ -51,6 +45,7 @@ export interface RunSession {
   pauseCount: number;
   gpsPoints: GPSPoint[];
   presetDistance?: number; // Optional race preset distance in meters
+  splits?: Split[]; // Kilometer splits for running activities
 }
 
 interface SessionState {
@@ -197,6 +192,9 @@ export class SimpleRunTracker {
   // Duration tracker (simple Date.now() calculation)
   private durationTracker = new SimpleDurationTracker();
 
+  // Split tracker (kilometer splits for running)
+  private splitTracker = new SplitTrackingService();
+
   // Start time
   private startTime: number = 0;
 
@@ -241,6 +239,13 @@ export class SimpleRunTracker {
     // INSTANT: Start timer immediately (user sees 1, 2, 3... right away!)
     this.durationTracker.start(this.startTime);
     console.log('[SimpleRunTracker] ⏱️ INSTANT START - Stopwatch counting 1, 2, 3, 4, 5...');
+
+    // Start split tracking for running activities
+    if (activityType === 'running') {
+      this.splitTracker.start(this.startTime);
+      console.log('[SimpleRunTracker] 🏃 Split tracking enabled for running');
+    }
+
     if (presetDistance) {
       console.log(`[SimpleRunTracker] 🎯 Preset distance: ${(presetDistance / 1000).toFixed(2)} km`);
     }
@@ -366,6 +371,9 @@ export class SimpleRunTracker {
     // Calculate distance from GPS points (post-processing)
     const distance = this.calculateTotalDistance(this.cachedGpsPoints);
 
+    // Get splits for running activities
+    const splits = this.activityType === 'running' ? this.splitTracker.getSplits() : undefined;
+
     // Create final session (using cached GPS points)
     const session: RunSession = {
       id: this.sessionId || `run_${Date.now()}`,
@@ -378,7 +386,10 @@ export class SimpleRunTracker {
       pauseCount: this.pauseCount,
       gpsPoints: this.cachedGpsPoints,
       presetDistance: this.presetDistance || undefined,
+      splits,
     };
+
+    console.log(`[SimpleRunTracker] ✅ Splits recorded: ${splits?.length || 0} km markers`);
 
     // Reset state
     this.isTracking = false;
@@ -408,6 +419,9 @@ export class SimpleRunTracker {
     // Use cached GPS points (no async read needed!)
     const distance = this.calculateTotalDistance(this.cachedGpsPoints);
 
+    // Get splits for running activities
+    const splits = this.activityType === 'running' ? this.splitTracker.getSplits() : undefined;
+
     return {
       id: this.sessionId || `run_${Date.now()}`,
       activityType: this.activityType,
@@ -418,6 +432,7 @@ export class SimpleRunTracker {
       pauseCount: this.pauseCount,
       gpsPoints: this.cachedGpsPoints.slice(-100), // Last 100 points for route display
       presetDistance: this.presetDistance || undefined,
+      splits,
     };
   }
 
@@ -490,6 +505,25 @@ export class SimpleRunTracker {
     // Keep cache trimmed (last 10,000 points max)
     if (this.cachedGpsPoints.length > 10000) {
       this.cachedGpsPoints = this.cachedGpsPoints.slice(-10000);
+    }
+
+    // Update split tracker for running activities
+    if (this.activityType === 'running') {
+      const currentDistance = this.calculateTotalDistance(this.cachedGpsPoints);
+      const currentDuration = this.durationTracker.getDuration();
+      const pausedDuration = this.durationTracker.getTotalPausedTime() * 1000; // Convert to ms
+
+      const newSplit = this.splitTracker.update(
+        currentDistance,
+        currentDuration,
+        pausedDuration
+      );
+
+      if (newSplit) {
+        console.log(
+          `[SimpleRunTracker] 🏃 Split ${newSplit.number}: ${this.splitTracker.formatSplitTime(newSplit.splitTime)} (${this.splitTracker.formatPace(newSplit.pace)}/km)`
+        );
+      }
     }
 
     // Check for auto-stop (preset distance reached)

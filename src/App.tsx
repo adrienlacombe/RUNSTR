@@ -256,11 +256,11 @@ const AppContent: React.FC = () => {
     }
   }, [isAuthenticated, currentUser]);
 
-  // Check permissions when user becomes authenticated (Android only)
+  // Check permissions when user becomes authenticated (both iOS and Android)
   React.useEffect(() => {
     const checkPermissions = async () => {
-      if (isAuthenticated && Platform.OS === 'android') {
-        console.log('[App] 🔐 Checking Android permissions...');
+      if (isAuthenticated) {
+        console.log('[App] 🔐 Checking permissions...');
         const status = await appPermissionService.checkAllPermissions();
 
         if (!status.allGranted) {

@@ -9,7 +9,7 @@ export const FEATURE_FLAGS = {
    * When false: Hides HealthKit sync UI, permission prompts, and merge logic
    * Workouts come from Nostr 1301 events and local Activity Tracker only
    */
-  ENABLE_HEALTHKIT: false,
+  ENABLE_HEALTHKIT: true,
 
   /**
    * Workout Merge Service

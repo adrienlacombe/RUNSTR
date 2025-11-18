@@ -606,7 +606,7 @@ export const RunningTrackerScreen: React.FC = () => {
         calories,
         elevation: 0, // TODO: SimpleRunTracker doesn't calculate elevation yet
         pace,
-        splits: undefined, // TODO: SimpleRunTracker doesn't calculate splits yet
+        splits: session.splits, // ✅ Pass splits from SimpleRunTracker
         raceDistance: getRaceDistanceKey(session.presetDistance),
         // Pass GPS coordinates for weather lookup
         startLatitude: startPosition?.latitude,
@@ -622,7 +622,7 @@ export const RunningTrackerScreen: React.FC = () => {
         calories,
         elevation: 0, // TODO: Add elevation tracking to SimpleRunTracker
         pace,
-        splits: undefined, // TODO: Add splits calculation to SimpleRunTracker
+        splits: session.splits, // ✅ Pass splits from SimpleRunTracker
         localWorkoutId: workoutId, // Pass to modal for sync tracking
         gpsCoordinates, // Pass GPS data for route saving
       });
@@ -637,7 +637,7 @@ export const RunningTrackerScreen: React.FC = () => {
         calories,
         elevation: 0,
         pace,
-        splits: undefined,
+        splits: session.splits, // ✅ Pass splits even if save failed
         gpsCoordinates, // Pass GPS data even if local save failed
       });
       setSummaryModalVisible(true);

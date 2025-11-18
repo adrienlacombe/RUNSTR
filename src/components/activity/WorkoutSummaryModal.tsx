@@ -30,6 +30,7 @@ import routeStorageService from '../../services/routes/RouteStorageService';
 import routeMatchingService from '../../services/routes/RouteMatchingService';
 import { nostrProfileService } from '../../services/nostr/NostrProfileService';
 import type { NostrProfile } from '../../services/nostr/NostrProfileService';
+import { LocalTeamMembershipService } from '../../services/team/LocalTeamMembershipService';
 
 interface GPSCoordinate {
   latitude: number;
@@ -262,6 +263,9 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
         .toString(36)
         .substr(2, 9)}`;
 
+      // ✅ Get competition team for leaderboard participation
+      const competitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
+
       return {
         id: workoutId,
         userId: npub || 'unknown',
@@ -285,6 +289,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
           notes: `Tracked ${formatDistance(workout.distance)} ${workout.type}`,
         },
         pace: workout.pace,
+        splits: workout.splits, // ✅ Pass splits through for leaderboard qualification
+        competitionTeam, // ✅ Include team for kind 1301 tagging
       };
     };
 

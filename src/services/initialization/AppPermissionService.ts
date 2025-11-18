@@ -38,36 +38,35 @@ export class AppPermissionService {
    * Fast check - doesn't request, just checks current status
    */
   async checkAllPermissions(): Promise<PermissionStatus> {
-    // iOS doesn't need special permission handling
-    if (Platform.OS !== 'android') {
-      return {
-        location: true,
-        notification: true,
-        batteryOptimization: true,
-        allGranted: true,
-      };
-    }
-
-    // Check location permissions (foreground + background)
+    // Check location permissions (foreground + background) - required for both iOS and Android
     const locationStatus =
       await locationPermissionService.checkPermissionStatus();
-    const locationGranted =
-      locationStatus.foreground === 'granted' &&
-      locationStatus.background === 'granted';
 
-    // Check notification permission (Android 13+)
+    // iOS: Foreground-only is acceptable (background is optional)
+    // Android: Both foreground and background required for full tracking
+    const locationGranted = Platform.OS === 'ios'
+      ? locationStatus.foreground === 'granted'
+      : locationStatus.foreground === 'granted' &&
+        locationStatus.background === 'granted';
+
+    // Check notification permission (Android 13+ only)
     let notificationGranted = true;
-    const apiLevel = Device.platformApiLevel || 0;
-
-    if (apiLevel >= 33) {
-      const { status } = await Notifications.getPermissionsAsync();
-      notificationGranted = status === 'granted';
+    if (Platform.OS === 'android') {
+      const apiLevel = Device.platformApiLevel || 0;
+      if (apiLevel >= 33) {
+        const { status } = await Notifications.getPermissionsAsync();
+        notificationGranted = status === 'granted';
+      }
     }
 
-    // Check battery optimization exemption
-    const batteryService = BatteryOptimizationService.getInstance();
-    const batteryStatus = await batteryService.checkBatteryOptimizationStatus();
-    const batteryGranted = batteryStatus.prompted; // User was prompted (may have granted or declined)
+    // Check battery optimization exemption (Android only)
+    let batteryGranted = true;
+    if (Platform.OS === 'android') {
+      const batteryService = BatteryOptimizationService.getInstance();
+      const batteryStatus =
+        await batteryService.checkBatteryOptimizationStatus();
+      batteryGranted = batteryStatus.prompted; // User was prompted (may have granted or declined)
+    }
 
     const allGranted = locationGranted && notificationGranted && batteryGranted;
 
@@ -88,16 +87,11 @@ export class AppPermissionService {
 
   /**
    * Request all required permissions in sequence
-   * Shows Android system dialogs for each permission
+   * Shows system dialogs for each permission (platform-specific)
    *
    * @returns true if all permissions granted, false otherwise
    */
   async requestAllPermissions(): Promise<boolean> {
-    // iOS doesn't need special permission handling
-    if (Platform.OS !== 'android') {
-      return true;
-    }
-
     try {
       console.log('[AppPermissionService] Starting permission request flow...');
 
@@ -123,36 +117,40 @@ export class AppPermissionService {
         // Continue anyway - foreground tracking still works
       }
 
-      // Step 2: Request notification permission (Android 13+)
-      const apiLevel = Device.platformApiLevel || 0;
+      // Step 2: Request notification permission (Android 13+ only)
+      if (Platform.OS === 'android') {
+        const apiLevel = Device.platformApiLevel || 0;
 
-      if (apiLevel >= 33) {
-        console.log(
-          '[AppPermissionService] Requesting notification permission...'
-        );
-        const { status } = await Notifications.requestPermissionsAsync();
-
-        if (status !== 'granted') {
-          console.error(
-            '[AppPermissionService] Notification permission denied'
+        if (apiLevel >= 33) {
+          console.log(
+            '[AppPermissionService] Requesting notification permission...'
           );
-          return false;
+          const { status } = await Notifications.requestPermissionsAsync();
+
+          if (status !== 'granted') {
+            console.error(
+              '[AppPermissionService] Notification permission denied'
+            );
+            return false;
+          }
         }
       }
 
-      // Step 3: Request battery optimization exemption
-      console.log(
-        '[AppPermissionService] Requesting battery optimization exemption...'
-      );
-      const batteryService = BatteryOptimizationService.getInstance();
-      const batteryGranted =
-        await batteryService.requestBatteryOptimizationExemption();
-
-      if (!batteryGranted) {
-        console.warn(
-          '[AppPermissionService] Battery optimization exemption declined - background tracking may be limited'
+      // Step 3: Request battery optimization exemption (Android only)
+      if (Platform.OS === 'android') {
+        console.log(
+          '[AppPermissionService] Requesting battery optimization exemption...'
         );
-        // Continue anyway - user can enable later
+        const batteryService = BatteryOptimizationService.getInstance();
+        const batteryGranted =
+          await batteryService.requestBatteryOptimizationExemption();
+
+        if (!batteryGranted) {
+          console.warn(
+            '[AppPermissionService] Battery optimization exemption declined - background tracking may be limited'
+          );
+          // Continue anyway - user can enable later
+        }
       }
 
       console.log(

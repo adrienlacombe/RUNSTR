@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.4] - 2025-11-17
+
+**Achievement**: Improved avatar fallback system and user experience polish
+
+### ✨ Features
+- Orange ostrich avatar fallback (app icon) when profile pictures unavailable
+- Team-specific leaderboard titles (e.g., "Bitcoin Runners 5K" instead of generic "5K Today")
+- Improved avatar display consistency across leaderboards, team lists, and participant sections
+
+### 🐛 Bug Fixes
+- Replaced "RUNSTR Athlete" placeholder with "Anonymous Athlete" for better clarity
+- Removed robohash.org external dependency for missing avatars
+- Fixed avatar fallback to use local app assets for faster loading and offline support
+
+### 🔧 Technical Improvements
+- Avatar component now uses local app icon asset for fallback (no network dependency)
+- Standardized placeholder usernames across the application
+- Improved profile loading performance with local asset fallbacks
+
 ## [0.8.3] - 2025-01-16
 
 ### 🐛 Critical Bug Fixes & UI Updates

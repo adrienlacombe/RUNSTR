@@ -454,7 +454,7 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
             <View style={styles.contentList}>
               {leaderboards.leaderboard5k.length > 0 && (
                 <DailyLeaderboardCard
-                  title="5K Today"
+                  title={`${team.name} 5K`}
                   distance="5km"
                   participants={leaderboards.leaderboard5k.length}
                   topRunner={leaderboards.leaderboard5k[0]}
@@ -467,7 +467,7 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
 
               {leaderboards.leaderboard10k.length > 0 && (
                 <DailyLeaderboardCard
-                  title="10K Today"
+                  title={`${team.name} 10K`}
                   distance="10km"
                   participants={leaderboards.leaderboard10k.length}
                   topRunner={leaderboards.leaderboard10k[0]}
@@ -479,7 +479,7 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
 
               {leaderboards.leaderboardHalf.length > 0 && (
                 <DailyLeaderboardCard
-                  title="Half Marathon Today"
+                  title={`${team.name} Half Marathon`}
                   distance="21.1km"
                   participants={leaderboards.leaderboardHalf.length}
                   topRunner={leaderboards.leaderboardHalf[0]}
@@ -491,7 +491,7 @@ export const SimpleTeamScreen: React.FC<SimpleTeamScreenProps> = ({
 
               {leaderboards.leaderboardMarathon.length > 0 && (
                 <DailyLeaderboardCard
-                  title="Marathon Today"
+                  title={`${team.name} Marathon`}
                   distance="42.2km"
                   participants={leaderboards.leaderboardMarathon.length}
                   topRunner={leaderboards.leaderboardMarathon[0]}

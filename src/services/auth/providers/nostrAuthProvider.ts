@@ -422,8 +422,8 @@ export class NostrAuthProvider {
         const publisher = NostrProfilePublisher.getInstance();
 
         const defaultProfile = {
-          name: 'RUNSTR Athlete',
-          display_name: 'RUNSTR Athlete',
+          name: 'Anonymous Athlete',
+          display_name: 'Anonymous Athlete',
           about: 'Welcome to RUNSTR! Tap to edit your profile.',
           picture:
             'https://blossom.primal.net/3c33216e58dcfa8f24803302b642eb4ccb069d63002b62d2cc18fdcb6981f1d4.png',
@@ -452,7 +452,7 @@ export class NostrAuthProvider {
 
       // Create a basic user profile for the new identity
       console.log('👤 NostrAuthProvider: Creating user profile...');
-      const displayName = 'RUNSTR Athlete';
+      const displayName = 'Anonymous Athlete';
       const now = new Date().toISOString();
       console.log('👤 NostrAuthProvider: Display name:', displayName);
 
