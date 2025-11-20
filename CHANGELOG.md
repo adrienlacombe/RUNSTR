@@ -6,6 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.8] - 2025-01-19
+
+**Achievement**: iOS freeze fix and major performance improvements
+
+### ✨ Features
+- Added pull-to-refresh for Events screen
+- Smart cache TTL based on time of day for events (1min during active hours, 15min overnight)
+- Auto Competition Team - joining a team automatically sets it as default competition team
+- Team name now included in kind 1 workout events for better attribution
+- Improved Settings charity display with better layout and visual design
+- Removed "My Teams" button for cleaner navigation (teams accessible via profile)
+
+### 🐛 Critical Bug Fixes
+- **iOS Freeze Fix**: Resolved permanent app freeze after granting permissions on first launch
+  - Removed HealthKit auto-initialization from app.json (deferred to manual user action)
+  - Increased background init delay from 2s to 5s to prevent UI blocking
+  - Added InteractionManager guards to prevent main thread blocking during startup
+- Fixed Captain "My Teams" bug where captains couldn't access their team dashboard
+- Fixed iOS background cardio tracker permission handling and reliability
+
+### ⚡ Performance Improvements
+- Cleaned up unnecessary Nostr queries (teams/workouts already optimized with hardcoded data)
+- Optimized kind 1301 workout event fetching (on-demand only, no wasteful prefetching)
+- Reduced app startup time by eliminating redundant network calls
+- Teams now load instantly from hardcoded data (no 4-6s Nostr query delay)
+
+### 🔧 Technical Improvements
+- Removed `@yzlin/expo-healthkit` plugin with `background: true` setting
+- HealthKit permissions now only requested when user clicks "Connect Apple Health"
+- Added timeout protection and InteractionManager guards to prevent blocking operations
+- Verified all Nostr queries are on-demand (leaderboards, competitions, import feature)
+- Enhanced event cache strategy with time-of-day awareness
+
 ## [0.8.7] - 2025-11-18
 
 **Achievement**: Fixed "My Events" filtering to show only user-participated events
