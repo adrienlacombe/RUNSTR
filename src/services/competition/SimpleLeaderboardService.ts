@@ -49,6 +49,24 @@ export class SimpleLeaderboardService {
   }
 
   /**
+   * Get smart TTL for daily leaderboards based on date
+   * Today's leaderboards: 5 minutes (data changes frequently)
+   * Historical leaderboards: 24 hours (data is frozen)
+   */
+  private getSmartTTL(dateString: string): number {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const isToday = dateString === today;
+
+    if (isToday) {
+      // Active leaderboard - cache for 5 minutes
+      return 300; // 5 minutes in seconds
+    } else {
+      // Historical/completed leaderboard - cache for 24 hours
+      return 86400; // 24 hours in seconds
+    }
+  }
+
+  /**
    * Calculate league leaderboard
    */
   async calculateLeagueLeaderboard(
@@ -959,8 +977,10 @@ export class SimpleLeaderboardService {
         ...filtered,
       };
 
-      // Cache for 5 minutes
-      await this.cacheService.set(cacheKey, result, 300);
+      // Cache with smart TTL (5min for today, 24hr for historical)
+      const ttl = this.getSmartTTL(todayDate);
+      await this.cacheService.setWithCustomTTL(cacheKey, result, ttl);
+      console.log(`   💾 Cached with ${ttl === 300 ? '5min' : '24hr'} TTL (${todayDate === new Date().toISOString().split('T')[0] ? 'active' : 'historical'})`);
 
       return result;
     }
@@ -972,8 +992,10 @@ export class SimpleLeaderboardService {
       ...leaderboards,
     };
 
-    // Cache for 5 minutes
-    await this.cacheService.set(cacheKey, result, 300);
+    // Cache with smart TTL (5min for today, 24hr for historical)
+    const ttl = this.getSmartTTL(todayDate);
+    await this.cacheService.setWithCustomTTL(cacheKey, result, ttl);
+    console.log(`   💾 Cached with ${ttl === 300 ? '5min' : '24hr'} TTL (${todayDate === new Date().toISOString().split('T')[0] ? 'active' : 'historical'})`);
 
     return result;
   }

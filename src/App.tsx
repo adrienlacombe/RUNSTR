@@ -233,16 +233,17 @@ const AppContent: React.FC = () => {
   // Start background data initialization and check for first launch
   React.useEffect(() => {
     if (isAuthenticated && currentUser) {
-      // ✅ PERFORMANCE FIX: Defer initialization by 2 seconds to let app become interactive first
+      // ✅ PERFORMANCE FIX: Defer initialization by 5 seconds to let app become interactive first
       // This eliminates 15-18s blocking from NostrPrefetchService network calls
-      console.log('🚀 App: Scheduling background initialization (deferred 2s for performance)...');
+      // Increased from 2s to 5s to prevent freeze after permissions on first launch
+      console.log('🚀 App: Scheduling background initialization (deferred 5s for performance)...');
 
       setTimeout(() => {
         console.log('🚀 App: Starting background initialization NOW...');
         AppInitializationService.initializeInBackground().catch((error) => {
           console.error('❌ Background initialization error:', error);
         });
-      }, 2000);
+      }, 5000);
 
       // Check first launch asynchronously (non-blocking)
       AsyncStorage.getItem('@runstr:first_launch').then((firstLaunch) => {

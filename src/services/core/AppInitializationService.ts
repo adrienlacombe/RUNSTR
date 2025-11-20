@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { InteractionManager } from 'react-native';
 import { NostrInitializationService } from '../nostr/NostrInitializationService';
 import nostrPrefetchService from '../nostr/NostrPrefetchService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
@@ -39,6 +40,10 @@ class AppInitializationService {
 
     const initializationPromise = (async () => {
       try {
+        // ✅ FREEZE FIX: Wait for UI interactions to complete before heavy network operations
+        // This prevents blocking the main thread during permission flows and screen transitions
+        console.log('⏸️ AppInit: Waiting for UI interactions to complete...');
+        await new Promise(resolve => InteractionManager.runAfterInteractions(resolve));
         console.log('🚀 AppInit: Starting background data loading...');
 
         // Step 1: Connect to Nostr relays

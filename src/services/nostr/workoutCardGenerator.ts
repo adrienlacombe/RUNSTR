@@ -19,6 +19,7 @@ export interface WorkoutCardOptions {
   showBranding?: boolean;
   userAvatar?: string; // User's profile picture URL
   userName?: string; // User's display name
+  teamName?: string; // User's competition team name (e.g., "Team RUNSTR")
 }
 
 export interface WorkoutCardData {
@@ -182,6 +183,9 @@ export class WorkoutCardGenerator {
           accentColor
         )
       : '';
+    const teamBadge = options.teamName
+      ? this.createTeamBadge(options.teamName, 20, 90, accentColor)
+      : '';
     const weather = workout.weather
       ? this.createWeatherBadge(workout.weather, width - 120, 20, accentColor)
       : '';
@@ -218,6 +222,7 @@ export class WorkoutCardGenerator {
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         ${background}
         ${avatar}
+        ${teamBadge}
         ${weather}
         <g transform="translate(40, 40)">
           ${activityIcon}
@@ -347,6 +352,11 @@ export class WorkoutCardGenerator {
     const padding = 40;
     const contentWidth = width - (padding * 2);
 
+    // Calculate base Y offset for stats based on header content
+    const hasUserName = !!options.userName;
+    const hasTeamName = !!options.teamName;
+    const baseYOffset = (hasUserName && hasTeamName) ? 20 : (hasUserName || hasTeamName) ? 0 : -20;
+
     // Workout type and date
     const workoutType = this.getWorkoutTypeName(workout);
     const date = new Date(workout.startTime).toLocaleDateString('en-US', {
@@ -400,10 +410,23 @@ export class WorkoutCardGenerator {
         >${this.escapeXml(options.userName).toUpperCase()}</text>
       ` : ''}
 
+      <!-- Team name (if available) -->
+      ${options.teamName ? `
+        <text
+          x="${padding}"
+          y="${options.userName ? 60 : 40}"
+          font-family="${sansFont}"
+          font-size="14"
+          font-weight="600"
+          fill="#FF6B35"
+          letter-spacing="0.5"
+        >${this.escapeXml(options.teamName)}</text>
+      ` : ''}
+
       <!-- Workout type -->
       <text
         x="${padding}"
-        y="${options.userName ? 80 : 60}"
+        y="${(options.userName && options.teamName) ? 100 : (options.userName || options.teamName) ? 80 : 60}"
         font-family="${serifFont}"
         font-size="32"
         font-weight="400"
@@ -414,7 +437,7 @@ export class WorkoutCardGenerator {
       <!-- Date -->
       <text
         x="${padding}"
-        y="${options.userName ? 110 : 90}"
+        y="${(options.userName && options.teamName) ? 130 : (options.userName || options.teamName) ? 110 : 90}"
         font-family="${sansFont}"
         font-size="14"
         font-weight="400"
@@ -427,7 +450,7 @@ export class WorkoutCardGenerator {
         ${stats
           .filter((stat) => stat && stat.value && stat.label) // Filter out invalid stats
           .map((stat, index) => {
-            const yOffset = options.userName ? 160 : 140;
+            const yOffset = 160 + baseYOffset;
             const statY = yOffset + (index * 70); // 70px spacing between sets
             return `
               <text
@@ -455,7 +478,7 @@ export class WorkoutCardGenerator {
         <!-- Primary stat (duration) -->
         <text
           x="${padding}"
-          y="${options.userName ? 180 : 160}"
+          y="${180 + baseYOffset}"
           font-family="${serifFont}"
           font-size="64"
           font-weight="300"
@@ -465,7 +488,7 @@ export class WorkoutCardGenerator {
 
         <text
           x="${padding}"
-          y="${options.userName ? 210 : 190}"
+          y="${210 + baseYOffset}"
           font-family="${sansFont}"
           font-size="12"
           font-weight="500"
@@ -478,7 +501,7 @@ export class WorkoutCardGenerator {
         ${secondaryStat ? `
           <text
             x="${padding}"
-            y="${options.userName ? 270 : 250}"
+            y="${270 + baseYOffset}"
             font-family="${serifFont}"
             font-size="36"
             font-weight="300"
@@ -487,7 +510,7 @@ export class WorkoutCardGenerator {
 
           <text
             x="${padding}"
-            y="${options.userName ? 295 : 275}"
+            y="${295 + baseYOffset}"
             font-family="${sansFont}"
             font-size="12"
             font-weight="500"
@@ -563,11 +586,25 @@ export class WorkoutCardGenerator {
         <!-- Background -->
         <rect width="${width}" height="${height}" fill="url(#minimalGradient)"/>
 
+        <!-- Team name (if available) -->
+        ${options.teamName ? `
+        <text
+          x="${centerX}"
+          y="60"
+          font-family="${sansFont}"
+          font-size="16"
+          font-weight="600"
+          text-anchor="middle"
+          fill="${config.accentColor}"
+          letter-spacing="0.5"
+        >${this.escapeXml(options.teamName)}</text>
+        ` : ''}
+
         <!-- RUNSTR Ostrich Logo (centered, 120x120) -->
         <image
           href="${RUNSTR_LOGO_BASE64}"
           x="${centerX - 60}"
-          y="80"
+          y="${options.teamName ? '90' : '80'}"
           width="120"
           height="120"
           preserveAspectRatio="xMidYMid meet"
@@ -576,7 +613,7 @@ export class WorkoutCardGenerator {
         <!-- Activity name (white) -->
         <text
           x="${centerX}"
-          y="260"
+          y="${options.teamName ? '270' : '260'}"
           font-family="${sansFont}"
           font-size="36"
           font-weight="700"
@@ -588,7 +625,7 @@ export class WorkoutCardGenerator {
         <!-- "COMPLETED" text (orange) -->
         <text
           x="${centerX}"
-          y="300"
+          y="${options.teamName ? '310' : '300'}"
           font-family="${sansFont}"
           font-size="36"
           font-weight="700"
@@ -600,7 +637,7 @@ export class WorkoutCardGenerator {
         <!-- Duration label -->
         <text
           x="${centerX}"
-          y="370"
+          y="${options.teamName ? '380' : '370'}"
           font-family="${sansFont}"
           font-size="14"
           font-weight="500"
@@ -613,7 +650,7 @@ export class WorkoutCardGenerator {
         <!-- Duration value (large, bold, orange) -->
         <text
           x="${centerX}"
-          y="430"
+          y="${options.teamName ? '440' : '430'}"
           font-family="${sansFont}"
           font-size="72"
           font-weight="300"
@@ -812,6 +849,29 @@ export class WorkoutCardGenerator {
               )}</text>`
             : ''
         }
+      </g>
+    `;
+  }
+
+  /**
+   * Create team badge with team name
+   */
+  private createTeamBadge(
+    teamName: string,
+    x: number,
+    y: number,
+    accentColor: string
+  ): string {
+    return `
+      <g transform="translate(${x}, ${y})">
+        <text
+          x="0"
+          y="0"
+          font-family="Arial, sans-serif"
+          font-size="16"
+          font-weight="600"
+          fill="${accentColor}"
+        >${this.escapeXml(teamName)}</text>
       </g>
     `;
   }

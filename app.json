@@ -143,14 +143,6 @@
         "expo-task-manager"
       ],
       [
-        "@yzlin/expo-healthkit",
-        {
-          "NSHealthShareUsageDescription": "RUNSTR needs access to your workout data to automatically sync your fitness activities and calculate team rankings for Bitcoin rewards.",
-          "NSHealthUpdateUsageDescription": "RUNSTR needs to read your workout data to track your fitness progress and team contributions.",
-          "background": true
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

@@ -251,6 +251,20 @@ export class WorkoutPublishingService {
         console.log('🎨 Generating workout card image...');
 
         try {
+          // Fetch competition team name for card branding
+          const competitionTeamId = await LocalTeamMembershipService.getCompetitionTeam();
+          let teamName: string | undefined;
+
+          if (competitionTeamId) {
+            try {
+              const NdkTeamService = (await import('../team/NdkTeamService')).default;
+              const teamData = await NdkTeamService.getTeamById(competitionTeamId);
+              teamName = teamData?.name ? `Team ${teamData.name}` : undefined;
+            } catch (err) {
+              console.warn('⚠️ Failed to fetch team name for card:', err);
+            }
+          }
+
           // Generate SVG card
           const cardData = await this.cardGenerator.generateWorkoutCard(
             workout,
@@ -258,6 +272,7 @@ export class WorkoutPublishingService {
               template: options.cardTemplate || 'achievement',
               userAvatar: options.userAvatar,
               userName: options.userName,
+              teamName,
               ...options.cardOptions,
             }
           );

@@ -60,7 +60,6 @@ interface SessionState {
   trackerStartTime: number;
   trackerTotalPausedTime: number;
   trackerPauseStartTime: number;
-  trackerDuration: number;
 }
 
 /**
@@ -72,32 +71,16 @@ class SimpleDurationTracker {
   private startTime: number = 0;
   private totalPausedTime: number = 0;
   private pauseStartTime: number = 0;
-  private timerInterval: NodeJS.Timeout | null = null;
-  private duration: number = 0;
 
   start(startTime: number) {
     this.startTime = startTime;
     this.totalPausedTime = 0;
     this.pauseStartTime = 0;
-    this.duration = 0;
 
-    // Simple timer - just updates duration every second from Date.now()
-    this.timerInterval = setInterval(() => {
-      if (this.pauseStartTime === 0) {
-        // Simple calculation like reference implementation
-        const now = Date.now();
-        this.duration = Math.floor((now - this.startTime - this.totalPausedTime) / 1000);
-      }
-    }, 1000);
-
-    console.log('[SimpleDurationTracker] Started - counting 1, 2, 3, 4, 5...');
+    console.log('[SimpleDurationTracker] Started - pure timestamp tracking (no timer)');
   }
 
   stop() {
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-      this.timerInterval = null;
-    }
     console.log('[SimpleDurationTracker] Stopped');
   }
 
@@ -117,12 +100,13 @@ class SimpleDurationTracker {
 
   /**
    * Get current duration in seconds
-   * Simple: (now - startTime - pausedTime) / 1000
+   * Pure timestamp calculation - works in foreground, background, across app restarts
+   * No timer needed - just math!
    */
   getDuration(): number {
-    // If paused, return frozen duration
+    // If paused, calculate frozen duration using pauseStartTime
     if (this.pauseStartTime > 0) {
-      return this.duration;
+      return Math.floor((this.pauseStartTime - this.startTime - this.totalPausedTime) / 1000);
     }
     // Otherwise calculate from current time
     const now = Date.now();
@@ -136,42 +120,30 @@ class SimpleDurationTracker {
 
   /**
    * Export tracker state for session persistence
+   * Duration is calculated on-demand, no need to store it
    */
   exportState() {
     return {
       startTime: this.startTime,
       totalPausedTime: this.totalPausedTime,
       pauseStartTime: this.pauseStartTime,
-      duration: this.getDuration(),
     };
   }
 
   /**
    * Restore tracker state from saved session
+   * Duration is calculated on-demand from timestamps, no timer needed
    */
   restoreState(state: {
     startTime: number;
     totalPausedTime: number;
     pauseStartTime: number;
-    duration: number;
   }) {
     this.startTime = state.startTime;
     this.totalPausedTime = state.totalPausedTime;
     this.pauseStartTime = state.pauseStartTime;
-    this.duration = state.duration;
 
-    // Restart timer
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-    }
-    this.timerInterval = setInterval(() => {
-      if (this.pauseStartTime === 0) {
-        const now = Date.now();
-        this.duration = Math.floor((now - this.startTime - this.totalPausedTime) / 1000);
-      }
-    }, 1000);
-
-    console.log('[SimpleDurationTracker] State restored - timer resuming');
+    console.log('[SimpleDurationTracker] State restored - timestamp tracking active');
   }
 }
 
@@ -605,6 +577,7 @@ export class SimpleRunTracker {
 
   /**
    * Save session state to AsyncStorage (includes complete tracker state)
+   * Duration is calculated on-demand, no need to persist it
    */
   private async saveSessionState() {
     try {
@@ -621,7 +594,6 @@ export class SimpleRunTracker {
         trackerStartTime: trackerState.startTime,
         trackerTotalPausedTime: trackerState.totalPausedTime,
         trackerPauseStartTime: trackerState.pauseStartTime,
-        trackerDuration: trackerState.duration,
       };
       await AsyncStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
       console.log('[SimpleRunTracker] Session state saved');
@@ -680,7 +652,6 @@ export class SimpleRunTracker {
         startTime: sessionState.trackerStartTime,
         totalPausedTime: sessionState.trackerTotalPausedTime,
         pauseStartTime: sessionState.trackerPauseStartTime,
-        duration: sessionState.trackerDuration,
       });
 
       // Sync GPS points from storage to cache

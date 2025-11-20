@@ -24,6 +24,7 @@ import { useAuth } from './AuthContext';
 import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys, CacheTTL } from '../constants/cacheTTL';
 import { PerformanceLogger } from '../utils/PerformanceLogger';
+import { HARDCODED_TEAMS } from '../constants/hardcodedTeams';
 import type {
   TeamScreenData,
   ProfileScreenData,
@@ -287,6 +288,66 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
               });
             }
           }
+
+          // 1.5. Check hardcoded teams for captain matches (LOCAL CHECK - NO NOSTR)
+          console.log('[getAllUserTeams] 🔍 Checking hardcoded teams for captain matches...');
+          console.log(`[getAllUserTeams] 📊 User identifiers:`, {
+            hexPubkey: userIdentifiers.hexPubkey?.slice(0, 20) + '...',
+            npub: userIdentifiers.npub?.slice(0, 20) + '...',
+          });
+
+          let hardcodedCaptainMatches = 0;
+          for (const hardcodedTeam of HARDCODED_TEAMS) {
+            // Skip if already added from Captain Cache
+            if (userTeams.some((t) => t.id === hardcodedTeam.id)) {
+              console.log(`[getAllUserTeams] ⏭️  Skipping ${hardcodedTeam.name} (already in captain teams)`);
+              continue;
+            }
+
+            // Check if user is captain (compare hex OR npub, normalized)
+            const userHexMatches = userIdentifiers.hexPubkey?.toLowerCase().trim() === hardcodedTeam.captainHex?.toLowerCase().trim();
+            const userNpubMatches = userIdentifiers.npub?.toLowerCase().trim() === hardcodedTeam.captain?.toLowerCase().trim();
+
+            if (userHexMatches || userNpubMatches) {
+              hardcodedCaptainMatches++;
+              console.log(`[getAllUserTeams] ✅ CAPTAIN MATCH FOUND: ${hardcodedTeam.name}`);
+              console.log(`[getAllUserTeams]    - Matched via: ${userHexMatches ? 'HEX' : 'NPUB'}`);
+
+              // Get team from discovered teams for full data
+              const team = discoveredTeams.get(hardcodedTeam.id);
+              if (team) {
+                userTeams.push({
+                  id: team.id,
+                  name: team.name,
+                  description: team.description || '',
+                  prizePool: 0,
+                  memberCount: team.memberCount || 0,
+                  isActive: true,
+                  role: 'captain',
+                  bannerImage: team.bannerImage,
+                  captainId: team.captainId,
+                  charityId: team.charityId,
+                });
+              } else {
+                // Fallback: use hardcoded team data if not in discovered teams yet
+                console.log(`[getAllUserTeams] ⚠️  Team not in discovered teams yet, using hardcoded data`);
+                userTeams.push({
+                  id: hardcodedTeam.id,
+                  name: hardcodedTeam.name,
+                  description: hardcodedTeam.description || '',
+                  prizePool: 0,
+                  memberCount: 0,
+                  isActive: true,
+                  role: 'captain',
+                  bannerImage: hardcodedTeam.rawEvent?.tags?.find(t => t[0] === 'banner')?.[1],
+                  captainId: hardcodedTeam.captainHex,
+                  charityId: hardcodedTeam.rawEvent?.tags?.find(t => t[0] === 'charity')?.[1],
+                });
+              }
+            }
+          }
+
+          console.log(`[getAllUserTeams] 📊 Hardcoded captain check complete: ${hardcodedCaptainMatches} matches found`);
 
           // 2. Get all local memberships
           console.log(`Found ${localMemberships.length} local memberships`);

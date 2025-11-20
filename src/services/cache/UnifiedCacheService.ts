@@ -225,6 +225,26 @@ export class UnifiedCacheService {
   }
 
   /**
+   * Set data directly in cache with custom TTL in seconds
+   */
+  static async setWithCustomTTL<T>(
+    key: string,
+    data: T,
+    ttlSeconds: number
+  ): Promise<void> {
+    const ttlMs = ttlSeconds * 1000; // Convert to milliseconds
+    const entry: CacheEntry<T> = {
+      data,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + ttlMs,
+    };
+
+    this.memoryCache.set(key, entry);
+    await this.saveToStorage(key, entry);
+    console.log(`✅ UnifiedCache: Manually cached ${key} with ${ttlSeconds}s TTL`);
+  }
+
+  /**
    * Clear all cache data
    */
   static async clearAll(): Promise<void> {

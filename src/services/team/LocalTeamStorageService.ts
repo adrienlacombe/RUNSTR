@@ -86,16 +86,50 @@ export class LocalTeamStorageService {
   static async getTeamsByCaptain(captainNpub: string): Promise<LocalTeam[]> {
     try {
       const allTeams = await this.getCreatedTeams();
-      const captainTeams = allTeams.filter(team => team.captainId === captainNpub);
 
-      console.log('[LocalTeamStorage] Captain teams:', {
-        captainNpub: captainNpub.slice(0, 20) + '...',
+      // Normalize captain identifier (lowercase, trim whitespace)
+      const normalizedCaptainId = captainNpub?.toLowerCase().trim();
+
+      console.log('[LocalTeamStorage] 🔍 Searching for captain teams:', {
+        inputNpub: captainNpub?.slice(0, 20) + '...',
+        normalizedNpub: normalizedCaptainId?.slice(0, 20) + '...',
+        totalTeams: allTeams.length,
+      });
+
+      // Debug: Log all team captainIds for comparison
+      if (allTeams.length > 0) {
+        console.log('[LocalTeamStorage] 📋 All stored teams:');
+        allTeams.forEach((team, index) => {
+          console.log(`  [${index}] ${team.name}:`);
+          console.log(`      captainId: ${team.captainId?.slice(0, 20)}...`);
+          console.log(`      normalized: ${team.captainId?.toLowerCase().trim().slice(0, 20)}...`);
+        });
+      }
+
+      // Filter teams with normalized comparison
+      const captainTeams = allTeams.filter(team => {
+        const normalizedTeamCaptainId = team.captainId?.toLowerCase().trim();
+        const matches = normalizedTeamCaptainId === normalizedCaptainId;
+
+        if (matches) {
+          console.log('[LocalTeamStorage] ✅ Found match:', {
+            teamName: team.name,
+            teamCaptainId: team.captainId?.slice(0, 20) + '...',
+          });
+        }
+
+        return matches;
+      });
+
+      console.log('[LocalTeamStorage] 📊 Captain teams result:', {
+        captainNpub: captainNpub?.slice(0, 20) + '...',
         teamCount: captainTeams.length,
+        teamNames: captainTeams.map(t => t.name),
       });
 
       return captainTeams;
     } catch (error) {
-      console.error('[LocalTeamStorage] Error getting captain teams:', error);
+      console.error('[LocalTeamStorage] ❌ Error getting captain teams:', error);
       return [];
     }
   }

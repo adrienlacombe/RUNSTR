@@ -23,6 +23,7 @@ import { DailyLeaderboardCard } from '../components/team/DailyLeaderboardCard';
 import SimpleLeaderboardService from '../services/competition/SimpleLeaderboardService';
 import { useNavigationData } from '../contexts/NavigationDataContext';
 import { npubToHex } from '../utils/ndkConversion';
+import { UnifiedCacheService } from '../services/cache/UnifiedCacheService';
 
 interface TeamLeaderboards {
   teamId: string;
@@ -102,6 +103,9 @@ export const EventsScreen: React.FC = () => {
   // Handle pull-to-refresh
   const handleRefresh = async () => {
     setRefreshing(true);
+    console.log('[EventsScreen] 🔄 Invalidating daily leaderboard caches...');
+    // Clear all daily leaderboard caches to ensure fresh data
+    await UnifiedCacheService.invalidate('team:*:daily:*');
     await loadAllLeaderboards();
     setRefreshing(false);
   };
