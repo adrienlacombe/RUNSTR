@@ -199,17 +199,15 @@ export const MyTeamsScreen: React.FC = () => {
         ) : teams.length === 0 ? (
           /* Empty state after loading completes */
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>No Teams Joined</Text>
+            <Ionicons
+              name="people-outline"
+              size={64}
+              color={theme.colors.accent}
+            />
+            <Text style={styles.emptyStateTitle}>Join a Team</Text>
             <Text style={styles.emptyStateDescription}>
-              Join a team to compete in challenges and earn Bitcoin rewards
+              Join a team to participate in competitions and see Events
             </Text>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate('Teams')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.primaryButtonText}>Find Teams</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           /* Show teams */

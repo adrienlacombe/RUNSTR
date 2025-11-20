@@ -775,24 +775,30 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </TouchableOpacity>
 
               {/* Charity Support */}
-              <SettingItem
-                title="Selected Charity"
-                subtitle={
-                  selectedCharity
-                    ? `${selectedCharity.name} - All competition winnings go here`
-                    : 'Loading...'
-                }
+              <TouchableOpacity
+                style={styles.competitionTeamSelector}
                 onPress={handleChangeCharity}
-                rightElement={
-                  <View style={styles.charityIcon}>
-                    <Ionicons
-                      name="heart"
-                      size={20}
-                      color={theme.colors.accent}
-                    />
-                  </View>
-                }
-              />
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Your Charity</Text>
+                  <Text style={styles.competitionTeamName}>
+                    {selectedCharity
+                      ? selectedCharity.name
+                      : 'No charity selected'}
+                  </Text>
+                  <Text style={styles.settingSubtitle}>
+                    {selectedCharity
+                      ? 'All competition winnings go here'
+                      : 'Tap to select a charity'}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={theme.colors.textMuted}
+                />
+              </TouchableOpacity>
             </Card>
           </SettingsAccordion>
         </View>

@@ -149,7 +149,7 @@ export const EventsScreen: React.FC = () => {
           />
           <Text style={styles.emptyTitle}>Join a Team</Text>
           <Text style={styles.emptyText}>
-            Join a team to participate in competitions and see leaderboards
+            Join a team to participate in competitions and see Events
           </Text>
         </View>
       </SafeAreaView>
