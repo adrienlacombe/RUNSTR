@@ -627,24 +627,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [checkStoredCredentials]);
 
   // Initialize background services after app is interactive
-  useEffect(() => {
-    if (isAuthenticated && !isInitializing) {
-      // Delay background service init to avoid blocking startup
-      const timer = setTimeout(async () => {
-        try {
-          const { BackgroundSyncService } = await import(
-            '../services/fitness/backgroundSyncService'
-          );
-          const syncService = BackgroundSyncService.getInstance();
-          await syncService.initialize();
-        } catch (bgError) {
-          // Silent fail - non-critical
-        }
-      }, 2000);
+  // DISABLED: BackgroundSyncService was causing "Sync already in progress" errors at 30 minutes
+  // during active tracking. The 30-minute interval was conflicting with active workout sessions.
+  // Commenting out until we implement proper tracking state checks.
+  // useEffect(() => {
+  //   if (isAuthenticated && !isInitializing) {
+  //     // Delay background service init to avoid blocking startup
+  //     const timer = setTimeout(async () => {
+  //       try {
+  //         const { BackgroundSyncService } = await import(
+  //           '../services/fitness/backgroundSyncService'
+  //         );
+  //         const syncService = BackgroundSyncService.getInstance();
+  //         await syncService.initialize();
+  //       } catch (bgError) {
+  //         // Silent fail - non-critical
+  //       }
+  //     }, 2000);
 
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, isInitializing]);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [isAuthenticated, isInitializing]);
 
   // Context value - all state and actions
   const contextValue: AuthContextType = {

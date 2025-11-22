@@ -120,6 +120,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     const baseType = workout.type ? (workout.type as string) : 'Workout';
     const localWorkout = workout as LocalWorkout;
 
+    // Check for fitness test
+    if (localWorkout.exerciseType === 'fitness_test') {
+      return 'RUNSTR Fitness Test';
+    }
+
     // Check for meditation subtype
     if (baseType === 'meditation' && localWorkout.meditationType) {
       const typeMap: Record<string, string> = {
@@ -170,6 +175,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
   const isDietWorkout = (): boolean => {
     return workout.type === 'diet' || workout.type === 'fasting';
+  };
+
+  const isFitnessTestWorkout = (): boolean => {
+    const localWorkout = workout as LocalWorkout;
+    return localWorkout.exerciseType === 'fitness_test';
   };
 
   const renderCardioDetails = () => {
@@ -461,6 +471,90 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     );
   };
 
+  const renderFitnessTestDetails = () => {
+    const localWorkout = workout as LocalWorkout;
+    const components = localWorkout.fitnessTestComponents;
+
+    if (!components) return null;
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Test Results</Text>
+
+        {/* Overall Score */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Composite Score</Text>
+            <Text style={styles.statValue}>
+              {localWorkout.fitnessTestScore || 0}/
+              {localWorkout.fitnessTestMaxScore || 300}
+            </Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Grade</Text>
+            <Text style={styles.statValue}>
+              {localWorkout.fitnessTestGrade || 'N/A'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Component Breakdown Table */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Component Breakdown</Text>
+          <View style={styles.splitsTable}>
+            {/* Table Header */}
+            <View style={styles.splitsHeader}>
+              <Text style={[styles.splitsHeaderText, { flex: 2 }]}>
+                Component
+              </Text>
+              <Text style={[styles.splitsHeaderText, { flex: 1 }]}>Result</Text>
+              <Text style={[styles.splitsHeaderText, { flex: 1 }]}>Score</Text>
+            </View>
+
+            {/* Pushups Row */}
+            {components.pushups && components.pushups.reps > 0 && (
+              <View style={[styles.splitsRow]}>
+                <Text style={[styles.splitsRowText, { flex: 2 }]}>Pushups</Text>
+                <Text style={[styles.splitsRowText, { flex: 1 }]}>
+                  {components.pushups.reps} reps
+                </Text>
+                <Text style={[styles.splitsRowText, { flex: 1 }]}>
+                  {components.pushups.score} pts
+                </Text>
+              </View>
+            )}
+
+            {/* Situps Row */}
+            {components.situps && components.situps.reps > 0 && (
+              <View style={[styles.splitsRow, styles.splitsRowAlt]}>
+                <Text style={[styles.splitsRowText, { flex: 2 }]}>Situps</Text>
+                <Text style={[styles.splitsRowText, { flex: 1 }]}>
+                  {components.situps.reps} reps
+                </Text>
+                <Text style={[styles.splitsRowText, { flex: 1 }]}>
+                  {components.situps.score} pts
+                </Text>
+              </View>
+            )}
+
+            {/* 5K Run Row */}
+            {components.run5k && components.run5k.timeSeconds > 0 && (
+              <View style={[styles.splitsRow]}>
+                <Text style={[styles.splitsRowText, { flex: 2 }]}>5K Run</Text>
+                <Text style={[styles.splitsRowText, { flex: 1 }]}>
+                  {formatDuration(components.run5k.timeSeconds)}
+                </Text>
+                <Text style={[styles.splitsRowText, { flex: 1 }]}>
+                  {components.run5k.score} pts
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <Modal
       visible={visible}
@@ -526,6 +620,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             {isMeditationWorkout() && renderMeditationDetails()}
             {isStrengthWorkout() && renderStrengthDetails()}
             {isDietWorkout() && renderDietDetails()}
+            {isFitnessTestWorkout() && renderFitnessTestDetails()}
 
             {/* Notes Section */}
             {(workout as LocalWorkout).notes && (

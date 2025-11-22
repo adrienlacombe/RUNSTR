@@ -45,23 +45,29 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
 
   const checkPermissionAndLoadWorkouts = async () => {
     try {
-      const status = healthKitService.getStatus();
-
-      if (!status.available) {
+      // First check if HealthKit is available
+      const quickStatus = healthKitService.getStatus();
+      if (!quickStatus.available) {
         console.log('HealthKit not available on this device');
         setIsLoading(false);
         return;
       }
 
-      if (status.authorized) {
+      // Verify actual iOS permission state (not just cached value)
+      const status = await healthKitService.getStatusWithRealCheck();
+
+      if (!status.authorized) {
+        // Auto-request permissions on first visit
+        console.log('🍎 HealthKit not authorized, auto-requesting permissions...');
+        await requestPermission();
+      } else {
+        // Already authorized, load workouts
         setHasPermission(true);
         await loadAppleHealthWorkouts();
-      } else {
-        setHasPermission(false);
-        setIsLoading(false);
       }
     } catch (error) {
       console.error('Error checking HealthKit permission:', error);
+      setHasPermission(false);
       setIsLoading(false);
     }
   };

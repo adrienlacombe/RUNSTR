@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Switch,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { theme } from '../styles/theme';
@@ -50,6 +51,7 @@ import { Alert } from 'react-native';
 import { CharitySelectionModal } from '../components/charity/CharitySelectionModal';
 import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
+import { ModelManager, type AIModel } from '../services/ai/ModelManager';
 import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
 import { TeamMembershipService, type LocalMembership } from '../services/team/teamMembershipService';
 import { TeamSelectionModal } from '../components/team/TeamSelectionModal';
@@ -132,6 +134,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   // Coach RUNSTR AI state
   const [showPPQModal, setShowPPQModal] = useState(false);
   const { apiKeyConfigured } = useCoachRunstr();
+  const [selectedAIModel, setSelectedAIModel] = useState<string>('claude-haiku-4.5');
+  const [showModelPicker, setShowModelPicker] = useState(false);
 
   // NWC Wallet state
   const [hasNWC, setHasNWC] = useState(false);
@@ -233,6 +237,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Load competition team
       const currentCompetitionTeam = await LocalTeamMembershipService.getCompetitionTeam();
       setCompetitionTeam(currentCompetitionTeam);
+
+      // Load selected AI model
+      const model = await ModelManager.getSelectedModel();
+      setSelectedAIModel(model);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -564,6 +572,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setShowCharityModal(false);
   };
 
+  const handleModelSelect = async (modelId: string) => {
+    try {
+      await ModelManager.setSelectedModel(modelId);
+      setSelectedAIModel(modelId);
+      setShowModelPicker(false);
+    } catch (error) {
+      console.error('Error setting AI model:', error);
+      setShowModelPicker(false);
+      setTimeout(() => {
+        setAlertTitle('Error');
+        setAlertMessage('Failed to update AI model. Please try again.');
+        setAlertButtons([{ text: 'OK' }]);
+        setAlertVisible(true);
+      }, 100);
+    }
+  };
+
   const handleChangeCompetitionTeam = (teamId: string | null) => {
     // If selecting the same team, just close modal
     if (teamId === competitionTeam) {
@@ -822,6 +847,22 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       name={apiKeyConfigured ? 'checkmark-circle' : 'add-circle-outline'}
                       size={20}
                       color={apiKeyConfigured ? '#FF9D42' : theme.colors.textMuted}
+                    />
+                  </View>
+                }
+              />
+
+              {/* AI Model Selection */}
+              <SettingItem
+                title="AI Model"
+                subtitle={ModelManager.getModelName(selectedAIModel)}
+                onPress={() => setShowModelPicker(true)}
+                rightElement={
+                  <View style={styles.securityIcon}>
+                    <Ionicons
+                      name="swap-horizontal"
+                      size={20}
+                      color={theme.colors.textMuted}
                     />
                   </View>
                 }
@@ -1221,6 +1262,54 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           loadSettings();
         }}
       />
+
+      {/* AI Model Selection Modal */}
+      <Modal
+        visible={showModelPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowModelPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modelPickerContainer}>
+            <View style={styles.modelPickerHeader}>
+              <Text style={styles.modelPickerTitle}>Select AI Model</Text>
+              <TouchableOpacity
+                onPress={() => setShowModelPicker(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modelList}>
+              {ModelManager.getAvailableModels().map((model) => (
+                <TouchableOpacity
+                  key={model.id}
+                  style={[
+                    styles.modelItem,
+                    selectedAIModel === model.id && styles.modelItemSelected
+                  ]}
+                  onPress={() => handleModelSelect(model.id)}
+                >
+                  <Text style={[
+                    styles.modelName,
+                    selectedAIModel === model.id && styles.modelNameSelected
+                  ]}>
+                    {model.name}
+                  </Text>
+                  {selectedAIModel === model.id && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#FF9D42"
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Wallet Configuration Modal */}
       <WalletConfigModal
@@ -1665,5 +1754,67 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
     marginTop: 4,
     marginBottom: 4,
+  },
+
+  // Model Picker Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+
+  modelPickerContainer: {
+    backgroundColor: theme.colors.cardBackground,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 34, // Account for home indicator on iOS
+  },
+
+  modelPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+
+  modelPickerTitle: {
+    fontSize: 20,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+  },
+
+  modalCloseButton: {
+    padding: 4,
+  },
+
+  modelList: {
+    maxHeight: 400,
+  },
+
+  modelItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+
+  modelItemSelected: {
+    backgroundColor: 'rgba(255, 157, 66, 0.1)',
+  },
+
+  modelName: {
+    fontSize: 16,
+    color: theme.colors.text,
+  },
+
+  modelNameSelected: {
+    fontWeight: theme.typography.weights.semiBold,
+    color: '#FF9D42',
   },
 });

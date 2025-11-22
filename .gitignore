@@ -40,3 +40,6 @@ app-example
 .env
 *.apk
 *.apk
+
+# Build logs
+build-v*.log

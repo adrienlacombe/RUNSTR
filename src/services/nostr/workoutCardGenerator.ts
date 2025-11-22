@@ -1626,6 +1626,272 @@ export class WorkoutCardGenerator {
       </svg>
     `;
   }
+
+  /**
+   * Generate fitness test card with score and component breakdown
+   */
+  async generateFitnessTestCard(
+    testData: {
+      score: number;
+      maxScore: number;
+      grade: string;
+      duration: number;
+      components: {
+        pushups: { reps: number; score: number } | null;
+        situps: { reps: number; score: number } | null;
+        run5k: { timeSeconds: number; score: number } | null;
+      };
+    },
+    options: WorkoutCardOptions = {}
+  ): Promise<WorkoutCardData> {
+    try {
+      console.log('🎨 Generating fitness test card...');
+
+      const width = 800;
+      const height = 800;
+
+      const svgContent = this.createFitnessTestSVG(testData, width, height, options);
+
+      if (!svgContent || svgContent.trim().length === 0) {
+        throw new Error('Generated fitness test SVG content is empty');
+      }
+
+      return {
+        svgContent,
+        dimensions: { width, height },
+        metadata: {
+          workoutId: `fitness_test_${Date.now()}`,
+          template: 'fitness_test',
+          generatedAt: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error('❌ Error generating fitness test card:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create fitness test SVG content
+   */
+  private createFitnessTestSVG(
+    testData: {
+      score: number;
+      maxScore: number;
+      grade: string;
+      duration: number;
+      components: {
+        pushups: { reps: number; score: number } | null;
+        situps: { reps: number; score: number } | null;
+        run5k: { timeSeconds: number; score: number } | null;
+      };
+    },
+    width: number,
+    height: number,
+    options: WorkoutCardOptions
+  ): string {
+    const duration = this.formatDuration(testData.duration);
+    const scorePercentage = Math.round((testData.score / testData.maxScore) * 100);
+
+    return `
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background -->
+        <rect width="${width}" height="${height}" fill="#000000"/>
+
+        <!-- RUNSTR Logo at top -->
+        <image
+          href="${RUNSTR_LOGO_BASE64}"
+          x="${width / 2 - 40}"
+          y="60"
+          width="80"
+          height="80"
+        />
+
+        <!-- Title -->
+        <text
+          x="${width / 2}"
+          y="200"
+          font-family="system-ui, -apple-system, sans-serif"
+          font-size="42"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#FFFFFF"
+        >RUNSTR FITNESS TEST</text>
+
+        <!-- Score Circle -->
+        <circle
+          cx="${width / 2}"
+          cy="350"
+          r="90"
+          fill="none"
+          stroke="#1A1A1A"
+          stroke-width="12"
+        />
+        <circle
+          cx="${width / 2}"
+          cy="350"
+          r="90"
+          fill="none"
+          stroke="#FF6B35"
+          stroke-width="12"
+          stroke-dasharray="${2 * Math.PI * 90}"
+          stroke-dashoffset="${2 * Math.PI * 90 * (1 - scorePercentage / 100)}"
+          transform="rotate(-90 ${width / 2} 350)"
+          stroke-linecap="round"
+        />
+
+        <!-- Score Text -->
+        <text
+          x="${width / 2}"
+          y="345"
+          font-family="system-ui, -apple-system, sans-serif"
+          font-size="56"
+          font-weight="800"
+          text-anchor="middle"
+          fill="#FFFFFF"
+        >${testData.score}</text>
+        <text
+          x="${width / 2}"
+          y="375"
+          font-family="system-ui, -apple-system, sans-serif"
+          font-size="20"
+          text-anchor="middle"
+          fill="#999999"
+        >/ ${testData.maxScore}</text>
+
+        <!-- Grade Badge -->
+        <rect
+          x="${width / 2 - 80}"
+          y="460"
+          width="160"
+          height="44"
+          rx="22"
+          fill="#FF6B35"
+        />
+        <text
+          x="${width / 2}"
+          y="489"
+          font-family="system-ui, -apple-system, sans-serif"
+          font-size="20"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#000000"
+        >${testData.grade.toUpperCase()}</text>
+
+        <!-- Component Breakdown -->
+        <text
+          x="${width / 2}"
+          y="560"
+          font-family="system-ui, -apple-system, sans-serif"
+          font-size="18"
+          font-weight="600"
+          text-anchor="middle"
+          fill="#999999"
+          letter-spacing="1"
+        >COMPONENT BREAKDOWN</text>
+
+        <!-- Pushups -->
+        ${testData.components.pushups ? `
+        <g>
+          <text
+            x="140"
+            y="620"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="18"
+            fill="#FFFFFF"
+          >Pushups</text>
+          <text
+            x="340"
+            y="620"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="18"
+            fill="#999999"
+            text-anchor="end"
+          >${testData.components.pushups.reps} reps</text>
+          <text
+            x="660"
+            y="620"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="20"
+            font-weight="700"
+            fill="#FF6B35"
+            text-anchor="end"
+          >${testData.components.pushups.score} pts</text>
+        </g>
+        ` : ''}
+
+        <!-- Situps -->
+        ${testData.components.situps ? `
+        <g>
+          <text
+            x="140"
+            y="670"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="18"
+            fill="#FFFFFF"
+          >Situps</text>
+          <text
+            x="340"
+            y="670"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="18"
+            fill="#999999"
+            text-anchor="end"
+          >${testData.components.situps.reps} reps</text>
+          <text
+            x="660"
+            y="670"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="20"
+            font-weight="700"
+            fill="#FF6B35"
+            text-anchor="end"
+          >${testData.components.situps.score} pts</text>
+        </g>
+        ` : ''}
+
+        <!-- 5K Run -->
+        ${testData.components.run5k ? `
+        <g>
+          <text
+            x="140"
+            y="720"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="18"
+            fill="#FFFFFF"
+          >5K Run</text>
+          <text
+            x="340"
+            y="720"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="18"
+            fill="#999999"
+            text-anchor="end"
+          >${this.formatDuration(testData.components.run5k.timeSeconds)}</text>
+          <text
+            x="660"
+            y="720"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-size="20"
+            font-weight="700"
+            fill="#FF6B35"
+            text-anchor="end"
+          >${testData.components.run5k.score} pts</text>
+        </g>
+        ` : ''}
+
+        <!-- Footer -->
+        <text
+          x="${width / 2}"
+          y="${height - 30}"
+          font-family="system-ui, -apple-system, sans-serif"
+          font-size="14"
+          text-anchor="middle"
+          fill="#666666"
+        >Completed in ${duration}</text>
+      </svg>
+    `;
+  }
 }
 
 export default WorkoutCardGenerator.getInstance();

@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LocalWorkoutStorageService from './LocalWorkoutStorageService';
+import { RunstrContextGenerator } from '../ai/RunstrContextGenerator';
 import type {
   FitnessTestResult,
   ActiveFitnessTest,
@@ -205,6 +206,9 @@ export class FitnessTestService {
       // Save to history
       await this.saveTestResult(result);
 
+      // Save as local workout for unified history display
+      await this.saveTestAsWorkout(result, activeTest.startTime);
+
       // Clear active test
       await AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_TEST);
 
@@ -283,9 +287,41 @@ export class FitnessTestService {
       );
 
       console.log(`✅ Test result saved to history: ${result.id}`);
+
+      // Update RUNSTR.md context file for AI coach
+      RunstrContextGenerator.updateContext().catch((error) => {
+        console.warn('Failed to update RUNSTR context after fitness test:', error);
+      });
     } catch (error) {
       console.error('❌ Failed to save test result:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Save test result as local workout for unified history display
+   */
+  private async saveTestAsWorkout(
+    result: FitnessTestResult,
+    startTime: number
+  ): Promise<void> {
+    try {
+      await LocalWorkoutStorageService.saveFitnessTestWorkout({
+        testId: result.id,
+        startTime: startTime,
+        endTime: result.timestamp,
+        duration: result.testDuration,
+        score: result.compositeScore,
+        grade: result.grade,
+        pushups: result.pushups,
+        situps: result.situps,
+        run5k: result.run,
+      });
+
+      console.log(`✅ Test saved as workout in Local history: ${result.id}`);
+    } catch (error) {
+      console.error('❌ Failed to save test as workout:', error);
+      // Don't throw - test history is already saved
     }
   }
 

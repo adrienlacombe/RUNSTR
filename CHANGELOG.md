@@ -6,6 +6,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.9] - 2025-01-21
+
+**Achievement**: Apple Run tracker stability fixes and Coach RUNSTR AI enhancements
+
+### 🐛 Critical Bug Fixes
+
+**Apple Run Tracker Crash Fix**:
+- Fixed app crash when starting Apple Run tracker
+- Resolved "Auto Stop for presets" functionality issue
+- Improved workout session lifecycle management
+- Added WorkoutSessionBridge for native iOS HealthKit integration
+
+**Activity Tracking Improvements**:
+- Updated Activity tracking UI (removed GPS display for cleaner interface)
+- Fixed Split voice announcements not playing correctly
+- Enhanced workout session stability and reliability
+
+### ✨ Coach RUNSTR Features
+
+**AI Model Selection**:
+- Added 10+ AI model options for personalized coaching
+- Model choices: Claude Haiku 4.5, Claude Sonnet 4.5, GPT-5 Nano, GPT-5 Mini, Gemini 2.5 Flash, Auto Model, GPT-5.1, DeepSeek V3.1, Qwen3 Max, Sonar Reasoning
+- Model selection accessible via Settings screen
+- Persistent model preference storage
+
+**RUNSTR Context Access (RUNSTR.MD)**:
+- Coach RUNSTR now has access to complete RUNSTR project context
+- Enhanced AI responses with project-specific knowledge
+- Improved coaching relevance and accuracy
+- Better understanding of app features and capabilities
+
+**Fitness Test Integration**:
+- Fitness test results now appear in workout history
+- Test results can be posted as kind 1 Nostr events
+- Enhanced fitness test results screen with better data display
+- Improved local workout storage for test data
+
+### 🔧 Technical Improvements
+
+**iOS Native Integration**:
+- New WorkoutSessionBridge for unlimited background tracking on iOS
+- Proper HKWorkoutSession lifecycle management
+- Improved HealthKit integration and reliability
+
+**AI Service Architecture**:
+- New ModelManager service for AI model management
+- RunstrContextGenerator for dynamic context creation
+- Enhanced CoachClaudeService with model selection support
+
+**Performance**:
+- Optimized workout card rendering
+- Improved workout detail modal performance
+- Enhanced local storage efficiency
+
+### 📱 Platform Updates
+- iOS: Version 0.8.9 (Build 74)
+- Android: Version 0.8.9 (Build 75)
+
 ## [0.8.8] - 2025-01-19
 
 **Achievement**: iOS freeze fix and major performance improvements

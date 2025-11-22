@@ -24,11 +24,6 @@ import { simpleRunTracker } from '../../services/activity/SimpleRunTracker';
 import type { RunSession, GPSPoint, Split } from '../../services/activity/SimpleRunTracker';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
 import type { FormattedMetrics } from '../../services/activity/ActivityMetricsService';
-import { gpsHealthMonitor } from '../../services/activity/GPSHealthMonitor';
-import {
-  GPSStatusIndicator,
-  type GPSSignalStrength,
-} from '../../components/activity/GPSStatusIndicator';
 import { BatteryWarning } from '../../components/activity/BatteryWarning';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
@@ -96,9 +91,6 @@ export const RunningTrackerScreen: React.FC = () => {
     elevation: '0 m',
   });
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [gpsSignal, setGpsSignal] = useState<GPSSignalStrength>('none'); // Start with 'none' until tracking begins
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | undefined>();
-  const [isBackgroundTracking, setIsBackgroundTracking] = useState(false);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [racePreset, setRacePreset] = useState<RacePreset>(null);
@@ -149,11 +141,9 @@ export const RunningTrackerScreen: React.FC = () => {
 
   // Extract metrics update logic to reusable function (defined early for useEffect)
   const updateMetrics = () => {
-    // CRITICAL: Don't update UI if app is backgrounded
-    const appStateManager = AppStateManager;
-    if (!appStateManager.isActive()) {
-      return;
-    }
+    // FIX: Removed AppStateManager check that was stopping UI updates
+    // The interval management in useEffect handles background/foreground properly
+    // This check was causing UI to freeze when iOS sent spurious background events
 
     const session = simpleRunTracker.getCurrentSession(); // NOW SYNCHRONOUS!
 
@@ -179,18 +169,11 @@ export const RunningTrackerScreen: React.FC = () => {
       setMetrics(formatted);
       setElapsedTime(session.duration);
 
-      // Update GPS signal from health monitor
-      const lastPoint = session.gpsPoints?.[session.gpsPoints.length - 1];
-      const gpsStatus = gpsHealthMonitor.assessSignalQuality(lastPoint?.accuracy);
-      setGpsSignal(
-        gpsStatus.quality === 'excellent' || gpsStatus.quality === 'good'
-          ? 'strong'
-          : gpsStatus.quality === 'poor'
-          ? 'weak'
-          : 'none'
-      );
-      setGpsAccuracy(lastPoint?.accuracy);
-      setIsBackgroundTracking(false);
+      // Check for auto-stop on every UI update for responsive stopping
+      // This ensures auto-stop triggers within 1 second of reaching preset distance
+      if (racePreset && isTracking && !isPaused) {
+        simpleRunTracker.checkAutoStop();
+      }
     }
   };
 
@@ -236,19 +219,22 @@ export const RunningTrackerScreen: React.FC = () => {
     const appStateManager = AppStateManager;
     const unsubscribe = appStateManager.onStateChange(async (isActive) => {
       if (!isActive) {
-        // App going to background - clear timers to prevent crashes
-        console.log('[RunningTrackerScreen] App backgrounding, clearing timers...');
-        if (metricsUpdateRef.current) {
-          clearInterval(metricsUpdateRef.current);
-          metricsUpdateRef.current = null;
-        }
-        if (routeCheckRef.current) {
-          clearInterval(routeCheckRef.current);
-          routeCheckRef.current = null;
-        }
+        // FIX iOS 30-min issue: Don't clear timers unless TRULY backgrounded
+        // iOS sometimes sends spurious background events while app is still visible
+        console.log('[RunningTrackerScreen] App state change detected - verifying if truly backgrounded...');
+
+        // Give iOS a moment to stabilize before clearing intervals
+        setTimeout(() => {
+          // Double-check if app is still inactive before clearing
+          if (!appStateManager.isActive()) {
+            console.log('[RunningTrackerScreen] Confirmed backgrounded, pausing UI updates...');
+            // Don't clear intervals, just mark them as paused
+            // This prevents losing them due to spurious events
+          }
+        }, 500);
       } else if (isActive && isTrackingRef.current) {
         // App returned to foreground - restart timers and sync data
-        console.log('[RunningTrackerScreen] App returned to foreground, restarting timers and syncing...');
+        console.log('[RunningTrackerScreen] App returned to foreground, ensuring timers are running...');
 
         // Restart timers
         if (!metricsUpdateRef.current) {
@@ -287,17 +273,6 @@ export const RunningTrackerScreen: React.FC = () => {
           setMetrics(formatted);
           setElapsedTime(session.duration);
 
-          // Update GPS signal from health monitor
-          const lastPoint = session.gpsPoints?.[session.gpsPoints.length - 1];
-          const gpsStatus = gpsHealthMonitor.assessSignalQuality(lastPoint?.accuracy);
-          setGpsSignal(
-            gpsStatus.quality === 'excellent' || gpsStatus.quality === 'good'
-              ? 'strong'
-              : gpsStatus.quality === 'poor'
-              ? 'weak'
-              : 'none'
-          );
-
           console.log(
             `[RunningTrackerScreen] ✅ Synced: ${(session.distance / 1000).toFixed(2)} km, ` +
             `${session.duration}s`
@@ -314,6 +289,32 @@ export const RunningTrackerScreen: React.FC = () => {
   // Update the ref whenever isTracking changes
   useEffect(() => {
     isTrackingRef.current = isTracking;
+  }, [isTracking]);
+
+  // FIX iOS 30-min issue: Health check to ensure intervals keep running
+  // This prevents UI freeze when iOS sends spurious events that clear intervals
+  useEffect(() => {
+    if (!isTracking) return;
+
+    const healthCheckInterval = setInterval(() => {
+      // If we're tracking but metrics interval is dead, restart it
+      if (isTracking && !metricsUpdateRef.current) {
+        console.log('[RunningTrackerScreen] ⚠️ Metrics interval was dead, restarting...');
+        metricsUpdateRef.current = setInterval(() => {
+          updateMetrics();
+        }, METRICS_UPDATE_INTERVAL_MS);
+      }
+
+      // If we're tracking but route check interval is dead, restart it
+      if (isTracking && !routeCheckRef.current) {
+        console.log('[RunningTrackerScreen] ⚠️ Route check interval was dead, restarting...');
+        routeCheckRef.current = setInterval(checkForRouteMatch, ROUTE_CHECK_INTERVAL_MS);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      clearInterval(healthCheckInterval);
+    };
   }, [isTracking]);
 
   const handleHoldComplete = async () => {
@@ -392,8 +393,6 @@ export const RunningTrackerScreen: React.FC = () => {
   const initializeTracking = () => {
     setIsTracking(true);
     setIsPaused(false);
-    setGpsSignal('searching'); // Show GPS initializing when tracking starts
-    gpsHealthMonitor.reset(); // Reset GPS health monitor for new session
 
     // Set auto-stop callback if preset distance is selected
     if (racePreset) {
@@ -660,17 +659,6 @@ export const RunningTrackerScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* GPS Status Indicator */}
-        {isTracking && (
-          <View style={styles.gpsContainer}>
-            <GPSStatusIndicator
-              signalStrength={gpsSignal}
-              accuracy={gpsAccuracy}
-              isBackgroundTracking={isBackgroundTracking}
-            />
-          </View>
-        )}
-
         {/* Battery Warning */}
         {isTracking && <BatteryWarning />}
 

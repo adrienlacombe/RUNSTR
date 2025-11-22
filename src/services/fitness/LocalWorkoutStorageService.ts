@@ -7,6 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutType } from '../../types/workout';
 import type { Split } from './SplitTrackingService';
+import { RunstrContextGenerator } from '../ai/RunstrContextGenerator';
 
 export interface LocalWorkout {
   id: string; // Unique identifier for deduplication
@@ -59,6 +60,16 @@ export interface LocalWorkout {
   weightsPerSet?: number[]; // Array of weights per set (e.g., [135, 145, 155])
   restTime?: number; // Rest between sets in seconds
   weight?: number; // Average weight used in pounds or kilograms
+
+  // Fitness test-specific fields
+  fitnessTestScore?: number; // Composite score 0-300
+  fitnessTestMaxScore?: number; // Always 300
+  fitnessTestGrade?: string; // Elite/Advanced/Intermediate/Beginner/Baseline
+  fitnessTestComponents?: {
+    pushups: { reps: number; score: number };
+    situps: { reps: number; score: number };
+    run5k: { timeSeconds: number; score: number };
+  };
 
   // Weather context fields
   weather?: {
@@ -372,6 +383,11 @@ export class LocalWorkoutStorageService {
         STORAGE_KEYS.LOCAL_WORKOUTS,
         JSON.stringify(workouts)
       );
+
+      // Update RUNSTR.md context file for AI coach
+      RunstrContextGenerator.updateContext().catch((error) => {
+        console.warn('Failed to update RUNSTR context after workout save:', error);
+      });
     } catch (error) {
       console.error('❌ Failed to save workout to storage:', error);
       throw error;
@@ -685,6 +701,58 @@ export class LocalWorkoutStorageService {
     } catch (error) {
       console.error('❌ Failed to get imported Nostr workout count:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Save fitness test result as workout
+   */
+  async saveFitnessTestWorkout(testData: {
+    testId: string;
+    startTime: number; // milliseconds timestamp
+    endTime: number; // milliseconds timestamp
+    duration: number; // seconds
+    score: number; // 0-300
+    grade: string; // Elite/Advanced/Intermediate/Beginner/Baseline
+    pushups: { reps: number; score: number } | null;
+    situps: { reps: number; score: number } | null;
+    run5k: { timeSeconds: number; score: number } | null;
+  }): Promise<string> {
+    try {
+      const workoutId = await this.generateWorkoutId();
+      const startTimeISO = new Date(testData.startTime).toISOString();
+      const endTimeISO = new Date(testData.endTime).toISOString();
+
+      const localWorkout: LocalWorkout = {
+        id: workoutId,
+        type: 'other',
+        startTime: startTimeISO,
+        endTime: endTimeISO,
+        duration: testData.duration,
+        exerciseType: 'fitness_test',
+        notes: `RUNSTR Fitness Test - ${testData.grade}`,
+        // Fitness test-specific fields
+        fitnessTestScore: testData.score,
+        fitnessTestMaxScore: 300,
+        fitnessTestGrade: testData.grade,
+        fitnessTestComponents: {
+          pushups: testData.pushups || { reps: 0, score: 0 },
+          situps: testData.situps || { reps: 0, score: 0 },
+          run5k: testData.run5k || { timeSeconds: 0, score: 0 },
+        },
+        source: 'manual_entry',
+        createdAt: endTimeISO,
+        syncedToNostr: false,
+      };
+
+      await this.saveWorkout(localWorkout);
+      console.log(
+        `✅ Saved fitness test as workout: ${workoutId} (${testData.score}/300 - ${testData.grade})`
+      );
+      return workoutId;
+    } catch (error) {
+      console.error('❌ Failed to save fitness test workout:', error);
+      throw error;
     }
   }
 }

@@ -1,15 +1,17 @@
 /**
- * CoachClaudeService - AI-Powered Fitness Coach using Claude Haiku via PPQ.AI
+ * CoachClaudeService - AI-Powered Fitness Coach using PPQ.AI
  *
  * Provides workout analysis using PPQ.AI's API (OpenAI-compatible).
  * Fast, reliable, and powered by anonymous Bitcoin payments.
  *
- * Cost: ~$0.0010 per workout analysis (~$1.00 per 1,000 workouts)
+ * Enhanced with RUNSTR.md context file for comprehensive coaching.
  * API: https://api.ppq.ai/chat/completions
- * Model: claude-haiku-4.5
+ * Model: User-selectable (default: claude-haiku-4.5)
  */
 
 import type { LocalWorkout } from '../fitness/LocalWorkoutStorageService';
+import { RunstrContextGenerator } from './RunstrContextGenerator';
+import { ModelManager } from './ModelManager';
 
 // In-memory cache for recent analyses
 const ANALYSIS_CACHE = new Map<string, { analysis: string; timestamp: number }>();
@@ -65,14 +67,26 @@ function formatPace(paceSecondsPerKm: number): string {
 /**
  * Get system prompt for each insight type
  */
-function getSystemPrompt(type: PromptType): string {
+async function getSystemPrompt(type: PromptType): Promise<string> {
   const basePrompt = `You are Coach RUNSTR, a professional fitness coach analyzing workout data. Provide insights in exactly 3 bullet points. Be specific with numbers and dates. Keep each bullet point concise (1-2 sentences max).`;
+
+  // Load RUNSTR.md context file
+  let contextFile = await RunstrContextGenerator.getContext();
+
+  // If no context file exists, generate one
+  if (!contextFile) {
+    await RunstrContextGenerator.updateContext();
+    contextFile = await RunstrContextGenerator.getContext();
+  }
+
+  // Build full prompt with context
+  const contextSection = contextFile
+    ? `\n\n## User Context\n${contextFile}\n\n`
+    : '\n\n';
 
   switch (type) {
     case 'weekly':
-      return `${basePrompt}
-
-Analyze the last 7 days of workouts. Provide exactly 3 bullet points covering:
+      return `${basePrompt}${contextSection}Analyze the last 7 days of workouts. Provide exactly 3 bullet points covering:
 1. Total distance/time and workout frequency
 2. Average pace or notable performance metrics
 3. One specific achievement or observation
@@ -80,9 +94,7 @@ Analyze the last 7 days of workouts. Provide exactly 3 bullet points covering:
 Format each point starting with •`;
 
     case 'trends':
-      return `${basePrompt}
-
-Analyze all-time workout history. Provide exactly 3 bullet points identifying:
+      return `${basePrompt}${contextSection}Analyze all-time workout history. Provide exactly 3 bullet points identifying:
 1. Long-term improvement trends
 2. Consistency patterns
 3. One area showing progress or needing attention
@@ -90,9 +102,7 @@ Analyze all-time workout history. Provide exactly 3 bullet points identifying:
 Format each point starting with •`;
 
     case 'tips':
-      return `${basePrompt}
-
-Based on all workout data, provide exactly 3 actionable training tips:
+      return `${basePrompt}${contextSection}Based on all workout data, provide exactly 3 actionable training tips:
 1. One tip for recovery or rest
 2. One tip for progression or improvement
 3. One tip for variety or cross-training
@@ -189,7 +199,11 @@ class CoachClaudeService {
 
       // Format workout data
       const workoutContext = formatWorkoutsForContext(workouts);
-      const systemPrompt = getSystemPrompt(type);
+      const systemPrompt = await getSystemPrompt(type);
+
+      // Get user-selected model
+      const selectedModel = await ModelManager.getSelectedModel();
+      console.log(`[CoachClaude] Using model: ${selectedModel}`);
 
       // Call PPQ.AI API (OpenAI-compatible)
       const response = await fetch('https://api.ppq.ai/chat/completions', {
@@ -199,7 +213,7 @@ class CoachClaudeService {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4.5',
+          model: selectedModel,
           max_tokens: 200,
           temperature: 0.7,
           messages: [
@@ -247,6 +261,13 @@ class CoachClaudeService {
           timestamp: Date.now(),
         });
       }
+
+      // Update conversation memory
+      await RunstrContextGenerator.appendMemory(
+        type,
+        `Get ${type} insights`,
+        responseText
+      );
 
       console.log(`[CoachClaude] Generated ${type} insight successfully`);
       return insight;

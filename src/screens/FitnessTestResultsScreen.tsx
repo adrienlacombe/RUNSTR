@@ -21,6 +21,8 @@ import { theme } from '../styles/theme';
 import FitnessTestService from '../services/fitness/FitnessTestService';
 import type { FitnessTestResult } from '../types/fitnessTest';
 import { FITNESS_TEST_GRADES } from '../types/fitnessTest';
+import WorkoutCardGenerator from '../services/nostr/workoutCardGenerator';
+import WorkoutPublishingService from '../services/nostr/workoutPublishingService';
 
 type RouteParams = {
   FitnessTestResults: {
@@ -64,31 +66,59 @@ export const FitnessTestResultsScreen: React.FC = () => {
   };
 
   const handlePublishToNostr = async (kind: 'kind1301' | 'kind1') => {
+    if (!testResult) return;
+
     try {
       setPublishing(true);
 
-      // TODO: Implement Nostr publishing
-      // For kind 1301: Structured fitness test data
-      // For kind 1: Beautiful social card using workoutCardGenerator
+      if (kind === 'kind1') {
+        // Generate beautiful social card
+        console.log('🎨 Generating fitness test social card...');
+        const cardGenerator = WorkoutCardGenerator;
 
-      console.log(`Publishing test ${testId} as ${kind}`);
+        const cardData = await cardGenerator.generateFitnessTestCard({
+          score: testResult.compositeScore,
+          maxScore: 300,
+          grade: testResult.grade,
+          duration: testResult.testDuration,
+          components: {
+            pushups: testResult.pushups,
+            situps: testResult.situps,
+            run5k: testResult.run,
+          },
+        });
 
-      // Simulate publishing delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+        // Upload and publish card
+        console.log('📤 Publishing fitness test card to Nostr...');
+        const publishingService = WorkoutPublishingService;
 
-      // Mark as published
-      await FitnessTestService.markAsPublished(
-        testId,
-        kind,
-        `mock_event_id_${Date.now()}`
-      );
+        const eventId = await publishingService.uploadCardAndPublish(
+          cardData.svgContent,
+          `RUNSTR Fitness Test - ${testResult.compositeScore}/300 (${testResult.grade})`,
+          {
+            workoutId: testResult.id,
+            activityType: 'fitness_test',
+            score: testResult.compositeScore.toString(),
+            grade: testResult.grade,
+          }
+        );
+
+        console.log(`✅ Fitness test card published: ${eventId}`);
+
+        // Mark as published
+        await FitnessTestService.markAsPublished(testId, kind, eventId);
+      } else {
+        // kind 1301: Structured fitness test data
+        // TODO: Implement structured data publishing if needed
+        console.log('Publishing as kind 1301 not yet implemented');
+      }
 
       // Reload result to show updated published status
       await loadTestResult();
 
       setPublishing(false);
     } catch (error) {
-      console.error('Failed to publish test:', error);
+      console.error('❌ Failed to publish test:', error);
       setPublishing(false);
     }
   };

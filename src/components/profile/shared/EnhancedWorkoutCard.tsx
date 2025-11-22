@@ -115,6 +115,11 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
   const getActivityTypeName = (): string => {
     const baseType = workout.type ? (workout.type as string) : 'Workout';
 
+    // Fitness Test: Show as RUNSTR Fitness Test
+    if ((workout as any).exerciseType === 'fitness_test') {
+      return 'RUNSTR Fitness Test';
+    }
+
     // Meditation: Show meditation subtype if available
     if (baseType === 'meditation' && (workout as any).meditationType) {
       const meditationType = (workout as any).meditationType;
@@ -344,8 +349,34 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
             </View>
           )}
 
+          {/* Fitness Test: Score, Grade, Duration */}
+          {(workout as any).exerciseType === 'fitness_test' && (
+            <>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {(workout as any).fitnessTestScore || 0}/
+                  {(workout as any).fitnessTestMaxScore || 300}
+                </Text>
+                <Text style={styles.statLabel}>Score</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {(workout as any).fitnessTestGrade || 'N/A'}
+                </Text>
+                <Text style={styles.statLabel}>Grade</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatDuration(workout.duration)}
+                </Text>
+                <Text style={styles.statLabel}>Duration</Text>
+              </View>
+            </>
+          )}
+
           {/* Other workouts: Default display */}
-          {!['running', 'walking', 'cycling', 'hiking', 'strength_training', 'gym', 'meditation', 'diet', 'fasting'].includes(workout.type) && (
+          {!['running', 'walking', 'cycling', 'hiking', 'strength_training', 'gym', 'meditation', 'diet', 'fasting'].includes(workout.type) &&
+            (workout as any).exerciseType !== 'fitness_test' && (
             <>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>

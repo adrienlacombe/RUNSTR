@@ -15,6 +15,8 @@ import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { SplitTrackingService, type Split } from './SplitTrackingService';
+import { startNativeWorkoutSession, stopNativeWorkoutSession } from './WorkoutSessionBridge';
+import TTSAnnouncementService from './TTSAnnouncementService';
 
 // Storage keys
 const GPS_POINTS_KEY = '@runstr:gps_points';
@@ -177,6 +179,13 @@ export class SimpleRunTracker {
   // Auto-stop callback (for UI notification when preset distance reached)
   private autoStopCallback: (() => void) | null = null;
 
+  // FIX for 30-min race condition: Queue system for AsyncStorage writes
+  private writeQueue: Promise<void> = Promise.resolve();
+  private pendingPoints: GPSPoint[] = [];
+  private lastFlushTime = 0;
+  private readonly FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds instead of every GPS update
+  private isWriting = false;
+
   private constructor() {
     console.log('[SimpleRunTracker] Initialized');
   }
@@ -208,6 +217,12 @@ export class SimpleRunTracker {
     this.presetDistance = presetDistance || null;
     this.cachedGpsPoints = []; // Clear cache immediately
 
+    // FIX: Reset write queue state for new session
+    this.writeQueue = Promise.resolve();
+    this.pendingPoints = [];
+    this.lastFlushTime = Date.now();
+    this.isWriting = false;
+
     // INSTANT: Start timer immediately (user sees 1, 2, 3... right away!)
     this.durationTracker.start(this.startTime);
     console.log('[SimpleRunTracker] ⏱️ INSTANT START - Stopwatch counting 1, 2, 3, 4, 5...');
@@ -238,6 +253,11 @@ export class SimpleRunTracker {
   private async initializeGPS(activityType: 'running' | 'walking' | 'cycling'): Promise<void> {
     try {
       console.log(`[SimpleRunTracker] Initializing GPS for ${activityType}...`);
+
+      // iOS: Start native HKWorkoutSession FIRST (signals active workout to iOS)
+      // This grants unlimited background location tracking privileges
+      // Android: No-op (background tracking already works)
+      await startNativeWorkoutSession(activityType);
 
       // Clean up any existing GPS watchers
       const isAlreadyRunning = await Location.hasStartedLocationUpdatesAsync(SIMPLE_TRACKER_TASK);
@@ -323,6 +343,14 @@ export class SimpleRunTracker {
 
     console.log('[SimpleRunTracker] Stopping tracking...');
 
+    // FIX: Flush any pending GPS points before stopping
+    if (this.pendingPoints.length > 0) {
+      console.log(`[SimpleRunTracker] Flushing ${this.pendingPoints.length} pending GPS points before stop...`);
+      this.flushPendingPointsToStorage();
+      // Wait for write queue to complete
+      await this.writeQueue;
+    }
+
     // Stop GPS
     try {
       const isRunning = await Location.hasStartedLocationUpdatesAsync(SIMPLE_TRACKER_TASK);
@@ -335,6 +363,10 @@ export class SimpleRunTracker {
 
     // Stop duration tracker
     this.durationTracker.stop();
+
+    // iOS: Stop native HKWorkoutSession
+    // Android: No-op
+    await stopNativeWorkoutSession();
 
     // Sync final GPS points from storage to cache
     await this.syncGpsPointsFromStorage();
@@ -433,9 +465,10 @@ export class SimpleRunTracker {
 
   /**
    * Check if auto-stop should be triggered (preset distance reached)
+   * Can be called from UI update interval for more responsive auto-stopping
    * @returns true if auto-stop was triggered
    */
-  private checkAutoStop(): boolean {
+  checkAutoStop(): boolean {
     if (!this.presetDistance || !this.isTracking) {
       return false;
     }
@@ -495,6 +528,11 @@ export class SimpleRunTracker {
         console.log(
           `[SimpleRunTracker] 🏃 Split ${newSplit.number}: ${this.splitTracker.formatSplitTime(newSplit.splitTime)} (${this.splitTracker.formatPace(newSplit.pace)}/km)`
         );
+
+        // Announce split via TTS (non-blocking)
+        TTSAnnouncementService.announceSplit(newSplit).catch(err => {
+          console.error('[SimpleRunTracker] Failed to announce split:', err);
+        });
       }
     }
 
@@ -504,21 +542,96 @@ export class SimpleRunTracker {
     // DO NOT update duration - timer runs independently like a stopwatch!
     // GPS is ONLY for distance calculation
 
-    // Persist to AsyncStorage asynchronously (background operation)
-    this.saveGpsPointsToStorage(this.cachedGpsPoints);
+    // FIX for 30-min race condition: Batch points instead of immediate writes
+    this.pendingPoints.push(...points);
+
+    // Only flush to storage periodically or if we have many pending points
+    const now = Date.now();
+    const shouldFlush = (now - this.lastFlushTime > this.FLUSH_INTERVAL_MS) ||
+                       (this.pendingPoints.length > 100);
+
+    if (shouldFlush && !this.isWriting) {
+      this.flushPendingPointsToStorage();
+      this.lastFlushTime = now;
+    }
 
     console.log(
-      `[SimpleRunTracker] 📍 Appended ${points.length} GPS points to cache (${this.cachedGpsPoints.length} total)`
+      `[SimpleRunTracker] 📍 Appended ${points.length} GPS points to cache (${this.cachedGpsPoints.length} total, ${this.pendingPoints.length} pending)`
     );
   }
 
   /**
-   * Save GPS points to AsyncStorage (async, non-blocking)
-   * Called by appendGpsPointsToCache after updating in-memory cache
+   * Flush pending points to storage using write queue (prevents race conditions)
+   * This serializes all AsyncStorage writes to prevent "sync already in progress" errors
+   */
+  private flushPendingPointsToStorage(): void {
+    if (this.pendingPoints.length === 0) {
+      return;
+    }
+
+    // Copy pending points and clear the buffer
+    const pointsToSave = [...this.pendingPoints];
+    this.pendingPoints = [];
+
+    // Add to write queue to serialize operations
+    this.writeQueue = this.writeQueue
+      .then(async () => {
+        this.isWriting = true;
+        try {
+          await this.appendGpsPointsToStorage(pointsToSave);
+        } catch (error) {
+          console.error('[SimpleRunTracker] Queue write failed:', error);
+          // Don't re-throw - let tracking continue even if storage fails
+        } finally {
+          this.isWriting = false;
+        }
+      })
+      .catch(err => {
+        console.error('[SimpleRunTracker] Write queue error:', err);
+        this.isWriting = false;
+      });
+  }
+
+  /**
+   * Incrementally append GPS points to AsyncStorage (FIX for iOS 30-min crash)
+   * Only saves NEW points instead of entire array every time
+   * This prevents AsyncStorage from being overwhelmed on iOS devices
+   */
+  private async appendGpsPointsToStorage(newPoints: GPSPoint[]): Promise<void> {
+    try {
+      // Get existing points from storage
+      const existingData = await AsyncStorage.getItem(GPS_POINTS_KEY);
+      const existing = existingData ? JSON.parse(existingData) : [];
+
+      // Append new points to existing
+      const combined = [...existing, ...newPoints];
+
+      // Trim if too large (keep last 5000 points = ~1.4 hours of data)
+      // This prevents unbounded growth while keeping enough for long workouts
+      const trimmed = combined.length > 5000 ? combined.slice(-5000) : combined;
+
+      // Save back to storage
+      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(trimmed));
+
+      console.log(
+        `[SimpleRunTracker] 💾 Incremental save: Added ${newPoints.length} points, ` +
+        `${trimmed.length} total in storage (was ${existing.length})`
+      );
+    } catch (error) {
+      console.error('[SimpleRunTracker] Error appending GPS points to storage:', error);
+      // Don't let storage errors crash the tracking - in-memory cache is primary
+    }
+  }
+
+  /**
+   * Save entire GPS points array to storage (used for initial save)
+   * Keep this method for backward compatibility and initial state save
    */
   private async saveGpsPointsToStorage(points: GPSPoint[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(points));
+      // Trim to reasonable size before saving
+      const trimmed = points.length > 5000 ? points.slice(-5000) : points;
+      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(trimmed));
     } catch (error) {
       console.error('[SimpleRunTracker] Error saving GPS points to storage:', error);
     }
