@@ -18,15 +18,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { PerformanceLogger } from '../utils/PerformanceLogger';
 
-// ✅ PERFORMANCE: Lazy load all tab screens (runstr-github pattern)
-const ProfileScreen = React.lazy(() =>
-  import('../screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen }))
-);
-const TeamDiscoveryScreen = React.lazy(() =>
-  import('../screens/TeamDiscoveryScreen').then((m) => ({
-    default: m.TeamDiscoveryScreen,
-  }))
-);
+// ✅ PERFORMANCE: Load Profile immediately, lazy load Activity only when needed
+// FIX: Loading multiple lazy screens simultaneously was causing freeze on first launch
+import { ProfileScreen } from '../screens/ProfileScreen';
+
+// Removed TeamDiscoveryScreen - not used in current navigation
+
+// Keep Activity lazy since it's not the initial tab
 const ActivityTrackerScreen = React.lazy(() =>
   import('../screens/activity/ActivityTrackerScreen').then((m) => ({
     default: m.ActivityTrackerScreen,
@@ -56,7 +54,7 @@ import { createNavigationHandlers } from './navigationHandlers';
 // Types
 export type BottomTabParamList = {
   Teams: undefined;
-  Activity: undefined;
+  Exercise: undefined;
   Profile: undefined;
 };
 
@@ -110,7 +108,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
 
           if (route.name === 'Teams') {
             iconName = focused ? 'people' : 'people-outline';
-          } else if (route.name === 'Activity') {
+          } else if (route.name === 'Exercise') {
             iconName = focused ? 'fitness' : 'fitness-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
@@ -128,67 +126,11 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
       })}
       initialRouteName="Profile"
     >
-      {/* Discover Tab - Discovery + Team Creation */}
+      {/* Exercise Tab - Tracking + Manual Entry */}
       <Tab.Screen
-        name="Teams"
+        name="Exercise"
         options={{
-          title: 'Teams',
-          headerShown: false,
-        }}
-        listeners={{
-          focus: () => {
-            // ✅ PERFORMANCE: Defer heavy operations until after tab transition
-            InteractionManager.runAfterInteractions(() => {
-              // Lazy load teams when tab is focused
-              loadTeams();
-              // Also prefetch leagues for instant loading when viewing teams
-              prefetchLeaguesInBackground();
-            });
-          },
-        }}
-      >
-        {({ navigation }) => (
-          <Suspense fallback={<LoadingFallback />}>
-            <SafeAreaView style={styles.tabContent} edges={['top']}>
-              {/* Team Discovery Content with integrated header */}
-              <TeamDiscoveryScreen
-                teams={availableTeams}
-                isLoading={isLoading}
-                onClose={() => {
-                  // Teams tab doesn't close - it's always visible
-                  console.log('Teams tab - no close action needed');
-                }}
-                onTeamJoin={(team) => {
-                  // This won't be called since we removed the join button from cards
-                  // But keeping it to satisfy TypeScript
-                  console.log(
-                    'Team join from card (should not happen):',
-                    team.name
-                  );
-                }}
-                onTeamSelect={(team) =>
-                  handlers.handleTeamView(team, navigation, user?.npub)
-                }
-                onRefresh={refresh}
-                showHeader={true} // Show integrated header with + button
-                showCloseButton={false} // No close button needed in tabs
-                currentUserPubkey={user?.npub} // Pass current user's npub for captain detection
-                onCaptainDashboard={() =>
-                  handlers.handleCaptainDashboard(navigation)
-                }
-                navigation={navigation} // Pass navigation for EventDetailScreen
-                onCreateTeam={onNavigateToTeamCreation} // Pass team creation handler
-              />
-            </SafeAreaView>
-          </Suspense>
-        )}
-      </Tab.Screen>
-
-      {/* Activity Tab - Tracking + Manual Entry */}
-      <Tab.Screen
-        name="Activity"
-        options={{
-          title: 'Activity',
+          title: 'Exercise',
           headerShown: false,
         }}
       >
@@ -209,77 +151,73 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
       >
         {({ navigation }) =>
           profileData ? (
-            <Suspense fallback={<LoadingFallback />}>
-              <ProfileScreen
-                data={profileData}
-                isLoadingTeam={isLoadingTeam}
-                isLoadingProfile={isLoading}
-                onNavigateToTeam={() => navigation.navigate('Teams')}
-                onNavigateToTeamDiscovery={() => navigation.navigate('Teams')}
-                onViewCurrentTeam={() => {
-                  // Navigate to EnhancedTeamScreen with the user's current team
-                  if (profileData.currentTeam) {
-                    // Ensure complete team object structure matching Teams discovery
-                    const team = {
-                      id: profileData.currentTeam.id,
-                      name: profileData.currentTeam.name,
-                      description: profileData.currentTeam.description || '',
-                      memberCount: profileData.currentTeam.memberCount || 0,
-                      prizePool: profileData.currentTeam.prizePool || 0,
-                      isActive:
-                        profileData.currentTeam.isActive !== undefined
-                          ? profileData.currentTeam.isActive
-                          : true,
-                      // Include all team metadata fields
-                      captainId: profileData.currentTeam.captainId, // Include if available
-                      bannerImage: profileData.currentTeam.bannerImage, // Include banner for display
-                      charityId: profileData.currentTeam.charityId, // Include charity for charity section display
-                    };
+            <ProfileScreen
+              data={profileData}
+              isLoadingTeam={isLoadingTeam}
+              isLoadingProfile={isLoading}
+              onNavigateToTeam={() => navigation.navigate('Teams')}
+              onNavigateToTeamDiscovery={() => navigation.navigate('Teams')}
+              onViewCurrentTeam={() => {
+                // Navigate to EnhancedTeamScreen with the user's current team
+                if (profileData.currentTeam) {
+                  // Ensure complete team object structure matching Teams discovery
+                  const team = {
+                    id: profileData.currentTeam.id,
+                    name: profileData.currentTeam.name,
+                    description: profileData.currentTeam.description || '',
+                    memberCount: profileData.currentTeam.memberCount || 0,
+                    prizePool: profileData.currentTeam.prizePool || 0,
+                    isActive:
+                      profileData.currentTeam.isActive !== undefined
+                        ? profileData.currentTeam.isActive
+                        : true,
+                    // Include all team metadata fields
+                    captainId: profileData.currentTeam.captainId, // Include if available
+                    bannerImage: profileData.currentTeam.bannerImage, // Include banner for display
+                    charityId: profileData.currentTeam.charityId, // Include charity for charity section display
+                  };
 
-                    // Get the current user's npub to pass to navigation
-                    // This ensures consistent behavior with Teams tab navigation
-                    const currentUserNpub = user?.npub;
+                  // Get the current user's npub to pass to navigation
+                  // This ensures consistent behavior with Teams tab navigation
+                  const currentUserNpub = user?.npub;
 
-                    console.log('Profile Navigation to Team:', {
-                      teamId: team.id,
-                      teamName: team.name,
-                      userNpub: currentUserNpub?.slice(0, 20) + '...',
-                      userIsCaptain: profileData.currentTeam.role === 'captain',
-                    });
+                  console.log('Profile Navigation to Team:', {
+                    teamId: team.id,
+                    teamName: team.name,
+                    userNpub: currentUserNpub?.slice(0, 20) + '...',
+                    userIsCaptain: profileData.currentTeam.role === 'captain',
+                  });
 
-                    navigation.navigate('EnhancedTeamScreen', {
-                      team,
-                      userIsMember: true,
-                      userIsCaptain: profileData.currentTeam.role === 'captain',
-                      currentUserNpub, // Pass npub to ensure proper competition loading
-                    });
-                  }
-                }}
-                onCaptainDashboard={() =>
-                  handlers.handleCaptainDashboard(navigation)
+                  navigation.navigate('EnhancedTeamScreen', {
+                    team,
+                    userIsMember: true,
+                    userIsCaptain: profileData.currentTeam.role === 'captain',
+                    currentUserNpub, // Pass npub to ensure proper competition loading
+                  });
                 }
-                onTeamCreation={() => {
-                  if (onNavigateToTeamCreation) {
-                    onNavigateToTeamCreation();
-                  }
-                }}
-                onEditProfile={handlers.handleEditProfile}
-                onSend={handlers.handleWalletSend}
-                onReceive={handlers.handleWalletReceive}
-                onWalletHistory={handlers.handleWalletHistory}
-                onSyncSourcePress={handlers.handleSyncSourcePress}
-                onManageSubscription={handlers.handleManageSubscription}
-                onHelp={() => handlers.handleHelp(navigation)}
-                onContactSupport={() =>
-                  handlers.handleContactSupport(navigation)
+              }}
+              onCaptainDashboard={() =>
+                handlers.handleCaptainDashboard(navigation)
+              }
+              onTeamCreation={() => {
+                if (onNavigateToTeamCreation) {
+                  onNavigateToTeamCreation();
                 }
-                onPrivacyPolicy={() => handlers.handlePrivacyPolicy(navigation)}
-                onSignOut={
-                  onSignOut || (() => handlers.handleSignOut(navigation))
-                }
-                onRefresh={refresh}
-              />
-            </Suspense>
+              }}
+              onEditProfile={handlers.handleEditProfile}
+              onSend={handlers.handleWalletSend}
+              onReceive={handlers.handleWalletReceive}
+              onWalletHistory={handlers.handleWalletHistory}
+              onSyncSourcePress={handlers.handleSyncSourcePress}
+              onManageSubscription={handlers.handleManageSubscription}
+              onHelp={() => handlers.handleHelp(navigation)}
+              onContactSupport={() => handlers.handleContactSupport(navigation)}
+              onPrivacyPolicy={() => handlers.handlePrivacyPolicy(navigation)}
+              onSignOut={
+                onSignOut || (() => handlers.handleSignOut(navigation))
+              }
+              onRefresh={refresh}
+            />
           ) : (
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>

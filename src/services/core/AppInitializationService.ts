@@ -5,7 +5,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { InteractionManager } from 'react-native';
 import { NostrInitializationService } from '../nostr/NostrInitializationService';
 import nostrPrefetchService from '../nostr/NostrPrefetchService';
 import { getUserNostrIdentifiers } from '../../utils/nostr';
@@ -14,6 +13,9 @@ class AppInitializationService {
   private static instance: AppInitializationService | null = null;
   private isInitialized = false;
   private isInitializing = false;
+  private abortController: AbortController | null = null;
+  private timeoutId: NodeJS.Timeout | null = null;
+  private hasCompleted = false;
 
   private constructor() {}
 
@@ -36,20 +38,29 @@ class AppInitializationService {
     }
 
     this.isInitializing = true;
-    const MAX_INIT_TIME = 8000; // 8 second timeout
+    this.hasCompleted = false; // Reset completion flag
+    const MAX_INIT_TIME = 12000; // 12 second timeout (increased for first launch)
+
+    // Create AbortController for proper cancellation
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
 
     const initializationPromise = (async () => {
       try {
-        // ✅ FREEZE FIX: Wait for UI interactions to complete before heavy network operations
-        // This prevents blocking the main thread during permission flows and screen transitions
-        console.log('⏸️ AppInit: Waiting for UI interactions to complete...');
-        await new Promise((resolve) =>
-          InteractionManager.runAfterInteractions(resolve)
-        );
+        // ❌ REMOVED: InteractionManager.runAfterInteractions was causing DEADLOCK
+        // The modal animation never signals completion, causing permanent freeze
+        // The 5-second setTimeout in App.tsx is already sufficient delay
         console.log('🚀 AppInit: Starting background data loading...');
 
         // Step 1: Connect to Nostr relays
         console.log('📡 AppInit: Connecting to Nostr relays...');
+
+        // Check if aborted before expensive operations
+        if (signal.aborted) {
+          console.log('⚠️ AppInit: Aborted before relay connection');
+          return;
+        }
+
         const { GlobalNDKService } = await import('../nostr/GlobalNDKService');
         const initService = NostrInitializationService.getInstance();
 
@@ -68,6 +79,13 @@ class AppInitializationService {
 
         // Step 2: Load user profile
         console.log('👤 AppInit: Loading profile...');
+
+        // Check if aborted before profile operations
+        if (signal.aborted) {
+          console.log('⚠️ AppInit: Aborted before profile load');
+          return;
+        }
+
         const identifiers = await getUserNostrIdentifiers();
 
         if (identifiers) {
@@ -78,6 +96,12 @@ class AppInitializationService {
             console.warn('Profile fetch failed, using cache')
           );
           console.log('✅ AppInit: Profile loaded');
+
+          // Check if aborted before prefetch
+          if (signal.aborted) {
+            console.log('⚠️ AppInit: Aborted before data prefetch');
+            return;
+          }
 
           // Step 3: Prefetch all user data (teams, workouts, wallet, competitions)
           console.log('📦 AppInit: Prefetching all data...');
@@ -90,10 +114,27 @@ class AppInitializationService {
           console.log('✅ AppInit: All data loaded!');
         }
 
-        this.isInitialized = true;
+        // CRITICAL FIX: Only set flags if not aborted and not already completed
+        if (!signal.aborted && !this.hasCompleted) {
+          this.hasCompleted = true; // Mark as completed to prevent timeout from running
+          this.isInitialized = true;
 
-        // Set completion flag
-        await AsyncStorage.setItem('@runstr:app_init_completed', 'true');
+          // Cancel the timeout since we succeeded
+          if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+            console.log(
+              '✅ AppInit: Timeout cancelled - initialization succeeded'
+            );
+          }
+
+          // Set completion flag ONLY if we weren't aborted
+          try {
+            await AsyncStorage.setItem('@runstr:app_init_completed', 'true');
+          } catch (error) {
+            console.warn('⚠️ AppInit: Failed to save completion flag:', error);
+          }
+        }
       } catch (error) {
         console.error('❌ AppInit: Initialization error:', error);
         // Continue - app can work with cached/partial data
@@ -102,16 +143,39 @@ class AppInitializationService {
       }
     })();
 
-    // Emergency timeout
+    // Emergency timeout with proper cleanup
     const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
-        console.warn('⚠️ AppInit: Timeout reached - partial data loaded');
-        this.isInitializing = false;
+      this.timeoutId = setTimeout(() => {
+        // Only execute timeout if initialization hasn't completed
+        if (!this.hasCompleted) {
+          console.warn('⚠️ AppInit: Timeout reached - partial data loaded');
+          this.hasCompleted = true; // Prevent success path from running
+
+          // CRITICAL: Abort the initialization to prevent orphaned promises
+          if (this.abortController) {
+            this.abortController.abort();
+            this.abortController = null;
+          }
+
+          // Clean up state
+          this.isInitializing = false;
+          this.isInitialized = false;
+          this.timeoutId = null;
+        } else {
+          console.log(
+            '✅ AppInit: Timeout skipped - initialization already completed'
+          );
+        }
+
         resolve();
       }, MAX_INIT_TIME);
     });
 
+    // Race between initialization and timeout
     await Promise.race([initializationPromise, timeoutPromise]);
+
+    // Final cleanup
+    this.abortController = null;
   }
 
   /**

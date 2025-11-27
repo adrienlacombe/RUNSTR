@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 8,
     marginHorizontal: 12,
-    marginVertical: 2,
+    marginVertical: 0, // Removed vertical margin to tighten layout
     borderWidth: 1,
     borderColor: theme.colors.border,
   },

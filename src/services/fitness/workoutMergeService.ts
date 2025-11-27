@@ -152,66 +152,79 @@ export class WorkoutMergeService {
           healthKitWorkouts = cachedWorkouts;
           usedCache = true;
         } else if (HealthKitService.isAvailable()) {
-          // Fetch HealthKit workouts progressively
-          console.log('🔄 Fetching HealthKit workouts progressively...');
-          const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-          const endDate = new Date();
+          // CRITICAL FIX: Only fetch if already authorized (don't auto-request permissions)
+          const status = this.healthKitService.getStatus();
+          if (status.authorized) {
+            // Fetch HealthKit workouts progressively
+            console.log('🔄 Fetching HealthKit workouts progressively...');
+            const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            const endDate = new Date();
 
-          try {
-            healthKitWorkouts =
-              await this.healthKitService.fetchWorkoutsProgressive(
-                startDate,
-                endDate,
-                (progress) => {
-                  console.log(
-                    `📊 Progress: ${progress.current}/${progress.total} chunks, ${progress.workouts} workouts`
-                  );
-                }
+            try {
+              healthKitWorkouts =
+                await this.healthKitService.fetchWorkoutsProgressive(
+                  startDate,
+                  endDate,
+                  (progress) => {
+                    console.log(
+                      `📊 Progress: ${progress.current}/${progress.total} chunks, ${progress.workouts} workouts`
+                    );
+                  }
+                );
+              console.log(
+                `✅ HealthKit fetch successful: ${healthKitWorkouts.length} workouts`
               );
-            console.log(
-              `✅ HealthKit fetch successful: ${healthKitWorkouts.length} workouts`
-            );
-          } catch (hkError) {
-            // Log error prominently and throw to let UI components show user-facing errors
-            console.error('❌ HealthKit fetch failed:', hkError);
-            const errorMessage =
-              hkError instanceof Error ? hkError.message : 'Unknown error';
-            console.error(`❌ HealthKit error details: ${errorMessage}`);
+            } catch (hkError) {
+              // Log error prominently and throw to let UI components show user-facing errors
+              console.error('❌ HealthKit fetch failed:', hkError);
+              const errorMessage =
+                hkError instanceof Error ? hkError.message : 'Unknown error';
+              console.error(`❌ HealthKit error details: ${errorMessage}`);
 
-            // Create user-friendly error message
-            let userFriendlyError = 'Failed to sync Apple Health workouts';
+              // Create user-friendly error message
+              let userFriendlyError = 'Failed to sync Apple Health workouts';
 
-            if (
-              errorMessage.includes('not authorized') ||
-              errorMessage.includes('Permission')
-            ) {
-              userFriendlyError =
-                'Apple Health permissions are required. Please grant permissions in Settings → Privacy & Security → Health → RUNSTR.';
-              console.error(
-                '❌ CRITICAL: HealthKit permission issue detected!'
+              if (
+                errorMessage.includes('not authorized') ||
+                errorMessage.includes('Permission')
+              ) {
+                userFriendlyError =
+                  'Apple Health permissions are required. Please grant permissions in Settings → Privacy & Security → Health → RUNSTR.';
+                console.error(
+                  '❌ CRITICAL: HealthKit permission issue detected!'
+                );
+              } else if (
+                errorMessage.includes('timeout') ||
+                errorMessage.includes('timed out')
+              ) {
+                userFriendlyError =
+                  'Apple Health sync timed out. This can happen with large workout libraries. Try again or contact support.';
+              } else if (errorMessage.includes('not available')) {
+                userFriendlyError =
+                  'Apple Health is not available on this device or in the simulator.';
+              }
+
+              // Store the error for UI components to access
+              await AsyncStorage.setItem(
+                '@healthkit:last_error',
+                JSON.stringify({
+                  message: userFriendlyError,
+                  timestamp: Date.now(),
+                  technicalDetails: errorMessage,
+                })
               );
-            } else if (
-              errorMessage.includes('timeout') ||
-              errorMessage.includes('timed out')
-            ) {
-              userFriendlyError =
-                'Apple Health sync timed out. This can happen with large workout libraries. Try again or contact support.';
-            } else if (errorMessage.includes('not available')) {
-              userFriendlyError =
-                'Apple Health is not available on this device or in the simulator.';
+
+              // Continue with empty HealthKit workouts but error is stored for UI
+              healthKitWorkouts = [];
             }
-
-            // Store the error for UI components to access
-            await AsyncStorage.setItem(
-              '@healthkit:last_error',
-              JSON.stringify({
-                message: userFriendlyError,
-                timestamp: Date.now(),
-                technicalDetails: errorMessage,
-              })
+          } else {
+            console.log(
+              'ℹ️ HealthKit not yet authorized - skipping automatic fetch'
             );
-
-            // Continue with empty HealthKit workouts but error is stored for UI
+            console.log(
+              'ℹ️ HealthKit will be requested when user explicitly opens workout screen'
+            );
+            // HealthKit workouts remain empty array - user will be prompted when they access workout features
             healthKitWorkouts = [];
           }
         } else {

@@ -22,7 +22,6 @@ import {
   MonthlyWorkoutGroup,
   groupWorkoutsByMonth,
 } from '../shared/MonthlyWorkoutGroup';
-import { AdvancedAnalyticsCard } from '../AdvancedAnalyticsCard';
 import localWorkoutStorage from '../../../services/fitness/LocalWorkoutStorageService';
 import type { LocalWorkout } from '../../../services/fitness/LocalWorkoutStorageService';
 import type { UnifiedWorkout } from '../../../services/fitness/workoutMergeService';
@@ -35,7 +34,6 @@ interface PrivateWorkoutsTabProps {
   onRefresh?: () => void;
   onPostToNostr?: (workout: LocalWorkout) => Promise<void>;
   onPostToSocial?: (workout: LocalWorkout) => Promise<void>;
-  onNavigateToAnalytics?: () => void;
 }
 
 export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
@@ -44,7 +42,6 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
   onRefresh,
   onPostToNostr,
   onPostToSocial,
-  onNavigateToAnalytics,
 }) => {
   const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -309,11 +306,6 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
         }
         ListHeaderComponent={
           <>
-            {/* Advanced Analytics Card - Always visible */}
-            {onNavigateToAnalytics && (
-              <AdvancedAnalyticsCard onPress={onNavigateToAnalytics} />
-            )}
-
             {/* Header with workout count */}
             {workouts.length > 0 && (
               <View style={styles.header}>

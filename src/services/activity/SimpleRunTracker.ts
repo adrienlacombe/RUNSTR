@@ -15,6 +15,7 @@ import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { SplitTrackingService, type Split } from './SplitTrackingService';
+import { CustomAlertManager as CustomAlert } from '../../components/ui/CustomAlert';
 import {
   startNativeWorkoutSession,
   stopNativeWorkoutSession,
@@ -189,6 +190,13 @@ export class SimpleRunTracker {
   // In-memory GPS points cache (synced from AsyncStorage)
   // This prevents async reads on every UI update (fixes duration bug)
   private cachedGpsPoints: GPSPoint[] = [];
+
+  // GPS health tracking for error recovery
+  private lastGPSUpdate: number = Date.now();
+  private isInGPSRecovery = false;
+  private recoveryPointsSkipped = 0;
+  private gpsFailureCount = 0;
+  private lastGPSError: string | null = null;
 
   // Auto-stop callback (for UI notification when preset distance reached)
   private autoStopCallback: (() => void) | null = null;
@@ -558,9 +566,82 @@ export class SimpleRunTracker {
    * Timer → Pure JS stopwatch → Counts 1, 2, 3, 4, 5...
    */
   appendGpsPointsToCache(points: GPSPoint[]): void {
-    if (!this.isTracking || points.length === 0) {
+    if (!this.isTracking) {
+      console.warn(
+        '[SimpleRunTracker] appendGpsPointsToCache called while not tracking'
+      );
       return;
     }
+
+    if (points.length === 0) {
+      // No points received - check for GPS failure
+      const now = Date.now();
+      const timeSinceLastGPS = now - this.lastGPSUpdate;
+
+      if (timeSinceLastGPS > 10000) {
+        // 10 seconds without GPS
+        this.gpsFailureCount++;
+        console.error(
+          `🚨 [SimpleRunTracker] GPS FAILURE DETECTED - No updates for ${(
+            timeSinceLastGPS / 1000
+          ).toFixed(1)}s`
+        );
+        console.error(
+          `🚨 [SimpleRunTracker] Failure count: ${this.gpsFailureCount}`
+        );
+
+        if (timeSinceLastGPS > 30000 && this.gpsFailureCount > 3) {
+          // GPS has been dead for 30+ seconds - alert user
+          this.lastGPSError = `GPS signal lost for ${Math.floor(
+            timeSinceLastGPS / 1000
+          )} seconds`;
+          CustomAlert.alert(
+            'GPS Signal Lost',
+            'Distance tracking has stopped. Please ensure you have a clear view of the sky.',
+            [{ text: 'OK', style: 'default' }]
+          );
+        }
+      }
+      return;
+    }
+
+    // GPS recovery detection
+    const now = Date.now();
+    const timeSinceLastGPS = now - this.lastGPSUpdate;
+
+    if (timeSinceLastGPS > 10000 && !this.isInGPSRecovery) {
+      console.log(
+        `🔄 [SimpleRunTracker] GPS recovered after ${(
+          timeSinceLastGPS / 1000
+        ).toFixed(1)}s - entering recovery mode`
+      );
+      this.isInGPSRecovery = true;
+      this.recoveryPointsSkipped = 0;
+    }
+
+    // Skip first 3 points after GPS recovery (they're often inaccurate)
+    if (this.isInGPSRecovery) {
+      if (this.recoveryPointsSkipped < 3) {
+        this.recoveryPointsSkipped++;
+        console.log(
+          `🔄 [SimpleRunTracker] Skipping recovery point ${this.recoveryPointsSkipped}/3 for distance calculation`
+        );
+        // Still add to cache for route data but don't update distance
+        this.cachedGpsPoints.push(...points);
+        this.lastGPSUpdate = now;
+        return;
+      } else {
+        console.log(
+          '✅ [SimpleRunTracker] GPS recovery complete - resuming normal tracking'
+        );
+        this.isInGPSRecovery = false;
+        this.gpsFailureCount = 0;
+        this.lastGPSError = null;
+      }
+    }
+
+    // Update GPS health
+    this.lastGPSUpdate = now;
 
     // Update in-memory cache (instant distance updates!)
     this.cachedGpsPoints.push(...points);
@@ -608,14 +689,14 @@ export class SimpleRunTracker {
     this.pendingPoints.push(...points);
 
     // Only flush to storage periodically or if we have many pending points
-    const now = Date.now();
+    const currentTime = Date.now();
     const shouldFlush =
-      now - this.lastFlushTime > this.FLUSH_INTERVAL_MS ||
+      currentTime - this.lastFlushTime > this.FLUSH_INTERVAL_MS ||
       this.pendingPoints.length > 100;
 
     if (shouldFlush && !this.isWriting) {
       this.flushPendingPointsToStorage();
-      this.lastFlushTime = now;
+      this.lastFlushTime = currentTime;
     }
 
     console.log(
@@ -807,6 +888,26 @@ export class SimpleRunTracker {
   }
 
   /**
+   * Get GPS health status for UI display
+   */
+  getGPSStatus(): {
+    isHealthy: boolean;
+    lastUpdateSeconds: number;
+    errorMessage: string | null;
+    isInRecovery: boolean;
+  } {
+    const now = Date.now();
+    const timeSinceLastGPS = (now - this.lastGPSUpdate) / 1000;
+
+    return {
+      isHealthy: timeSinceLastGPS < 10 && !this.isInGPSRecovery,
+      lastUpdateSeconds: Math.floor(timeSinceLastGPS),
+      errorMessage: this.lastGPSError,
+      isInRecovery: this.isInGPSRecovery,
+    };
+  }
+
+  /**
    * Check for active session and restore if found
    * Call this when app returns to foreground or on screen mount
    */
@@ -841,6 +942,31 @@ export class SimpleRunTracker {
 
       // Sync GPS points from storage to cache
       await this.syncGpsPointsFromStorage();
+
+      // CRITICAL FIX: Restart GPS tracking if session was tracking
+      if (this.isTracking && !this.isPaused) {
+        console.log(
+          '[SimpleRunTracker] 🔄 Restarting GPS tracking for restored session...'
+        );
+
+        // Check if task is already running
+        const isTaskRunning = await TaskManager.isTaskRegisteredAsync(
+          SIMPLE_TRACKER_TASK
+        );
+
+        if (!isTaskRunning) {
+          // Restart GPS tracking
+          await this.initializeGPS();
+          console.log(
+            '[SimpleRunTracker] ✅ GPS tracking restarted successfully'
+          );
+        } else {
+          console.log('[SimpleRunTracker] ℹ️ GPS task already running');
+        }
+
+        // Update last GPS update time to prevent immediate failure detection
+        this.lastGPSUpdate = Date.now();
+      }
 
       console.log(
         `[SimpleRunTracker] ✅ Session restored: ${sessionState.sessionId}`

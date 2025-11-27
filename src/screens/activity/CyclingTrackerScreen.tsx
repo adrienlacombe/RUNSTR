@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { AppStateManager } from '../../services/core/AppStateManager';
 import { BaseTrackerComponent } from '../../components/activity/BaseTrackerComponent';
@@ -17,6 +18,7 @@ import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStora
 import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
 import routeMatchingService from '../../services/routes/RouteMatchingService';
 import type { SavedRoute } from '../../services/routes/RouteStorageService';
+import { theme } from '../../styles/theme';
 
 export const CyclingTrackerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -388,7 +390,10 @@ export const CyclingTrackerScreen: React.FC = () => {
   }, [elapsedTime]);
 
   return (
-    <>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      edges={['top', 'bottom']}
+    >
       <BaseTrackerComponent
         metrics={{
           primary: {
@@ -458,6 +463,6 @@ export const CyclingTrackerScreen: React.FC = () => {
         }}
         onClose={() => setRouteSelectionVisible(false)}
       />
-    </>
+    </SafeAreaView>
   );
 };

@@ -59,9 +59,12 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
       const status = healthKitService.getStatus();
 
       if (status.authorized) {
-        // Already authorized, load workouts
+        // Already authorized, but DON'T auto-load workouts
+        // This prevents the iOS permission popup from appearing on app startup
+        // Users must manually pull-to-refresh or tap a button to load workouts
         setHasPermission(true);
-        await loadAppleHealthWorkouts();
+        setIsLoading(false);
+        // REMOVED: await loadAppleHealthWorkouts(); - This was causing permission popups!
       } else {
         // Not authorized - just update state, don't auto-request
         console.log('🍎 HealthKit not authorized - showing connect button');
@@ -99,7 +102,9 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
       ]);
 
       if (permissionResult.success) {
-        const status = healthKitService.getStatus();
+        // Use getStatusWithRealCheck for accurate post-permission status
+        // This performs a real iOS check instead of using cached value
+        const status = await healthKitService.getStatusWithRealCheck();
 
         if (status.authorized) {
           setHasPermission(true);

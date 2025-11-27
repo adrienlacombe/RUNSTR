@@ -15,6 +15,7 @@ import {
   AppState,
   AppStateStatus,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppStateManager } from '../../services/core/AppStateManager';
@@ -768,7 +769,10 @@ export const WalkingTrackerScreen: React.FC = () => {
   }, [elapsedTime]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      edges={['top']}
+    >
       {/* Daily Step Counter */}
       {!isTracking && !countdown && (
         <DailyStepGoalCard
@@ -786,7 +790,11 @@ export const WalkingTrackerScreen: React.FC = () => {
       )}
 
       {/* Walking Tracker */}
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Metrics Display */}
         <View style={styles.metricsContainer}>
           <View style={styles.metricsRow}>
@@ -900,7 +908,7 @@ export const WalkingTrackerScreen: React.FC = () => {
             </>
           )}
         </View>
-      </View>
+      </ScrollView>
 
       {/* Workout Summary Modal */}
       {workoutData && (
@@ -978,7 +986,7 @@ export const WalkingTrackerScreen: React.FC = () => {
           }}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -986,30 +994,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 0, // Removed to eliminate gap with Today's Steps card
+    paddingBottom: 100, // Tab bar clearance
   },
   metricsContainer: {
+    flex: 0, // Don't expand, take only needed space
     justifyContent: 'flex-start',
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 0, // Removed - ScrollView has padding
+    paddingBottom: 4, // Reduced from 12 to compact layout
   },
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8, // Reduced from 12 to tighten spacing
   },
   metricCard: {
     flex: 1,
     backgroundColor: theme.colors.card,
     borderRadius: 12,
-    padding: 16,
+    padding: 12, // Reduced from 16 to make cards more compact
     marginHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   metricIcon: {
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8 to compact cards
   },
   metricValue: {
     fontSize: 32,
@@ -1025,8 +1039,8 @@ const styles = StyleSheet.create({
   controlsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingBottom: 24,
-    gap: 20,
+    paddingBottom: 12, // Reduced from 20 to compact layout
+    gap: 16, // Reduced from 20 to tighten button spacing
   },
   routesButton: {
     backgroundColor: theme.colors.card,

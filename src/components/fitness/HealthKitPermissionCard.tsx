@@ -58,7 +58,16 @@ export const HealthKitPermissionCard: React.FC<
   const mergeService = WorkoutMergeService.getInstance();
 
   useEffect(() => {
-    checkCurrentStatus();
+    // DON'T auto-check status on mount - this can trigger permission popup!
+    // Instead, only check cached status (no iOS API calls)
+    const cachedStatus = healthKitService.getStatus();
+    if (cachedStatus.authorized) {
+      setStatus('granted');
+    } else if (cachedStatus.available) {
+      setStatus('unknown');
+    } else {
+      setStatus('denied');
+    }
 
     // Cleanup abort controller on unmount
     return () => {

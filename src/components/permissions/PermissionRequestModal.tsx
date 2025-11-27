@@ -80,7 +80,8 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
 
         if (finalStatus.allGranted) {
           console.log('[PermissionRequestModal] ✅ All permissions granted');
-          setTimeout(() => onComplete(), 500); // Small delay to show checkmarks
+          // Call onComplete immediately - iOS timing will be handled in App.tsx
+          onComplete();
         } else {
           setErrorMessage(
             'Some permissions were not granted. Background tracking may be limited.'

@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2025-01-26
+
+**Achievement**: Simplified navigation focused on anonymous health/fitness for Nostr
+
+### ✨ Features
+- Added Stats navigation to front for quick access to personal records and achievements
+- Renamed "My Events" to "Events" for clearer navigation
+- Renamed "My Workouts" to "History" for better clarity
+- Streamlined app experience focused on anonymous health/fitness tracking
+
+### 🔧 Technical Improvements
+- Removed teams functionality (app now focuses on individual health/fitness)
+- Removed team bottom navigation tab for cleaner interface
+- Competitions now RUNSTR-generated (not team-generated)
+- Simplified navigation architecture
+
+### 📱 Platform Updates
+- iOS: Version 0.9.2 (Build 78)
+- Android: Version 0.9.2 (Build 78)
+
 ## [0.9.1] - 2025-01-23
 
 **Achievement**: Critical bug fixes for account persistence, profile editing, and social card improvements

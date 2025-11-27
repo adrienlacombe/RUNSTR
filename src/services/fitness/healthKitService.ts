@@ -114,6 +114,20 @@ export class HealthKitService {
   }
 
   /**
+   * Load authorization status from AsyncStorage on app startup
+   */
+  private async loadAuthorizationStatus(): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem('@healthkit:authorized');
+      this.isAuthorized = stored === 'true';
+      debugLog(`HealthKit: Loaded authorization status: ${this.isAuthorized}`);
+    } catch (error) {
+      debugLog('HealthKit: Failed to load authorization status:', error);
+      this.isAuthorized = false;
+    }
+  }
+
+  /**
    * Initialize HealthKit module with proper error handling
    */
   private async initializeModule() {
@@ -151,34 +165,6 @@ export class HealthKitService {
   /**
    * Load authorization status from AsyncStorage to persist across app restarts
    */
-  private async loadAuthorizationStatus() {
-    try {
-      const stored = await AsyncStorage.getItem('@healthkit:authorized');
-      if (stored === 'true') {
-        this.isAuthorized = true;
-        console.log('✅ HealthKit: Loaded persisted authorization status');
-      }
-    } catch (error) {
-      console.warn('Failed to load HealthKit authorization status:', error);
-    }
-  }
-
-  /**
-   * Save authorization status to AsyncStorage for persistence
-   */
-  private async saveAuthorizationStatus(authorized: boolean) {
-    try {
-      await AsyncStorage.setItem(
-        '@healthkit:authorized',
-        authorized ? 'true' : 'false'
-      );
-      this.isAuthorized = authorized;
-      console.log(`✅ HealthKit: Saved authorization status: ${authorized}`);
-    } catch (error) {
-      console.warn('Failed to save HealthKit authorization status:', error);
-    }
-  }
-
   static getInstance(): HealthKitService {
     if (!HealthKitService.instance) {
       HealthKitService.instance = new HealthKitService();
@@ -342,6 +328,13 @@ export class HealthKitService {
 
               console.log('✅ HealthKit authorization completed');
               console.log('📊 Authorization result:', authResult);
+
+              // Update the cached authorization status after successful permission request
+              // This ensures getStatus() returns the correct value immediately
+              this.isAuthorized = true;
+
+              // Also persist to AsyncStorage for future sessions
+              await AsyncStorage.setItem('@healthkit:authorized', 'true');
 
               debugLog('HealthKit: Permissions requested successfully');
               resolve({ success: true });
@@ -856,6 +849,23 @@ export class HealthKitService {
   }
 
   /**
+   * Save authorization status to both memory and persistent storage
+   */
+  private async saveAuthorizationStatus(authorized: boolean): Promise<void> {
+    this.isAuthorized = authorized;
+
+    try {
+      await AsyncStorage.setItem(
+        '@healthkit:authorized',
+        authorized ? 'true' : 'false'
+      );
+      debugLog(`HealthKit: Saved authorization status: ${authorized}`);
+    } catch (error) {
+      debugLog('HealthKit: Failed to save authorization status:', error);
+    }
+  }
+
+  /**
    * Force re-authorization (useful for troubleshooting)
    */
   async reauthorize(): Promise<{ success: boolean; error?: string }> {
@@ -985,15 +995,12 @@ export class HealthKitService {
     }
 
     if (!this.isAuthorized) {
-      debugLog('HealthKit: Not authorized, attempting initialization...');
-      const initResult = await this.initialize();
-      if (!initResult.success) {
-        errorLog(
-          'HealthKit: Failed to initialize for getRecentWorkouts:',
-          initResult.error
-        );
-        return [];
-      }
+      debugLog(
+        'HealthKit: Not authorized - cannot fetch workouts without user permission'
+      );
+      // CRITICAL FIX: Do NOT auto-initialize here - this causes unwanted permission popups
+      // Permission requests should ONLY happen from explicit user actions (button taps)
+      return [];
     }
 
     try {
@@ -1024,6 +1031,15 @@ export class HealthKitService {
         limit: options.limit,
         ascending: options.ascending,
       });
+
+      // SAFETY CHECK: Double-verify authorization before querying
+      // This prevents iOS from showing permission popup unexpectedly
+      if (!this.isAuthorized) {
+        console.log(
+          '⚠️ HealthKit authorization lost before query - aborting to prevent popup'
+        );
+        return [];
+      }
 
       let healthKitWorkouts;
       try {

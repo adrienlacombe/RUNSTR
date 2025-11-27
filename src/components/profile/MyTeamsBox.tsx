@@ -1,6 +1,7 @@
 /**
- * MyTeamsBox Component
- * Simple navigation box for Profile screen - shows "My Teams"
+ * MyTeamsBox Component (renamed to Stats)
+ * Simple navigation box for Profile screen - shows "STATS"
+ * Navigates to AdvancedAnalyticsScreen for fitness analytics
  */
 
 import React from 'react';
@@ -13,8 +14,8 @@ export const MyTeamsBox: React.FC = () => {
   const navigation = useNavigation<any>();
 
   const handlePress = () => {
-    // Navigate to MyTeams screen
-    navigation.navigate('MyTeams' as any);
+    // Navigate to AdvancedAnalytics screen (Stats)
+    navigation.navigate('AdvancedAnalytics' as any);
   };
 
   return (
@@ -23,8 +24,8 @@ export const MyTeamsBox: React.FC = () => {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <Ionicons name="people-outline" size={24} color={theme.colors.text} />
-      <Text style={styles.title}>MY TEAMS</Text>
+      <Ionicons name="analytics-outline" size={24} color={theme.colors.text} />
+      <Text style={styles.title}>STATS</Text>
     </TouchableOpacity>
   );
 };

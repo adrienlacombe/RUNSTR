@@ -53,11 +53,12 @@ import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
 import { ModelManager, type AIModel } from '../services/ai/ModelManager';
 import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
-import {
-  TeamMembershipService,
-  type LocalMembership,
-} from '../services/team/teamMembershipService';
-import { TeamSelectionModal } from '../components/team/TeamSelectionModal';
+// REMOVED: TeamMembershipService and TeamSelectionModal - Users now auto-assigned to Team RUNSTR
+// import {
+//   TeamMembershipService,
+//   type LocalMembership,
+// } from '../services/team/teamMembershipService';
+// import { TeamSelectionModal } from '../components/team/TeamSelectionModal';
 import { useNavigationData } from '../contexts/NavigationDataContext';
 
 interface SettingsScreenProps {
@@ -126,10 +127,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [backgroundTrackingEnabled, setBackgroundTrackingEnabled] =
     useState(false);
 
-  // Competition Team state
-  const [competitionTeam, setCompetitionTeam] = useState<string | null>(null);
-  const [followedTeams, setFollowedTeams] = useState<LocalMembership[]>([]);
-  const [showTeamSelectionModal, setShowTeamSelectionModal] = useState(false);
+  // Competition Team state - REMOVED: Users now auto-assigned to Team RUNSTR
+  // const [competitionTeam, setCompetitionTeam] = useState<string | null>(null);
+  // const [followedTeams, setFollowedTeams] = useState<LocalMembership[]>([]);
+  // const [showTeamSelectionModal, setShowTeamSelectionModal] = useState(false);
 
   // Charity Selection state
   const [selectedCharity, setSelectedCharity] = useState<Charity | null>(null);
@@ -177,29 +178,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     loadSettings();
   }, []);
 
-  // ✅ Load teams from NavigationDataContext (includes captain + joined teams)
-  useEffect(() => {
-    if (profileData?.teams && Array.isArray(profileData.teams)) {
-      const navigationTeams = profileData.teams;
-      const localMemberships: LocalMembership[] = navigationTeams.map(
-        (team: any) => ({
-          teamId: team.id,
-          teamName: team.name,
-          captainPubkey: team.captainPubkey || team.captain || '',
-          joinedAt: team.joinedAt || Date.now(),
-          status: team.role === 'captain' ? 'official' : team.status || 'local',
-        })
-      );
+  // ✅ Load teams from NavigationDataContext - REMOVED: Users now auto-assigned to Team RUNSTR
+  // useEffect(() => {
+  //   if (profileData?.teams && Array.isArray(profileData.teams)) {
+  //     const navigationTeams = profileData.teams;
+  //     const localMemberships: LocalMembership[] = navigationTeams.map(
+  //       (team: any) => ({
+  //         teamId: team.id,
+  //         teamName: team.name,
+  //         captainPubkey: team.captainPubkey || team.captain || '',
+  //         joinedAt: team.joinedAt || Date.now(),
+  //         status: team.role === 'captain' ? 'official' : team.status || 'local',
+  //       })
+  //     );
 
-      console.log(
-        `[SettingsScreen] Loaded ${localMemberships.length} teams from NavigationDataContext (including captain teams)`
-      );
-      setFollowedTeams(localMemberships);
-    } else {
-      console.log('[SettingsScreen] No teams found in NavigationDataContext');
-      setFollowedTeams([]);
-    }
-  }, [profileData?.teams]);
+  //     console.log(
+  //       `[SettingsScreen] Loaded ${localMemberships.length} teams from NavigationDataContext (including captain teams)`
+  //     );
+  //     setFollowedTeams(localMemberships);
+  //   } else {
+  //     console.log('[SettingsScreen] No teams found in NavigationDataContext');
+  //     setFollowedTeams([]);
+  //   }
+  // }, [profileData?.teams]);
 
   const loadSettings = async () => {
     try {
@@ -244,10 +245,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       const charity = await CharitySelectionService.getSelectedCharity();
       setSelectedCharity(charity);
 
-      // Load competition team
-      const currentCompetitionTeam =
-        await LocalTeamMembershipService.getCompetitionTeam();
-      setCompetitionTeam(currentCompetitionTeam);
+      // Load competition team - REMOVED: Users now auto-assigned to Team RUNSTR
+      // const currentCompetitionTeam =
+      //   await LocalTeamMembershipService.getCompetitionTeam();
+      // setCompetitionTeam(currentCompetitionTeam);
 
       // Load selected AI model
       const model = await ModelManager.getSelectedModel();
@@ -606,54 +607,55 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const handleChangeCompetitionTeam = (teamId: string | null) => {
-    // If selecting the same team, just close modal
-    if (teamId === competitionTeam) {
-      setShowTeamSelectionModal(false);
-      return;
-    }
+  // REMOVED: handleChangeCompetitionTeam - Users now auto-assigned to Team RUNSTR
+  // const handleChangeCompetitionTeam = (teamId: string | null) => {
+  //   // If selecting the same team, just close modal
+  //   if (teamId === competitionTeam) {
+  //     setShowTeamSelectionModal(false);
+  //     return;
+  //   }
 
-    // Close the modal first
-    setShowTeamSelectionModal(false);
+  //   // Close the modal first
+  //   setShowTeamSelectionModal(false);
 
-    // Show confirmation for actual change
-    setAlertTitle('Change Competition Team?');
-    setAlertMessage(
-      teamId
-        ? `Your workouts will appear on ${
-            followedTeams.find((t) => t.teamId === teamId)?.teamName ||
-            'this team'
-          }'s leaderboards`
-        : 'Your workouts will not appear on any team leaderboards'
-    );
-    setAlertButtons([
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Confirm',
-        onPress: async () => {
-          try {
-            if (teamId) {
-              await LocalTeamMembershipService.setCompetitionTeam(teamId);
-            } else {
-              await LocalTeamMembershipService.clearCompetitionTeam();
-            }
-            setCompetitionTeam(teamId);
-          } catch (error) {
-            console.error('Error changing competition team:', error);
-            setTimeout(() => {
-              setAlertTitle('Error');
-              setAlertMessage(
-                'Failed to change competition team. Please try again.'
-              );
-              setAlertButtons([{ text: 'OK' }]);
-              setAlertVisible(true);
-            }, 100);
-          }
-        },
-      },
-    ]);
-    setAlertVisible(true);
-  };
+  //   // Show confirmation for actual change
+  //   setAlertTitle('Change Competition Team?');
+  //   setAlertMessage(
+  //     teamId
+  //       ? `Your workouts will appear on ${
+  //           followedTeams.find((t) => t.teamId === teamId)?.teamName ||
+  //           'this team'
+  //         }'s leaderboards`
+  //       : 'Your workouts will not appear on any team leaderboards'
+  //   );
+  //   setAlertButtons([
+  //     { text: 'Cancel', style: 'cancel' },
+  //     {
+  //       text: 'Confirm',
+  //       onPress: async () => {
+  //         try {
+  //           if (teamId) {
+  //             await LocalTeamMembershipService.setCompetitionTeam(teamId);
+  //           } else {
+  //             await LocalTeamMembershipService.clearCompetitionTeam();
+  //           }
+  //           setCompetitionTeam(teamId);
+  //         } catch (error) {
+  //           console.error('Error changing competition team:', error);
+  //           setTimeout(() => {
+  //             setAlertTitle('Error');
+  //             setAlertMessage(
+  //               'Failed to change competition team. Please try again.'
+  //             );
+  //             setAlertButtons([{ text: 'OK' }]);
+  //             setAlertVisible(true);
+  //           }, 100);
+  //         }
+  //       },
+  //     },
+  //   ]);
+  //   setAlertVisible(true);
+  // };
 
   const handleBackupPassword = () => {
     if (!userNsec) {
@@ -800,32 +802,21 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             defaultExpanded={false}
           >
             <Card style={styles.accordionCard}>
-              {/* Competition Team */}
-              <TouchableOpacity
-                style={styles.competitionTeamSelector}
-                onPress={() => setShowTeamSelectionModal(true)}
-                activeOpacity={0.7}
-              >
+              {/* Competition Team - Now Read-Only (RUNSTR) */}
+              <View style={styles.competitionTeamSelector}>
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingTitle}>Your Competition Team</Text>
-                  <Text style={styles.competitionTeamName}>
-                    {competitionTeam
-                      ? followedTeams.find((t) => t.teamId === competitionTeam)
-                          ?.teamName || competitionTeam
-                      : 'No team selected'}
-                  </Text>
+                  <Text style={styles.competitionTeamName}>RUNSTR</Text>
                   <Text style={styles.settingSubtitle}>
-                    {competitionTeam
-                      ? 'Workouts appear on team leaderboards'
-                      : 'Tap to select a team'}
+                    All workouts appear on global RUNSTR leaderboards
                   </Text>
                 </View>
                 <Ionicons
-                  name="chevron-forward"
+                  name="lock-closed"
                   size={20}
                   color={theme.colors.textMuted}
                 />
-              </TouchableOpacity>
+              </View>
 
               {/* Charity Support */}
               <TouchableOpacity
@@ -1415,15 +1406,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onSuccess={handleNWCConnected}
         />
       )}
-
-      {/* Team Selection Modal */}
-      <TeamSelectionModal
-        visible={showTeamSelectionModal}
-        teams={followedTeams}
-        currentTeamId={competitionTeam}
-        onSelect={handleChangeCompetitionTeam}
-        onCancel={() => setShowTeamSelectionModal(false)}
-      />
     </SafeAreaView>
   );
 };

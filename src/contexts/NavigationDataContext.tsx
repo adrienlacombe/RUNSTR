@@ -12,7 +12,8 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
-import { InteractionManager } from 'react-native';
+import { InteractionManager, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '../services/auth/authService';
 import { getNostrTeamService } from '../services/nostr/NostrTeamService';
 import { DirectNostrProfileService } from '../services/user/directNostrProfileService';
@@ -57,10 +58,12 @@ const NavigationDataContext = createContext<NavigationData | undefined>(
 
 interface NavigationDataProviderProps {
   children: ReactNode;
+  deferInit?: boolean; // Defer initialization when permission modal is showing
 }
 
 export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
   children,
+  deferInit = false,
 }) => {
   console.log('🚀 NavigationDataProvider: Initializing...');
   const { currentUser } = useAuth();
@@ -249,21 +252,36 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
 
           // Ensure discovered teams exist
           if (discoveredTeams.size === 0) {
+            console.log(
+              `[${new Date().toISOString()}] 🔍 NavigationData: No discovered teams, starting discoverFitnessTeams...`
+            );
             PerformanceLogger.start(
               '  └─ discoverFitnessTeams() [NOSTR QUERY]',
               1
             );
-            // ✅ PERFORMANCE FIX: Move blocking Nostr query off main thread
-            await new Promise<void>((resolve) => {
-              InteractionManager.runAfterInteractions(async () => {
-                await teamService.discoverFitnessTeams();
-                PerformanceLogger.end(
-                  '  └─ discoverFitnessTeams() [NOSTR QUERY]'
-                );
-                resolve();
-              });
-            });
+            // FIX: Removed InteractionManager.runAfterInteractions wrapper
+            // This was causing a deadlock with modal animations that never complete
+            // The same fix was already applied to AppInitializationService.ts
+            console.log(
+              `[${new Date().toISOString()}] 🔍 NavigationData: About to call teamService.discoverFitnessTeams()`
+            );
+            await teamService.discoverFitnessTeams();
+            console.log(
+              `[${new Date().toISOString()}] 🔍 NavigationData: teamService.discoverFitnessTeams() completed`
+            );
+            PerformanceLogger.end('  └─ discoverFitnessTeams() [NOSTR QUERY]');
             discoveredTeams = teamService.getDiscoveredTeams();
+            console.log(
+              `[${new Date().toISOString()}] 🔍 NavigationData: Got ${
+                discoveredTeams.size
+              } discovered teams`
+            );
+          } else {
+            console.log(
+              `[${new Date().toISOString()}] 🔍 NavigationData: Already have ${
+                discoveredTeams.size
+              } discovered teams, skipping discovery`
+            );
           }
 
           // Initialize user teams array
@@ -461,6 +479,12 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
 
   const fetchProfileData = async (user: UserWithWallet): Promise<void> => {
     PerformanceLogger.start('NavigationDataContext: fetchProfileData()');
+    console.log(
+      `[${new Date().toISOString()}] 🔍 NavigationData: fetchProfileData starting for user ${
+        user.name
+      }`
+    );
+
     try {
       let realWalletBalance = user.walletBalance || 0;
       let currentTeam = undefined;
@@ -468,9 +492,16 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       let primaryTeamId: string | undefined = undefined;
 
       try {
+        console.log(
+          `[${new Date().toISOString()}] 🔍 NavigationData: About to fetch all teams...`
+        );
         // Fetch all teams user is a member of (multi-team support)
         const allTeams = await getAllUserTeams(user);
-        console.log(`✅ Profile: Found ${allTeams.length} team(s) for user`);
+        console.log(
+          `[${new Date().toISOString()}] ✅ Profile: Found ${
+            allTeams.length
+          } team(s) for user`
+        );
 
         // Filter out pending teams - only show teams where user is captain or verified member
         teams = allTeams.filter(
@@ -829,20 +860,41 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
 
   // ✅ ANDROID FIX: Initial load - Skip if AuthContext already loaded user
   useEffect(() => {
+    // Skip initialization if deferred (permission modal is showing)
+    if (deferInit) {
+      console.log('⏸️ NavigationDataContext: Deferring init (permission modal active)');
+      return;
+    }
+
     const init = async () => {
+      console.log(
+        `[${new Date().toISOString()}] 🔍 NavigationDataContext: Starting init...`
+      );
+
       // Skip initialization if AuthContext already loaded user
       if (currentUser) {
         console.log(
-          '✅ NavigationData: Skipping init (AuthContext already loaded user)'
+          `[${new Date().toISOString()}] ✅ NavigationData: Skipping init (AuthContext already loaded user)`
         );
         setUser(currentUser);
+        console.log(
+          `[${new Date().toISOString()}] 🔍 NavigationData: Calling fetchProfileData...`
+        );
         // ✅ PROFILE CACHE FIX: Build profileData from cached user
         await fetchProfileData(currentUser);
+        console.log(
+          `[${new Date().toISOString()}] 🔍 NavigationData: fetchProfileData completed`
+        );
         setIsLoading(false);
+        console.log(
+          `[${new Date().toISOString()}] ✅ NavigationData: Init complete (with currentUser)`
+        );
         return;
       }
 
-      console.log('🚀 NavigationDataProvider: Initial load from cache...');
+      console.log(
+        `[${new Date().toISOString()}] 🚀 NavigationDataProvider: Initial load from cache...`
+      );
 
       try {
         // Get user identifiers
@@ -981,7 +1033,7 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       }
     };
     init();
-  }, []);
+  }, [deferInit]); // Re-run when deferInit changes
 
   // ✅ PERFORMANCE FIX: Memoize context value to prevent unnecessary re-renders
   const value = useMemo<NavigationData>(

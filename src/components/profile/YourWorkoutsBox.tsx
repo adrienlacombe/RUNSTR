@@ -44,7 +44,7 @@ export const YourWorkoutsBox: React.FC = () => {
       activeOpacity={0.7}
     >
       <Ionicons name="barbell-outline" size={24} color={theme.colors.text} />
-      <Text style={styles.title}>MY WORKOUTS</Text>
+      <Text style={styles.title}>HISTORY</Text>
     </TouchableOpacity>
   );
 };

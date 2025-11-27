@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 8, // Reduced from 12 to tighten gap below activity selector
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },

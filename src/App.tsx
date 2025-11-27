@@ -147,10 +147,15 @@ import { AdvancedAnalyticsScreen } from './screens/AdvancedAnalyticsScreen';
 import { HealthProfileScreen } from './screens/HealthProfileScreen';
 import { User } from './types';
 import { useWalletStore } from './store/walletStore';
-import { appInitializationService } from './services/initialization/AppInitializationService';
 import { theme } from './styles/theme';
 import unifiedCache from './services/cache/UnifiedNostrCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  safeGetItem,
+  safeSetItem,
+  safeMultiGet,
+  safeRemoveItem,
+} from './utils/asyncStorageTimeout';
 import { PerformanceLogger } from './utils/PerformanceLogger';
 import { AppStateManager } from './services/core/AppStateManager';
 import { appPermissionService } from './services/initialization/AppPermissionService';
@@ -209,7 +214,11 @@ type AuthenticatedStackParamList = {
 const AuthenticatedStack = createStackNavigator<AuthenticatedStackParamList>();
 
 // Main app content that uses the AuthContext
-const AppContent: React.FC = () => {
+interface AppContentProps {
+  onPermissionComplete?: () => void;
+}
+
+const AppContent: React.FC<AppContentProps> = ({ onPermissionComplete }) => {
   const {
     isInitializing,
     isAuthenticated,
@@ -230,6 +239,7 @@ const AppContent: React.FC = () => {
 
   const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
   const [showPermissionModal, setShowPermissionModal] = React.useState(false);
+  const [hasInitialized, setHasInitialized] = React.useState(false);
 
   // Event deep link state
   const [pendingEventNavigation, setPendingEventNavigation] =
@@ -237,33 +247,57 @@ const AppContent: React.FC = () => {
   const navigationRef = React.useRef<any>(null);
 
   // Start background data initialization and check for first launch
+  // Check for first launch when authenticated
   React.useEffect(() => {
     if (isAuthenticated && currentUser) {
-      // ✅ PERFORMANCE FIX: Defer initialization by 5 seconds to let app become interactive first
-      // This eliminates 15-18s blocking from NostrPrefetchService network calls
-      // Increased from 2s to 5s to prevent freeze after permissions on first launch
-      console.log(
-        '🚀 App: Scheduling background initialization (deferred 5s for performance)...'
-      );
-
-      setTimeout(() => {
-        console.log('🚀 App: Starting background initialization NOW...');
-        AppInitializationService.initializeInBackground().catch((error) => {
-          console.error('❌ Background initialization error:', error);
-        });
-      }, 5000);
-
       // Check first launch asynchronously (non-blocking)
-      AsyncStorage.getItem('@runstr:first_launch').then((firstLaunch) => {
+      safeGetItem('@runstr:first_launch', 2000, null).then((firstLaunch) => {
         if (firstLaunch !== 'false') {
           console.log('👋 App: First launch detected - showing welcome modal');
           setShowWelcomeModal(true);
           // Mark as not first launch anymore
-          AsyncStorage.setItem('@runstr:first_launch', 'false');
+          safeSetItem('@runstr:first_launch', 'false', 2000);
         }
       });
     }
   }, [isAuthenticated, currentUser]);
+
+  // Initialize AFTER modal closes to prevent freeze
+  React.useEffect(() => {
+    if (
+      isAuthenticated &&
+      currentUser &&
+      !showPermissionModal &&
+      !hasInitialized
+    ) {
+      console.log(
+        '✅ App: Permission modal closed, scheduling initialization...'
+      );
+
+      // iOS needs more time for modal to fully unmount, Android can be faster
+      const INIT_DELAY = Platform.OS === 'ios' ? 1500 : 500;
+      console.log(
+        `⏱️ Using ${Platform.OS} initialization delay: ${INIT_DELAY}ms`
+      );
+
+      const timer = setTimeout(() => {
+        console.log('🚀 App: Starting background initialization NOW...');
+        setHasInitialized(true);
+
+        // Add error boundary around initialization
+        AppInitializationService.initializeInBackground()
+          .then(() => {
+            console.log('✅ App: Background initialization completed');
+          })
+          .catch((error) => {
+            console.error('❌ Background initialization error:', error);
+            // App can continue with cached data even if initialization fails
+          });
+      }, INIT_DELAY);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, currentUser, showPermissionModal, hasInitialized]);
 
   // Check permissions when user becomes authenticated (both iOS and Android)
   React.useEffect(() => {
@@ -417,10 +451,22 @@ const AppContent: React.FC = () => {
     React.useEffect(() => {
       const initializeData = async () => {
         try {
-          // ✅ PERFORMANCE: Check if initialization already completed (prevents duplicate runs)
-          const initCompleted = await AsyncStorage.getItem(
-            '@runstr:app_init_completed'
-          );
+          // ✅ PERFORMANCE: Batch read multiple AsyncStorage keys with timeout
+          const keys = [
+            '@runstr:app_init_completed',
+            '@runstr:hex_pubkey',
+            '@runstr:npub',
+          ];
+          const results = await safeMultiGet(keys, 3000);
+
+          const initCompleted = results.find(
+            ([k]) => k === '@runstr:app_init_completed'
+          )?.[1];
+          const hexPubkey = results.find(
+            ([k]) => k === '@runstr:hex_pubkey'
+          )?.[1];
+          const npub = results.find(([k]) => k === '@runstr:npub')?.[1];
+
           if (initCompleted === 'true') {
             console.log(
               '[App] ℹ️  App already initialized, skipping duplicate initialization'
@@ -430,8 +476,6 @@ const AppContent: React.FC = () => {
 
           // CRITICAL FIX: Get actual hex pubkey from AsyncStorage, NOT synthetic user.id
           // user.id is 'nostr_hh6sr85uum' but we need actual hex for Nostr queries
-          const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-          const npub = await AsyncStorage.getItem('@runstr:npub');
           const pubkey = hexPubkey || npub;
 
           if (!pubkey) {
@@ -442,27 +486,29 @@ const AppContent: React.FC = () => {
           }
 
           console.log(
-            '[App] 🚀 Triggering app data initialization for authenticated user...'
+            '[App] 🚀 Authenticated user detected, cleanup starting...'
           );
 
-          // Non-blocking background initialization
-          await appInitializationService.initializeAppData(pubkey);
+          // Removed duplicate appInitializationService.initializeAppData(pubkey) call
+          // The new AppInitializationService.initializeInBackground() already handles this
 
-          // ✅ CLEANUP: Remove expired event snapshots on app start
-          try {
-            const { EventSnapshotStore } = await import(
-              './services/event/EventSnapshotStore'
-            );
-            const removed = await EventSnapshotStore.cleanupExpired();
-            if (removed > 0) {
-              console.log(`🧹 Cleaned up ${removed} expired event snapshots`);
+          // ✅ CLEANUP: Defer event snapshot cleanup to prevent UI blocking
+          setTimeout(async () => {
+            try {
+              const { EventSnapshotStore } = await import(
+                './services/event/EventSnapshotStore'
+              );
+              const removed = await EventSnapshotStore.cleanupExpired();
+              if (removed > 0) {
+                console.log(`🧹 Cleaned up ${removed} expired event snapshots`);
+              }
+            } catch (error) {
+              console.warn(
+                '⚠️ Event snapshot cleanup failed (non-critical):',
+                error
+              );
             }
-          } catch (error) {
-            console.warn(
-              '⚠️ Event snapshot cleanup failed (non-critical):',
-              error
-            );
-          }
+          }, 1000); // Defer by 1 second to let UI settle
 
           // ❌ CASHU WALLET DISABLED: Removed in favor of NWC (v0.2.4+)
           // This initialization triggered Amber signing prompts for Cashu wallet encryption
@@ -471,21 +517,23 @@ const AppContent: React.FC = () => {
             '[App] 💰 Cashu wallet initialization skipped (using NWC for Lightning payments)'
           );
 
-          // ✅ NWC WALLET: Initialize NWC wallet connection if configured
-          try {
-            console.log('[App] 💳 Initializing NWC wallet connection...');
-            const { NWCWalletService } = await import(
-              './services/wallet/NWCWalletService'
-            );
-            await NWCWalletService.initialize();
-            console.log('[App] ✅ NWC wallet initialization attempted');
-          } catch (nwcError) {
-            console.error(
-              '[App] ⚠️ NWC wallet initialization failed (non-critical):',
-              nwcError
-            );
-            // Don't block app - NWC wallet is optional
-          }
+          // ✅ NWC WALLET: Defer wallet initialization to prevent UI blocking
+          setTimeout(async () => {
+            try {
+              console.log('[App] 💳 Initializing NWC wallet connection...');
+              const { NWCWalletService } = await import(
+                './services/wallet/NWCWalletService'
+              );
+              await NWCWalletService.initialize();
+              console.log('[App] ✅ NWC wallet initialization attempted');
+            } catch (nwcError) {
+              console.error(
+                '[App] ⚠️ NWC wallet initialization failed (non-critical):',
+                nwcError
+              );
+              // Don't block app - NWC wallet is optional
+            }
+          }, 2000); // Defer by 2 seconds to prioritize UI rendering
 
           /*
           if (!walletStore.isInitialized && !walletStore.isInitializing) {
@@ -504,7 +552,7 @@ const AppContent: React.FC = () => {
           );
 
           // ✅ PERFORMANCE: Mark initialization as complete
-          await AsyncStorage.setItem('@runstr:app_init_completed', 'true');
+          await safeSetItem('@runstr:app_init_completed', 'true', 2000);
           console.log('[App] ✅ App initialization complete - flag set');
         } catch (error) {
           console.error('[App] ❌ App data initialization error:', error);
@@ -812,9 +860,9 @@ const AppContent: React.FC = () => {
               onPrivacyPolicy={() => navigation.navigate('PrivacyPolicy')}
               onSignOut={async () => {
                 // Reset initialization state on logout
-                await appInitializationService.reset();
+                await AppInitializationService.reset();
                 // ✅ PERFORMANCE: Clear initialization flag for next login
-                await AsyncStorage.removeItem('@runstr:app_init_completed');
+                await safeRemoveItem('@runstr:app_init_completed', 2000);
                 await signOut();
                 // AuthContext state change will trigger App.tsx to show login screen
               }}
@@ -987,7 +1035,13 @@ const AppContent: React.FC = () => {
       {showPermissionModal && (
         <PermissionRequestModal
           visible={showPermissionModal}
-          onComplete={() => setShowPermissionModal(false)}
+          onComplete={() => {
+            setShowPermissionModal(false);
+            // Notify parent that permissions are complete (enables NavigationDataContext init)
+            if (onPermissionComplete) {
+              onPermissionComplete();
+            }
+          }}
         />
       )}
     </SafeAreaProvider>
@@ -1000,10 +1054,20 @@ ExpoSplashScreen.preventAutoHideAsync();
 // Main App component with AuthProvider wrapper and Error Boundary
 export default function App() {
   const [appIsReady, setAppIsReady] = React.useState(false);
+  const [isIOSFirstLaunch, setIsIOSFirstLaunch] = React.useState(false);
 
   React.useEffect(() => {
     async function prepare() {
       try {
+        // Check if this is iOS first launch (permission modal will show)
+        if (Platform.OS === 'ios') {
+          const firstLaunch = await AsyncStorage.getItem('@runstr:first_launch');
+          if (firstLaunch !== 'false') {
+            console.log('🔄 iOS First Launch Detected - Will defer NavigationDataProvider init');
+            setIsIOSFirstLaunch(true);
+          }
+        }
+
         // SENIOR DEVELOPER FIX: Initialize WebSocket polyfill immediately with error handling
         try {
           initializeWebSocketPolyfill();
@@ -1072,10 +1136,8 @@ export default function App() {
                 );
                 await simpleLocationTrackingService.stopTracking();
 
-                await AsyncStorage.removeItem('@runstr:active_session_state');
-                await AsyncStorage.removeItem(
-                  '@runstr:background_distance_state'
-                );
+                await safeRemoveItem('@runstr:active_session_state', 2000);
+                await safeRemoveItem('@runstr:background_distance_state', 2000);
                 console.log('✅ Zombie session cleaned up successfully');
               } catch (cleanupError) {
                 console.warn(
@@ -1121,9 +1183,9 @@ export default function App() {
     <AppErrorBoundary>
       <CustomAlertProvider>
         <AuthProvider>
-          <NavigationDataProvider>
+          <NavigationDataProvider deferInit={isIOSFirstLaunch}>
             <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-              <AppContent />
+              <AppContent onPermissionComplete={() => setIsIOSFirstLaunch(false)} />
             </View>
           </NavigationDataProvider>
         </AuthProvider>

@@ -214,4 +214,60 @@ export class LocalTeamMembershipService {
       throw error;
     }
   }
+
+  /**
+   * RUNSTR PIVOT: Migrate all users to Team RUNSTR
+   *
+   * Forces all users (existing and new) to be assigned to the global Team RUNSTR.
+   * This is part of the privacy-focused fitness tracker pivot where all users
+   * compete on global leaderboards instead of individual team leaderboards.
+   *
+   * Team selection is now read-only and hidden from the UI.
+   */
+  static async migrateAllUsersToTeamRunstr(): Promise<void> {
+    // Use the official RUNSTR team ID from hardcodedTeams.ts
+    const TEAM_RUNSTR_ID = '87d30c8b-aa18-4424-a629-d41ea7f89078';
+    const TEAM_RUNSTR_NAME = 'RUNSTR';
+    const TEAM_RUNSTR_CAPTAIN_HEX =
+      '30ceb64e73197a05958c8bd92ab079c815bb44fbfbb3eb5d9766c5207f08bdf5';
+
+    try {
+      // Force set competition team to Team RUNSTR (overwrites existing)
+      await AsyncStorage.setItem(this.COMPETITION_TEAM_KEY, TEAM_RUNSTR_ID);
+
+      // Auto-follow Team RUNSTR if not already followed
+      const followed = await this.getFollowedTeams();
+      if (!followed.includes(TEAM_RUNSTR_ID)) {
+        await this.followTeam(TEAM_RUNSTR_ID);
+      }
+
+      // ✅ CRITICAL: Create local membership so team appears in profileData.teams
+      // This is required for CompetitionsListScreen to show Team RUNSTR events
+      const { TeamMembershipService } = await import('./teamMembershipService');
+      const membershipService = TeamMembershipService.getInstance();
+
+      // Check if already a member to avoid duplicate joins
+      const isAlreadyMember = await membershipService.isUserTeamMember(
+        TEAM_RUNSTR_ID
+      );
+      if (!isAlreadyMember) {
+        await membershipService.joinTeamLocal(
+          TEAM_RUNSTR_ID,
+          TEAM_RUNSTR_NAME,
+          TEAM_RUNSTR_CAPTAIN_HEX
+        );
+        console.log(
+          `✅ RUNSTR PIVOT: Local membership created for ${TEAM_RUNSTR_NAME}`
+        );
+      }
+
+      console.log(`✅ RUNSTR PIVOT: User migrated to ${TEAM_RUNSTR_NAME}`);
+      console.log(
+        `   All workouts will now appear on global Team RUNSTR leaderboards`
+      );
+    } catch (error) {
+      console.error('Error migrating to Team RUNSTR:', error);
+      // Don't throw - gracefully fall back to default behavior
+    }
+  }
 }

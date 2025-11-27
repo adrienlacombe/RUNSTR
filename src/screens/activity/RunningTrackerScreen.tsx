@@ -13,6 +13,7 @@ import {
   ScrollView,
   InteractionManager,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as TaskManager from 'expo-task-manager';
@@ -31,7 +32,6 @@ import type { FormattedMetrics } from '../../services/activity/ActivityMetricsSe
 import { BatteryWarning } from '../../components/activity/BatteryWarning';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
-import { BACKGROUND_LOCATION_TASK } from '../../services/activity/BackgroundLocationTask';
 import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
 import { appPermissionService } from '../../services/initialization/AppPermissionService';
 import routeMatchingService from '../../services/routes/RouteMatchingService';
@@ -710,7 +710,7 @@ export const RunningTrackerScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView
         style={styles.scrollableContent}
         contentContainerStyle={styles.scrollContentContainer}
@@ -918,7 +918,7 @@ export const RunningTrackerScreen: React.FC = () => {
         }}
         onClose={() => setShowRouteSelectionModal(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -926,10 +926,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: 20,
   },
   scrollableContent: {
     flex: 1,
+    padding: 20,
   },
   scrollContentContainer: {
     paddingBottom: 120, // Space for fixed buttons (70px button + 50px padding)

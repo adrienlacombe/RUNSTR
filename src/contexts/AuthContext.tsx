@@ -19,6 +19,7 @@ import unifiedCache from '../services/cache/UnifiedNostrCache';
 import { CacheKeys } from '../constants/cacheTTL';
 import type { User } from '../types';
 import { PerformanceLogger } from '../utils/PerformanceLogger';
+import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
 
 // Authentication state interface
 interface AuthState {

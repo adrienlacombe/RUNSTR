@@ -53,7 +53,9 @@ export class AppInitializationService {
     try {
       // Run all initializations in parallel (non-blocking)
       await Promise.allSettled([
-        this.warmUpWorkoutCache(pubkey),
+        // CRITICAL FIX: Commented out warmUpWorkoutCache to prevent HealthKit popup on startup
+        // Workout cache should be warmed lazily when user actually needs workout data
+        // this.warmUpWorkoutCache(pubkey),
         this.prefetchSeasonData(),
         this.warmUpTeamData(),
       ]);
