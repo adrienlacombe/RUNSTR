@@ -15,7 +15,7 @@ import {
 import { theme } from '../../styles/theme';
 import { Avatar } from './Avatar';
 import { NWCLightningButton } from '../lightning/NWCLightningButton';
-import { CharityZapIconButton } from './CharityZapIconButton';
+import { TouchableOpacity } from 'react-native';
 import { ExternalZapModal } from '../nutzap/ExternalZapModal';
 import { CharitySelectionService } from '../../services/charity/CharitySelectionService';
 import { useNostrProfile } from '../../hooks/useCachedData';
@@ -51,6 +51,22 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
     name: string;
     address: string;
   } | null>(null);
+  const [charityName, setCharityName] = useState<string>('');
+
+  // Load charity name on mount
+  React.useEffect(() => {
+    loadCharityName();
+  }, []);
+
+  const loadCharityName = async () => {
+    try {
+      const charity = await CharitySelectionService.getSelectedCharity();
+      setCharityName(charity.displayName);
+    } catch (error) {
+      console.error('[ZappableUserRow] Error loading charity name:', error);
+      setCharityName('OpenSats'); // Default fallback
+    }
+  };
 
   // Resolve display name with fallback chain (treat empty strings as falsy)
   // Priority: profile name → profile display_name → fallbackName → Anonymous (if no profile) → truncated npub
@@ -98,30 +114,34 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
                 {displayName}
               </Text>
 
-              {/* Charity & Zap buttons next to name */}
-              {!hideActionsForCurrentUser && (
+              {/* Only Zap button next to name (charity moved below) */}
+              {!hideActionsForCurrentUser && showQuickZap && (
                 <View style={styles.actionButtons}>
-                  {showChallengeButton && (
-                    <CharityZapIconButton
-                      userPubkey={npub}
-                      userName={displayName}
-                      disabled={disabled}
-                      onPress={handleCharityZap}
-                    />
-                  )}
-                  {showQuickZap && (
-                    <NWCLightningButton
-                      recipientNpub={npub}
-                      recipientName={displayName}
-                      size="small"
-                      disabled={disabled}
-                      onZapSuccess={onZapSuccess}
-                      style={styles.zapButton}
-                    />
-                  )}
+                  <NWCLightningButton
+                    recipientNpub={npub}
+                    recipientName={displayName}
+                    size="small"
+                    disabled={disabled}
+                    onZapSuccess={onZapSuccess}
+                    style={styles.zapButton}
+                  />
                 </View>
               )}
             </View>
+
+            {/* Charity button below name */}
+            {!hideActionsForCurrentUser && showChallengeButton && charityName && (
+              <TouchableOpacity
+                style={styles.charityButton}
+                onPress={handleCharityZap}
+                disabled={disabled}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.charityButtonText} numberOfLines={1}>
+                  {charityName}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -202,5 +222,25 @@ const styles = StyleSheet.create({
 
   zapButton: {
     // Gap handled by actionButtons
+  },
+
+  charityButton: {
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 140, 0, 0.1)', // Subtle orange background
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 0, 0.3)', // Subtle orange border
+    alignSelf: 'flex-start', // Shrink to content width
+    flexShrink: 0, // Prevent squishing
+    minWidth: 80, // Ensure minimum readable width
+    maxWidth: 150, // Adjusted for charity name only
+  },
+
+  charityButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.orangeBright || '#FF8C00',
   },
 });

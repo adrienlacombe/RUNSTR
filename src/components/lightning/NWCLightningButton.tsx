@@ -450,21 +450,14 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: theme.colors.orangeDeep,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: theme.colors.orangeBright,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
   },
 
   buttonZapped: {
-    borderColor: theme.colors.orangeBright,
-    backgroundColor: 'rgba(255, 157, 66, 0.3)',
+    backgroundColor: 'transparent',
   },
 
   buttonDisabled: {

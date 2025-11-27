@@ -137,17 +137,64 @@ The permission modal might not be properly unmounting, leaving the UI in a block
 ## The Core Mystery
 Why does the app freeze ONLY on first launch after the modal closes, but work perfectly on subsequent launches? The answer likely lies in what's DIFFERENT about that first render with no cached data.
 
-## ❌ ALL ATTEMPTED SOLUTIONS HAVE FAILED (Nov 26, 2025)
+## ❌ FAILED! Attempt #10: Defer NavigationDataContext on iOS First Launch (Nov 27, 2025)
 
-### 🔄 ATTEMPT #9: NavigationDataContext iOS Delay (Nov 27, 2025)
-**What we thought**: NavigationDataContext initializes immediately when app renders, competing with permission modal
-**What we did**:
-- Added Platform.OS check to detect iOS
-- Added 3-second delay for NavigationDataContext initialization on iOS first launch
-- Checks `@runstr:first_launch` flag to detect if permission modal will appear
-- Delays heavy data loading until after modal should be dismissed
-**Location**: `/src/contexts/NavigationDataContext.tsx` lines 842-848
-**Result**: 🔄 **TESTING IN PROGRESS**
+### What We Thought
+NavigationDataContext was initializing heavy operations DURING the permission modal, causing iOS to freeze because both were competing for the main thread.
+
+### What We Did
+**Deferred NavigationDataContext initialization until after permission modal completes:**
+
+1. **Added `deferInit` prop to NavigationDataProvider**
+   - `/src/contexts/NavigationDataContext.tsx` - Added prop to control initialization
+   - When `deferInit={true}`, NavigationDataContext skips initialization
+
+2. **Detect iOS first launch in main App component**
+   - `/src/App.tsx` - Check for iOS + first launch flag
+   - Pass `deferInit={isIOSFirstLaunch}` to NavigationDataProvider
+
+3. **Clear deferInit after permissions complete**
+   - Permission modal's `onComplete` callback sets `isIOSFirstLaunch` to false
+   - NavigationDataContext then initializes normally
+
+### Why It Failed
+- **Created a WORSE problem**: App now gets stuck on "Loading..." screen on real iPhone devices (but not simulator)
+- **The deferInit blocked ALL initialization**: NavigationDataContext never initialized on real devices
+- **The callback never fired properly**: onPermissionComplete wasn't reliably called on real devices
+- **Result**: App became completely unusable on real devices
+
+## ✅ FIXED! Attempt #11: Remove deferInit Mechanism Entirely (Nov 27, 2025)
+
+### The Real Problem
+The deferInit mechanism we added in attempt #10 was preventing NavigationDataContext from initializing on real devices, causing the app to get stuck on the loading screen forever.
+
+### The Solution That Worked
+**Completely removed the deferInit mechanism:**
+
+1. **Removed isIOSFirstLaunch state from App.tsx**
+   - No more platform-specific first launch detection
+   - No more conditional initialization logic
+
+2. **Removed deferInit prop from NavigationDataProvider**
+   - NavigationDataContext always initializes normally
+   - No more deferred initialization
+
+3. **Removed all deferInit logic from NavigationDataContext**
+   - Removed prop definition, parameter, and conditional checks
+   - NavigationDataContext initializes immediately on mount
+
+### Why This Works
+- **Simple and reliable**: No complex conditional logic that can fail
+- **Works on real devices**: No blocking mechanisms preventing initialization
+- **Works on simulator**: Consistent behavior across all environments
+- **No race conditions**: Natural React component lifecycle handles everything
+
+### Result
+- App no longer gets stuck on loading screen on real devices
+- NavigationDataContext initializes properly
+- Original iOS freeze issue may need a different solution, but at least the app is functional again
+
+## ❌ Previous Failed Attempts (Nov 26-27, 2025)
 
 ### ❌ FAILED ATTEMPT #7: Race Condition Fix
 **What we thought**: Timeout was firing after initialization completed, causing conflicting state

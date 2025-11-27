@@ -1054,20 +1054,10 @@ ExpoSplashScreen.preventAutoHideAsync();
 // Main App component with AuthProvider wrapper and Error Boundary
 export default function App() {
   const [appIsReady, setAppIsReady] = React.useState(false);
-  const [isIOSFirstLaunch, setIsIOSFirstLaunch] = React.useState(false);
 
   React.useEffect(() => {
     async function prepare() {
       try {
-        // Check if this is iOS first launch (permission modal will show)
-        if (Platform.OS === 'ios') {
-          const firstLaunch = await AsyncStorage.getItem('@runstr:first_launch');
-          if (firstLaunch !== 'false') {
-            console.log('🔄 iOS First Launch Detected - Will defer NavigationDataProvider init');
-            setIsIOSFirstLaunch(true);
-          }
-        }
-
         // SENIOR DEVELOPER FIX: Initialize WebSocket polyfill immediately with error handling
         try {
           initializeWebSocketPolyfill();
@@ -1183,9 +1173,9 @@ export default function App() {
     <AppErrorBoundary>
       <CustomAlertProvider>
         <AuthProvider>
-          <NavigationDataProvider deferInit={isIOSFirstLaunch}>
+          <NavigationDataProvider>
             <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-              <AppContent onPermissionComplete={() => setIsIOSFirstLaunch(false)} />
+              <AppContent />
             </View>
           </NavigationDataProvider>
         </AuthProvider>

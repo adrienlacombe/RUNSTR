@@ -58,12 +58,10 @@ const NavigationDataContext = createContext<NavigationData | undefined>(
 
 interface NavigationDataProviderProps {
   children: ReactNode;
-  deferInit?: boolean; // Defer initialization when permission modal is showing
 }
 
 export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
   children,
-  deferInit = false,
 }) => {
   console.log('🚀 NavigationDataProvider: Initializing...');
   const { currentUser } = useAuth();
@@ -860,12 +858,6 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
 
   // ✅ ANDROID FIX: Initial load - Skip if AuthContext already loaded user
   useEffect(() => {
-    // Skip initialization if deferred (permission modal is showing)
-    if (deferInit) {
-      console.log('⏸️ NavigationDataContext: Deferring init (permission modal active)');
-      return;
-    }
-
     const init = async () => {
       console.log(
         `[${new Date().toISOString()}] 🔍 NavigationDataContext: Starting init...`
@@ -1033,7 +1025,7 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       }
     };
     init();
-  }, [deferInit]); // Re-run when deferInit changes
+  }, []); // Run once on mount
 
   // ✅ PERFORMANCE FIX: Memoize context value to prevent unnecessary re-renders
   const value = useMemo<NavigationData>(

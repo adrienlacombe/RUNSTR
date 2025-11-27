@@ -1,7 +1,7 @@
 /**
- * CompetitionsListScreen - My Events - Shows daily leaderboards from all teams user has joined
+ * CompetitionsListScreen - Global Events - Shows daily leaderboards from ALL 1301 notes
  * Accessible from Profile → "MY EVENTS" button
- * Uses the EXACT same query pattern as SimpleTeamScreen (which works correctly)
+ * Displays global 5K, 10K, Half Marathon, and Marathon leaderboards
  */
 
 import React, { useState, useEffect } from 'react';
@@ -22,13 +22,11 @@ import { theme } from '../styles/theme';
 // Components
 import { DailyLeaderboardCard } from '../components/team/DailyLeaderboardCard';
 
-// Services and contexts
+// Services
 import SimpleLeaderboardService from '../services/competition/SimpleLeaderboardService';
-import { useNavigationData } from '../contexts/NavigationDataContext';
 
-interface TeamLeaderboards {
-  teamId: string;
-  teamName: string;
+interface GlobalLeaderboards {
+  date: string;
   leaderboard5k: any[];
   leaderboard10k: any[];
   leaderboardHalf: any[];
@@ -37,66 +35,36 @@ interface TeamLeaderboards {
 
 export const CompetitionsListScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [teamLeaderboards, setTeamLeaderboards] = useState<TeamLeaderboards[]>(
-    []
-  );
+  const [globalLeaderboards, setGlobalLeaderboards] = useState<GlobalLeaderboards | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Get user's teams from navigation data (same as EventsScreen)
-  const { profileData } = useNavigationData();
-  const userTeams = profileData?.teams || [];
-
-  // Load leaderboards for all user's teams (same pattern as SimpleTeamScreen)
-  const loadAllLeaderboards = async () => {
+  // Load global leaderboards from all 1301 notes
+  const loadGlobalLeaderboards = async () => {
     try {
       setIsLoading(true);
       console.log(
-        `[CompetitionsListScreen] 📊 Loading leaderboards for ${userTeams.length} teams`
+        '[CompetitionsListScreen] 🌍 Loading global leaderboards from all 1301 notes'
       );
 
-      const allTeamLeaderboards: TeamLeaderboards[] = [];
+      // Fetch global daily leaderboards (queries ALL kind 1301 events from today)
+      const leaderboards = await SimpleLeaderboardService.getGlobalDailyLeaderboards();
 
-      for (const team of userTeams) {
-        try {
-          console.log(
-            `[CompetitionsListScreen] 🔍 Fetching leaderboards for team: ${team.name} (${team.id})`
-          );
-
-          // Use the EXACT same service method that works on SimpleTeamScreen
-          const dailyLeaderboards =
-            await SimpleLeaderboardService.getTeamDailyLeaderboards(team.id);
-
-          allTeamLeaderboards.push({
-            teamId: team.id,
-            teamName: team.name,
-            leaderboard5k: dailyLeaderboards.leaderboard5k,
-            leaderboard10k: dailyLeaderboards.leaderboard10k,
-            leaderboardHalf: dailyLeaderboards.leaderboardHalf,
-            leaderboardMarathon: dailyLeaderboards.leaderboardMarathon,
-          });
-
-          console.log(
-            `[CompetitionsListScreen] ✅ ${team.name} leaderboards loaded:`,
-            {
-              '5k': dailyLeaderboards.leaderboard5k.length,
-              '10k': dailyLeaderboards.leaderboard10k.length,
-              half: dailyLeaderboards.leaderboardHalf.length,
-              marathon: dailyLeaderboards.leaderboardMarathon.length,
-            }
-          );
-        } catch (error) {
-          console.error(
-            `[CompetitionsListScreen] ❌ Error loading leaderboards for ${team.name}:`,
-            error
-          );
+      console.log(
+        '[CompetitionsListScreen] ✅ Global leaderboards loaded:',
+        {
+          date: leaderboards.date,
+          '5k': leaderboards.leaderboard5k.length,
+          '10k': leaderboards.leaderboard10k.length,
+          half: leaderboards.leaderboardHalf.length,
+          marathon: leaderboards.leaderboardMarathon.length,
         }
-      }
+      );
 
-      setTeamLeaderboards(allTeamLeaderboards);
+      setGlobalLeaderboards(leaderboards);
     } catch (error) {
       console.error(
-        '[CompetitionsListScreen] ❌ Error loading leaderboards:',
+        '[CompetitionsListScreen] ❌ Error loading global leaderboards:',
         error
       );
     } finally {
@@ -104,33 +72,28 @@ export const CompetitionsListScreen: React.FC = () => {
     }
   };
 
-  // Load leaderboards on mount and when user's teams change
+  // Load leaderboards on mount
   useEffect(() => {
-    if (userTeams.length > 0) {
-      loadAllLeaderboards();
-    } else {
-      setIsLoading(false);
-    }
-  }, [userTeams.length]);
+    loadGlobalLeaderboards();
+  }, []);
 
   // Handle pull-to-refresh
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadAllLeaderboards();
+    await loadGlobalLeaderboards();
     setRefreshing(false);
   };
 
   // Calculate if there are any active leaderboards
-  const hasAnyLeaderboards = teamLeaderboards.some(
-    (team) =>
-      team.leaderboard5k.length > 0 ||
-      team.leaderboard10k.length > 0 ||
-      team.leaderboardHalf.length > 0 ||
-      team.leaderboardMarathon.length > 0
+  const hasAnyLeaderboards = globalLeaderboards && (
+    globalLeaderboards.leaderboard5k.length > 0 ||
+    globalLeaderboards.leaderboard10k.length > 0 ||
+    globalLeaderboards.leaderboardHalf.length > 0 ||
+    globalLeaderboards.leaderboardMarathon.length > 0
   );
 
   // Loading state
-  if (isLoading && teamLeaderboards.length === 0) {
+  if (isLoading && !globalLeaderboards) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
@@ -148,39 +111,7 @@ export const CompetitionsListScreen: React.FC = () => {
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
-          <Text style={styles.loadingText}>Loading your events...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Empty state - No teams joined
-  if (userTeams.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.title}>Events</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-        </View>
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name="people-outline"
-            size={64}
-            color={theme.colors.accent}
-          />
-          <Text style={styles.emptyTitle}>Join a Team</Text>
-          <Text style={styles.emptyText}>
-            Join a team to participate in competitions and see leaderboards
-          </Text>
+          <Text style={styles.loadingText}>Loading global events...</Text>
         </View>
       </SafeAreaView>
     );
@@ -229,7 +160,7 @@ export const CompetitionsListScreen: React.FC = () => {
     );
   }
 
-  // Main content - Show leaderboards grouped by team
+  // Main content - Show global leaderboards
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -257,82 +188,63 @@ export const CompetitionsListScreen: React.FC = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {teamLeaderboards.map((team) => {
-          // Check if team has any leaderboards
-          const hasLeaderboards =
-            team.leaderboard5k.length > 0 ||
-            team.leaderboard10k.length > 0 ||
-            team.leaderboardHalf.length > 0 ||
-            team.leaderboardMarathon.length > 0;
+        <View style={styles.globalSection}>
+          {/* Date */}
+          <Text style={styles.dateText}>
+            {globalLeaderboards?.date || new Date().toLocaleDateString()}
+          </Text>
 
-          if (!hasLeaderboards) return null;
+          {/* Global leaderboard cards */}
+          <View style={styles.leaderboardsContainer}>
+            {globalLeaderboards?.leaderboard5k && globalLeaderboards.leaderboard5k.length > 0 && (
+              <DailyLeaderboardCard
+                title="RUNSTR 5K"
+                distance="5km"
+                participants={globalLeaderboards.leaderboard5k.length}
+                entries={globalLeaderboards.leaderboard5k}
+                onPress={() => {
+                  console.log('Navigate to RUNSTR 5K leaderboard');
+                }}
+              />
+            )}
 
-          return (
-            <View key={team.teamId} style={styles.teamSection}>
-              {/* Team name header */}
-              <View style={styles.teamHeader}>
-                <Ionicons
-                  name="people"
-                  size={20}
-                  color={theme.colors.accent}
-                  style={styles.teamIcon}
-                />
-                <Text style={styles.teamName}>{team.teamName}</Text>
-              </View>
+            {globalLeaderboards?.leaderboard10k && globalLeaderboards.leaderboard10k.length > 0 && (
+              <DailyLeaderboardCard
+                title="RUNSTR 10K"
+                distance="10km"
+                participants={globalLeaderboards.leaderboard10k.length}
+                entries={globalLeaderboards.leaderboard10k}
+                onPress={() => {
+                  console.log('Navigate to RUNSTR 10K leaderboard');
+                }}
+              />
+            )}
 
-              {/* Daily leaderboard cards */}
-              <View style={styles.leaderboardsContainer}>
-                {team.leaderboard5k.length > 0 && (
-                  <DailyLeaderboardCard
-                    title={`${team.teamName} 5K`}
-                    distance="5km"
-                    participants={team.leaderboard5k.length}
-                    entries={team.leaderboard5k}
-                    onPress={() => {
-                      console.log('Navigate to 5K leaderboard');
-                    }}
-                  />
-                )}
+            {globalLeaderboards?.leaderboardHalf && globalLeaderboards.leaderboardHalf.length > 0 && (
+              <DailyLeaderboardCard
+                title="RUNSTR Half Marathon"
+                distance="21.1km"
+                participants={globalLeaderboards.leaderboardHalf.length}
+                entries={globalLeaderboards.leaderboardHalf}
+                onPress={() => {
+                  console.log('Navigate to RUNSTR Half Marathon leaderboard');
+                }}
+              />
+            )}
 
-                {team.leaderboard10k.length > 0 && (
-                  <DailyLeaderboardCard
-                    title={`${team.teamName} 10K`}
-                    distance="10km"
-                    participants={team.leaderboard10k.length}
-                    entries={team.leaderboard10k}
-                    onPress={() => {
-                      console.log('Navigate to 10K leaderboard');
-                    }}
-                  />
-                )}
-
-                {team.leaderboardHalf.length > 0 && (
-                  <DailyLeaderboardCard
-                    title={`${team.teamName} Half Marathon`}
-                    distance="21.1km"
-                    participants={team.leaderboardHalf.length}
-                    entries={team.leaderboardHalf}
-                    onPress={() => {
-                      console.log('Navigate to Half Marathon leaderboard');
-                    }}
-                  />
-                )}
-
-                {team.leaderboardMarathon.length > 0 && (
-                  <DailyLeaderboardCard
-                    title={`${team.teamName} Marathon`}
-                    distance="42.2km"
-                    participants={team.leaderboardMarathon.length}
-                    entries={team.leaderboardMarathon}
-                    onPress={() => {
-                      console.log('Navigate to Marathon leaderboard');
-                    }}
-                  />
-                )}
-              </View>
-            </View>
-          );
-        })}
+            {globalLeaderboards?.leaderboardMarathon && globalLeaderboards.leaderboardMarathon.length > 0 && (
+              <DailyLeaderboardCard
+                title="RUNSTR Marathon"
+                distance="42.2km"
+                participants={globalLeaderboards.leaderboardMarathon.length}
+                entries={globalLeaderboards.leaderboardMarathon}
+                onPress={() => {
+                  console.log('Navigate to RUNSTR Marathon leaderboard');
+                }}
+              />
+            )}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -414,25 +326,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  teamSection: {
+  globalSection: {
     marginTop: 20,
   },
 
-  teamHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  dateText: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
     paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-
-  teamIcon: {
-    marginRight: 8,
-  },
-
-  teamName: {
-    fontSize: 18,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
   },
 
   leaderboardsContainer: {
