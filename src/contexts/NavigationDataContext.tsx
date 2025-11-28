@@ -854,7 +854,7 @@ export const NavigationDataProvider: React.FC<NavigationDataProviderProps> = ({
       console.log('✅ NavigationData: Building profileData for cached user');
       fetchProfileData(currentUser);
     }
-  }, [currentUser, user?.id, profileData]);
+  }, [currentUser, user?.id]); // Fixed: Removed profileData to prevent infinite loop
 
   // ✅ ANDROID FIX: Initial load - Skip if AuthContext already loaded user
   useEffect(() => {

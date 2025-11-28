@@ -275,7 +275,8 @@ const AppContent: React.FC<AppContentProps> = ({ onPermissionComplete }) => {
       );
 
       // iOS needs more time for modal to fully unmount, Android can be faster
-      const INIT_DELAY = Platform.OS === 'ios' ? 1500 : 500;
+      // Increased to 2000ms to ensure modal animations fully complete on iOS
+      const INIT_DELAY = Platform.OS === 'ios' ? 2000 : 500;
       console.log(
         `⏱️ Using ${Platform.OS} initialization delay: ${INIT_DELAY}ms`
       );

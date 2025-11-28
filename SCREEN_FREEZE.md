@@ -163,7 +163,49 @@ NavigationDataContext was initializing heavy operations DURING the permission mo
 - **The callback never fired properly**: onPermissionComplete wasn't reliably called on real devices
 - **Result**: App became completely unusable on real devices
 
-## ✅ FIXED! Attempt #11: Remove deferInit Mechanism Entirely (Nov 27, 2025)
+## ✅ FIXED! Attempt #12: Fix Infinite Loop in NavigationDataContext (Nov 27, 2025)
+
+### The Real Problem
+NavigationDataContext had an infinite loop in its useEffect dependency array. The effect was setting `profileData` state while also depending on it, causing rapid re-renders that iOS couldn't handle but Android could tolerate due to threading differences.
+
+### The Bug Found
+**NavigationDataContext.tsx line 857:**
+```typescript
+// BUG: profileData was in dependency array but set by the effect
+}, [currentUser, user?.id, profileData]);
+```
+
+**The Infinite Loop:**
+1. useEffect runs when `profileData` is undefined
+2. Calls `fetchProfileData()` which sets `profileData`
+3. `profileData` change triggers useEffect again
+4. Loop continues infinitely, overwhelming iOS main thread
+
+### The Solution That Worked
+**1. Primary Fix:** Removed `profileData` from dependency array
+```typescript
+}, [currentUser, user?.id]); // Fixed: Removed profileData to prevent infinite loop
+```
+
+**2. Secondary Fix:** Increased iOS delay from 1500ms to 2000ms for extra safety
+```typescript
+const INIT_DELAY = Platform.OS === 'ios' ? 2000 : 500;
+```
+
+### Why iOS Froze but Android Didn't
+- **iOS**: Strict main thread model - JavaScript blocking directly freezes UI
+- **Android**: Separate RenderThread - animations continue even with JS blocked
+- **iOS Modal**: Requires main thread to complete animation (~1000ms)
+- **Android Modal**: Runs on RenderThread independently (~300ms)
+- **Result**: iOS couldn't complete modal unmount during infinite loop, Android could
+
+### Why This Finally Works
+- No more infinite loop overwhelming iOS main thread
+- Modal has enough time (2000ms) to fully unmount on iOS
+- NavigationDataContext initializes cleanly without rapid re-renders
+- Both platforms now work identically
+
+## Previous Fix Attempt #11: Remove deferInit Mechanism Entirely (Nov 27, 2025)
 
 ### The Real Problem
 The deferInit mechanism we added in attempt #10 was preventing NavigationDataContext from initializing on real devices, causing the app to get stuck on the loading screen forever.
@@ -227,13 +269,9 @@ The deferInit mechanism we added in attempt #10 was preventing NavigationDataCon
 **Theory**: ProfileScreen had blocking operations or infinite loops
 **Reality**: ProfileScreen renders fine, shows "APP IS INTERACTIVE" with only 0.11s blocking time
 
-## Current Status: UNSOLVED
+## Current Status: SOLVED (Attempt #12)
 
-Despite 8 different attempted fixes over multiple sessions, the app continues to freeze on iOS after the permission modal closes on first launch. The freeze is:
-- **iOS-specific** (doesn't happen on Android)
-- **First launch only** (subsequent launches work fine)
-- **After permissions granted** (modal closes, then freeze)
-- **Permanent** (requires force quit)
+After 11 failed attempts, we finally found and fixed the root cause: an infinite loop in NavigationDataContext that iOS couldn't handle but Android could tolerate due to platform threading differences.
 
 ## The Persistent Mystery
 
