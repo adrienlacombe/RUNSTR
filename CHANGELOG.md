@@ -6,6 +6,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2025-11-29
+
+**Achievement**: Critical bug fixes for Android background tracking, cycle tracker improvements, and UI refinements
+
+### 🐛 Bug Fixes
+
+**Android Background Tracking Stability**:
+- Fixed Android background tracking by implementing proper battery optimization exemption
+- Added `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission to AndroidManifest
+- Updated BatteryOptimizationService to use IntentLauncher with package-specific URI
+- Opens direct battery exemption dialog instead of wrong settings screen
+- Allows tracking to continue even when notification permission is denied
+- Enhanced AppPermissionService to separate notification and location permissions
+
+**Cycle Tracker UI Modifications**:
+- Complete UI refactor from BaseTrackerComponent to custom implementation
+- Added 2x2 grid layout for key metrics (Distance, Duration, Speed, Elevation)
+- Improved visual hierarchy with larger metric values and better spacing
+- Enhanced elevation display with gain/loss tracking
+- Cleaner interface optimized for cycling-specific data
+
+**Cycle Tracker Auto-Start Countdown**:
+- Added 3-2-1-GO countdown sequence before starting GPS tracking
+- Implemented `handleHoldComplete()` and `proceedWithTracking()` methods
+- Fixed permission check to happen BEFORE countdown (prevents failed starts)
+- Improved user feedback with countdown animation
+- Prevents premature tracking starts and permission errors
+
+**NWC Error Suppression**:
+- Suppressed confusing warning messages for new users without NWC wallet configured
+- Added LogBox.ignoreLogs() to filter out false-alarm errors
+- Filters "Text strings must be rendered within a <Text> component" warning
+- Filters "[NWC] ❌ User wallet initialization failed: No NWC connection string found" message
+- Improves first-time user experience by hiding wallet initialization noise
+
+### 📱 Platform Updates
+- iOS: Version 0.9.4 (Build 80)
+- Android: Version 0.9.4 (Build 80)
+
 ## [0.9.3] - 2025-01-26
 
 **Achievement**: Event auto-creation, iOS permission fix, and expanded charities

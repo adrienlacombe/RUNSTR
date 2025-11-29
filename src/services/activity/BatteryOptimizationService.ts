@@ -390,7 +390,8 @@ export class BatteryOptimizationService {
                   // Try the direct REQUEST_IGNORE_BATTERY_OPTIMIZATIONS intent first
                   // This opens a simple dialog asking to allow unrestricted battery
                   await IntentLauncher.startActivityAsync(
-                    IntentLauncher.ActivityAction.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    IntentLauncher.ActivityAction
+                      .REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     {
                       data: `package:${packageName}`,
                     }
@@ -407,7 +408,8 @@ export class BatteryOptimizationService {
                   );
                   try {
                     await IntentLauncher.startActivityAsync(
-                      IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
+                      IntentLauncher.ActivityAction
+                        .APPLICATION_DETAILS_SETTINGS,
                       {
                         data: `package:${packageName}`,
                       }
@@ -459,7 +461,8 @@ export class BatteryOptimizationService {
               Application.applicationId || 'com.anonymous.runstr.project';
             try {
               await IntentLauncher.startActivityAsync(
-                IntentLauncher.ActivityAction.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                IntentLauncher.ActivityAction
+                  .REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                 {
                   data: `package:${packageName}`,
                 }

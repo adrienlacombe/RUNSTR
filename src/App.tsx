@@ -26,7 +26,16 @@ import {
   AppState,
   AppStateStatus,
   Platform,
+  LogBox,
 } from 'react-native';
+
+// Suppress specific warnings that don't affect app functionality
+LogBox.ignoreLogs([
+  // This warning appears intermittently from third-party libraries
+  'Text strings must be rendered within a <Text> component',
+  // Expected when new users haven't configured NWC wallet yet
+  '[NWC] ❌ User wallet initialization failed: No NWC connection string found',
+]);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 

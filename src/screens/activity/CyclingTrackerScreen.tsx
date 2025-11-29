@@ -4,11 +4,19 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppStateManager } from '../../services/core/AppStateManager';
-import { BaseTrackerComponent } from '../../components/activity/BaseTrackerComponent';
+import { HoldToStartButton } from '../../components/activity/HoldToStartButton';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
@@ -38,6 +46,7 @@ export const CyclingTrackerScreen: React.FC = () => {
   const [routeSelectionVisible, setRouteSelectionVisible] = useState(false);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
     distance: number;
@@ -167,22 +176,39 @@ export const CyclingTrackerScreen: React.FC = () => {
     isTrackingRef.current = isTracking;
   }, [isTracking]);
 
-  const startTracking = async () => {
-    console.log('[CyclingTrackerScreen] Starting tracking...');
+  const handleHoldComplete = async () => {
+    console.log('[CyclingTrackerScreen] Hold complete, starting countdown...');
 
-    // Check permissions first
+    // Check permissions BEFORE countdown
     const permissionStatus = await appPermissionService.checkAllPermissions();
 
     if (!permissionStatus.location) {
-      console.log(
-        '[CyclingTrackerScreen] Missing location permission, showing modal'
-      );
+      console.log('[CyclingTrackerScreen] Missing permissions, showing modal');
       setShowPermissionModal(true);
       return;
     }
 
+    // Start countdown: 3 → 2 → 1 → GO!
+    setCountdown(3);
+    setTimeout(() => {
+      setCountdown(2);
+      setTimeout(() => {
+        setCountdown(1);
+        setTimeout(() => {
+          setCountdown('GO');
+          setTimeout(() => {
+            setCountdown(null);
+            // Start tracking after countdown completes
+            proceedWithTracking();
+          }, 500); // Show "GO!" for 0.5 seconds
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  };
+
+  const proceedWithTracking = async () => {
     try {
-      // Simple permission and start flow
+      // Start tracking without re-checking permissions (already checked in handleHoldComplete)
       const started = await simpleLocationTrackingService.startTracking(
         'cycling'
       );
@@ -408,39 +434,120 @@ export const CyclingTrackerScreen: React.FC = () => {
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={['top', 'bottom']}
     >
-      <BaseTrackerComponent
-        metrics={{
-          primary: {
-            label: 'Distance',
-            value: metrics.distance,
-            icon: 'navigate',
-          },
-          secondary: {
-            label: 'Duration',
-            value: metrics.duration,
-            icon: 'time',
-          },
-          tertiary: {
-            label: 'Speed',
-            value: metrics.speed,
-            icon: 'speedometer',
-          },
-          quaternary: {
-            label: 'Elevation',
-            value: metrics.elevation,
-            icon: 'trending-up',
-          },
-        }}
-        isTracking={isTracking}
-        isPaused={isPaused}
-        onStart={startTracking}
-        onPause={pauseTracking}
-        onResume={resumeTracking}
-        onStop={stopTracking}
-        startButtonText="Start Ride"
-        onRoutesPress={() => setRouteSelectionVisible(true)}
-        routesButtonText={selectedRoute ? selectedRoute.name : 'Routes'}
-      />
+      <View style={styles.container}>
+        {/* Metrics Display */}
+        <View style={styles.metricsContainer}>
+          <View style={styles.metricsRow}>
+            <View style={styles.metricCard}>
+              <Ionicons
+                name="navigate"
+                size={20}
+                color={theme.colors.textMuted}
+                style={styles.metricIcon}
+              />
+              <Text style={styles.metricValue}>{metrics.distance}</Text>
+              <Text style={styles.metricLabel}>Distance</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Ionicons
+                name="time"
+                size={20}
+                color={theme.colors.textMuted}
+                style={styles.metricIcon}
+              />
+              <Text style={styles.metricValue}>{metrics.duration}</Text>
+              <Text style={styles.metricLabel}>Duration</Text>
+            </View>
+          </View>
+          <View style={styles.metricsRow}>
+            <View style={styles.metricCard}>
+              <Ionicons
+                name="speedometer"
+                size={20}
+                color={theme.colors.textMuted}
+                style={styles.metricIcon}
+              />
+              <Text style={styles.metricValue}>{metrics.speed}</Text>
+              <Text style={styles.metricLabel}>Speed</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Ionicons
+                name="trending-up"
+                size={20}
+                color={theme.colors.textMuted}
+                style={styles.metricIcon}
+              />
+              <Text style={styles.metricValue}>{metrics.elevation}</Text>
+              <Text style={styles.metricLabel}>Elevation</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Control Buttons */}
+        <View style={styles.controlsContainer}>
+          {!isTracking ? (
+            <>
+              {/* Routes Button */}
+              <TouchableOpacity
+                style={styles.routesButton}
+                onPress={() => setRouteSelectionVisible(true)}
+              >
+                <Ionicons
+                  name="map-outline"
+                  size={20}
+                  color={theme.colors.text}
+                />
+                <Text style={styles.routesButtonText}>
+                  {selectedRoute ? selectedRoute.name : 'Routes'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Hold to Start Button */}
+              <HoldToStartButton
+                label="Start Ride"
+                onHoldComplete={handleHoldComplete}
+                disabled={countdown !== null}
+                holdDuration={2000}
+              />
+            </>
+          ) : (
+            <>
+              {!isPaused ? (
+                <TouchableOpacity
+                  style={styles.pauseButton}
+                  onPress={pauseTracking}
+                >
+                  <Ionicons name="pause" size={30} color={theme.colors.text} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.resumeButton}
+                  onPress={resumeTracking}
+                >
+                  <Ionicons
+                    name="play"
+                    size={30}
+                    color={theme.colors.background}
+                  />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.stopButton}
+                onPress={stopTracking}
+              >
+                <Ionicons name="stop" size={30} color={theme.colors.text} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </View>
+
+      {/* Countdown Overlay */}
+      {countdown && (
+        <View style={styles.countdownOverlay}>
+          <Text style={styles.countdownText}>{countdown}</Text>
+        </View>
+      )}
 
       {/* Workout Summary Modal */}
       {workoutData && (
@@ -483,10 +590,124 @@ export const CyclingTrackerScreen: React.FC = () => {
         visible={showPermissionModal}
         onComplete={() => {
           setShowPermissionModal(false);
-          // Try starting tracking again after permissions are granted
-          startTracking();
+          // Permissions granted - proceed directly with tracking (no re-check)
+          proceedWithTracking();
         }}
       />
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    padding: 20,
+  },
+  metricsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 20,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    padding: 20,
+    marginHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  metricIcon: {
+    marginBottom: 8,
+  },
+  metricValue: {
+    fontSize: 28,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    fontWeight: theme.typography.weights.medium,
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 40,
+    paddingTop: 20,
+    marginTop: 40,
+    gap: 20,
+  },
+  routesButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    height: 200,
+  },
+  routesButtonText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    letterSpacing: 0.5,
+  },
+  pauseButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  resumeButton: {
+    backgroundColor: theme.colors.text,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.text,
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  countdownText: {
+    fontSize: 120,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+  },
+});
