@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event auto-creation when users publish kind 1301 workout events to Nostr (removed wizard)
 - Expanded charity selection to 10 total organizations:
   - Original: OpenSats, Human Rights Foundation
-  - NEW: Bitcoin Beach (El Salvador), Bitcoin Bay (Bay Area), Bitcoin Ekasi (South Africa), Bitcoin Isla (Philippines), Bitcoin Valley (Guatemala), Bitcoin District (Washington DC), Bitcoin Yucatan (Mexico), Bitcoin Veterans
+  - NEW: Bitcoin Beach (El Salvador), Bitcoin Bay (Bay Area), Bitcoin Ekasi (South Africa), Bitcoin Isla (Isla Mujeres), Bitcoin Valley (Comox Valley), Bitcoin District (Washington DC), Bitcoin Yucatan (Mexico), Bitcoin Veterans
 
 ### 🐛 Bug Fixes
 - Fixed iOS permission modal freezing bug

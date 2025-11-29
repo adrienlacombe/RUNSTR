@@ -58,7 +58,7 @@ export const CHARITIES: Charity[] = [
     name: 'Bitcoin Isla',
     displayName: 'Bitcoin Isla',
     lightningAddress: 'btcisla@geyser.fund',
-    description: 'Bitcoin circular economy in the Philippines',
+    description: 'Bitcoin circular economy in Isla Mujeres',
     website: 'https://geyser.fund/project/btcisla',
   },
   {
@@ -66,7 +66,7 @@ export const CHARITIES: Charity[] = [
     name: 'Bitcoin Valley',
     displayName: 'Bitcoin Valley',
     lightningAddress: 'bitcoinvalleycirculareconomy@geyser.fund',
-    description: 'Bitcoin circular economy in Guatemala',
+    description: 'Bitcoin circular economy in Comox Valley',
     website: 'https://geyser.fund/project/bitcoinvalleycirculareconomy',
   },
   {

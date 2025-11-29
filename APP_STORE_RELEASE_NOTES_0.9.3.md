@@ -8,8 +8,8 @@
 - Bitcoin Beach (El Salvador)
 - Bitcoin Bay (Bay Area)
 - Bitcoin Ekasi (South Africa)
-- Bitcoin Isla (Philippines)
-- Bitcoin Valley (Guatemala)
+- Bitcoin Isla (Isla Mujeres)
+- Bitcoin Valley (Comox Valley)
 - Bitcoin District (Washington DC)
 - Bitcoin Yucatan (Mexico)
 - Bitcoin Veterans
