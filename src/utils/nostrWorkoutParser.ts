@@ -225,6 +225,9 @@ export class NostrWorkoutParser {
         mealSize: tagData.mealSize,
         exerciseType: tagData.exerciseType,
         notes: tagData.notes,
+        // Charity and team info
+        charity: tagData.charity,
+        team: tagData.team,
       };
     } catch (error) {
       console.log('⚠️ Failed to parse workout event:', error);
@@ -374,6 +377,26 @@ export class NostrWorkoutParser {
           break;
         case 'notes':
           data.notes = tag[1];
+          break;
+        case 'charity':
+          // Charity tag format: ["charity", "id", "name", "lightningAddress"]
+          if (tag.length >= 4) {
+            data.charity = {
+              id: tag[1],
+              name: tag[2],
+              lightningAddress: tag[3],
+            };
+          } else if (tag.length >= 2) {
+            // Fallback for older format with just charity name
+            data.charity = {
+              id: tag[1],
+              name: tag[1],
+              lightningAddress: '',
+            };
+          }
+          break;
+        case 'team':
+          data.team = tag[1];
           break;
       }
     }
@@ -637,5 +660,57 @@ export class NostrWorkoutParser {
       timestamp: new Date().toISOString(),
       details,
     };
+  }
+
+  /**
+   * Extract charity info from a raw Nostr event's tags
+   * Useful for leaderboard display without full workout parsing
+   * Returns OpenSats as default when no charity tag is present
+   */
+  static extractCharityFromTags(tags: string[][]): {
+    id: string;
+    name: string;
+    lightningAddress: string;
+  } {
+    const charityTag = tags.find((tag) => tag[0] === 'charity');
+
+    // Default to OpenSats if no charity tag found
+    if (!charityTag) {
+      return {
+        id: 'opensats',
+        name: 'OpenSats',
+        lightningAddress: 'opensats@vlt.ge',
+      };
+    }
+
+    if (charityTag.length >= 4) {
+      return {
+        id: charityTag[1],
+        name: charityTag[2],
+        lightningAddress: charityTag[3],
+      };
+    } else if (charityTag.length >= 2) {
+      // Fallback for older format - still default to OpenSats address
+      return {
+        id: charityTag[1],
+        name: charityTag[1],
+        lightningAddress: 'opensats@vlt.ge',
+      };
+    }
+
+    // Should never reach here, but default to OpenSats
+    return {
+      id: 'opensats',
+      name: 'OpenSats',
+      lightningAddress: 'opensats@vlt.ge',
+    };
+  }
+
+  /**
+   * Extract team ID from a raw Nostr event's tags
+   */
+  static extractTeamFromTags(tags: string[][]): string | null {
+    const teamTag = tags.find((tag) => tag[0] === 'team');
+    return teamTag && teamTag.length >= 2 ? teamTag[1] : null;
   }
 }

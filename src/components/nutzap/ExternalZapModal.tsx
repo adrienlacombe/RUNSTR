@@ -1,7 +1,8 @@
 /**
  * ExternalZapModal Component
- * Generates and displays Lightning invoice for P2P zaps
+ * Generates and displays Lightning invoice for charity donations
  * Allows users to pay from external wallets (Cash App, Strike, etc.)
+ * Updated: Removed QR code, added amount selection
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,17 +15,15 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Linking,
+  TextInput,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import QRCode from 'react-native-qrcode-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
-import LightningZapService from '../../services/nutzap/LightningZapService';
 import { npubToHex } from '../../utils/ndkConversion';
 import {
-  parseBolt11Invoice,
   validateInvoiceAmount,
   getInvoiceTimeRemaining,
 } from '../../utils/bolt11Parser';
@@ -36,11 +35,17 @@ import {
   openInBreez,
 } from '../../utils/walletDeepLinks';
 
+// Storage key for default amount
+const DEFAULT_AMOUNT_KEY = '@runstr:default_zap_amount';
+
+// Amount presets (higher minimums to avoid charity LNURL minimum errors)
+const AMOUNT_PRESETS = [1000, 2100, 5000, 10000];
+
 interface ExternalZapModalProps {
   visible: boolean;
   recipientNpub: string; // Can be npub OR Lightning address
   recipientName: string;
-  amount: number;
+  amount?: number; // Optional - if not provided, user selects amount
   memo?: string; // Optional - will default to "Donation to {recipientName}"
   onClose: () => void;
   onSuccess?: () => void;
@@ -50,17 +55,26 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
   visible,
   recipientNpub,
   recipientName,
-  amount,
+  amount: initialAmount,
   memo,
   onClose,
   onSuccess,
 }) => {
+  const [selectedAmount, setSelectedAmount] = useState<number>(
+    initialAmount || AMOUNT_PRESETS[0]
+  );
+  const [customAmount, setCustomAmount] = useState<string>('');
+  const [isCustom, setIsCustom] = useState(false);
+  const [setAsDefault, setSetAsDefault] = useState(false);
   const [invoice, setInvoice] = useState<string>('');
+  const [lightningAddress, setLightningAddress] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [copiedLnAddress, setCopiedLnAddress] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isExpired, setIsExpired] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   // Convert npub to hex for API calls (skip for Lightning addresses)
   const recipientHex = React.useMemo(() => {
@@ -84,31 +98,45 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
     return normalized;
   }, [recipientNpub]);
 
+  // Load default amount on mount
   useEffect(() => {
-    console.log('[ExternalZapModal] Modal state changed:', {
-      visible,
-      amount,
-      recipientNpub,
-    });
-
-    if (visible) {
-      // Always generate invoice when modal opens, even if amount is 0 (show error)
-      if (amount && amount > 0) {
-        generateInvoice();
-      } else {
-        // Show error if amount is invalid
-        setError('Invalid amount. Please select an amount and try again.');
-        setIsLoading(false);
+    const loadDefaultAmount = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(DEFAULT_AMOUNT_KEY);
+        if (stored) {
+          const defaultAmount = parseInt(stored, 10);
+          if (!isNaN(defaultAmount) && defaultAmount > 0) {
+            setSelectedAmount(defaultAmount);
+          }
+        }
+      } catch (err) {
+        console.log('[ExternalZapModal] Error loading default amount:', err);
       }
-    } else {
-      // Reset state when modal closes
+    };
+    loadDefaultAmount();
+  }, []);
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (visible) {
+      // Reset to amount selection view
+      setShowInvoice(false);
       setInvoice('');
       setError('');
-      setIsLoading(false);
       setIsExpired(false);
       setTimeRemaining(null);
+      setCustomAmount('');
+      setIsCustom(false);
+
+      // If initial amount provided, use it
+      if (initialAmount && initialAmount > 0) {
+        setSelectedAmount(initialAmount);
+      }
+
+      // Resolve lightning address
+      resolveLightningAddress();
     }
-  }, [visible, amount]);
+  }, [visible, initialAmount]);
 
   // Countdown timer effect - updates every second
   useEffect(() => {
@@ -146,7 +174,98 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
     return () => clearInterval(interval);
   }, [invoice, visible]);
 
+  // Resolve lightning address from npub or use directly if already a lightning address
+  const resolveLightningAddress = async () => {
+    try {
+      // Check if recipientNpub is actually a Lightning address (contains '@')
+      if (recipientNpub && recipientNpub.includes('@')) {
+        console.log(
+          '[ExternalZapModal] ✅ Direct Lightning address provided:',
+          recipientNpub
+        );
+        setLightningAddress(recipientNpub);
+        return;
+      }
+
+      // It's an npub, need to fetch Lightning address from Nostr profile
+      console.log(
+        '[ExternalZapModal] Fetching Lightning address for npub:',
+        recipientHex
+      );
+      const {
+        GlobalNDKService,
+      } = require('../../services/nostr/GlobalNDKService');
+      const ndk = await GlobalNDKService.getInstance();
+      const user = ndk.getUser({ pubkey: recipientHex });
+      await user.fetchProfile();
+      const lnAddress = user.profile?.lud16 || user.profile?.lud06 || null;
+
+      if (lnAddress) {
+        console.log(
+          '[ExternalZapModal] ⚡ Lightning address found:',
+          lnAddress
+        );
+        setLightningAddress(lnAddress);
+      } else {
+        console.warn('[ExternalZapModal] No Lightning address found for user');
+      }
+    } catch (err) {
+      console.error(
+        '[ExternalZapModal] Error resolving Lightning address:',
+        err
+      );
+    }
+  };
+
+  // Get the effective amount (selected preset or custom)
+  const getEffectiveAmount = (): number => {
+    if (isCustom && customAmount) {
+      const parsed = parseInt(customAmount, 10);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return selectedAmount;
+  };
+
+  // Handle preset amount selection
+  const handlePresetSelect = (amount: number) => {
+    setSelectedAmount(amount);
+    setIsCustom(false);
+    setCustomAmount('');
+  };
+
+  // Handle custom amount change
+  const handleCustomAmountChange = (text: string) => {
+    // Only allow numbers
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setCustomAmount(cleaned);
+    setIsCustom(true);
+  };
+
+  // Save default amount and proceed to payment
+  const handleProceedToPayment = async () => {
+    const amount = getEffectiveAmount();
+    if (amount <= 0) {
+      setError('Please select a valid amount');
+      return;
+    }
+
+    // Save as default if checked
+    if (setAsDefault) {
+      try {
+        await AsyncStorage.setItem(DEFAULT_AMOUNT_KEY, amount.toString());
+        console.log('[ExternalZapModal] Saved default amount:', amount);
+      } catch (err) {
+        console.warn('[ExternalZapModal] Error saving default amount:', err);
+      }
+    }
+
+    // Generate invoice and show payment options
+    setShowInvoice(true);
+    generateInvoice();
+  };
+
   const generateInvoice = async () => {
+    const amount = getEffectiveAmount();
     console.log('[ExternalZapModal] Starting invoice generation...', {
       recipientNpub,
       recipientName,
@@ -161,56 +280,12 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
     setTimeRemaining(null);
 
     try {
-      let lightningAddress: string | null = null;
+      const lnAddress = lightningAddress || recipientNpub;
 
-      // Check if recipientNpub is actually a Lightning address (contains '@')
-      if (recipientNpub && recipientNpub.includes('@')) {
-        // It's already a Lightning address (e.g., charity@getalby.com)
-        console.log(
-          '[ExternalZapModal] ✅ Direct Lightning address provided:',
-          recipientNpub
-        );
-        lightningAddress = recipientNpub;
-      } else {
-        // It's an npub, need to fetch Lightning address from Nostr profile
-        console.log(
-          '[ExternalZapModal] Attempting to get Lightning info for npub:',
-          recipientHex
-        );
-
-        // Try to get the Lightning address from the user's Nostr profile
-        try {
-          const {
-            GlobalNDKService,
-          } = require('../../services/nostr/GlobalNDKService');
-          const ndk = await GlobalNDKService.getInstance();
-          const user = ndk.getUser({ pubkey: recipientHex });
-          await user.fetchProfile();
-          lightningAddress = user.profile?.lud16 || user.profile?.lud06 || null;
-          console.log(
-            '[ExternalZapModal] Profile Lightning address:',
-            lightningAddress
-          );
-        } catch (profileError) {
-          console.error(
-            '[ExternalZapModal] Error fetching profile:',
-            profileError
-          );
-        }
+      if (!lnAddress || !lnAddress.includes('@')) {
+        throw new Error('No Lightning address available for recipient');
       }
 
-      if (!lightningAddress) {
-        const errorMsg = 'Recipient does not have a Lightning address';
-        console.error('[ExternalZapModal] ❌', errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      console.log(
-        '[ExternalZapModal] ⚡ Lightning address found:',
-        lightningAddress
-      );
-
-      // Get invoice from Lightning address (NIP-57 zap request will be handled internally)
       console.log(
         '[ExternalZapModal] 🔄 Requesting invoice for',
         amount,
@@ -222,9 +297,9 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       );
 
       const invoiceResult = await getInvoiceFromLightningAddress(
-        lightningAddress,
+        lnAddress,
         amount,
-        memo || `Donation to ${recipientName}` // Default memo if not provided
+        memo || `Donation to ${recipientName}`
       );
 
       console.log('[ExternalZapModal] Invoice result:', {
@@ -248,34 +323,22 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
         }
 
         setInvoice(invoiceResult.invoice);
-        console.log(
-          '[ExternalZapModal] ✅ Invoice generated and validated successfully!',
-          'Invoice starts with:',
-          invoiceResult.invoice.substring(0, 20) + '...'
-        );
+        console.log('[ExternalZapModal] ✅ Invoice generated successfully!');
       } else {
-        const errorMsg = 'Failed to generate invoice - no invoice returned';
-        console.error('[ExternalZapModal] ❌', errorMsg);
-        throw new Error(errorMsg);
+        throw new Error('Failed to generate invoice - no invoice returned');
       }
     } catch (err) {
       console.error('[ExternalZapModal] ❌ Error generating invoice:', err);
 
-      // Provide more specific error messages
       let errorMessage = 'Failed to generate invoice';
       if (err instanceof Error) {
         if (
           err.message.includes('timeout') ||
           err.message.includes('Timeout')
         ) {
-          errorMessage =
-            'Request timed out. The Lightning service may be temporarily unavailable. Please try again.';
-        } else if (
-          err.message.includes('network') ||
-          err.message.includes('Network')
-        ) {
-          errorMessage =
-            'Network error. Please check your connection and try again.';
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (err.message.includes('Amount too small')) {
+          errorMessage = err.message;
         } else if (err.message.includes('Lightning address')) {
           errorMessage = err.message;
         } else {
@@ -286,7 +349,6 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       setError(errorMessage);
     } finally {
       setIsLoading(false);
-      console.log('[ExternalZapModal] Invoice generation complete');
     }
   };
 
@@ -296,6 +358,21 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleCopyLightningAddress = async () => {
+    const lnAddress = lightningAddress || recipientNpub;
+    if (lnAddress && lnAddress.includes('@')) {
+      await Clipboard.setStringAsync(lnAddress);
+      setCopiedLnAddress(true);
+      setTimeout(() => setCopiedLnAddress(false), 2000);
+    }
+  };
+
+  const handleBackToAmountSelection = () => {
+    setShowInvoice(false);
+    setInvoice('');
+    setError('');
   };
 
   const handleOpenInCashApp = async () => {
@@ -319,9 +396,10 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
   };
 
   const handlePaymentConfirmed = () => {
+    const paidAmount = getEffectiveAmount();
     Alert.alert(
       '⚡ Zap Sent!',
-      `Successfully sent ${amount} sats to ${recipientName}`,
+      `Successfully sent ${paidAmount} sats to ${recipientName}`,
       [
         {
           text: 'OK',
@@ -333,6 +411,8 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
       ]
     );
   };
+
+  const effectiveAmount = getEffectiveAmount();
 
   return (
     <Modal
@@ -346,8 +426,10 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleContainer}>
-              <Ionicons name="qr-code" size={24} color={theme.colors.text} />
-              <Text style={styles.title}>Pay with External Wallet</Text>
+              <Ionicons name="flash" size={24} color={theme.colors.accent} />
+              <Text style={styles.title}>
+                {showInvoice ? 'Pay with Wallet' : 'Donate to Charity'}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={theme.colors.text} />
@@ -357,212 +439,351 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
           <ScrollView
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {/* Recipient Info */}
             <View style={styles.recipientSection}>
-              <Text style={styles.recipientLabel}>Zapping:</Text>
+              <Text style={styles.recipientLabel}>Supporting:</Text>
               <Text style={styles.recipientName}>{recipientName}</Text>
-              <Text style={styles.amount}>{amount} sats</Text>
-              {memo && <Text style={styles.memo}>{memo}</Text>}
-            </View>
-
-            {/* QR Code or Loading/Error - Always show something */}
-            <View style={styles.qrSection}>
-              {error ? (
-                <View style={styles.errorContainer}>
-                  <Ionicons
-                    name="alert-circle"
-                    size={48}
-                    color={theme.colors.error}
-                  />
-                  <Text style={styles.errorText}>{error}</Text>
-                  <TouchableOpacity
-                    style={styles.retryButton}
-                    onPress={generateInvoice}
-                  >
-                    <Text style={styles.retryButtonText}>Retry</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : invoice ? (
-                <>
-                  {/* Expiration Timer */}
-                  {timeRemaining !== null && (
-                    <View style={styles.timerContainer}>
-                      {isExpired ? (
-                        <View style={styles.expiredBanner}>
-                          <Ionicons
-                            name="time-outline"
-                            size={16}
-                            color={theme.colors.error}
-                          />
-                          <Text style={styles.expiredText}>
-                            Invoice Expired - Regenerating...
-                          </Text>
-                        </View>
-                      ) : timeRemaining < 300 ? (
-                        <View
-                          style={[
-                            styles.timerBanner,
-                            timeRemaining < 60 && styles.timerBannerUrgent,
-                          ]}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={16}
-                            color={
-                              timeRemaining < 60
-                                ? theme.colors.error
-                                : theme.colors.orangeBright
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.timerText,
-                              timeRemaining < 60 && styles.timerTextUrgent,
-                            ]}
-                          >
-                            Expires in {Math.floor(timeRemaining / 60)}:
-                            {String(timeRemaining % 60).padStart(2, '0')}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  )}
-
-                  <View style={styles.qrCodeContainer}>
-                    <QRCode
-                      value={invoice}
-                      size={250}
-                      backgroundColor="white"
-                      color="black"
-                    />
-                  </View>
-
-                  <Text style={styles.instructions}>
-                    Scan this QR code with any Lightning wallet
-                  </Text>
-
-                  {/* Copy Invoice Button */}
-                  <TouchableOpacity
-                    style={styles.copyButton}
-                    onPress={handleCopyInvoice}
-                  >
-                    <Ionicons
-                      name={copied ? 'checkmark' : 'copy'}
-                      size={20}
-                      color={theme.colors.text}
-                    />
-                    <Text style={styles.copyButtonText}>
-                      {copied ? 'Copied!' : 'Copy Invoice'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Wallet Selection Buttons */}
-                  <View style={styles.walletButtonsSection}>
-                    <Text style={styles.walletSectionTitle}>Select Wallet</Text>
-
-                    {/* Cash App */}
-                    <TouchableOpacity
-                      style={styles.walletButtonFullWidth}
-                      onPress={handleOpenInCashApp}
-                    >
-                      <View style={styles.walletIconCircleInline}>
-                        <Ionicons
-                          name="logo-usd"
-                          size={24}
-                          color={theme.colors.accent}
-                        />
-                      </View>
-                      <Text style={styles.walletButtonText} numberOfLines={1}>
-                        Cash App
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Zeus */}
-                    <TouchableOpacity
-                      style={styles.walletButtonFullWidth}
-                      onPress={handleOpenInZeus}
-                    >
-                      <View style={styles.walletIconCircleInline}>
-                        <Ionicons
-                          name="flash-outline"
-                          size={24}
-                          color={theme.colors.accent}
-                        />
-                      </View>
-                      <Text style={styles.walletButtonText} numberOfLines={1}>
-                        Zeus
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Phoenix */}
-                    <TouchableOpacity
-                      style={styles.walletButtonFullWidth}
-                      onPress={handleOpenInPhoenix}
-                    >
-                      <View style={styles.walletIconCircleInline}>
-                        <Ionicons
-                          name="rocket-outline"
-                          size={24}
-                          color={theme.colors.accent}
-                        />
-                      </View>
-                      <Text style={styles.walletButtonText} numberOfLines={1}>
-                        Phoenix
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Wallet of Satoshi */}
-                    <TouchableOpacity
-                      style={styles.walletButtonFullWidth}
-                      onPress={handleOpenInWalletOfSatoshi}
-                    >
-                      <View style={styles.walletIconCircleInline}>
-                        <Ionicons
-                          name="wallet-outline"
-                          size={24}
-                          color={theme.colors.accent}
-                        />
-                      </View>
-                      <Text style={styles.walletButtonText} numberOfLines={1}>
-                        Wallet of Satoshi
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Breez */}
-                    <TouchableOpacity
-                      style={styles.walletButtonFullWidth}
-                      onPress={handleOpenInBreez}
-                    >
-                      <View style={styles.walletIconCircleInline}>
-                        <Ionicons
-                          name="wind-outline"
-                          size={24}
-                          color={theme.colors.accent}
-                        />
-                      </View>
-                      <Text style={styles.walletButtonText} numberOfLines={1}>
-                        Breez
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                // Default loading state - shown while generating invoice or if state is empty
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={theme.colors.text} />
-                  <Text style={styles.loadingText}>
-                    {isLoading
-                      ? 'Generating invoice...'
-                      : 'Preparing payment...'}
-                  </Text>
-                </View>
+              {showInvoice && (
+                <Text style={styles.amount}>{effectiveAmount} sats</Text>
               )}
             </View>
+
+            {!showInvoice ? (
+              /* Amount Selection View */
+              <View style={styles.amountSection}>
+                <Text style={styles.sectionTitle}>Select Amount</Text>
+
+                {/* Preset Amount Buttons */}
+                <View style={styles.presetGrid}>
+                  {AMOUNT_PRESETS.map((amount) => (
+                    <TouchableOpacity
+                      key={amount}
+                      style={[
+                        styles.presetButton,
+                        selectedAmount === amount &&
+                          !isCustom &&
+                          styles.presetButtonSelected,
+                      ]}
+                      onPress={() => handlePresetSelect(amount)}
+                    >
+                      <Text
+                        style={[
+                          styles.presetButtonText,
+                          selectedAmount === amount &&
+                            !isCustom &&
+                            styles.presetButtonTextSelected,
+                        ]}
+                      >
+                        {amount.toLocaleString()}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.presetButtonSats,
+                          selectedAmount === amount &&
+                            !isCustom &&
+                            styles.presetButtonTextSelected,
+                        ]}
+                      >
+                        sats
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Custom Amount Input */}
+                <View style={styles.customAmountContainer}>
+                  <Text style={styles.customAmountLabel}>Custom amount:</Text>
+                  <View style={styles.customInputRow}>
+                    <TextInput
+                      style={[
+                        styles.customAmountInput,
+                        isCustom && styles.customAmountInputActive,
+                      ]}
+                      placeholder="Enter amount"
+                      placeholderTextColor={theme.colors.textMuted}
+                      keyboardType="number-pad"
+                      value={customAmount}
+                      onChangeText={handleCustomAmountChange}
+                    />
+                    <Text style={styles.satsLabel}>sats</Text>
+                  </View>
+                </View>
+
+                {/* Set as Default Toggle */}
+                <TouchableOpacity
+                  style={styles.defaultToggle}
+                  onPress={() => setSetAsDefault(!setAsDefault)}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      setAsDefault && styles.checkboxChecked,
+                    ]}
+                  >
+                    {setAsDefault && (
+                      <Ionicons
+                        name="checkmark"
+                        size={14}
+                        color={theme.colors.background}
+                      />
+                    )}
+                  </View>
+                  <Text style={styles.defaultToggleText}>
+                    Set as default amount
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Error Display */}
+                {error && (
+                  <View style={styles.errorBanner}>
+                    <Ionicons
+                      name="alert-circle"
+                      size={18}
+                      color={theme.colors.error}
+                    />
+                    <Text style={styles.errorBannerText}>{error}</Text>
+                  </View>
+                )}
+
+                {/* Proceed Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.proceedButton,
+                    effectiveAmount <= 0 && styles.proceedButtonDisabled,
+                  ]}
+                  onPress={handleProceedToPayment}
+                  disabled={effectiveAmount <= 0}
+                >
+                  <Text style={styles.proceedButtonText}>
+                    Continue with{' '}
+                    {effectiveAmount > 0
+                      ? effectiveAmount.toLocaleString()
+                      : '0'}{' '}
+                    sats
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color={theme.colors.background}
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Payment Options View */
+              <View style={styles.paymentSection}>
+                {error ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons
+                      name="alert-circle"
+                      size={48}
+                      color={theme.colors.error}
+                    />
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={generateInvoice}
+                    >
+                      <Text style={styles.retryButtonText}>Retry</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.backButton}
+                      onPress={handleBackToAmountSelection}
+                    >
+                      <Text style={styles.backButtonText}>Change Amount</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator
+                      size="large"
+                      color={theme.colors.accent}
+                    />
+                    <Text style={styles.loadingText}>
+                      Generating invoice...
+                    </Text>
+                  </View>
+                ) : invoice ? (
+                  <>
+                    {/* Expiration Timer */}
+                    {timeRemaining !== null && timeRemaining < 300 && (
+                      <View style={styles.timerContainer}>
+                        {isExpired ? (
+                          <View style={styles.expiredBanner}>
+                            <Ionicons
+                              name="time-outline"
+                              size={16}
+                              color={theme.colors.error}
+                            />
+                            <Text style={styles.expiredText}>
+                              Invoice Expired - Regenerating...
+                            </Text>
+                          </View>
+                        ) : (
+                          <View
+                            style={[
+                              styles.timerBanner,
+                              timeRemaining < 60 && styles.timerBannerUrgent,
+                            ]}
+                          >
+                            <Ionicons
+                              name="time-outline"
+                              size={16}
+                              color={
+                                timeRemaining < 60
+                                  ? theme.colors.error
+                                  : theme.colors.orangeBright
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.timerText,
+                                timeRemaining < 60 && styles.timerTextUrgent,
+                              ]}
+                            >
+                              Expires in {Math.floor(timeRemaining / 60)}:
+                              {String(timeRemaining % 60).padStart(2, '0')}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Wallet Selection Buttons */}
+                    <View style={styles.walletButtonsSection}>
+                      <Text style={styles.walletSectionTitle}>
+                        Open in Wallet
+                      </Text>
+
+                      <TouchableOpacity
+                        style={styles.walletButtonFullWidth}
+                        onPress={handleOpenInCashApp}
+                      >
+                        <View style={styles.walletIconCircleInline}>
+                          <Ionicons
+                            name="logo-usd"
+                            size={24}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>Cash App</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.walletButtonFullWidth}
+                        onPress={handleOpenInZeus}
+                      >
+                        <View style={styles.walletIconCircleInline}>
+                          <Ionicons
+                            name="flash-outline"
+                            size={24}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>Zeus</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.walletButtonFullWidth}
+                        onPress={handleOpenInPhoenix}
+                      >
+                        <View style={styles.walletIconCircleInline}>
+                          <Ionicons
+                            name="rocket-outline"
+                            size={24}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>Phoenix</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.walletButtonFullWidth}
+                        onPress={handleOpenInWalletOfSatoshi}
+                      >
+                        <View style={styles.walletIconCircleInline}>
+                          <Ionicons
+                            name="wallet-outline"
+                            size={24}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>
+                          Wallet of Satoshi
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.walletButtonFullWidth}
+                        onPress={handleOpenInBreez}
+                      >
+                        <View style={styles.walletIconCircleInline}>
+                          <Ionicons
+                            name="leaf-outline"
+                            size={24}
+                            color={theme.colors.accent}
+                          />
+                        </View>
+                        <Text style={styles.walletButtonText}>Breez</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Copy Options */}
+                    <View style={styles.copySection}>
+                      <TouchableOpacity
+                        style={styles.copyButton}
+                        onPress={handleCopyInvoice}
+                      >
+                        <Ionicons
+                          name={copied ? 'checkmark' : 'copy'}
+                          size={20}
+                          color={theme.colors.text}
+                        />
+                        <Text style={styles.copyButtonText}>
+                          {copied ? 'Copied!' : 'Copy Invoice'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {(lightningAddress || recipientNpub.includes('@')) && (
+                        <TouchableOpacity
+                          style={styles.copyButton}
+                          onPress={handleCopyLightningAddress}
+                        >
+                          <Ionicons
+                            name={copiedLnAddress ? 'checkmark' : 'at'}
+                            size={20}
+                            color={theme.colors.text}
+                          />
+                          <Text style={styles.copyButtonText}>
+                            {copiedLnAddress
+                              ? 'Copied!'
+                              : 'Copy Lightning Address'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Back Button */}
+                    <TouchableOpacity
+                      style={styles.backButton}
+                      onPress={handleBackToAmountSelection}
+                    >
+                      <Ionicons
+                        name="arrow-back"
+                        size={18}
+                        color={theme.colors.textMuted}
+                      />
+                      <Text style={styles.backButtonText}>Change Amount</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+            )}
           </ScrollView>
 
           {/* Footer - Payment Confirmation */}
-          {invoice && !isLoading && (
+          {showInvoice && invoice && !isLoading && (
             <View style={styles.footer}>
               <TouchableOpacity
                 style={styles.confirmButton}
@@ -595,7 +816,7 @@ const styles = StyleSheet.create({
   modal: {
     width: '100%',
     maxWidth: 400,
-    height: '85%', // Fixed height to establish flex context for ScrollView
+    maxHeight: '90%',
     backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.large,
     borderWidth: 1,
@@ -630,12 +851,13 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
   },
 
   recipientSection: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -648,29 +870,176 @@ const styles = StyleSheet.create({
   },
 
   recipientName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
-    marginBottom: 8,
   },
 
   amount: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: theme.typography.weights.bold,
+    color: theme.colors.accent,
+    marginTop: 4,
+  },
+
+  // Amount Selection Styles
+  amountSection: {
+    padding: 20,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+
+  presetButton: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+
+  presetButtonSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: 'rgba(255, 157, 66, 0.15)',
+  },
+
+  presetButtonText: {
+    fontSize: 18,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+  },
+
+  presetButtonTextSelected: {
     color: theme.colors.accent,
   },
 
-  memo: {
-    fontSize: 14,
+  presetButtonSats: {
+    fontSize: 12,
     color: theme.colors.textMuted,
-    marginTop: 8,
-    textAlign: 'center',
-    paddingHorizontal: 20,
+    marginTop: 2,
   },
 
-  qrSection: {
-    padding: 20,
+  customAmountContainer: {
+    marginBottom: 16,
+  },
+
+  customAmountLabel: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    marginBottom: 8,
+  },
+
+  customInputRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+
+  customAmountInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    color: theme.colors.text,
+    fontSize: 16,
+  },
+
+  customAmountInputActive: {
+    borderColor: theme.colors.accent,
+  },
+
+  satsLabel: {
+    fontSize: 16,
+    color: theme.colors.textMuted,
+  },
+
+  defaultToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  checkboxChecked: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+
+  defaultToggleText: {
+    fontSize: 14,
+    color: theme.colors.text,
+  },
+
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: theme.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    marginBottom: 16,
+  },
+
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.error,
+  },
+
+  proceedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.accent,
+  },
+
+  proceedButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  proceedButtonText: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.background,
+  },
+
+  // Payment Section Styles
+  paymentSection: {
+    padding: 20,
   },
 
   loadingContainer: {
@@ -695,16 +1064,17 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     textAlign: 'center',
     paddingHorizontal: 20,
+    marginBottom: 16,
   },
 
   retryButton: {
-    marginTop: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     borderRadius: theme.borderRadius.medium,
     backgroundColor: theme.colors.cardBackground,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    marginBottom: 12,
   },
 
   retryButtonText: {
@@ -713,24 +1083,64 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
-  qrCodeContainer: {
-    padding: 20,
-    backgroundColor: 'white',
-    borderRadius: theme.borderRadius.medium,
-    marginBottom: 20,
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginTop: 8,
   },
 
-  instructions: {
+  backButtonText: {
     fontSize: 14,
     color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 20,
   },
 
-  actionButtons: {
+  walletButtonsSection: {
+    marginBottom: 16,
+  },
+
+  walletSectionTitle: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  walletButtonFullWidth: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    justifyContent: 'flex-start',
+    gap: 14,
+    marginBottom: 10,
+  },
+
+  walletIconCircleInline: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 157, 66, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  walletButtonText: {
+    fontSize: 15,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+
+  copySection: {
+    gap: 10,
+    marginBottom: 8,
   },
 
   copyButton: {
@@ -743,86 +1153,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginBottom: 20,
   },
 
   copyButtonText: {
     fontSize: 14,
     fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.text,
-  },
-
-  walletButtonsSection: {
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-
-  walletSectionTitle: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-
-  walletRow: {
-    flexDirection: 'row',
-    gap: 14,
-    marginBottom: 16,
-  },
-
-  walletButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 6,
-    borderRadius: theme.borderRadius.medium,
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    minHeight: 100,
-  },
-
-  walletButtonFullWidth: {
-    alignItems: 'center',
-    paddingVertical: 22,
-    paddingHorizontal: 24,
-    borderRadius: theme.borderRadius.medium,
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    gap: 16,
-    minHeight: 80,
-    marginBottom: 12,
-  },
-
-  walletIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 157, 66, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-
-  walletIconCircleInline: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 157, 66, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  walletButtonText: {
-    fontSize: 15,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-    textAlign: 'center',
   },
 
   footer: {
@@ -848,7 +1184,6 @@ const styles = StyleSheet.create({
   },
 
   timerContainer: {
-    width: '100%',
     marginBottom: 16,
   },
 

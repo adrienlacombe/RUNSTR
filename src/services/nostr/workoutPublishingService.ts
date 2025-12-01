@@ -19,6 +19,8 @@ import { DailyRewardService } from '../rewards/DailyRewardService';
 import { FEATURES } from '../../config/features';
 import { ImageUploadService } from '../media/ImageUploadService';
 import { LocalTeamMembershipService } from '../team/LocalTeamMembershipService';
+import { CharitySelectionService } from '../charity/CharitySelectionService';
+import type { Charity } from '../../constants/charities';
 
 // Import split type for race replay data
 import type { Split } from '../activity/SplitTrackingService';
@@ -150,6 +152,10 @@ export class WorkoutPublishingService {
         workout.competitionTeam ||
         (await LocalTeamMembershipService.getCompetitionTeam());
 
+      // Get user's selected charity for tagging
+      const selectedCharity =
+        await CharitySelectionService.getSelectedCharity();
+
       // Create unsigned NDKEvent
       const ndkEvent = new NDKEvent(ndk);
       ndkEvent.kind = 1301;
@@ -157,7 +163,8 @@ export class WorkoutPublishingService {
       ndkEvent.tags = await this.createNIP101eWorkoutTags(
         workout,
         pubkey,
-        competitionTeam
+        competitionTeam,
+        selectedCharity
       );
       ndkEvent.created_at = Math.floor(
         new Date(workout.startTime).getTime() / 1000
@@ -395,11 +402,13 @@ export class WorkoutPublishingService {
    * Create runstr-compatible tags for kind 1301 workout events
    * Matches the exact format used by runstr GitHub implementation
    * ✅ UPDATED: Now includes competition team tag for leaderboard participation
+   * ✅ UPDATED: Now includes charity tag for external client parsing
    */
   private async createNIP101eWorkoutTags(
     workout: PublishableWorkout,
     pubkey: string,
-    competitionTeam: string | null
+    competitionTeam: string | null,
+    selectedCharity: Charity | null
   ): Promise<string[][]> {
     // Map workout type to simple exercise verb (run, walk, cycle)
     const exerciseVerb = this.getExerciseVerb(workout.type);
@@ -573,6 +582,17 @@ export class WorkoutPublishingService {
     if (competitionTeam) {
       tags.push(['team', competitionTeam]);
       console.log(`   ✅ Added team tag: ${competitionTeam}`);
+    }
+
+    // Add charity tag (for external client parsing and donations)
+    if (selectedCharity) {
+      tags.push([
+        'charity',
+        selectedCharity.id,
+        selectedCharity.name,
+        selectedCharity.lightningAddress,
+      ]);
+      console.log(`   ✅ Added charity tag: ${selectedCharity.name}`);
     }
 
     return tags;

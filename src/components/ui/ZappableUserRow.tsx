@@ -1,36 +1,31 @@
 /**
  * ZappableUserRow Component
- * Reusable component for displaying users with profile resolution and P2P zapping
+ * Reusable component for displaying users with profile resolution and charity zapping
  * Used across league rankings, team member lists, and competition displays
+ *
+ * Updated: Lightning button now zaps charity, charity name is non-interactive display
  */
 
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../../styles/theme';
 import { Avatar } from './Avatar';
 import { NWCLightningButton } from '../lightning/NWCLightningButton';
-import { TouchableOpacity } from 'react-native';
-import { ExternalZapModal } from '../nutzap/ExternalZapModal';
-import { CharitySelectionService } from '../../services/charity/CharitySelectionService';
 import { useNostrProfile } from '../../hooks/useCachedData';
+import type { WorkoutCharity } from '../../types/nostrWorkout';
 
 interface ZappableUserRowProps {
   npub: string;
   fallbackName?: string;
   additionalContent?: React.ReactNode;
   showQuickZap?: boolean;
-  showChallengeButton?: boolean;
+  showChallengeButton?: boolean; // Now controls charity name display
   zapAmount?: number;
   onZapSuccess?: () => void;
   style?: any;
   disabled?: boolean;
   hideActionsForCurrentUser?: boolean; // Hide challenge/zap for current user
+  charity?: WorkoutCharity; // Charity info from workout event
 }
 
 export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
@@ -44,29 +39,9 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
   style,
   disabled = false,
   hideActionsForCurrentUser = false,
+  charity,
 }) => {
   const { profile } = useNostrProfile(npub);
-  const [charityModalVisible, setCharityModalVisible] = useState(false);
-  const [selectedCharity, setSelectedCharity] = useState<{
-    name: string;
-    address: string;
-  } | null>(null);
-  const [charityName, setCharityName] = useState<string>('');
-
-  // Load charity name on mount
-  React.useEffect(() => {
-    loadCharityName();
-  }, []);
-
-  const loadCharityName = async () => {
-    try {
-      const charity = await CharitySelectionService.getSelectedCharity();
-      setCharityName(charity.displayName);
-    } catch (error) {
-      console.error('[ZappableUserRow] Error loading charity name:', error);
-      setCharityName('OpenSats'); // Default fallback
-    }
-  };
 
   // Resolve display name with fallback chain (treat empty strings as falsy)
   // Priority: profile name → profile display_name → fallbackName → Anonymous (if no profile) → truncated npub
@@ -82,93 +57,70 @@ export const ZappableUserRow: React.FC<ZappableUserRowProps> = ({
 
   const avatarUrl = profile?.picture;
 
-  const handleCharityZap = async () => {
-    try {
-      const charity = await CharitySelectionService.getSelectedCharity();
-      setSelectedCharity({
-        name: charity.name,
-        address: charity.lightningAddress,
-      });
-      setCharityModalVisible(true);
-    } catch (error) {
-      console.error('[ZappableUserRow] Error loading charity:', error);
-    }
+  // Default charity when no charity tag in 1301 event
+  const DEFAULT_CHARITY = {
+    id: 'opensats',
+    name: 'OpenSats',
+    lightningAddress: 'opensats@vlt.ge',
   };
 
+  // Get charity info (from prop or default to OpenSats)
+  const charityDisplayName = charity?.name || DEFAULT_CHARITY.name;
+  const charityLightningAddress =
+    charity?.lightningAddress || DEFAULT_CHARITY.lightningAddress;
+
   return (
-    <>
-      <View style={[styles.container, style]}>
-        <View style={styles.userSection}>
-          {/* Avatar with profile picture or fallback */}
-          <Avatar
-            name={displayName}
-            size={36}
-            imageUrl={avatarUrl}
-            style={styles.avatar}
-          />
+    <View style={[styles.container, style]}>
+      <View style={styles.userSection}>
+        {/* Avatar with profile picture or fallback */}
+        <Avatar
+          name={displayName}
+          size={36}
+          imageUrl={avatarUrl}
+          style={styles.avatar}
+        />
 
-          {/* User name with action buttons */}
-          <View style={styles.contentSection}>
-            <View style={styles.nameRow}>
-              <Text style={styles.userName} numberOfLines={1}>
-                {displayName}
-              </Text>
+        {/* User name with action buttons */}
+        <View style={styles.contentSection}>
+          <View style={styles.nameRow}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {displayName}
+            </Text>
 
-              {/* Only Zap button next to name (charity moved below) */}
-              {!hideActionsForCurrentUser && showQuickZap && (
-                <View style={styles.actionButtons}>
-                  <NWCLightningButton
-                    recipientNpub={npub}
-                    recipientName={displayName}
-                    size="small"
-                    disabled={disabled}
-                    onZapSuccess={onZapSuccess}
-                    style={styles.zapButton}
-                  />
-                </View>
-              )}
-            </View>
-
-            {/* Charity button below name */}
-            {!hideActionsForCurrentUser &&
-              showChallengeButton &&
-              charityName && (
-                <TouchableOpacity
-                  style={styles.charityButton}
-                  onPress={handleCharityZap}
+            {/* Lightning button now zaps charity */}
+            {!hideActionsForCurrentUser && showQuickZap && (
+              <View style={styles.actionButtons}>
+                <NWCLightningButton
+                  recipientNpub={npub}
+                  recipientName={charityDisplayName}
+                  recipientLightningAddress={charityLightningAddress}
+                  size="small"
                   disabled={disabled}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.charityButtonText} numberOfLines={1}>
-                    {charityName}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                  onZapSuccess={onZapSuccess}
+                  style={styles.zapButton}
+                />
+              </View>
+            )}
           </View>
-        </View>
 
-        {/* Additional content (stats, etc) on the right */}
-        {additionalContent && (
-          <View style={styles.additionalContent}>{additionalContent}</View>
-        )}
+          {/* Charity name display (non-interactive) */}
+          {!hideActionsForCurrentUser &&
+            showChallengeButton &&
+            charityDisplayName && (
+              <View style={styles.charityDisplay}>
+                <Text style={styles.charityDisplayText} numberOfLines={1}>
+                  {charityDisplayName}
+                </Text>
+              </View>
+            )}
+        </View>
       </View>
 
-      {/* Charity Zap Modal */}
-      {selectedCharity && (
-        <ExternalZapModal
-          visible={charityModalVisible}
-          onClose={() => setCharityModalVisible(false)}
-          recipientNpub={selectedCharity.address}
-          recipientName={selectedCharity.name}
-          amount={21}
-          memo={`Donation to ${selectedCharity.name}`}
-          onSuccess={() => {
-            setCharityModalVisible(false);
-            console.log('Charity donation sent from ZappableUserRow!');
-          }}
-        />
+      {/* Additional content (stats, etc) on the right */}
+      {additionalContent && (
+        <View style={styles.additionalContent}>{additionalContent}</View>
       )}
-    </>
+    </View>
   );
 };
 
@@ -226,7 +178,7 @@ const styles = StyleSheet.create({
     // Gap handled by actionButtons
   },
 
-  charityButton: {
+  charityDisplay: {
     marginTop: 4,
     paddingVertical: 4,
     paddingHorizontal: 12,
@@ -240,7 +192,7 @@ const styles = StyleSheet.create({
     maxWidth: 150, // Adjusted for charity name only
   },
 
-  charityButtonText: {
+  charityDisplayText: {
     fontSize: 12,
     fontWeight: '500',
     color: theme.colors.orangeBright || '#FF8C00',

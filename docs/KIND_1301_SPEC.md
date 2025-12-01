@@ -203,6 +203,24 @@ Kind 1301 is a Nostr event kind for publishing fitness tracking data. RUNSTR pub
 - **Example**: `["workout_start_time", "1736950800"]`
 - **Note**: Different from event `created_at` which is publication time
 
+### `charity` - User's Selected Charity
+```typescript
+["charity", "hrf", "Human Rights Foundation", "hrf@btcpay.hrf.org"]
+```
+- **Purpose**: Charity the user supports (for donations/zapping)
+- **Format**: Four elements - tag name, charity ID, display name, lightning address
+- **Example**: `["charity", "opensats", "OpenSats", "opensats@vlt.ge"]`
+- **Note**: Enables other clients to display charity info and facilitate donations
+
+### `team` - Competition Team
+```typescript
+["team", "team_id_here"]
+```
+- **Purpose**: Team the workout is being submitted for (for leaderboard participation)
+- **Format**: Two elements - tag name, team ID
+- **Example**: `["team", "bitcoin-runners-nyc"]`
+- **Note**: Used for daily leaderboards and competition tracking
+
 ## Content Field
 
 The `content` field must be **plain text**, NOT JSON.

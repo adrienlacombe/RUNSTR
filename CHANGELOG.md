@@ -6,6 +6,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2025-01-30
+
+**Achievement**: Critical charity attribution fix and wallet UX improvements
+
+### 🐛 Bug Fixes
+
+**Charity Attribution Fix**:
+- Fixed critical bug where user's selected charity appeared on other users' leaderboard results
+- Root cause: Charity was being fetched from current user's profile instead of workout event tags
+- Solution: Embedded charity data directly into kind 1301 workout event tags at publish time
+- Modified workoutPublishingService.ts to include charity tag: `['charity', id, name, lightningAddress]`
+- Updated nostrWorkoutParser.ts to extract charity from event tags instead of user profile
+- Ensures each workout displays the charity selected at the time of publication
+- Defaults to OpenSats when no charity tag is present (backward compatibility)
+- Files modified: workoutPublishingService.ts, nostrWorkoutParser.ts, ZappableUserRow.tsx, NWCLightningButton.tsx, nostrWorkout.ts, ExternalZapModal.tsx, KIND_1301_SPEC.md
+
+**Wallet UX Improvements**:
+- Removed non-functional QR code from ExternalZapModal (react-native-qrcode-svg dependency issue)
+- Added amount selection UI with preset buttons (1000, 2100, 5000, 10000 sats)
+- Added custom amount input for flexible donations
+- Added "Set as default" option to remember preferred zap amounts
+- Separated amount selection from payment flow for clearer UX
+- Restricted zapping to charities only (removed peer-to-peer zapping)
+- Files modified: ExternalZapModal.tsx (major refactor)
+
+### 📱 Platform Updates
+- iOS: Version 0.9.5 (Build 81)
+- Android: Version 0.9.5 (Build 81)
+
 ## [0.9.4] - 2025-11-29
 
 **Achievement**: Critical bug fixes for Android background tracking, cycle tracker improvements, and UI refinements

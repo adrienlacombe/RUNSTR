@@ -17,6 +17,13 @@ export interface NostrEvent {
   sig: string;
 }
 
+// Charity info extracted from workout events
+export interface WorkoutCharity {
+  id: string;
+  name: string;
+  lightningAddress: string;
+}
+
 // Parsed Kind 1301 Workout Content
 export interface NostrWorkoutContent {
   type: string; // Activity type
@@ -40,6 +47,9 @@ export interface NostrWorkoutContent {
   mealSize?: string; // Diet meal size (small, medium, large)
   exerciseType?: string; // Specific exercise (pushups, bench, etc.)
   notes?: string; // Additional notes (food description, etc.)
+  // Charity support
+  charity?: WorkoutCharity; // User's selected charity from workout event
+  team?: string; // Team ID from workout event
 }
 
 export interface NostrRoutePoint {

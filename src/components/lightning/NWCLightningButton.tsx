@@ -30,6 +30,7 @@ const LONG_PRESS_DURATION = 400; // ms to trigger long press (reduced from 500ms
 interface NWCLightningButtonProps {
   recipientNpub: string;
   recipientName?: string;
+  recipientLightningAddress?: string; // If provided, zaps to this Lightning address instead of user's lud16
   size?: 'small' | 'medium' | 'large' | 'rectangular';
   style?: any;
   onZapSuccess?: () => void;
@@ -40,6 +41,7 @@ interface NWCLightningButtonProps {
 export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
   recipientNpub,
   recipientName = 'User',
+  recipientLightningAddress,
   size = 'medium',
   style,
   onZapSuccess,
@@ -243,10 +245,14 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
     ]).start();
 
     try {
-      const memo = `⚡ Quick zap from RUNSTR!`;
+      const memo = recipientLightningAddress
+        ? `⚡ Donation to ${recipientName} from RUNSTR!`
+        : `⚡ Quick zap from RUNSTR!`;
 
-      console.log('[NWCLightningButton] Sending zap via NWC...');
-      const success = await sendZap(recipientHex, defaultAmount, memo);
+      // Use lightning address directly if provided, otherwise use recipientHex
+      const zapTarget = recipientLightningAddress || recipientHex;
+      console.log('[NWCLightningButton] Sending zap via NWC to:', zapTarget);
+      const success = await sendZap(zapTarget, defaultAmount, memo);
 
       if (success) {
         // Haptic feedback for success
@@ -437,7 +443,7 @@ export const NWCLightningButton: React.FC<NWCLightningButtonProps> = ({
 
       <ExternalZapModal
         visible={showExternalModal}
-        recipientNpub={recipientHex}
+        recipientNpub={recipientLightningAddress || recipientHex}
         recipientName={recipientName}
         amount={externalZapAmount}
         memo={externalZapMemo}
