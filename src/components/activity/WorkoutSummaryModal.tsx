@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -471,6 +472,10 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
           {/* Header */}
           <View style={styles.header}>
             <Ionicons
@@ -819,6 +824,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
           <TouchableOpacity style={styles.dismissButton} onPress={onClose}>
             <Text style={styles.dismissButtonText}>Dismiss</Text>
           </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
 
@@ -875,11 +881,14 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.large,
-    padding: 24,
     width: '90%',
     maxWidth: 400,
+    maxHeight: Dimensions.get('window').height * 0.85,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  scrollContent: {
+    padding: 24,
   },
   header: {
     alignItems: 'center',

@@ -34,7 +34,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
 }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [useNativeScanner, setUseNativeScanner] = useState(true);
+  const [useNativeScanner, setUseNativeScanner] = useState(false);
 
   useEffect(() => {
     if (visible) {

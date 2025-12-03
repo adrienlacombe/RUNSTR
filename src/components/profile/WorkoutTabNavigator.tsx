@@ -17,12 +17,13 @@ import { theme } from '../../styles/theme';
 import { PublicWorkoutsTab } from './tabs/PublicWorkoutsTab';
 import { PrivateWorkoutsTab } from './tabs/PrivateWorkoutsTab';
 import { AppleHealthTab } from './tabs/AppleHealthTab';
+import { HealthConnectTab } from './tabs/HealthConnectTab';
 import { GarminHealthTab } from './tabs/GarminHealthTab';
 import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageService';
 
 // GARMIN: Removed 'garmin' from WorkoutTabType until security issues fixed
 // PUBLIC TAB: Hidden from UI (local-first architecture), but code kept for potential future use
-export type WorkoutTabType = 'public' | 'private' | 'apple'; // | 'garmin';
+export type WorkoutTabType = 'public' | 'private' | 'apple' | 'healthconnect'; // | 'garmin';
 
 interface WorkoutTabNavigatorProps {
   userId: string;
@@ -35,6 +36,8 @@ interface WorkoutTabNavigatorProps {
   onSocialShareHealthKit?: (workout: any) => Promise<void>;
   onCompeteGarmin?: (workout: any) => Promise<void>;
   onSocialShareGarmin?: (workout: any) => Promise<void>;
+  onCompeteHealthConnect?: (workout: any) => Promise<void>;
+  onSocialShareHealthConnect?: (workout: any) => Promise<void>;
   onNavigateToAnalytics?: () => void;
 }
 
@@ -49,6 +52,8 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
   onSocialShareHealthKit,
   onCompeteGarmin,
   onSocialShareGarmin,
+  onCompeteHealthConnect,
+  onSocialShareHealthConnect,
   onNavigateToAnalytics,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkoutTabType>(initialTab);
@@ -108,6 +113,24 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
           </TouchableOpacity>
         )}
 
+        {Platform.OS === 'android' && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'healthconnect' && styles.tabActive]}
+            onPress={() => setActiveTab('healthconnect')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'healthconnect' && styles.tabTextActive,
+              ]}
+            >
+              Health
+            </Text>
+            {activeTab === 'healthconnect' && <View style={styles.tabIndicator} />}
+          </TouchableOpacity>
+        )}
+
         {/* GARMIN: Hidden until CRITICAL security issues fixed (client_secret in bundle, deep link validation) */}
         {/* <TouchableOpacity
           style={[styles.tab, activeTab === 'garmin' && styles.tabActive]}
@@ -151,6 +174,13 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             userId={userId}
             onCompete={onCompeteHealthKit}
             onSocialShare={onSocialShareHealthKit}
+          />
+        )}
+        {activeTab === 'healthconnect' && (
+          <HealthConnectTab
+            userId={userId}
+            onCompete={onCompeteHealthConnect}
+            onSocialShare={onSocialShareHealthConnect}
           />
         )}
         {activeTab === 'garmin' && (

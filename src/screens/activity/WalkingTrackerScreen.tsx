@@ -161,15 +161,22 @@ export const WalkingTrackerScreen: React.FC = () => {
         setStepCounterLoading(true);
         setStepCounterError(null);
 
-        // Check if pedometer is available
+        // Check if step counting is available (HealthKit on iOS, Health Connect on Android)
         const available = await dailyStepCounterService.isAvailable();
         if (!available) {
-          // Device doesn't support pedometer - GPS-only mode
+          // Device doesn't support step counting - GPS-only mode
           setStepCounterLoading(false);
           setShowBackgroundBanner(false);
-          console.log(
-            '[WalkingTrackerScreen] Pedometer not available - using GPS-only mode'
-          );
+          if (Platform.OS === 'android') {
+            console.log(
+              '[WalkingTrackerScreen] Health Connect not available - using GPS-only mode'
+            );
+            setStepCounterError('Install Health Connect from Play Store for step counting');
+          } else {
+            console.log(
+              '[WalkingTrackerScreen] Pedometer not available - using GPS-only mode'
+            );
+          }
           return;
         }
 
@@ -626,7 +633,11 @@ export const WalkingTrackerScreen: React.FC = () => {
         console.warn(
           '[WalkingTrackerScreen] ⚠️ Permission denied - GPS-only mode continues'
         );
-        setStepCounterError('Background tracking requires motion permissions');
+        if (Platform.OS === 'android') {
+          setStepCounterError('Grant Health Connect permissions for step counting');
+        } else {
+          setStepCounterError('Background tracking requires motion permissions');
+        }
         setShowBackgroundBanner(true);
         setIsBackgroundActive(false);
         setStepCounterLoading(false);

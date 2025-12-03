@@ -6,6 +6,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6] - 2025-12-02
+
+**Achievement**: Android Health Connect integration and stability improvements
+
+### ✨ Features
+
+**Health Connect for Android**:
+- Added Health Connect integration for Android devices
+- New HealthConnectTab component for managing Android health data
+- healthConnectService for reading workouts from Google Health Connect
+
+**Event Page Refresh**:
+- Added pull-to-refresh functionality on event pages
+
+### 🐛 Bug Fixes
+
+**Android Step Counter**:
+- Fixed step counter not updating properly on Android devices
+- Improved DailyStepCounterService reliability
+
+**NWC Scanner Flow**:
+- Fixed QR scanner flow issues for NWC wallet connection
+- Improved QRScannerModal user experience
+
+**Cycling Tracker Auto-Start**:
+- Fixed auto-start bug in cycling tracker
+- Resolved countdown timing issues
+
+**Post Workout Modal UI**:
+- Fixed UI display problems in WorkoutSummaryModal
+- Improved modal layout and styling
+
+### 📱 Platform Updates
+- iOS: Version 0.9.6 (Build 82)
+- Android: Version 0.9.6 (Build 82)
+
 ## [0.9.5] - 2025-01-30
 
 **Achievement**: Critical charity attribution fix and wallet UX improvements

@@ -5,11 +5,18 @@
 
 export const FEATURE_FLAGS = {
   /**
-   * HealthKit Integration
+   * HealthKit Integration (iOS)
    * When false: Hides HealthKit sync UI, permission prompts, and merge logic
    * Workouts come from Nostr 1301 events and local Activity Tracker only
    */
   ENABLE_HEALTHKIT: true,
+
+  /**
+   * Health Connect Integration (Android)
+   * When false: Hides Health Connect sync UI, permission prompts, and merge logic
+   * Workouts come from Nostr 1301 events and local Activity Tracker only
+   */
+  ENABLE_HEALTH_CONNECT: true,
 
   /**
    * Workout Merge Service

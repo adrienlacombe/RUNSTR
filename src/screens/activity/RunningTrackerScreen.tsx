@@ -56,15 +56,6 @@ const ANDROID_BACKGROUND_WARNING_KEY =
   '@runstr:android_background_warning_shown';
 const ROUTE_CHECK_INTERVAL_MS = 30000; // Check for route match every 30 seconds
 
-// Race distance presets (in meters)
-const RACE_PRESETS = {
-  '5k': { distance: 5000, label: '5K' },
-  '10k': { distance: 10000, label: '10K' },
-  half: { distance: 21097, label: 'Half Marathon' },
-  marathon: { distance: 42195, label: 'Marathon' },
-} as const;
-
-type RacePreset = keyof typeof RACE_PRESETS | null;
 
 interface MetricCardProps {
   label: string;
@@ -100,7 +91,6 @@ export const RunningTrackerScreen: React.FC = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [racePreset, setRacePreset] = useState<RacePreset>(null);
   const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
@@ -181,12 +171,6 @@ export const RunningTrackerScreen: React.FC = () => {
 
       setMetrics(formatted);
       setElapsedTime(session.duration);
-
-      // Check for auto-stop on every UI update for responsive stopping
-      // This ensures auto-stop triggers within 1 second of reaching preset distance
-      if (racePreset && isTracking && !isPaused) {
-        simpleRunTracker.checkAutoStop();
-      }
     }
   };
 
@@ -389,13 +373,8 @@ export const RunningTrackerScreen: React.FC = () => {
 
   const proceedWithTracking = async () => {
     try {
-      // Get preset distance if selected
-      const presetDistance = racePreset
-        ? RACE_PRESETS[racePreset].distance
-        : undefined;
-
       // Start tracking with SimpleRunTracker
-      await simpleRunTracker.startTracking('running', presetDistance);
+      await simpleRunTracker.startTracking('running');
       initializeTracking();
     } catch (error) {
       // Get detailed error message from service
@@ -434,16 +413,6 @@ export const RunningTrackerScreen: React.FC = () => {
   const initializeTracking = () => {
     setIsTracking(true);
     setIsPaused(false);
-
-    // Set auto-stop callback if preset distance is selected
-    if (racePreset) {
-      simpleRunTracker.setAutoStopCallback(() => {
-        console.log(
-          '[RunningTrackerScreen] Auto-stop triggered - stopping workout'
-        );
-        stopTracking();
-      });
-    }
 
     // Reset route matching state (unless we pre-selected a route)
     if (!selectedRoute) {
@@ -638,17 +607,6 @@ export const RunningTrackerScreen: React.FC = () => {
       timestamp: point.timestamp,
     }));
 
-    // Convert preset distance (meters) to race key ('5k', '10k', etc.)
-    const getRaceDistanceKey = (
-      distanceMeters?: number
-    ): string | undefined => {
-      if (!distanceMeters) return undefined;
-      const entry = Object.entries(RACE_PRESETS).find(
-        ([_, { distance }]) => distance === distanceMeters
-      );
-      return entry ? entry[0] : undefined;
-    };
-
     // Save workout to local storage BEFORE showing modal
     // This ensures data persists even if user dismisses modal
     try {
@@ -663,7 +621,6 @@ export const RunningTrackerScreen: React.FC = () => {
         elevation: 0, // TODO: SimpleRunTracker doesn't calculate elevation yet
         pace,
         splits: session.splits, // ✅ Pass splits from SimpleRunTracker
-        raceDistance: getRaceDistanceKey(session.presetDistance),
         // Pass GPS coordinates for weather lookup
         startLatitude: startPosition?.latitude,
         startLongitude: startPosition?.longitude,
@@ -763,46 +720,6 @@ export const RunningTrackerScreen: React.FC = () => {
             />
           </View>
         </View>
-
-        {/* Race Preset Selection */}
-        {!isTracking && !countdown && (
-          <View style={styles.presetContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.presetScrollContent}
-            >
-              {Object.entries(RACE_PRESETS).map(([key, { label }]) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.presetButton,
-                    racePreset === key && styles.presetButtonActive,
-                  ]}
-                  onPress={() =>
-                    setRacePreset(
-                      racePreset === key ? null : (key as RacePreset)
-                    )
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.presetButtonText,
-                      racePreset === key && styles.presetButtonTextActive,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            {racePreset && (
-              <Text style={styles.presetHint}>
-                Workout will auto-stop at {RACE_PRESETS[racePreset].label}
-              </Text>
-            )}
-          </View>
-        )}
       </ScrollView>
 
       {/* Fixed Control Buttons */}
@@ -1107,46 +1024,6 @@ const styles = StyleSheet.create({
   },
   splitIconContainer: {
     marginLeft: 8,
-  },
-  presetContainer: {
-    marginBottom: 8,
-    paddingHorizontal: 0,
-  },
-  presetLabel: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.medium,
-    color: theme.colors.textMuted,
-    marginBottom: 12,
-  },
-  presetScrollContent: {
-    gap: 8,
-    paddingRight: 20,
-  },
-  presetButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: theme.colors.card,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-  },
-  presetButtonActive: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
-  },
-  presetButtonText: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.text,
-  },
-  presetButtonTextActive: {
-    color: theme.colors.background,
-  },
-  presetHint: {
-    fontSize: 12,
-    color: theme.colors.accent,
-    marginTop: 8,
-    fontStyle: 'italic',
   },
   countdownContainer: {
     alignItems: 'center',

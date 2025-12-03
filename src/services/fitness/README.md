@@ -1,12 +1,13 @@
 # Fitness Services Directory
 
-Workout data processing, HealthKit integration, and fitness-related services for RUNSTR.
+Workout data processing, HealthKit/Health Connect integration, and fitness-related services for RUNSTR.
 
 ## Files
 
 - **backgroundSyncService.ts** - iOS background sync for automatic HealthKit workout processing
 - **fitnessService.ts** - Main fitness data coordination and workout management service
-- **healthKitService.ts** - Apple HealthKit integration for workout data retrieval
+- **healthKitService.ts** - Apple HealthKit integration for workout data retrieval (iOS only)
+- **healthConnectService.ts** - Android Health Connect integration for workout data retrieval (Android 14+ only)
 - **nostrWorkoutService.ts** - Nostr workout event handling and kind 1301 processing
 - **nostrWorkoutSyncService.ts** - Synchronization between HealthKit and Nostr workout events
 - **optimizedNostrWorkoutService.ts** - Performance-optimized Nostr workout operations

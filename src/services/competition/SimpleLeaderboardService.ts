@@ -7,7 +7,11 @@
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
 import { CompetitionCacheService } from '../cache/CompetitionCacheService';
 import { UnifiedCacheService } from '../cache/UnifiedCacheService';
-import type { NDKFilter, NDKEvent } from '@nostr-dev-kit/ndk';
+import {
+  type NDKFilter,
+  type NDKEvent,
+  NDKSubscriptionCacheUsage,
+} from '@nostr-dev-kit/ndk';
 import { nip19 } from 'nostr-tools';
 import type { League, CompetitionEvent } from './SimpleCompetitionService';
 
@@ -949,7 +953,7 @@ export class SimpleLeaderboardService {
     });
 
     const allEvents = await Promise.race([
-      ndk.fetchEvents(filter),
+      ndk.fetchEvents(filter, { cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY }),
       timeoutPromise,
     ]);
     console.log(`   ✅ Found ${allEvents.size} total kind 1301 events today`);

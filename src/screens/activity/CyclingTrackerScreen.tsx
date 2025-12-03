@@ -585,15 +585,17 @@ export const CyclingTrackerScreen: React.FC = () => {
         onClose={() => setRouteSelectionVisible(false)}
       />
 
-      {/* Permission Request Modal */}
-      <PermissionRequestModal
-        visible={showPermissionModal}
-        onComplete={() => {
-          setShowPermissionModal(false);
-          // Permissions granted - proceed directly with tracking (no re-check)
-          proceedWithTracking();
-        }}
-      />
+      {/* Permission Request Modal - Only mount when needed to prevent auto-start bug */}
+      {showPermissionModal && (
+        <PermissionRequestModal
+          visible={true}
+          onComplete={() => {
+            setShowPermissionModal(false);
+            // Permissions granted - proceed directly with tracking (no re-check)
+            proceedWithTracking();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
