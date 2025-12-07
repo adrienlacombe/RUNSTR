@@ -1,23 +1,12 @@
 /**
  * DailyStepCounterService - Cross-platform daily step counting
- * iOS: Uses Expo Pedometer API (HealthKit)
- * Android: Uses Health Connect for step data aggregation
+ * iOS: Uses Expo Pedometer API (HealthKit) for auto-counting
+ * Android: Uses LocalWorkoutStorageService (tracked workouts only - more reliable than Health Connect)
  */
 
 import { Pedometer } from 'expo-sensors';
-import { Platform, PermissionsAndroid, Linking } from 'react-native';
-
-// Import Health Connect service for Android
-let healthConnectService: any = null;
-if (Platform.OS === 'android') {
-  try {
-    const { HealthConnectService } = require('../fitness/healthConnectService');
-    healthConnectService = HealthConnectService.getInstance();
-    console.log('[DailyStepCounterService] Health Connect service loaded for Android');
-  } catch (e) {
-    console.warn('[DailyStepCounterService] Failed to load Health Connect service:', e);
-  }
-}
+import { Platform, Linking } from 'react-native';
+import LocalWorkoutStorageService from '../fitness/LocalWorkoutStorageService';
 
 export interface DailyStepData {
   steps: number;
@@ -34,9 +23,9 @@ export class DailyStepCounterService {
   private constructor() {
     console.log(`[DailyStepCounterService] Initialized for ${Platform.OS}`);
     if (Platform.OS === 'android') {
-      console.log('[DailyStepCounterService] Will use Health Connect for step data');
+      console.log('[DailyStepCounterService] Will use local workout storage for tracked steps');
     } else {
-      console.log('[DailyStepCounterService] Will use Pedometer (HealthKit) for step data');
+      console.log('[DailyStepCounterService] Will use Pedometer (HealthKit) for auto-counted steps');
     }
   }
 
@@ -50,19 +39,14 @@ export class DailyStepCounterService {
   /**
    * Check if step counting is available on the device
    * iOS: Uses Pedometer (HealthKit)
-   * Android: Uses Health Connect
+   * Android: Always available (uses local workout storage)
    */
   async isAvailable(): Promise<boolean> {
     try {
       if (Platform.OS === 'android') {
-        // Android: Check Health Connect availability
-        if (!healthConnectService) {
-          console.log('[DailyStepCounterService] Health Connect service not loaded');
-          return false;
-        }
-        const sdkAvailable = await healthConnectService.checkSdkAvailability();
-        console.log(`[DailyStepCounterService] Health Connect SDK available: ${sdkAvailable}`);
-        return sdkAvailable;
+        // Android: Always available since we use local workout storage
+        console.log('[DailyStepCounterService] Android: Using local workout storage (always available)');
+        return true;
       } else {
         // iOS: Check Pedometer availability
         const available = await Pedometer.isAvailableAsync();
@@ -71,33 +55,20 @@ export class DailyStepCounterService {
       }
     } catch (error) {
       console.error('[DailyStepCounterService] Error checking availability:', error);
-      return false;
+      return Platform.OS === 'android'; // Android always true, iOS false on error
     }
   }
 
   /**
    * Request permissions for step data
    * iOS: Automatically handled by Pedometer API (HealthKit)
-   * Android: Uses Health Connect permissions
+   * Android: No permissions needed (uses local workout storage)
    */
   async requestPermissions(): Promise<boolean> {
     try {
       if (Platform.OS === 'android') {
-        // Android: Initialize Health Connect and request permissions
-        if (!healthConnectService) {
-          console.warn('[DailyStepCounterService] Health Connect service not available');
-          return false;
-        }
-
-        console.log('[DailyStepCounterService] Requesting Health Connect permissions...');
-        const result = await healthConnectService.initialize();
-
-        if (!result.success) {
-          console.warn('[DailyStepCounterService] Health Connect permission denied:', result.error);
-          return false;
-        }
-
-        console.log('[DailyStepCounterService] Health Connect permissions granted');
+        // Android: No permissions needed for local workout storage
+        console.log('[DailyStepCounterService] Android: No permissions needed for local workout storage');
         return true;
       } else {
         // iOS: Check Pedometer availability and request HealthKit access
@@ -124,54 +95,31 @@ export class DailyStepCounterService {
   /**
    * Check if step counting permission is currently granted
    * iOS: Always returns 'granted' (handled by HealthKit)
-   * Android: Checks Health Connect Steps permission
+   * Android: Always returns 'granted' (uses local workout storage - no permissions needed)
    */
   async checkPermissionStatus(): Promise<
     'granted' | 'denied' | 'never_ask_again' | 'unknown'
   > {
-    if (Platform.OS === 'ios') {
-      return 'granted'; // iOS handles permissions through HealthKit automatically
-    }
-
-    // Android: Check Health Connect permission
-    try {
-      if (!healthConnectService) {
-        return 'unknown';
-      }
-
-      const hasPermission = await healthConnectService.hasStepsPermission();
-      return hasPermission ? 'granted' : 'denied';
-    } catch (error) {
-      console.error('[DailyStepCounterService] Error checking permission:', error);
-      return 'unknown';
-    }
+    // Both platforms: always granted
+    // iOS: handled by HealthKit automatically
+    // Android: uses local workout storage, no permissions needed
+    return 'granted';
   }
 
   /**
    * Open device settings for manual permission grant
-   * Android: Opens Health Connect settings
-   * iOS: Opens app settings
+   * Opens app settings on both platforms
    */
   async openSettings(): Promise<void> {
-    if (Platform.OS === 'android' && healthConnectService) {
-      try {
-        console.log('[DailyStepCounterService] Opening Health Connect settings');
-        await healthConnectService.openHealthConnectSettings();
-      } catch (error) {
-        console.log('[DailyStepCounterService] Falling back to app settings');
-        Linking.openSettings();
-      }
-    } else {
-      console.log('[DailyStepCounterService] Opening app settings');
-      Linking.openSettings();
-    }
+    console.log('[DailyStepCounterService] Opening app settings');
+    Linking.openSettings();
   }
 
   /**
    * Get today's step count (from midnight to now)
    * Uses cached value if less than 5 minutes old
-   * iOS: Uses Pedometer API (HealthKit)
-   * Android: Uses Health Connect
+   * iOS: Uses Pedometer API (HealthKit) - auto-counted throughout day
+   * Android: Uses LocalWorkoutStorageService - tracked workouts only
    */
   async getTodaySteps(): Promise<DailyStepData | null> {
     try {
@@ -228,34 +176,30 @@ export class DailyStepCounterService {
   }
 
   /**
-   * Android-specific step fetching via Health Connect
+   * Android-specific step fetching from local workout storage
+   * Shows "Tracked Steps" - only steps from in-app tracked workouts
    */
   private async getTodayStepsAndroid(): Promise<DailyStepData | null> {
-    if (!healthConnectService) {
-      console.warn('[DailyStepCounterService] Android: Health Connect service not available');
-      return null;
-    }
+    console.log('[DailyStepCounterService] Android: Querying tracked steps from local storage');
 
-    console.log('[DailyStepCounterService] Android: Querying steps from Health Connect');
+    const result = await LocalWorkoutStorageService.getTodayTrackedSteps();
 
-    const result = await healthConnectService.getTodaySteps();
-
-    if (!result) {
-      console.warn('[DailyStepCounterService] Android: No step data returned from Health Connect');
-      return null;
-    }
+    // Calculate time bounds for today
+    const startTime = new Date();
+    startTime.setHours(0, 0, 0, 0); // Midnight today
+    const endTime = new Date(); // Now
 
     const stepData: DailyStepData = {
       steps: result.steps,
-      startTime: result.startTime,
-      endTime: result.endTime,
+      startTime,
+      endTime,
       lastUpdated: new Date(),
     };
 
     // Update cache
     this.cachedSteps = stepData;
 
-    console.log(`[DailyStepCounterService] Android ✅ Today's steps: ${result.steps}`);
+    console.log(`[DailyStepCounterService] Android ✅ Tracked steps: ${result.steps} from ${result.workoutCount} workouts`);
     return stepData;
   }
 
@@ -280,10 +224,6 @@ export class DailyStepCounterService {
    */
   clearCache(): void {
     this.cachedSteps = null;
-    // Also clear Health Connect cache on Android
-    if (Platform.OS === 'android' && healthConnectService) {
-      healthConnectService.clearStepsCache();
-    }
     console.log('[DailyStepCounterService] Cache cleared');
   }
 

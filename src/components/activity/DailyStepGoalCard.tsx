@@ -10,6 +10,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -51,11 +52,14 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
     return count.toLocaleString();
   };
 
+  // Title: "Today's Steps" on iOS (auto-counted), "Tracked Steps" on Android (workout-based)
+  const stepTitle = Platform.OS === 'android' ? 'Tracked Steps' : "Today's Steps";
+
   // Loading state - show minimal loading indicator
   if (loading && steps === null) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Today's Steps</Text>
+        <Text style={styles.title}>{stepTitle}</Text>
         <ActivityIndicator
           size="large"
           color={theme.colors.accent}
@@ -78,7 +82,7 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Today's Steps</Text>
+      <Text style={styles.title}>{stepTitle}</Text>
 
       {/* 3-Column Layout: Progress Badge + Text + Buttons */}
       <View style={styles.horizontalContent}>

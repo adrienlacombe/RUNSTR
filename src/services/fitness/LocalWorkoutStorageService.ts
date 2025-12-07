@@ -710,6 +710,55 @@ export class LocalWorkoutStorageService {
   }
 
   /**
+   * Get total steps from today's tracked workouts (for Android daily step display)
+   * Sums steps from all local workouts with startTime today
+   * Used as alternative to Health Connect for more reliable step counting
+   */
+  async getTodayTrackedSteps(): Promise<{
+    steps: number;
+    workoutCount: number;
+  }> {
+    try {
+      const workouts = await this.getAllWorkouts();
+
+      // Get today's date bounds
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      // Filter workouts for today that have step data
+      const todayWorkouts = workouts.filter((workout) => {
+        const workoutDate = new Date(workout.startTime);
+        const isToday = workoutDate >= todayStart;
+        const hasSteps = (workout.steps || 0) > 0;
+        return isToday && hasSteps;
+      });
+
+      const totalSteps = todayWorkouts.reduce(
+        (sum, w) => sum + (w.steps || 0),
+        0
+      );
+
+      console.log(
+        `[LocalWorkoutStorageService] Today's tracked steps: ${totalSteps} from ${todayWorkouts.length} workouts`
+      );
+
+      return {
+        steps: totalSteps,
+        workoutCount: todayWorkouts.length,
+      };
+    } catch (error) {
+      console.error(
+        '[LocalWorkoutStorageService] Error getting today tracked steps:',
+        error
+      );
+      return {
+        steps: 0,
+        workoutCount: 0,
+      };
+    }
+  }
+
+  /**
    * Save fitness test result as workout
    */
   async saveFitnessTestWorkout(testData: {

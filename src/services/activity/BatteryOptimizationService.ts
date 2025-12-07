@@ -308,26 +308,40 @@ export class BatteryOptimizationService {
   /**
    * Check if battery optimization exemption has been requested
    * Android 14+ requires this for reliable background location tracking
+   *
+   * CRITICAL FIX: Previously assumed exempted if prompted - this was WRONG.
+   * Now properly distinguishes between:
+   * - 'true': User accepted and opened settings (may or may not have enabled)
+   * - 'declined': User explicitly declined
+   * - null: Never prompted
    */
   async checkBatteryOptimizationStatus(): Promise<{
     exempted: boolean;
     prompted: boolean;
+    userDeclined: boolean;
   }> {
     // iOS doesn't have battery optimization issues, return true
     if (Platform.OS !== 'android') {
-      return { exempted: true, prompted: false };
+      return { exempted: true, prompted: false, userDeclined: false };
     }
 
-    // Check if we've already prompted the user
-    const hasPrompted = await AsyncStorage.getItem(
+    // Check the prompt status
+    const promptStatus = await AsyncStorage.getItem(
       BATTERY_EXEMPTION_PROMPT_KEY
     );
 
-    // Note: We can't directly check Android battery optimization status without native module
-    // For now, we track whether we've prompted the user
+    // CRITICAL: We can't definitively know if exempted without native module
+    // But we CAN track if user declined, which means they're definitely NOT exempted
+    const userDeclined = promptStatus === 'declined';
+    const wasPrompted = promptStatus === 'true' || promptStatus === 'declined';
+
+    // IMPORTANT: If user declined, they are NOT exempted
+    // If user accepted, they MAY be exempted (we can't verify without native code)
+    // This is more conservative than before (assumes not exempted if declined)
     return {
-      exempted: hasPrompted === 'true', // Assume exempted if user was prompted
-      prompted: hasPrompted === 'true',
+      exempted: promptStatus === 'true', // Only consider exempted if they opened settings
+      prompted: wasPrompted,
+      userDeclined,
     };
   }
 
@@ -335,9 +349,12 @@ export class BatteryOptimizationService {
    * Request battery optimization exemption for reliable background tracking
    * Android 14+ requirement for apps that need to track location when backgrounded
    *
+   * @param forceReprompt - If true, will re-prompt even if previously declined (use after GPS issues)
    * @returns true if exemption granted or already requested, false if user declined
    */
-  async requestBatteryOptimizationExemption(): Promise<boolean> {
+  async requestBatteryOptimizationExemption(
+    forceReprompt: boolean = false
+  ): Promise<boolean> {
     // iOS doesn't need this, return true
     if (Platform.OS !== 'android') {
       return true;
@@ -345,9 +362,20 @@ export class BatteryOptimizationService {
 
     // Check if already prompted
     const status = await this.checkBatteryOptimizationStatus();
-    if (status.prompted) {
+
+    // If previously declined but force re-prompt is requested (e.g., after GPS issues)
+    if (status.userDeclined && forceReprompt) {
+      console.log(
+        '⚠️ User previously declined, but force re-prompt requested due to GPS issues'
+      );
+      // Clear the declined status to allow re-prompting
+      await AsyncStorage.removeItem(BATTERY_EXEMPTION_PROMPT_KEY);
+    } else if (status.prompted && !status.userDeclined) {
       console.log('✅ Battery optimization exemption already requested');
       return true;
+    } else if (status.userDeclined && !forceReprompt) {
+      console.log('⚠️ User previously declined battery exemption');
+      return false;
     }
 
     // Show alert explaining why this is needed

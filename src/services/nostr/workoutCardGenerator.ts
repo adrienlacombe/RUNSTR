@@ -1279,8 +1279,17 @@ export class WorkoutCardGenerator {
     // Duration (skip for diet and strength training)
     // Strength training primary stats are reps/sets, not duration
     if (!['diet', 'strength_training', 'gym'].includes(workout.type)) {
-      const duration = this.formatDurationDetailed(workout.duration);
-      stats.push({ value: duration, label: 'Duration' });
+      // Check if this is a weekly summary (has weekly metadata and zero duration)
+      const isWeeklySummary =
+        workout.id?.startsWith('weekly_') ||
+        (workout.duration === 0 && workout.metadata?.weeklyGoal !== undefined);
+
+      if (isWeeklySummary) {
+        stats.push({ value: 'This Week', label: 'Summary' });
+      } else {
+        const duration = this.formatDurationDetailed(workout.duration);
+        stats.push({ value: duration, label: 'Duration' });
+      }
     }
 
     // Distance

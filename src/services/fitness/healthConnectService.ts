@@ -21,36 +21,60 @@ const errorLog = (message: string, ...args: any[]) => {
 
 // Import react-native-health-connect for Android only
 let HealthConnect: any = null;
+let ExerciseType: any = null;
 
 if (Platform.OS === 'android') {
   try {
     const healthConnectModule = require('react-native-health-connect');
     HealthConnect = healthConnectModule;
+    ExerciseType = healthConnectModule.ExerciseType;
     debugLog('Health Connect module loaded successfully');
   } catch (e: any) {
     errorLog('Health Connect: Failed to import react-native-health-connect:', e.message);
     HealthConnect = null;
+    ExerciseType = null;
   }
 }
 
 // Health Connect exercise type mappings to RUNSTR workout types
-// Reference: https://developer.android.com/reference/androidx/health/connect/client/records/ExerciseSessionRecord
+// Values from: react-native-health-connect/src/constants.ts (ExerciseType)
+// IMPORTANT: Health Connect uses DIFFERENT values than Google Fit!
 const HC_EXERCISE_TYPE_MAP: Record<number, WorkoutType> = {
-  8: 'running',           // EXERCISE_TYPE_RUNNING
-  79: 'running',          // EXERCISE_TYPE_RUNNING_TREADMILL
-  56: 'walking',          // EXERCISE_TYPE_WALKING
-  9: 'cycling',           // EXERCISE_TYPE_BIKING
-  10: 'cycling',          // EXERCISE_TYPE_BIKING_STATIONARY
-  37: 'hiking',           // EXERCISE_TYPE_HIKING
-  74: 'strength_training', // EXERCISE_TYPE_STRENGTH_TRAINING
-  75: 'gym',              // EXERCISE_TYPE_STAIR_CLIMBING
-  29: 'gym',              // EXERCISE_TYPE_ELLIPTICAL
-  78: 'gym',              // EXERCISE_TYPE_ROWING_MACHINE
-  17: 'other',            // EXERCISE_TYPE_DANCING
-  82: 'other',            // EXERCISE_TYPE_YOGA
-  57: 'other',            // EXERCISE_TYPE_WHEELCHAIR
-  80: 'other',            // EXERCISE_TYPE_SWIMMING_POOL
-  81: 'other',            // EXERCISE_TYPE_SWIMMING_OPEN_WATER
+  // Running - ExerciseType.RUNNING = 56, ExerciseType.RUNNING_TREADMILL = 57
+  56: 'running',          // RUNNING
+  57: 'running',          // RUNNING_TREADMILL
+
+  // Walking - ExerciseType.WALKING = 79
+  79: 'walking',          // WALKING
+
+  // Cycling - ExerciseType.BIKING = 8, ExerciseType.BIKING_STATIONARY = 9
+  8: 'cycling',           // BIKING
+  9: 'cycling',           // BIKING_STATIONARY
+
+  // Hiking - ExerciseType.HIKING = 37
+  37: 'hiking',           // HIKING
+
+  // Strength Training - ExerciseType.STRENGTH_TRAINING = 70, ExerciseType.WEIGHTLIFTING = 81
+  70: 'strength_training', // STRENGTH_TRAINING
+  81: 'strength_training', // WEIGHTLIFTING
+
+  // Gym/Cardio Equipment
+  25: 'gym',              // ELLIPTICAL
+  54: 'gym',              // ROWING_MACHINE
+  68: 'gym',              // STAIR_CLIMBING
+  69: 'gym',              // STAIR_CLIMBING_MACHINE
+  36: 'gym',              // HIGH_INTENSITY_INTERVAL_TRAINING
+  10: 'gym',              // BOOT_CAMP
+  13: 'gym',              // CALISTHENICS
+
+  // Other activities
+  83: 'other',            // YOGA
+  73: 'other',            // SWIMMING_OPEN_WATER
+  74: 'other',            // SWIMMING_POOL
+  48: 'other',            // PILATES
+  16: 'other',            // DANCING
+  33: 'meditation',       // GUIDED_BREATHING (closest to meditation)
+  0: 'other',             // OTHER_WORKOUT
 };
 
 // Health Connect permissions to request
@@ -370,6 +394,11 @@ export class HealthConnectService {
           workouts.push(workout);
         }
       }
+
+      // Sort by startTime descending (newest first) to match iOS HealthKit behavior
+      workouts.sort((a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
 
       // Cache the results
       await this.cacheWorkouts(workouts);
@@ -749,6 +778,13 @@ export class HealthConnectService {
         return null;
       }
 
+      // Verify Steps permission before querying
+      const hasSteps = await this.hasStepsPermission();
+      if (!hasSteps) {
+        debugLog('Health Connect: Steps permission not granted, cannot query steps');
+        return null;
+      }
+
       // Calculate today's time range (midnight to now)
       const startTime = new Date();
       startTime.setHours(0, 0, 0, 0); // Midnight today
@@ -756,8 +792,11 @@ export class HealthConnectService {
 
       debugLog(`Health Connect: Querying steps from ${startTime.toISOString()} to ${endTime.toISOString()}`);
 
-      // Query Steps records from Health Connect
-      const stepsRecords = await HealthConnect.readRecords('Steps', {
+      // Use aggregateRecord instead of readRecords for cumulative data like steps
+      // Per Android docs: "For cumulative types like StepsRecord, use aggregate()
+      // instead of readRecords() to avoid double counting from multiple sources"
+      const result = await HealthConnect.aggregateRecord({
+        recordType: 'Steps',
         timeRangeFilter: {
           operator: 'between',
           startTime: startTime.toISOString(),
@@ -765,13 +804,16 @@ export class HealthConnectService {
         },
       });
 
-      // Aggregate all step records
-      let totalSteps = 0;
-      for (const record of stepsRecords?.records || []) {
-        totalSteps += record.count || 0;
+      debugLog('Health Connect: aggregateRecord result:', JSON.stringify(result));
+
+      // COUNT_TOTAL contains the properly aggregated step count
+      const totalSteps = result?.COUNT_TOTAL || 0;
+
+      if (totalSteps === 0) {
+        debugLog('Health Connect: 0 steps returned - check if user has step data in Health Connect app');
       }
 
-      debugLog(`Health Connect: ✅ Today's steps: ${totalSteps} (from ${stepsRecords?.records?.length || 0} records)`);
+      debugLog(`Health Connect: ✅ Today's steps (aggregated): ${totalSteps}`);
 
       // Update cache
       this.cachedDailySteps = {

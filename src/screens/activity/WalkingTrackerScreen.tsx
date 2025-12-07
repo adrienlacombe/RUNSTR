@@ -19,9 +19,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppStateManager } from '../../services/core/AppStateManager';
 import { CustomAlert } from '../../components/ui/CustomAlert';
-import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
+import { simpleRunTracker } from '../../services/activity/SimpleRunTracker';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
-import type { TrackingSession } from '../../services/activity/SimpleLocationTrackingService';
+import type { RunSession } from '../../services/activity/SimpleRunTracker';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
@@ -316,28 +316,29 @@ export const WalkingTrackerScreen: React.FC = () => {
         );
 
         // Force immediate sync of metrics
-        const session = simpleLocationTrackingService.getCurrentSession();
+        const session = simpleRunTracker.getCurrentSession();
         if (session) {
           const now = Date.now();
           const currentElapsed = Math.floor(
             (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
           );
 
-          const steps = activityMetricsService.estimateSteps(session.distance);
+          const distance = session.distance || 0;
+          const steps = activityMetricsService.estimateSteps(distance);
 
           setMetrics({
-            distance: activityMetricsService.formatDistance(session.distance),
+            distance: activityMetricsService.formatDistance(distance),
             duration: activityMetricsService.formatDuration(currentElapsed),
             steps: activityMetricsService.formatSteps(steps),
             elevation: activityMetricsService.formatElevation(
-              session.elevationGain
+              session.elevationGain || 0
             ),
           });
           setElapsedTime(currentElapsed);
 
           console.log(
             `[WalkingTrackerScreen] ✅ Synced: ${(
-              session.distance / 1000
+              distance / 1000
             ).toFixed(2)} km, ` +
               `${currentElapsed}s, ${steps} steps, tracking continued in background`
           );
@@ -402,7 +403,7 @@ export const WalkingTrackerScreen: React.FC = () => {
 
     try {
       // Simple permission and start flow
-      const started = await simpleLocationTrackingService.startTracking(
+      const started = await simpleRunTracker.startTracking(
         'walking'
       );
       if (started) {
@@ -472,16 +473,17 @@ export const WalkingTrackerScreen: React.FC = () => {
   };
 
   const updateMetrics = () => {
-    const session = simpleLocationTrackingService.getCurrentSession();
+    const session = simpleRunTracker.getCurrentSession();
     if (session) {
-      const steps = activityMetricsService.estimateSteps(session.distance);
+      const distance = session.distance || 0;
+      const steps = activityMetricsService.estimateSteps(distance);
 
       setMetrics({
-        distance: activityMetricsService.formatDistance(session.distance),
+        distance: activityMetricsService.formatDistance(distance),
         duration: activityMetricsService.formatDuration(elapsedTime),
         steps: activityMetricsService.formatSteps(steps),
         elevation: activityMetricsService.formatElevation(
-          session.elevationGain
+          session.elevationGain || 0
         ),
       });
     }
@@ -489,7 +491,7 @@ export const WalkingTrackerScreen: React.FC = () => {
 
   const pauseTracking = async () => {
     if (!isPaused) {
-      await simpleLocationTrackingService.pauseTracking();
+      await simpleRunTracker.pauseTracking();
       setIsPaused(true);
       isPausedRef.current = true;
       pauseStartTimeRef.current = Date.now(); // Store when pause started
@@ -500,7 +502,7 @@ export const WalkingTrackerScreen: React.FC = () => {
     if (isPaused) {
       const pauseDuration = Date.now() - pauseStartTimeRef.current; // Calculate how long we were paused
       totalPausedTimeRef.current += pauseDuration; // Add to cumulative total
-      await simpleLocationTrackingService.resumeTracking();
+      await simpleRunTracker.resumeTracking();
       setIsPaused(false);
       isPausedRef.current = false;
     }
@@ -521,7 +523,7 @@ export const WalkingTrackerScreen: React.FC = () => {
       routeMatchingService.stopMatching();
     }
 
-    const session = await simpleLocationTrackingService.stopTracking();
+    const session = await simpleRunTracker.stopTracking();
     setIsTracking(false);
     setIsPaused(false);
 
@@ -532,7 +534,7 @@ export const WalkingTrackerScreen: React.FC = () => {
     }
   };
 
-  const showWorkoutSummary = async (session: TrackingSession) => {
+  const showWorkoutSummary = async (session: RunSession) => {
     const steps = activityMetricsService.estimateSteps(session.distance);
     const calories = activityMetricsService.estimateCalories(
       'walking',
@@ -540,8 +542,8 @@ export const WalkingTrackerScreen: React.FC = () => {
       elapsedTime
     );
 
-    // Convert LocationPoint[] to GPSCoordinate[] for route saving
-    const gpsCoordinates = session.positions.map((point) => ({
+    // Convert GPSPoint[] to GPSCoordinate[] for route saving
+    const gpsCoordinates = session.gpsPoints.map((point) => ({
       latitude: point.latitude,
       longitude: point.longitude,
       altitude: point.altitude,
@@ -555,7 +557,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         distance: session.distance,
         duration: elapsedTime,
         calories,
-        elevation: session.elevationGain,
+        elevation: session.elevationGain || 0,
       });
 
       console.log(`✅ Walking workout saved locally: ${workoutId}`);
@@ -565,7 +567,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         distance: session.distance,
         duration: elapsedTime,
         calories,
-        elevation: session.elevationGain,
+        elevation: session.elevationGain || 0,
         steps,
         localWorkoutId: workoutId,
         gpsCoordinates, // Pass GPS data for route saving
@@ -579,7 +581,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         distance: session.distance,
         duration: elapsedTime,
         calories,
-        elevation: session.elevationGain,
+        elevation: session.elevationGain || 0,
         steps,
         gpsCoordinates, // Pass GPS data even if local save failed
       });

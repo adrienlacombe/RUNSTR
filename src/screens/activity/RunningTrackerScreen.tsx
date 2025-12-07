@@ -174,10 +174,16 @@ export const RunningTrackerScreen: React.FC = () => {
   const metricsUpdateRef = useRef<NodeJS.Timeout | null>(null);
   const routeCheckRef = useRef<NodeJS.Timeout | null>(null); // For route matching interval
   const isTrackingRef = useRef<boolean>(false); // Track isTracking without re-subscribing
+  // Liveness detection: track when updateMetrics() last actually executed
+  // This detects "zombie" intervals that exist but stopped firing (Android throttling)
+  const lastMetricsUpdateRef = useRef<number>(Date.now());
   // NOTE: Timer refs removed - SimpleRunTracker handles all timing internally via hybrid timer
 
   // Extract metrics update logic to reusable function (defined early for useEffect)
   const updateMetrics = () => {
+    // LIVENESS: Mark that updateMetrics actually executed (for zombie detection)
+    lastMetricsUpdateRef.current = Date.now();
+
     // FIX: Removed AppStateManager check that was stopping UI updates
     // The interval management in useEffect handles background/foreground properly
     // This check was causing UI to freeze when iOS sent spurious background events
@@ -198,7 +204,7 @@ export const RunningTrackerScreen: React.FC = () => {
           session.distance,
           session.duration
         ),
-        elevationGain: 0, // TODO: SimpleRunTracker doesn't track elevation yet
+        elevationGain: session.elevationGain || 0, // FIXED: Use actual elevation from session
       };
 
       const formatted = activityMetricsService.getFormattedMetrics(
@@ -379,7 +385,7 @@ export const RunningTrackerScreen: React.FC = () => {
               session.distance,
               session.duration
             ),
-            elevationGain: 0, // TODO: SimpleRunTracker doesn't track elevation yet
+            elevationGain: session.elevationGain || 0, // FIXED: Use actual elevation from session
           };
 
           const formatted = activityMetricsService.getFormattedMetrics(
@@ -410,16 +416,34 @@ export const RunningTrackerScreen: React.FC = () => {
     isTrackingRef.current = isTracking;
   }, [isTracking]);
 
-  // FIX iOS 30-min issue: Health check to ensure intervals keep running
-  // This prevents UI freeze when iOS sends spurious events that clear intervals
+  // FIX iOS 30-min issue + Android throttling: Health check with LIVENESS detection
+  // This prevents UI freeze from:
+  // 1. iOS spurious background events that clear intervals
+  // 2. Android throttling intervals to "zombie" state (exist but don't fire)
   useEffect(() => {
     if (!isTracking) return;
 
     const healthCheckInterval = setInterval(() => {
-      // If we're tracking but metrics interval is dead, restart it
+      // LIVENESS CHECK: Detect "zombie" intervals that exist but stopped firing
+      // This happens when Android throttles background JS execution
+      const timeSinceLastUpdate = Date.now() - lastMetricsUpdateRef.current;
+      const isZombieInterval = metricsUpdateRef.current && timeSinceLastUpdate > 3000;
+
+      if (isZombieInterval) {
+        console.log(
+          `[RunningTrackerScreen] 🧟 ZOMBIE INTERVAL DETECTED - no update for ${(timeSinceLastUpdate / 1000).toFixed(1)}s, restarting...`
+        );
+        // Kill the zombie and create a fresh interval
+        clearInterval(metricsUpdateRef.current!);
+        metricsUpdateRef.current = setInterval(() => {
+          updateMetrics();
+        }, METRICS_UPDATE_INTERVAL_MS);
+      }
+
+      // If we're tracking but metrics interval is completely dead (null), restart it
       if (isTracking && !metricsUpdateRef.current) {
         console.log(
-          '[RunningTrackerScreen] ⚠️ Metrics interval was dead, restarting...'
+          '[RunningTrackerScreen] ⚠️ Metrics interval was null, restarting...'
         );
         metricsUpdateRef.current = setInterval(() => {
           updateMetrics();

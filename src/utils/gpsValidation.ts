@@ -13,7 +13,10 @@
  * Reference: /reference/runstr-github/src/utils/runCalculations.js
  */
 
-import type { LocationPoint } from '../services/activity/SimpleLocationTrackingService';
+import type { GPSPoint } from '../services/activity/SimpleRunTracker';
+
+// Alias for backwards compatibility with existing code
+type LocationPoint = GPSPoint;
 
 // Constants from proven reference implementation
 export const GPS_VALIDATION_CONSTANTS = {

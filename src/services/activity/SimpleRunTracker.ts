@@ -22,6 +22,15 @@ import {
 } from './WorkoutSessionBridge';
 import TTSAnnouncementService from './TTSAnnouncementService';
 import { BatteryOptimizationService } from './BatteryOptimizationService';
+import {
+  activateKeepAwakeAsync,
+  deactivateKeepAwake,
+} from 'expo-keep-awake';
+import {
+  Audio,
+  InterruptionModeIOS,
+  InterruptionModeAndroid,
+} from 'expo-av';
 
 // Storage keys
 const GPS_POINTS_KEY = '@runstr:gps_points';
@@ -68,6 +77,8 @@ interface SessionState {
   trackerStartTime: number;
   trackerTotalPausedTime: number;
   trackerPauseStartTime: number;
+  // GPS warm-up counter (read by SimpleRunTrackerTask, reset on new sessions)
+  gpsPointCount?: number;
 }
 
 /**
@@ -210,6 +221,17 @@ export class SimpleRunTracker {
   private readonly FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds instead of every GPS update
   private isWriting = false;
 
+  // GPS Watchdog - detects and recovers from silent GPS failures
+  // Tighter timing per user feedback: 5s check interval, 20s timeout = max 25s detection delay
+  private watchdogInterval: NodeJS.Timeout | null = null;
+  private gpsRestartAttempts = 0;
+  private readonly MAX_GPS_RESTARTS = 5;
+  private readonly GPS_TIMEOUT_MS = 20000; // 20 seconds without GPS = dead
+  private readonly WATCHDOG_CHECK_MS = 5000; // Check every 5 seconds
+
+  // Silent audio recording - keeps app alive in background (Android insurance)
+  private silentRecording: Audio.Recording | null = null;
+
   private constructor() {
     console.log('[SimpleRunTracker] Initialized');
   }
@@ -247,6 +269,16 @@ export class SimpleRunTracker {
     this.lastFlushTime = Date.now();
     this.isWriting = false;
 
+    // CRITICAL: Prevent Android from suspending the app (Doze Mode)
+    // Reference implementation uses this exact pattern - required for background GPS
+    try {
+      await activateKeepAwakeAsync('gps-tracking');
+      console.log('[SimpleRunTracker] 🔋 Keep-awake activated - Android Doze Mode prevented');
+    } catch (error) {
+      console.warn('[SimpleRunTracker] Keep-awake activation failed:', error);
+      // Continue anyway - tracking may still work
+    }
+
     // INSTANT: Start timer immediately (user sees 1, 2, 3... right away!)
     this.durationTracker.start(this.startTime);
     console.log(
@@ -272,6 +304,12 @@ export class SimpleRunTracker {
       console.error('[SimpleRunTracker] GPS initialization failed:', error);
       // Timer still runs even if GPS fails!
     });
+
+    // Start watchdog to detect and recover from GPS failures
+    this.startWatchdog();
+
+    // Start silent audio recording for extra Android background insurance
+    this.startSilentAudio();
 
     return true;
   }
@@ -328,16 +366,18 @@ export class SimpleRunTracker {
       await this.saveSessionState();
 
       // Start GPS tracking (background operation)
+      // CRITICAL CONFIG: These options prevent Android from batching/killing GPS updates
       await Location.startLocationUpdatesAsync(SIMPLE_TRACKER_TASK, {
         accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: 1000, // 1 second
-        distanceInterval: 2, // 2 meters
+        timeInterval: 3000, // 3 seconds (backup time-based polling)
+        distanceInterval: 5, // 5 meters
+        deferredUpdatesInterval: 0, // Don't batch updates - send immediately
+        deferredUpdatesDistance: 0, // Don't batch updates - send immediately
         foregroundService: {
-          notificationTitle: `RUNSTR - ${
-            activityType.charAt(0).toUpperCase() + activityType.slice(1)
-          } Tracking`,
-          notificationBody: 'Tap to return to your run',
+          notificationTitle: 'RUNSTR Active',
+          notificationBody: 'Tracking your workout...',
           notificationColor: '#FF6B35',
+          killServiceOnDestroy: false, // CRITICAL: Keep service alive when app killed
         },
         pausesUpdatesAutomatically: false,
         activityType: Location.ActivityType.Fitness,
@@ -403,6 +443,12 @@ export class SimpleRunTracker {
 
     console.log('[SimpleRunTracker] Stopping tracking...');
 
+    // Stop watchdog first
+    this.stopWatchdog();
+
+    // Stop silent audio recording
+    await this.stopSilentAudio();
+
     // FIX: Flush any pending GPS points before stopping
     if (this.pendingPoints.length > 0) {
       console.log(
@@ -423,6 +469,14 @@ export class SimpleRunTracker {
       }
     } catch (error) {
       console.error('[SimpleRunTracker] Error stopping GPS:', error);
+    }
+
+    // Allow device to sleep again (release keep-awake)
+    try {
+      deactivateKeepAwake('gps-tracking');
+      console.log('[SimpleRunTracker] 🔋 Keep-awake deactivated - device can sleep');
+    } catch (error) {
+      console.warn('[SimpleRunTracker] Keep-awake deactivation failed:', error);
     }
 
     // Stop duration tracker
@@ -468,14 +522,30 @@ export class SimpleRunTracker {
       `[SimpleRunTracker] ✅ Splits recorded: ${splits?.length || 0} km markers`
     );
 
-    // Reset state
+    // Reset ALL state to prevent corruption between sessions
+    // CRITICAL: Must reset everything to prevent decreasing distance pattern (3km→1.4km→0.6km)
     this.isTracking = false;
     this.isPaused = false;
     this.sessionId = null;
     this.presetDistance = null;
     this.autoStopCallback = null;
 
-    // Clear session state
+    // Reset GPS state (prevents stale data from affecting next session)
+    this.cachedGpsPoints = [];
+    this.pendingPoints = [];
+    this.lastGPSUpdate = Date.now();
+    this.lastFlushTime = 0;
+
+    // Reset GPS recovery state (prevents accumulated failure counts)
+    this.isInGPSRecovery = false;
+    this.recoveryPointsSkipped = 0;
+    this.gpsFailureCount = 0;
+    this.lastGPSError = null;
+
+    // Reset split tracker for next session
+    this.splitTracker.reset();
+
+    // Clear session state from AsyncStorage
     await AsyncStorage.removeItem(SESSION_STATE_KEY);
     await AsyncStorage.removeItem(GPS_POINTS_KEY);
 
@@ -584,14 +654,15 @@ export class SimpleRunTracker {
    * Architecture: GPS ONLY for distance, timer is independent stopwatch
    * GPS → Background Task → Direct cache update → Distance updates
    * Timer → Pure JS stopwatch → Counts 1, 2, 3, 4, 5...
+   *
+   * CRITICAL FIX: Do NOT check this.isTracking here!
+   * On Android, background TaskManager runs in a SEPARATE JavaScript context.
+   * The singleton in the background task is a DIFFERENT instance with isTracking=false.
+   * Session validation is done in SimpleRunTrackerTask via AsyncStorage (shared between contexts).
    */
   appendGpsPointsToCache(points: GPSPoint[]): void {
-    if (!this.isTracking) {
-      console.warn(
-        '[SimpleRunTracker] appendGpsPointsToCache called while not tracking'
-      );
-      return;
-    }
+    // REMOVED: isTracking check - background task validates session via AsyncStorage
+    // The background task only calls this if session is active (checked in SimpleRunTrackerTask.ts)
 
     if (points.length === 0) {
       // No points received - check for GPS failure
@@ -903,6 +974,9 @@ export class SimpleRunTracker {
         trackerStartTime: trackerState.startTime,
         trackerTotalPausedTime: trackerState.totalPausedTime,
         trackerPauseStartTime: trackerState.pauseStartTime,
+        // Reset GPS warm-up counter for new sessions
+        // This is read by SimpleRunTrackerTask to skip first 3 GPS points
+        gpsPointCount: 0,
       };
       await AsyncStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
       console.log('[SimpleRunTracker] Session state saved');
@@ -954,6 +1028,151 @@ export class SimpleRunTracker {
   }
 
   /**
+   * Start GPS watchdog - detects and recovers from silent GPS failures
+   * Runs in foreground, reads timestamp written by background task
+   */
+  private startWatchdog(): void {
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+    }
+    this.gpsRestartAttempts = 0;
+
+    this.watchdogInterval = setInterval(async () => {
+      if (!this.isTracking || this.isPaused) return;
+
+      // Read last GPS time from AsyncStorage (shared with background task)
+      try {
+        const lastTimeStr = await AsyncStorage.getItem('@runstr:last_gps_time');
+        if (lastTimeStr) {
+          this.lastGPSUpdate = parseInt(lastTimeStr, 10);
+        }
+      } catch (e) {
+        console.warn('[WATCHDOG] Failed to read last GPS time:', e);
+      }
+
+      const gap = Date.now() - this.lastGPSUpdate;
+
+      if (gap > this.GPS_TIMEOUT_MS) {
+        console.warn(
+          `[WATCHDOG] GPS silent for ${(gap / 1000).toFixed(0)}s - attempting recovery`
+        );
+        await this.attemptGPSRecovery();
+      }
+    }, this.WATCHDOG_CHECK_MS);
+
+    console.log('[WATCHDOG] Started - monitoring GPS health every 5s');
+  }
+
+  /**
+   * Stop GPS watchdog
+   */
+  private stopWatchdog(): void {
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+      this.watchdogInterval = null;
+    }
+    console.log('[WATCHDOG] Stopped');
+  }
+
+  /**
+   * Attempt to recover GPS by restarting the location task
+   */
+  private async attemptGPSRecovery(): Promise<void> {
+    if (this.gpsRestartAttempts >= this.MAX_GPS_RESTARTS) {
+      console.error(
+        `[WATCHDOG] Max restart attempts (${this.MAX_GPS_RESTARTS}) reached - GPS may be unavailable`
+      );
+      this.lastGPSError =
+        'GPS repeatedly failed to restart. Please check your location settings.';
+      return;
+    }
+
+    this.gpsRestartAttempts++;
+    console.log(
+      `[WATCHDOG] GPS recovery attempt ${this.gpsRestartAttempts}/${this.MAX_GPS_RESTARTS}`
+    );
+
+    try {
+      // Stop existing GPS task
+      const isRunning = await Location.hasStartedLocationUpdatesAsync(
+        SIMPLE_TRACKER_TASK
+      );
+      if (isRunning) {
+        await Location.stopLocationUpdatesAsync(SIMPLE_TRACKER_TASK);
+      }
+
+      // Brief pause before restarting
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Restart GPS
+      await this.initializeGPS(this.activityType);
+
+      // Update last GPS time to prevent immediate re-trigger
+      this.lastGPSUpdate = Date.now();
+      await AsyncStorage.setItem(
+        '@runstr:last_gps_time',
+        this.lastGPSUpdate.toString()
+      );
+
+      console.log('[WATCHDOG] GPS recovery successful');
+    } catch (error) {
+      console.error('[WATCHDOG] GPS recovery failed:', error);
+    }
+  }
+
+  /**
+   * Start silent audio recording to keep app process alive in background
+   * This is an insurance policy for Android - some devices aggressively kill apps
+   * even with foreground services
+   */
+  private async startSilentAudio(): Promise<void> {
+    // Only needed on Android
+    if (Platform.OS !== 'android') return;
+
+    try {
+      // Configure audio session for background playback
+      await Audio.setAudioModeAsync({
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+        shouldDuckAndroid: false,
+      });
+
+      // Recording trick: keeps audio session alive without needing a file
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(
+        Audio.RecordingOptionsPresets.LOW_QUALITY
+      );
+      await recording.startAsync();
+      this.silentRecording = recording;
+      console.log(
+        '[SimpleRunTracker] Silent audio recording started (background keep-alive)'
+      );
+    } catch (e) {
+      // Non-fatal - GPS should still work without this
+      console.warn('[SimpleRunTracker] Silent audio failed (non-fatal):', e);
+    }
+  }
+
+  /**
+   * Stop silent audio recording
+   */
+  private async stopSilentAudio(): Promise<void> {
+    if (!this.silentRecording) return;
+
+    try {
+      await this.silentRecording.stopAndUnloadAsync();
+      this.silentRecording = null;
+      console.log('[SimpleRunTracker] Silent audio recording stopped');
+    } catch (e) {
+      // Non-fatal
+      console.warn('[SimpleRunTracker] Stop silent audio failed:', e);
+      this.silentRecording = null;
+    }
+  }
+
+  /**
    * Check for active session and restore if found
    * Call this when app returns to foreground or on screen mount
    */
@@ -1002,7 +1221,7 @@ export class SimpleRunTracker {
 
         if (!isTaskRunning) {
           // Restart GPS tracking
-          await this.initializeGPS();
+          await this.initializeGPS(this.activityType);
           console.log(
             '[SimpleRunTracker] ✅ GPS tracking restarted successfully'
           );
@@ -1012,6 +1231,12 @@ export class SimpleRunTracker {
 
         // Update last GPS update time to prevent immediate failure detection
         this.lastGPSUpdate = Date.now();
+
+        // Start watchdog for restored session
+        this.startWatchdog();
+
+        // Start silent audio for restored session too
+        this.startSilentAudio();
       }
 
       console.log(

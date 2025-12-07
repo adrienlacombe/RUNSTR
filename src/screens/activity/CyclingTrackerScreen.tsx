@@ -16,9 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppStateManager } from '../../services/core/AppStateManager';
 import { CustomAlert } from '../../components/ui/CustomAlert';
-import { simpleLocationTrackingService } from '../../services/activity/SimpleLocationTrackingService';
+import { simpleRunTracker } from '../../services/activity/SimpleRunTracker';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
-import type { TrackingSession } from '../../services/activity/SimpleLocationTrackingService';
+import type { RunSession } from '../../services/activity/SimpleRunTracker';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
@@ -234,24 +234,25 @@ export const CyclingTrackerScreen: React.FC = () => {
         }
 
         // Force immediate sync of metrics
-        const session = simpleLocationTrackingService.getCurrentSession();
+        const session = simpleRunTracker.getCurrentSession();
         if (session) {
           const now = Date.now();
           const currentElapsed = Math.floor(
             (now - startTimeRef.current - totalPausedTimeRef.current) / 1000
           );
 
+          const distance = session.distance || 0;
           const speed = activityMetricsService.calculateSpeed(
-            session.distance,
+            distance,
             currentElapsed
           );
 
           setMetrics({
-            distance: activityMetricsService.formatDistance(session.distance),
+            distance: activityMetricsService.formatDistance(distance),
             duration: activityMetricsService.formatDuration(currentElapsed),
             speed: activityMetricsService.formatSpeed(speed),
             elevation: activityMetricsService.formatElevation(
-              session.elevationGain
+              session.elevationGain || 0
             ),
           });
           setElapsedTime(currentElapsed);
@@ -259,7 +260,7 @@ export const CyclingTrackerScreen: React.FC = () => {
 
           console.log(
             `[CyclingTrackerScreen] ✅ Synced: ${(
-              session.distance / 1000
+              distance / 1000
             ).toFixed(2)} km, ` +
               `${currentElapsed}s, ${speed.toFixed(
                 1
@@ -312,7 +313,7 @@ export const CyclingTrackerScreen: React.FC = () => {
   const proceedWithTracking = async () => {
     try {
       // Start tracking without re-checking permissions (already checked in handleHoldComplete)
-      const started = await simpleLocationTrackingService.startTracking(
+      const started = await simpleRunTracker.startTracking(
         'cycling'
       );
       if (started) {
@@ -388,11 +389,12 @@ export const CyclingTrackerScreen: React.FC = () => {
       return;
     }
 
-    const session = simpleLocationTrackingService.getCurrentSession();
+    const session = simpleRunTracker.getCurrentSession();
     if (session) {
+      const distance = session.distance || 0;
       // Calculate average speed based on total distance and time
       const calculatedAvgSpeed = activityMetricsService.calculateSpeed(
-        session.distance,
+        distance,
         elapsedTime
       );
 
@@ -409,11 +411,11 @@ export const CyclingTrackerScreen: React.FC = () => {
       }
 
       setMetrics({
-        distance: activityMetricsService.formatDistance(session.distance),
+        distance: activityMetricsService.formatDistance(distance),
         duration: activityMetricsService.formatDuration(elapsedTime),
         speed: activityMetricsService.formatSpeed(instantSpeed),
         elevation: activityMetricsService.formatElevation(
-          session.elevationGain
+          session.elevationGain || 0
         ),
       });
     }
@@ -421,7 +423,7 @@ export const CyclingTrackerScreen: React.FC = () => {
 
   const pauseTracking = async () => {
     if (!isPaused) {
-      await simpleLocationTrackingService.pauseTracking();
+      await simpleRunTracker.pauseTracking();
       setIsPaused(true);
       isPausedRef.current = true;
       pauseStartTimeRef.current = Date.now(); // Store when pause started
@@ -432,7 +434,7 @@ export const CyclingTrackerScreen: React.FC = () => {
     if (isPaused) {
       const pauseDuration = Date.now() - pauseStartTimeRef.current; // Calculate how long we were paused
       totalPausedTimeRef.current += pauseDuration; // Add to cumulative total
-      await simpleLocationTrackingService.resumeTracking();
+      await simpleRunTracker.resumeTracking();
       setIsPaused(false);
       isPausedRef.current = false;
     }
@@ -453,7 +455,7 @@ export const CyclingTrackerScreen: React.FC = () => {
       routeMatchingService.stopMatching();
     }
 
-    const session = await simpleLocationTrackingService.stopTracking();
+    const session = await simpleRunTracker.stopTracking();
     setIsTracking(false);
     setIsPaused(false);
 
@@ -465,7 +467,7 @@ export const CyclingTrackerScreen: React.FC = () => {
     }
   };
 
-  const showWorkoutSummary = async (session: TrackingSession) => {
+  const showWorkoutSummary = async (session: RunSession) => {
     const avgSpeed = activityMetricsService.calculateSpeed(
       session.distance,
       elapsedTime
@@ -476,8 +478,8 @@ export const CyclingTrackerScreen: React.FC = () => {
       elapsedTime
     );
 
-    // Convert LocationPoint[] to GPSCoordinate[] for route saving
-    const gpsCoordinates = session.positions.map((point) => ({
+    // Convert GPSPoint[] to GPSCoordinate[] for route saving
+    const gpsCoordinates = session.gpsPoints.map((point) => ({
       latitude: point.latitude,
       longitude: point.longitude,
       altitude: point.altitude,
@@ -491,7 +493,7 @@ export const CyclingTrackerScreen: React.FC = () => {
         distance: session.distance,
         duration: elapsedTime,
         calories,
-        elevation: session.elevationGain,
+        elevation: session.elevationGain || 0,
         speed: avgSpeed,
       });
 
@@ -502,7 +504,7 @@ export const CyclingTrackerScreen: React.FC = () => {
         distance: session.distance,
         duration: elapsedTime,
         calories,
-        elevation: session.elevationGain,
+        elevation: session.elevationGain || 0,
         speed: avgSpeed,
         localWorkoutId: workoutId,
         gpsCoordinates, // Pass GPS data for route saving
@@ -516,7 +518,7 @@ export const CyclingTrackerScreen: React.FC = () => {
         distance: session.distance,
         duration: elapsedTime,
         calories,
-        elevation: session.elevationGain,
+        elevation: session.elevationGain || 0,
         speed: avgSpeed,
         gpsCoordinates, // Pass GPS data even if local save failed
       });

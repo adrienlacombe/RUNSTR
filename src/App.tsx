@@ -10,11 +10,11 @@ import * as ExpoSplashScreen from 'expo-splash-screen';
 import * as TaskManager from 'expo-task-manager';
 
 // Background location task imported in index.js (before app initialization)
-// Only import the functions we need here
+// Only import the task name - stopTracking is handled by simpleRunTracker
 import {
-  BACKGROUND_LOCATION_TASK,
-  stopBackgroundLocationTracking,
-} from './services/activity/BackgroundLocationTask';
+  SIMPLE_TRACKER_TASK,
+  simpleRunTracker,
+} from './services/activity/SimpleRunTracker';
 
 import React from 'react';
 import {
@@ -1062,10 +1062,10 @@ export default function App() {
         // 🔧 iOS FIX: Verify background location task is defined for distance tracking
         try {
           const isTaskDefined = await TaskManager.isTaskDefined(
-            BACKGROUND_LOCATION_TASK
+            SIMPLE_TRACKER_TASK
           );
           const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(
-            BACKGROUND_LOCATION_TASK
+            SIMPLE_TRACKER_TASK
           );
 
           console.log(
@@ -1077,7 +1077,7 @@ export default function App() {
               '❌ Background location task NOT defined - distance tracking will fail'
             );
             console.error(
-              '   This should not happen - check BackgroundLocationTask import'
+              '   This should not happen - check SimpleRunTrackerTask import in index.js'
             );
           } else {
             console.log(
@@ -1091,17 +1091,11 @@ export default function App() {
                 '⚠️  Background task registered from previous session - cleaning up zombie session'
               );
               try {
-                await stopBackgroundLocationTracking();
+                // simpleRunTracker.stopTracking() handles both background task and internal state
+                await simpleRunTracker.stopTracking();
 
-                // ✅ FIX: Also reset the service's internal state
-                // This ensures isTracking=false even if service singleton persists
-                const { simpleLocationTrackingService } = await import(
-                  './services/activity/SimpleLocationTrackingService'
-                );
-                await simpleLocationTrackingService.stopTracking();
-
-                await safeRemoveItem('@runstr:active_session_state', 2000);
-                await safeRemoveItem('@runstr:background_distance_state', 2000);
+                await safeRemoveItem('@runstr:session_state', 2000);
+                await safeRemoveItem('@runstr:gps_points', 2000);
                 console.log('✅ Zombie session cleaned up successfully');
               } catch (cleanupError) {
                 console.warn(

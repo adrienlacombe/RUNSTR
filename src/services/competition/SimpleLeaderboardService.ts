@@ -739,8 +739,17 @@ export class SimpleLeaderboardService {
     workout: Workout,
     targetDistanceKm: number
   ): number {
-    // If no splits available, use full workout time
+    // If no splits available, estimate target time from average pace
+    // This supports Health Connect/HealthKit workouts that don't have per-km splits
     if (!workout.splits || workout.splits.size === 0) {
+      if (workout.distance && workout.distance > 0) {
+        // Calculate estimated target time based on average pace
+        // e.g., 5.18km in 31:15 → avgPace = 361.9 sec/km → 5K time = 30:10
+        const avgPacePerKm = workout.duration / workout.distance;
+        const estimatedTargetTime = avgPacePerKm * targetDistanceKm;
+        return Math.round(estimatedTargetTime);
+      }
+      // No distance either - fall back to total workout time
       return workout.duration;
     }
 
@@ -995,15 +1004,31 @@ export class SimpleLeaderboardService {
       );
     });
 
-    // Filter by split count (5K needs ≥5 splits, 10K needs ≥10, etc.)
-    const eligible5k = workouts.filter((w) => w.splits && w.splits.size >= 5);
-    const eligible10k = workouts.filter((w) => w.splits && w.splits.size >= 10);
-    const eligibleHalf = workouts.filter(
-      (w) => w.splits && w.splits.size >= 21
-    );
-    const eligibleMarathon = workouts.filter(
-      (w) => w.splits && w.splits.size >= 42
-    );
+    // Filter by activity type (running only), split count OR distance
+    // 5K/10K/Half/Marathon leaderboards are for running workouts only
+    const isRunning = (w: Workout) =>
+      w.activityType?.toLowerCase() === 'running';
+
+    const eligible5k = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 5;
+      const hasDistance = w.distance && w.distance >= 5;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
+    const eligible10k = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 10;
+      const hasDistance = w.distance && w.distance >= 10;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
+    const eligibleHalf = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 21;
+      const hasDistance = w.distance && w.distance >= 21;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
+    const eligibleMarathon = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 42;
+      const hasDistance = w.distance && w.distance >= 42;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
 
     console.log(
       `   🏆 Eligible: 5K=${eligible5k.length}, 10K=${eligible10k.length}, Half=${eligibleHalf.length}, Marathon=${eligibleMarathon.length}`
@@ -1158,15 +1183,31 @@ export class SimpleLeaderboardService {
       }
     }
 
-    // Filter by split count (5K needs ≥5 splits, 10K needs ≥10, etc.)
-    const eligible5k = workouts.filter((w) => w.splits && w.splits.size >= 5);
-    const eligible10k = workouts.filter((w) => w.splits && w.splits.size >= 10);
-    const eligibleHalf = workouts.filter(
-      (w) => w.splits && w.splits.size >= 21
-    );
-    const eligibleMarathon = workouts.filter(
-      (w) => w.splits && w.splits.size >= 42
-    );
+    // Filter by activity type (running only), split count OR distance
+    // 5K/10K/Half/Marathon leaderboards are for running workouts only
+    const isRunning = (w: Workout) =>
+      w.activityType?.toLowerCase() === 'running';
+
+    const eligible5k = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 5;
+      const hasDistance = w.distance && w.distance >= 5;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
+    const eligible10k = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 10;
+      const hasDistance = w.distance && w.distance >= 10;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
+    const eligibleHalf = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 21;
+      const hasDistance = w.distance && w.distance >= 21;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
+    const eligibleMarathon = workouts.filter((w) => {
+      const hasSplits = w.splits && w.splits.size >= 42;
+      const hasDistance = w.distance && w.distance >= 42;
+      return isRunning(w) && (hasSplits || hasDistance);
+    });
 
     console.log(
       `   Global eligible: 5K=${eligible5k.length}, 10K=${eligible10k.length}, Half=${eligibleHalf.length}, Marathon=${eligibleMarathon.length}`
