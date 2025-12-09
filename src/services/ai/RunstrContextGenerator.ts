@@ -453,17 +453,70 @@ export class RunstrContextGenerator {
         return null;
       }
 
-      const lines: string[] = ['## Diet & Wellness (Last 7 Days)'];
+      const lines: string[] = ['## Diet & Nutrition (Last 7 Days)'];
 
       if (dietWorkouts.length > 0) {
         const meals = dietWorkouts.filter((w) => w.type === 'diet');
         const fasting = dietWorkouts.filter((w) => w.type === 'fasting');
 
         if (meals.length > 0) {
-          lines.push(`- Meals: ${meals.length} logged`);
+          lines.push('');
+          lines.push('### Meals Logged');
+          lines.push(
+            '*Please analyze these meals and provide improved calorie estimates based on the food descriptions.*'
+          );
+          lines.push('');
+
+          // Sort meals by date (newest first)
+          const sortedMeals = [...meals].sort(
+            (a, b) =>
+              new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          );
+
+          // Include up to 10 most recent meals for detailed analysis
+          sortedMeals.slice(0, 10).forEach((meal) => {
+            const date = new Date(meal.startTime).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            });
+            const time = meal.mealTime
+              ? new Date(meal.mealTime).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })
+              : '';
+
+            const mealType = meal.mealType
+              ? meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)
+              : 'Meal';
+            const size = meal.mealSize || 'medium';
+            const currentCalEst = meal.calories
+              ? `[current est: ${meal.calories} cal]`
+              : '';
+            const description = meal.notes || 'No description';
+
+            lines.push(
+              `- **${date}** ${mealType} (${size}${time ? ', ' + time : ''}): "${description}" ${currentCalEst}`
+            );
+          });
+
+          // Summary stats
+          const totalCurrentCals = meals.reduce(
+            (sum, m) => sum + (m.calories || 0),
+            0
+          );
+          lines.push('');
+          lines.push(
+            `**Summary**: ${meals.length} meals logged, current calorie estimate: ${totalCurrentCals} cal`
+          );
+          lines.push(
+            '*Note: Current estimates are based on portion size only. Please provide refined estimates based on the actual food descriptions above.*'
+          );
         }
 
         if (fasting.length > 0) {
+          lines.push('');
           const fastingDurations = fasting
             .map((w) => `${Math.round((w.fastingDuration || 0) / 3600)}h`)
             .join(', ');

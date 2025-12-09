@@ -96,7 +96,9 @@ async function getSystemPrompt(type: PromptType): Promise<string> {
       return `${basePrompt}${contextSection}Analyze the last 7 days of workouts. Provide exactly 3 bullet points covering:
 1. Total distance/time and workout frequency
 2. Average pace or notable performance metrics
-3. One specific achievement or observation
+3. One specific achievement, observation, or nutrition insight
+
+When analyzing workouts, also consider any diet data provided. If meal descriptions are available, provide refined calorie estimates based on the actual foods described (not just portion sizes). Note any nutritional patterns that could affect fitness performance.
 
 Format each point starting with •`;
 
@@ -112,7 +114,9 @@ Format each point starting with •`;
       return `${basePrompt}${contextSection}Based on all workout data, provide exactly 3 actionable training tips:
 1. One tip for recovery or rest
 2. One tip for progression or improvement
-3. One tip for variety or cross-training
+3. One tip for nutrition or variety/cross-training
+
+If diet data is available with meal descriptions, include nutrition-focused advice. When meal descriptions are provided, suggest calorie adjustments if the current estimates seem off based on the foods described.
 
 Format each point starting with •`;
   }

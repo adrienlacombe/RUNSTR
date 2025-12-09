@@ -775,17 +775,20 @@ export const DietTrackerScreen: React.FC<DietTrackerScreenProps> = ({
                 <Text style={styles.saveMealButtonText}>Log Meal</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.startFastingButton}
-                onPress={startFastingMode}
-              >
-                <Ionicons
-                  name="timer-outline"
-                  size={20}
-                  color={theme.colors.background}
-                />
-                <Text style={styles.startFastingButtonText}>Start Fasting</Text>
-              </TouchableOpacity>
+              {/* Only show fasting button if no meal type was pre-selected */}
+              {!initialMealType && (
+                <TouchableOpacity
+                  style={styles.startFastingButton}
+                  onPress={startFastingMode}
+                >
+                  <Ionicons
+                    name="timer-outline"
+                    size={20}
+                    color={theme.colors.background}
+                  />
+                  <Text style={styles.startFastingButtonText}>Start Fasting</Text>
+                </TouchableOpacity>
+              )}
             </>
           ) : (
             <TouchableOpacity
@@ -835,7 +838,9 @@ export const DietTrackerScreen: React.FC<DietTrackerScreenProps> = ({
           <Text style={styles.hintText}>
             {isFasting
               ? 'Click "Break Fast + Log Meal" to end your fast and record what you eat.'
-              : '"Log Meal" saves your food. "Start Fasting" begins tracking a fasting period.'}
+              : initialMealType
+                ? `Tap "Log Meal" to save your ${selectedMealType}.`
+                : '"Log Meal" saves your food. "Start Fasting" begins tracking a fasting period.'}
           </Text>
         </View>
       )}

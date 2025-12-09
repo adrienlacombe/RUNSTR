@@ -197,13 +197,22 @@ export const MeditationTrackerScreen: React.FC<MeditationTrackerScreenProps> = (
     isPausedRef.current = false;
   };
 
-  const endSession = () => {
+  const endSession = async () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     setIsActive(false);
     setIsPaused(false);
+
+    // Auto-save locally before showing summary (matches Running/Strength pattern)
+    try {
+      await saveSessionLocally();
+      console.log('✅ Meditation session auto-saved on end');
+    } catch (error) {
+      console.error('❌ Failed to auto-save meditation:', error);
+    }
+
     setShowSummary(true);
   };
 
