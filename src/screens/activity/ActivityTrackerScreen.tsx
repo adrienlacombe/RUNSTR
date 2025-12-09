@@ -519,10 +519,6 @@ export const ActivityTrackerScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerSpacer} />
-      </View>
-
       <View style={styles.tabContainer}>
         <TabButton
           label="Cardio"
@@ -601,7 +597,7 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 8, // Reduced from 12 to tighten gap below activity selector
+    paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },

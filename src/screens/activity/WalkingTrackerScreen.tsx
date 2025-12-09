@@ -880,20 +880,22 @@ export const WalkingTrackerScreen: React.FC = () => {
             style={styles.routeSelector}
             onPress={() => setRouteSelectionVisible(true)}
           >
-            <View style={styles.routeSelectorLeft}>
-              <Ionicons
-                name={selectedRoute ? 'map' : 'map-outline'}
-                size={20}
-                color={selectedRoute ? theme.colors.accent : theme.colors.textMuted}
-              />
-              <Text style={[
-                styles.routeSelectorText,
-                selectedRoute && { color: theme.colors.accent }
-              ]}>
-                {selectedRoute ? selectedRoute.name : 'Select a route (optional)'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Ionicons
+              name={selectedRoute ? 'map' : 'map-outline'}
+              size={20}
+              color={selectedRoute ? theme.colors.accent : theme.colors.text}
+            />
+            <Text style={[
+              styles.routeSelectorText,
+              selectedRoute && { color: theme.colors.accent }
+            ]}>
+              {selectedRoute ? selectedRoute.name : 'Select Route'}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
 
           {/* Spacer to push controls to bottom */}
@@ -1001,6 +1003,7 @@ const styles = StyleSheet.create({
   idleContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
+    paddingHorizontal: 16,
   },
   // Route badge shown during tracking
   routeBadge: {
@@ -1032,23 +1035,21 @@ const styles = StyleSheet.create({
   routeSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     backgroundColor: theme.colors.card,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
     borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-  },
-  routeSelectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   routeSelectorText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: theme.typography.weights.medium,
-    color: theme.colors.textMuted,
+    color: theme.colors.text,
+    flex: 1,
+    textAlign: 'center',
   },
 });

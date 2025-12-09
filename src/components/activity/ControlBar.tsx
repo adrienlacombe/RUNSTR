@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+    alignItems: 'center',
   },
   buttonRow: {
     flexDirection: 'row',

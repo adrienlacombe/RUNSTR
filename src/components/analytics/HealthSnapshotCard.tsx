@@ -37,9 +37,9 @@ export const HealthSnapshotCard: React.FC<HealthSnapshotCardProps> = ({
       >
         <Ionicons
           name="person-outline"
-          size={32}
+          size={24}
           color={theme.colors.orangeBright}
-          style={{ marginBottom: 8 }}
+          style={{ marginBottom: 4 }}
         />
         <Text style={styles.emptyText}>
           Tap to add weight & height for BMI and fitness age estimates
@@ -127,11 +127,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: '#0a0a0a',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#1a1a1a',
-    padding: 20,
-    marginBottom: 16,
+    padding: 10,
+    marginBottom: 12,
   },
 
   column: {
@@ -142,59 +142,59 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     backgroundColor: '#1a1a1a',
-    marginHorizontal: 12,
+    marginHorizontal: 8,
   },
 
   label: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: theme.typography.weights.semiBold,
     color: '#CC7A33',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-
-  value: {
-    fontSize: 28,
-    fontWeight: theme.typography.weights.bold,
-    color: '#FF9D42',
     marginBottom: 4,
   },
 
+  value: {
+    fontSize: 18,
+    fontWeight: theme.typography.weights.bold,
+    color: '#FF9D42',
+    marginBottom: 2,
+  },
+
   category: {
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: theme.typography.weights.medium,
     color: '#FFB366',
   },
 
   noData: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.textMuted,
-    marginTop: 8,
+    marginTop: 4,
   },
 
   emptyCard: {
     backgroundColor: '#0a0a0a',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#1a1a1a',
-    padding: 20,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 12,
     alignItems: 'center',
   },
 
   emptyText: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.textMuted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
 
   editIndicator: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: 4,
+    top: 6,
+    right: 6,
+    padding: 2,
   },
 });

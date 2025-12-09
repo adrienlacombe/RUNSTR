@@ -455,8 +455,17 @@ export class SimpleRunTracker {
         `[SimpleRunTracker] Flushing ${this.pendingPoints.length} pending GPS points before stop...`
       );
       this.flushPendingPointsToStorage();
-      // Wait for write queue to complete
-      await this.writeQueue;
+      // FIX 7: Wait for write queue with timeout to prevent hanging
+      try {
+        await Promise.race([
+          this.writeQueue,
+          new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error('Write queue timeout')), 5000)
+          ),
+        ]);
+      } catch (error) {
+        console.warn('[SimpleRunTracker] Write queue timeout, continuing stop');
+      }
     }
 
     // Stop GPS
@@ -809,6 +818,7 @@ export class SimpleRunTracker {
     this.pendingPoints = [];
 
     // Add to write queue to serialize operations
+    // FIX 3: Always return a value to maintain promise chain
     this.writeQueue = this.writeQueue
       .then(async () => {
         this.isWriting = true;
@@ -820,10 +830,12 @@ export class SimpleRunTracker {
         } finally {
           this.isWriting = false;
         }
+        return; // Explicitly resolve to maintain chain
       })
       .catch((err) => {
         console.error('[SimpleRunTracker] Write queue error:', err);
         this.isWriting = false;
+        return; // FIX 3: Resolve to prevent chain break
       });
   }
 
@@ -1157,18 +1169,22 @@ export class SimpleRunTracker {
 
   /**
    * Stop silent audio recording
+   * FIX 5: Clear reference FIRST to prevent orphaned recordings
    */
   private async stopSilentAudio(): Promise<void> {
-    if (!this.silentRecording) return;
+    // FIX 5: Capture reference and clear immediately
+    // This prevents conflicts if startSilentAudio is called while we're stopping
+    const recording = this.silentRecording;
+    this.silentRecording = null;
+
+    if (!recording) return;
 
     try {
-      await this.silentRecording.stopAndUnloadAsync();
-      this.silentRecording = null;
+      await recording.stopAndUnloadAsync();
       console.log('[SimpleRunTracker] Silent audio recording stopped');
     } catch (e) {
-      // Non-fatal
+      // Non-fatal - reference already cleared, no orphan
       console.warn('[SimpleRunTracker] Stop silent audio failed:', e);
-      this.silentRecording = null;
     }
   }
 

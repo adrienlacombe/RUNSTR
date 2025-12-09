@@ -28,15 +28,12 @@ import type { NostrWorkout } from '../types/nostrWorkout';
 import type { AnalyticsSummary, HealthProfile } from '../types/analytics';
 import { CardioPerformanceAnalytics } from '../services/analytics/CardioPerformanceAnalytics';
 import { BodyCompositionAnalytics } from '../services/analytics/BodyCompositionAnalytics';
-import { CaloricAnalyticsService } from '../services/analytics/CaloricAnalyticsService';
 import { StreakAnalyticsService } from '../services/analytics/StreakAnalyticsService';
-import Nostr1301ImportService from '../services/fitness/Nostr1301ImportService';
 import { HealthSnapshotCard } from '../components/analytics/HealthSnapshotCard';
-import { CalorieBalanceCard } from '../components/analytics/CalorieBalanceCard';
-import { WeeklySummaryAccordion } from '../components/analytics/WeeklySummaryAccordion';
 import { CoachRunstrCard } from '../components/analytics/CoachRunstrCard';
 import { GoalsHabitsCard } from '../components/analytics/GoalsHabitsCard';
-import { AchievementsCard } from '../components/analytics/AchievementsCard';
+import { CollapsibleAchievementsCard } from '../components/analytics/CollapsibleAchievementsCard';
+import { StreakRewardsCard } from '../components/rewards/StreakRewardsCard';
 import { FitnessTestInstructionsModal } from '../components/fitness/FitnessTestInstructionsModal';
 import FitnessTestService from '../services/fitness/FitnessTestService';
 import { PersonalRecordsService } from '../services/analytics/PersonalRecordsService';
@@ -55,13 +52,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
   const [healthProfile, setHealthProfile] = useState<HealthProfile | null>(
     null
   );
-  const [hasImported, setHasImported] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importStats, setImportStats] = useState<{
-    totalImported: number;
-    importedAt: string;
-  } | null>(null);
-  const [caloricMetrics, setCaloricMetrics] = useState<any>(null);
   const [personalRecords, setPersonalRecords] =
     useState<AllPersonalRecords | null>(null);
 
@@ -126,21 +116,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         : null;
       setHealthProfile(profile);
 
-      // Check if 1301 import has been completed
-      const importCompleted = await Nostr1301ImportService.hasImported();
-      setHasImported(importCompleted);
-
-      // Load import stats if available
-      if (importCompleted) {
-        const stats = await localWorkoutStorage.getNostrImportStats();
-        if (stats) {
-          setImportStats({
-            totalImported: stats.totalImported,
-            importedAt: stats.importedAt,
-          });
-        }
-      }
-
       // Get ALL local workouts (includes GPS, manual, daily steps, AND imported Nostr)
       const allWorkouts = await localWorkoutStorage.getAllWorkouts();
       console.log(
@@ -160,13 +135,7 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
           ? BodyCompositionAnalytics.calculateMetrics(profile, allWorkouts)
           : undefined;
 
-      // 2. Caloric Balance (for Weekly Calorie Balance)
-      const caloricMetrics = CaloricAnalyticsService.calculateMetrics(
-        allWorkouts,
-        profile || undefined
-      );
-
-      // 3. Personal Records (for Achievements Card)
+      // 2. Personal Records (for Achievements Card)
       const prs = PersonalRecordsService.getAllPRs(allWorkouts);
 
       // Store simplified analytics
@@ -177,7 +146,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
       };
 
       setAnalytics(summary);
-      setCaloricMetrics(caloricMetrics);
       setPersonalRecords(prs);
       setLoading(false);
       console.log('[AdvancedAnalytics] ✅ Analytics calculation complete');
@@ -200,65 +168,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
   const handlePrivacyClose = () => {
     setShowPrivacyModal(false);
     navigation.goBack(); // Go back if user declines
-  };
-
-  const handlePrivacyBannerPress = () => {
-    setShowPrivacyModal(true);
-  };
-
-  const handleImportNostrHistory = async () => {
-    try {
-      setImporting(true);
-
-      // Get user's pubkey
-      const userPubkey = await AsyncStorage.getItem('@runstr:npub');
-      const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-      const pubkey = hexPubkey || userPubkey;
-
-      if (!pubkey) {
-        console.error('No pubkey found - cannot import workouts');
-        setImporting(false);
-        return;
-      }
-
-      console.log('[AdvancedAnalytics] Starting Nostr workout import...');
-
-      // Import workouts with progress tracking
-      const result = await Nostr1301ImportService.importUserHistory(
-        pubkey,
-        (progress) => {
-          console.log(
-            `[Import Progress] ${progress.imported}/${progress.total} - ${progress.current}`
-          );
-          // Update import stats to show progress
-          setImportStats({
-            totalImported: progress.imported,
-            importedAt: new Date().toISOString(),
-          });
-        }
-      );
-
-      if (result.success) {
-        console.log(
-          `[AdvancedAnalytics] ✅ Import successful: ${result.totalImported} workouts`
-        );
-        setHasImported(true);
-        setImportStats({
-          totalImported: result.totalImported,
-          importedAt: new Date().toISOString(),
-        });
-
-        // Reload analytics with newly imported data
-        await loadAnalytics();
-      } else {
-        console.error('[AdvancedAnalytics] Import failed:', result.error);
-      }
-
-      setImporting(false);
-    } catch (error) {
-      console.error('[AdvancedAnalytics] Import error:', error);
-      setImporting(false);
-    }
   };
 
   // Check if there's an active fitness test on mount
@@ -357,22 +266,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Privacy Notice Banner */}
-        <TouchableOpacity
-          style={styles.privacyNotice}
-          onPress={handlePrivacyBannerPress}
-        >
-          <View style={styles.privacyHeader}>
-            <Ionicons name="lock-closed" size={20} color="#FF9D42" />
-            <Text style={styles.privacyTitle}>Your Data Stays Private</Text>
-          </View>
-          <Text style={styles.privacyText}>
-            All analytics calculated locally on your device. Your data never
-            leaves your phone.
-          </Text>
-          <Text style={styles.privacyLink}>Tap to learn more →</Text>
-        </TouchableOpacity>
-
         {/* Section 1: Health Metrics (BMI | VO2 Max | Fitness Age) */}
         <Text style={styles.sectionTitle}>Health Metrics</Text>
         <HealthSnapshotCard
@@ -382,27 +275,19 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
 
         {/* Section 2: Achievements (Personal Records) */}
         {personalRecords && (
-          <>
-            <Text style={styles.sectionTitle}>Achievements</Text>
-            <AchievementsCard personalRecords={personalRecords} />
-          </>
+          <CollapsibleAchievementsCard personalRecords={personalRecords} />
         )}
 
-        {/* Section 3: Weekly Summary Breakdown */}
-        <WeeklySummaryAccordion workouts={workouts} />
-
-        {/* Section 4: Goals & Habits */}
+        {/* Section 3: Goals & Habits */}
         <GoalsHabitsCard />
 
-        {/* Today's Caloric Balance */}
-        {caloricMetrics && (
-          <CalorieBalanceCard dailyBalance={caloricMetrics.today} />
-        )}
+        {/* Section 4: Streak Rewards */}
+        <StreakRewardsCard workouts={workouts} />
 
-        {/* RUNSTR Fitness Test Card */}
+        {/* RUNSTR Fitness Test Card - HIDDEN FOR NOW
         <View style={styles.fitnessTestCard}>
           <View style={styles.fitnessTestHeader}>
-            <Ionicons name="fitness" size={24} color="#FF9D42" />
+            <Ionicons name="timer-outline" size={24} color="#FF9D42" />
             <Text style={styles.fitnessTestTitle}>RUNSTR Fitness Test</Text>
           </View>
 
@@ -464,40 +349,10 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
             </>
           )}
         </View>
+        */}
 
         {/* COACH RUNSTR - AI-Powered Insights */}
         <CoachRunstrCard workouts={workouts} />
-
-        {/* Nostr Health Sync Card */}
-        <View style={styles.fitnessTestCard}>
-          <View style={styles.fitnessTestHeader}>
-            <Ionicons name="cloud-outline" size={24} color="#FF9D42" />
-            <Text style={styles.fitnessTestTitle}>Nostr Health Sync</Text>
-          </View>
-
-          <Text style={styles.fitnessTestDesc}>
-            Sync your health and fitness data from nostr to your local storage.
-          </Text>
-          <TouchableOpacity
-            style={styles.importButton}
-            onPress={handleImportNostrHistory}
-            disabled={importing}
-          >
-            <Text style={styles.importButtonText}>
-              {importing
-                ? `Importing... (${importStats?.totalImported || 0} workouts)`
-                : importStats
-                ? '✓ Re-import Public Workouts'
-                : 'Import Public Workouts'}
-            </Text>
-          </TouchableOpacity>
-          {importStats && !importing && (
-            <Text style={styles.importStats}>
-              Last imported: {importStats.totalImported} workouts on{' '}
-              {new Date(importStats.importedAt).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
 
         {/* Last Updated */}
         {analytics && (
@@ -575,58 +430,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 12,
     paddingBottom: 80,
-  },
-
-  privacyNotice: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-    padding: 12,
-    marginBottom: 16,
-  },
-
-  privacyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-
-  privacyTitle: {
-    fontSize: 16,
-    fontWeight: theme.typography.weights.semiBold,
-    color: '#FFB366',
-  },
-
-  privacyText: {
-    fontSize: 14,
-    color: '#CC7A33',
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-
-  privacyLink: {
-    fontSize: 13,
-    color: '#FF9D42',
-    fontWeight: theme.typography.weights.medium,
-  },
-
-  importButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF9D42',
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
-    marginBottom: 16,
-  },
-
-  importButtonText: {
-    fontSize: 15,
-    fontWeight: theme.typography.weights.semiBold,
-    color: '#000',
   },
 
   emptyState: {
@@ -834,14 +637,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: 'center',
     marginTop: 16,
-  },
-
-  importStats: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 16,
   },
 
   emptyMetricState: {

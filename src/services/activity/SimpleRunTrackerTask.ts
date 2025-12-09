@@ -21,26 +21,26 @@ const SESSION_STATE_KEY = '@runstr:session_state';
 const GPS_POINTS_KEY = '@runstr:gps_points';
 
 // Activity-specific GPS filtering thresholds
-// Tuned based on typical movement patterns for each activity type
-// Android GPS is typically less accurate (15-50m) than iOS (5-15m), so we relax thresholds
+// SIMPLIFIED based on October 2024 implementation that worked for 10K runs
+// Key insight: GPS hardware already filters, we should trust it more
 const ACTIVITY_THRESHOLDS = {
   running: {
-    maxAccuracy: Platform.OS === 'android' ? 50 : 20, // Android GPS often 30-50m in urban areas
-    maxSpeed: 12, // m/s (~43 km/h - sprint speed)
-    maxTeleport: Platform.OS === 'android' ? 80 : 40, // Larger gaps ok on Android
-    minDistance: 1.0, // meters
+    maxAccuracy: Platform.OS === 'android' ? 100 : 50, // Trust GPS hardware more
+    maxSpeed: 20, // m/s (~72 km/h) - only reject truly impossible
+    maxTeleport: Platform.OS === 'android' ? 150 : 100, // Only reject extreme jumps
+    minDistance: 0.5, // meters - match October's jitter filter
   },
   walking: {
-    maxAccuracy: Platform.OS === 'android' ? 55 : 25, // Walking tolerates slightly worse accuracy
-    maxSpeed: 4, // m/s (~14 km/h - fast walk)
-    maxTeleport: Platform.OS === 'android' ? 70 : 30, // Larger gaps ok on Android
-    minDistance: 0.5, // meters (more sensitive for short steps)
+    maxAccuracy: Platform.OS === 'android' ? 100 : 50, // Trust GPS hardware more
+    maxSpeed: 8, // m/s (~29 km/h) - allow brisk walking
+    maxTeleport: Platform.OS === 'android' ? 100 : 60, // Only reject extreme jumps
+    minDistance: 0.5, // meters
   },
   cycling: {
-    maxAccuracy: Platform.OS === 'android' ? 60 : 30, // Cycling at speed can have larger errors
-    maxSpeed: 20, // m/s (~72 km/h - fast downhill)
-    maxTeleport: Platform.OS === 'android' ? 120 : 80, // Larger gaps ok on Android
-    minDistance: 2.0, // meters
+    maxAccuracy: Platform.OS === 'android' ? 100 : 50, // Trust GPS hardware more
+    maxSpeed: 30, // m/s (~108 km/h) - downhill can be fast
+    maxTeleport: Platform.OS === 'android' ? 200 : 150, // Only reject extreme jumps
+    minDistance: 1.0, // meters
   },
 } as const;
 
@@ -65,18 +65,29 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
     console.log(`[GPS-FLOW] 📍 Received ${locations.length} raw GPS points`);
 
     try {
-      // Check if session is active (via AsyncStorage - shared between JS contexts!)
-      const sessionStateStr = await AsyncStorage.getItem(SESSION_STATE_KEY);
-      if (!sessionStateStr) {
-        console.log(
-          '[GPS-FLOW] ⏹️ No active session in AsyncStorage, ignoring'
-        );
+      // FIX 2: Validate session state with proper error handling
+      let sessionState;
+      try {
+        const sessionStateStr = await AsyncStorage.getItem(SESSION_STATE_KEY);
+        if (!sessionStateStr) {
+          console.log('[GPS-FLOW] ⏹️ No active session in AsyncStorage, ignoring');
+          return;
+        }
+        sessionState = JSON.parse(sessionStateStr);
+
+        // Validate session is recent (within last 4 hours - covers ultramarathons)
+        const sessionAge = Date.now() - (sessionState.startTime || 0);
+        if (sessionAge > 14400000) { // 4 hours
+          console.warn('[GPS-FLOW] ⚠️ Stale session detected (>4h old), ignoring');
+          return;
+        }
+      } catch (parseError) {
+        console.error('[GPS-FLOW] ❌ Failed to parse session state:', parseError);
         return;
       }
 
-      const sessionState = JSON.parse(sessionStateStr);
       console.log(
-        `[GPS-FLOW] 📋 Session active: ${sessionState.activityType}, paused: ${sessionState.isPaused}, gpsCount: ${sessionState.gpsPointCount || 0}`
+        `[GPS-FLOW] 📋 Session active: ${sessionState.activityType}, paused: ${sessionState.isPaused}`
       );
 
       if (sessionState.isPaused) {
@@ -88,26 +99,29 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
       const activityType = (sessionState.activityType || 'running') as ActivityType;
       const thresholds = ACTIVITY_THRESHOLDS[activityType] || ACTIVITY_THRESHOLDS.running;
 
-      // Get last valid GPS point for distance calculations
+      // FIX 1: Get last valid GPS point with proper error handling
       let lastValidLocation: GPSPoint | null = null;
-      const storedPointsStr = await AsyncStorage.getItem(GPS_POINTS_KEY);
-      if (storedPointsStr) {
-        const storedPoints = JSON.parse(storedPointsStr);
-        if (storedPoints.length > 0) {
-          lastValidLocation = storedPoints[storedPoints.length - 1];
+      try {
+        const storedPointsStr = await AsyncStorage.getItem(GPS_POINTS_KEY);
+        if (storedPointsStr) {
+          const storedPoints = JSON.parse(storedPointsStr);
+          if (Array.isArray(storedPoints) && storedPoints.length > 0) {
+            lastValidLocation = storedPoints[storedPoints.length - 1];
+          }
         }
+      } catch (storageError) {
+        console.error('[GPS-FLOW] ❌ Failed to read stored points:', storageError);
+        // Continue - will use first point as baseline
       }
 
-      // Track GPS warm-up points (skip first 3 points to eliminate startup jump)
-      let gpsPointCount = sessionState.gpsPointCount || 0;
-
-      // Enhanced filtering with GPS warm-up buffer and validation
+      // Simplified filtering - trust GPS hardware more (based on October 2024 implementation)
+      // REMOVED: warm-up buffer that delayed first distance update by 9+ seconds
       const validLocations = [];
 
       for (const loc of locations) {
         const accuracy = loc.coords.accuracy || 999;
 
-        // 1. Accuracy check (activity-specific threshold)
+        // 1. Accuracy check (relaxed threshold - GPS hardware already filters)
         if (accuracy > thresholds.maxAccuracy) {
           console.log(
             `[SimpleRunTrackerTask] Rejected: poor accuracy ${accuracy.toFixed(
@@ -117,18 +131,20 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
           continue;
         }
 
-        // 2. GPS warm-up buffer (skip first 3 points to prevent initial jump)
-        if (gpsPointCount < 3) {
-          gpsPointCount++;
-          sessionState.gpsPointCount = gpsPointCount;
-          await AsyncStorage.setItem(
-            SESSION_STATE_KEY,
-            JSON.stringify(sessionState)
+        // FIX 6: Validate coordinates are in valid range
+        // Some Android devices occasionally return garbage coordinates
+        if (
+          loc.coords.latitude < -90 ||
+          loc.coords.latitude > 90 ||
+          loc.coords.longitude < -180 ||
+          loc.coords.longitude > 180 ||
+          !Number.isFinite(loc.coords.latitude) ||
+          !Number.isFinite(loc.coords.longitude)
+        ) {
+          console.warn(
+            `[SimpleRunTrackerTask] Invalid coordinates: lat=${loc.coords.latitude}, lon=${loc.coords.longitude}`
           );
-          console.log(
-            `[SimpleRunTrackerTask] GPS warm-up: skipping point ${gpsPointCount}/3`
-          );
-          continue; // Skip this point for distance calculation
+          continue;
         }
 
         const currentPoint: GPSPoint = {
@@ -140,7 +156,7 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
           speed: loc.coords.speed || undefined,
         };
 
-        // If this is the first valid point after warm-up, accept it
+        // If this is the first valid point, accept it as baseline
         if (!lastValidLocation) {
           validLocations.push(currentPoint);
           lastValidLocation = currentPoint;

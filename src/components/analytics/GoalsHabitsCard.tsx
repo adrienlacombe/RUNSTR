@@ -103,8 +103,8 @@ export const GoalsHabitsCard: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons
-            name="trophy-outline"
-            size={20}
+            name="flag-outline"
+            size={18}
             color={theme.colors.orangeBright}
           />
           <Text style={styles.headerTitle}>Goals & Habits</Text>
@@ -126,7 +126,7 @@ export const GoalsHabitsCard: React.FC = () => {
         <View style={styles.emptyState}>
           <Ionicons
             name="flower-outline"
-            size={48}
+            size={36}
             color={theme.colors.textMuted}
           />
           <Text style={styles.emptyText}>No habits yet</Text>
@@ -139,7 +139,7 @@ export const GoalsHabitsCard: React.FC = () => {
           >
             <Ionicons
               name="add-circle-outline"
-              size={20}
+              size={18}
               color={theme.colors.accentText}
             />
             <Text style={styles.addFirstButtonText}>Add Your First Habit</Text>
@@ -160,7 +160,7 @@ export const GoalsHabitsCard: React.FC = () => {
                     <Ionicons
                       name={habit.icon as any}
                       size={24}
-                      color={habit.color}
+                      color={theme.colors.textMuted}
                     />
                   </View>
                   <View style={styles.habitDetails}>
@@ -259,39 +259,39 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: theme.typography.headingSecondary,
-    fontWeight: theme.typography.weights.bold,
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.text,
   },
 
   emptyState: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xxxl,
+    paddingVertical: theme.spacing.xl,
   },
 
   emptyText: {
     fontSize: theme.typography.headingTertiary,
     fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.textMuted,
-    marginTop: theme.spacing.xl,
+    marginTop: theme.spacing.md,
   },
 
   emptySubtext: {
     fontSize: theme.typography.body,
     color: theme.colors.textMuted,
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
     textAlign: 'center',
   },
 
   addFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
-    paddingHorizontal: theme.spacing.xxl,
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
     backgroundColor: theme.colors.orangeBright,
     borderRadius: theme.borderRadius.medium,
-    marginTop: theme.spacing.xl,
+    marginTop: theme.spacing.md,
   },
 
   addFirstButtonText: {

@@ -197,7 +197,7 @@ export const CoachRunstrCard: React.FC<CoachRunstrCardProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="fitness" size={24} color="#FF9D42" />
+        <Ionicons name="sparkles" size={24} color="#FF9D42" />
         <Text style={styles.title}>COACH RUNSTR</Text>
       </View>
 

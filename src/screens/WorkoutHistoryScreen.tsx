@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { theme } from '../styles/theme';
 import { WorkoutPublishingService } from '../services/nostr/workoutPublishingService';
 import localWorkoutStorage from '../services/fitness/LocalWorkoutStorageService';
+import Nostr1301ImportService from '../services/fitness/Nostr1301ImportService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import type { NDKSigner } from '@nostr-dev-kit/ndk';
@@ -52,6 +53,11 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importStats, setImportStats] = useState<{
+    totalImported: number;
+    importedAt: string;
+  } | null>(null);
 
   // Services - localWorkoutStorage is already a singleton instance
   const publishingService = WorkoutPublishingService.getInstance();
@@ -368,6 +374,66 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
     }
   };
 
+  /**
+   * Handle importing public Nostr workout history (kind 1301 events)
+   */
+  const handleImportNostrHistory = async () => {
+    try {
+      setImporting(true);
+
+      // Get user's pubkey
+      const userPubkey = await AsyncStorage.getItem('@runstr:npub');
+      const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+      const userKey = hexPubkey || userPubkey;
+
+      if (!userKey) {
+        console.error('[WorkoutHistory] No pubkey found - cannot import workouts');
+        setImporting(false);
+        return;
+      }
+
+      console.log('[WorkoutHistory] Starting Nostr workout import...');
+
+      // Import workouts with progress tracking
+      const result = await Nostr1301ImportService.importUserHistory(
+        userKey,
+        (progress) => {
+          console.log(
+            `[Import Progress] ${progress.imported}/${progress.total} - ${progress.current}`
+          );
+          // Update import stats to show progress
+          setImportStats({
+            totalImported: progress.imported,
+            importedAt: new Date().toISOString(),
+          });
+        }
+      );
+
+      if (result.success) {
+        console.log(
+          `[WorkoutHistory] ✅ Import successful: ${result.totalImported} workouts`
+        );
+        setImportStats({
+          totalImported: result.totalImported,
+          importedAt: new Date().toISOString(),
+        });
+        CustomAlertManager.alert(
+          'Import Complete',
+          `Imported ${result.totalImported} workouts from Nostr`
+        );
+      } else {
+        console.error('[WorkoutHistory] Import failed:', result.error);
+        CustomAlertManager.alert('Import Failed', result.error || 'Unknown error');
+      }
+
+      setImporting(false);
+    } catch (error) {
+      console.error('[WorkoutHistory] Import error:', error);
+      setImporting(false);
+      CustomAlertManager.alert('Import Error', 'Failed to import workouts');
+    }
+  };
+
   const handleGoBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -415,7 +481,17 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Workouts</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          onPress={handleImportNostrHistory}
+          style={styles.syncButton}
+          disabled={importing}
+        >
+          <Ionicons
+            name={importing ? 'sync' : 'cloud-download-outline'}
+            size={24}
+            color={importing ? theme.colors.textMuted : '#FF9D42'}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Three-Tab Workout Navigator */}
@@ -479,8 +555,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  headerSpacer: {
-    width: 40, // Match back button width
+  syncButton: {
+    padding: 8,
   },
 
   errorContainer: {

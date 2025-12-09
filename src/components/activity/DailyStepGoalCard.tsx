@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     borderRadius: 16,
     padding: 8,
-    marginHorizontal: 12,
-    marginVertical: 0, // Removed vertical margin to tighten layout
+    marginHorizontal: 0,
+    marginVertical: 0,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },

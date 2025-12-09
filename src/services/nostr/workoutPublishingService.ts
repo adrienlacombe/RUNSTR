@@ -16,6 +16,7 @@ import type { WorkoutType } from '../../types/workout';
 import type { NDKSigner } from '@nostr-dev-kit/ndk';
 import { CacheInvalidationService } from '../cache/CacheInvalidationService';
 import { DailyRewardService } from '../rewards/DailyRewardService';
+import { RewardLightningAddressService } from '../rewards/RewardLightningAddressService';
 import { FEATURES } from '../../config/features';
 import { ImageUploadService } from '../media/ImageUploadService';
 import { LocalTeamMembershipService } from '../team/LocalTeamMembershipService';
@@ -156,6 +157,10 @@ export class WorkoutPublishingService {
       const selectedCharity =
         await CharitySelectionService.getSelectedCharity();
 
+      // Get user's reward lightning address for tagging (for external reward scripts)
+      const rewardLightningAddress =
+        await RewardLightningAddressService.getRewardLightningAddress();
+
       // Create unsigned NDKEvent
       const ndkEvent = new NDKEvent(ndk);
       ndkEvent.kind = 1301;
@@ -164,7 +169,8 @@ export class WorkoutPublishingService {
         workout,
         pubkey,
         competitionTeam,
-        selectedCharity
+        selectedCharity,
+        rewardLightningAddress
       );
       ndkEvent.created_at = Math.floor(
         new Date(workout.startTime).getTime() / 1000
@@ -403,12 +409,14 @@ export class WorkoutPublishingService {
    * Matches the exact format used by runstr GitHub implementation
    * ✅ UPDATED: Now includes competition team tag for leaderboard participation
    * ✅ UPDATED: Now includes charity tag for external client parsing
+   * ✅ UPDATED: Now includes lightning address tag for external reward scripts
    */
   private async createNIP101eWorkoutTags(
     workout: PublishableWorkout,
     pubkey: string,
     competitionTeam: string | null,
-    selectedCharity: Charity | null
+    selectedCharity: Charity | null,
+    rewardLightningAddress: string | null
   ): Promise<string[][]> {
     // Map workout type to simple exercise verb (run, walk, cycle)
     const exerciseVerb = this.getExerciseVerb(workout.type);
@@ -593,6 +601,12 @@ export class WorkoutPublishingService {
         selectedCharity.lightningAddress,
       ]);
       console.log(`   ✅ Added charity tag: ${selectedCharity.name}`);
+    }
+
+    // Add reward lightning address tag (for external reward scripts)
+    if (rewardLightningAddress) {
+      tags.push(['lightning', rewardLightningAddress]);
+      console.log(`   ✅ Added lightning address tag: ${rewardLightningAddress}`);
     }
 
     return tags;

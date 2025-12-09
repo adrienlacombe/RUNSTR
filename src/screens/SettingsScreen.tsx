@@ -15,7 +15,9 @@ import {
   Switch,
   RefreshControl,
   Modal,
+  TextInput,
 } from 'react-native';
+import * as Linking from 'expo-linking';
 import Slider from '@react-native-community/slider';
 import { theme } from '../styles/theme';
 import { Team } from '../types';
@@ -53,6 +55,7 @@ import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
 import { ModelManager, type AIModel } from '../services/ai/ModelManager';
 import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
+import { RewardLightningAddressService } from '../services/rewards/RewardLightningAddressService';
 // REMOVED: TeamMembershipService and TeamSelectionModal - Users now auto-assigned to Team RUNSTR
 // import {
 //   TeamMembershipService,
@@ -135,6 +138,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   // Charity Selection state
   const [selectedCharity, setSelectedCharity] = useState<Charity | null>(null);
   const [showCharityModal, setShowCharityModal] = useState(false);
+
+  // Reward Lightning Address state
+  const [rewardLightningAddress, setRewardLightningAddress] = useState<string>('');
+  const [isValidLightningAddress, setIsValidLightningAddress] = useState(false);
+  const [isSavingLightningAddress, setIsSavingLightningAddress] = useState(false);
 
   // Coach RUNSTR AI state
   const [showPPQModal, setShowPPQModal] = useState(false);
@@ -244,6 +252,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Load selected charity
       const charity = await CharitySelectionService.getSelectedCharity();
       setSelectedCharity(charity);
+
+      // Load reward lightning address
+      const savedLightningAddress = await RewardLightningAddressService.getRewardLightningAddress();
+      if (savedLightningAddress) {
+        setRewardLightningAddress(savedLightningAddress);
+        setIsValidLightningAddress(true);
+      }
 
       // Load competition team - REMOVED: Users now auto-assigned to Team RUNSTR
       // const currentCompetitionTeam =
@@ -590,6 +605,39 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setShowCharityModal(false);
   };
 
+  // Reward Lightning Address handlers
+  const handleLightningAddressChange = (text: string) => {
+    setRewardLightningAddress(text);
+    setIsValidLightningAddress(RewardLightningAddressService.isValidLightningAddress(text));
+  };
+
+  const handleSaveLightningAddress = async () => {
+    if (!isValidLightningAddress || !rewardLightningAddress.trim()) {
+      return;
+    }
+
+    setIsSavingLightningAddress(true);
+    try {
+      await RewardLightningAddressService.setRewardLightningAddress(rewardLightningAddress.trim());
+      setAlertTitle('Saved');
+      setAlertMessage('Your rewards lightning address has been saved. It will be included in your workout events.');
+      setAlertButtons([{ text: 'OK' }]);
+      setAlertVisible(true);
+    } catch (error) {
+      console.error('Error saving lightning address:', error);
+      setAlertTitle('Error');
+      setAlertMessage('Failed to save lightning address. Please check the format and try again.');
+      setAlertButtons([{ text: 'OK' }]);
+      setAlertVisible(true);
+    } finally {
+      setIsSavingLightningAddress(false);
+    }
+  };
+
+  const handleUnlockRewards = () => {
+    Linking.openURL('https://www.runstr.club/pages/season2.html');
+  };
+
   const handleModelSelect = async (modelId: string) => {
     try {
       await ModelManager.setSelectedModel(modelId);
@@ -843,6 +891,59 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   color={theme.colors.textMuted}
                 />
               </TouchableOpacity>
+
+              {/* Rewards Lightning Address */}
+              <View style={styles.lightningAddressSection}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Rewards Lightning Address</Text>
+                  <Text style={styles.settingSubtitle}>
+                    Receive daily workout rewards to this address
+                  </Text>
+                </View>
+                <View style={styles.lightningAddressInputRow}>
+                  <TextInput
+                    style={[
+                      styles.lightningAddressInput,
+                      rewardLightningAddress && !isValidLightningAddress && styles.lightningAddressInputError,
+                    ]}
+                    value={rewardLightningAddress}
+                    onChangeText={handleLightningAddressChange}
+                    placeholder="user@getalby.com"
+                    placeholderTextColor={theme.colors.textMuted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.lightningAddressSaveButton,
+                      (!isValidLightningAddress || isSavingLightningAddress) && styles.lightningAddressSaveButtonDisabled,
+                    ]}
+                    onPress={handleSaveLightningAddress}
+                    disabled={!isValidLightningAddress || isSavingLightningAddress}
+                  >
+                    {isSavingLightningAddress ? (
+                      <ActivityIndicator size="small" color="#000" />
+                    ) : (
+                      <Ionicons
+                        name={isValidLightningAddress ? 'checkmark' : 'save-outline'}
+                        size={20}
+                        color={isValidLightningAddress ? '#000' : theme.colors.textMuted}
+                      />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {rewardLightningAddress && !isValidLightningAddress && (
+                  <Text style={styles.lightningAddressError}>
+                    Invalid format. Use: user@domain.com
+                  </Text>
+                )}
+                <TouchableOpacity onPress={handleUnlockRewards} style={styles.unlockRewardsLink}>
+                  <Text style={styles.unlockRewardsText}>
+                    Unlock RUNSTR Premium →
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </Card>
           </SettingsAccordion>
         </View>
@@ -1793,6 +1894,67 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
     marginTop: 4,
     marginBottom: 4,
+  },
+
+  // Lightning Address Styles
+  lightningAddressSection: {
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+
+  lightningAddressInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+
+  lightningAddressInput: {
+    flex: 1,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: theme.colors.text,
+  },
+
+  lightningAddressInputError: {
+    borderColor: theme.colors.error || '#ff4444',
+  },
+
+  lightningAddressSaveButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 44,
+  },
+
+  lightningAddressSaveButtonDisabled: {
+    backgroundColor: theme.colors.border,
+    opacity: 0.6,
+  },
+
+  lightningAddressError: {
+    color: theme.colors.error || '#ff4444',
+    fontSize: 12,
+    marginTop: 6,
+  },
+
+  unlockRewardsLink: {
+    marginTop: 12,
+  },
+
+  unlockRewardsText: {
+    fontSize: 14,
+    color: theme.colors.accent,
+    fontWeight: theme.typography.weights.semiBold,
   },
 
   // Model Picker Modal Styles

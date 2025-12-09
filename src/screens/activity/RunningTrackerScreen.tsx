@@ -933,6 +933,9 @@ export const RunningTrackerScreen: React.FC = () => {
             postingState={distancePostingState}
           />
 
+          {/* Last Activity Stats */}
+          <LastActivityCard activityType="running" />
+
           {/* Route Picker */}
           <TouchableOpacity
             style={styles.routePickerButton}
@@ -957,9 +960,6 @@ export const RunningTrackerScreen: React.FC = () => {
               color={theme.colors.textMuted}
             />
           </TouchableOpacity>
-
-          {/* Last Activity Stats */}
-          <LastActivityCard activityType="running" />
         </ScrollView>
       )}
 
@@ -1136,9 +1136,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   idleScrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 180, // Space for fixed controls
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    paddingBottom: 160, // Space for fixed controls
   },
   trackingScrollContent: {
     paddingTop: 12,
@@ -1167,7 +1167,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
     gap: 10,

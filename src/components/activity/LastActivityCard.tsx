@@ -1,6 +1,6 @@
 /**
- * LastActivityCard - Shows PRs for running, or last activity for walking/cycling
- * Pulls data from LocalWorkoutStorageService and PersonalRecordsService
+ * LastActivityCard - Shows last activity for running/walking/cycling
+ * Displays distance, duration, and date of most recent workout
  */
 
 import React, { useState, useEffect } from 'react';
@@ -11,10 +11,6 @@ import LocalWorkoutStorageService, {
   type LocalWorkout,
 } from '../../services/fitness/LocalWorkoutStorageService';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
-import {
-  PersonalRecordsService,
-  type CardioPR,
-} from '../../services/analytics/PersonalRecordsService';
 
 type ActivityType = 'running' | 'walking' | 'cycling';
 
@@ -33,12 +29,6 @@ interface WeeklyStats {
   count: number;
 }
 
-interface BestWalkStats {
-  steps: number;
-  distance: number; // meters
-  date: Date;
-}
-
 const activityLabels: Record<ActivityType, { singular: string; plural: string }> = {
   running: { singular: 'run', plural: 'runs' },
   walking: { singular: 'walk', plural: 'walks' },
@@ -53,8 +43,6 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
     totalDistance: 0,
     count: 0,
   });
-  const [bestWalkStats, setBestWalkStats] = useState<BestWalkStats | null>(null);
-  const [cardioPRs, setCardioPRs] = useState<CardioPR | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,12 +53,6 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
     try {
       setLoading(true);
       const workouts = await LocalWorkoutStorageService.getAllWorkouts();
-
-      // For running, calculate PRs
-      if (activityType === 'running') {
-        const prs = PersonalRecordsService.getCardioPRs(workouts);
-        setCardioPRs(prs);
-      }
 
       // Filter by activity type for last activity
       const typeWorkouts = workouts.filter(
@@ -93,27 +75,7 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
         setLastActivity(null);
       }
 
-      // For walking: Calculate "Best Walk" (most steps in a single walk)
-      if (activityType === 'walking') {
-        const walkingWorkouts = typeWorkouts.filter(
-          (w: LocalWorkout) => (w.steps || 0) > 0
-        );
-
-        if (walkingWorkouts.length > 0) {
-          const best = walkingWorkouts.reduce((max: LocalWorkout, w: LocalWorkout) =>
-            (w.steps || 0) > (max.steps || 0) ? w : max
-          );
-          setBestWalkStats({
-            steps: best.steps || 0,
-            distance: best.distance || 0,
-            date: new Date(best.startTime),
-          });
-        } else {
-          setBestWalkStats(null);
-        }
-      }
-
-      // Calculate weekly stats (for cycling only now - walking uses Best Walk)
+      // Calculate weekly stats (for cycling only)
       if (activityType === 'cycling') {
         const now = new Date();
         const weekStart = new Date(now);
@@ -156,18 +118,17 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={[styles.prCard, styles.cardPlaceholder]}>
+        <View style={[styles.card, styles.cardPlaceholder]}>
           <Text style={styles.placeholderText}>Loading...</Text>
         </View>
       </View>
     );
   }
 
-  // Running: Show Last Run + PRs side by side
+  // Running: Show Last Run (full width)
   if (activityType === 'running') {
     return (
       <View style={styles.container}>
-        {/* Left: Last Run */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="time-outline" size={16} color={theme.colors.textMuted} />
@@ -189,57 +150,14 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
             <Text style={styles.noDataText}>No runs yet</Text>
           )}
         </View>
-
-        {/* Right: Personal Records */}
-        <View style={styles.prCard}>
-          <View style={styles.prHeader}>
-            <Ionicons name="trophy-outline" size={14} color={theme.colors.orangeBright} />
-            <Text style={styles.prTitle}>Personal Records</Text>
-          </View>
-          <View style={styles.prGrid}>
-            <View style={styles.prCell}>
-              <Text style={styles.prLabel}>5K</Text>
-              <Text style={styles.prTime}>
-                {cardioPRs?.fastest5K
-                  ? PersonalRecordsService.formatDuration(cardioPRs.fastest5K.time)
-                  : '--:--'}
-              </Text>
-            </View>
-            <View style={styles.prCell}>
-              <Text style={styles.prLabel}>10K</Text>
-              <Text style={styles.prTime}>
-                {cardioPRs?.fastest10K
-                  ? PersonalRecordsService.formatDuration(cardioPRs.fastest10K.time)
-                  : '--:--'}
-              </Text>
-            </View>
-            <View style={styles.prCell}>
-              <Text style={styles.prLabel}>Half</Text>
-              <Text style={styles.prTime}>
-                {cardioPRs?.fastestHalfMarathon
-                  ? PersonalRecordsService.formatDuration(cardioPRs.fastestHalfMarathon.time)
-                  : '--:--'}
-              </Text>
-            </View>
-            <View style={styles.prCell}>
-              <Text style={styles.prLabel}>Full</Text>
-              <Text style={styles.prTime}>
-                {cardioPRs?.fastestMarathon
-                  ? PersonalRecordsService.formatDuration(cardioPRs.fastestMarathon.time)
-                  : '--:--'}
-              </Text>
-            </View>
-          </View>
-        </View>
       </View>
     );
   }
 
-  // Walking: Show Last Walk + Best Walk
+  // Walking: Show Last Walk (full width)
   if (activityType === 'walking') {
     return (
       <View style={styles.container}>
-        {/* Last Walk Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="time-outline" size={16} color={theme.colors.textMuted} />
@@ -259,29 +177,6 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
             </>
           ) : (
             <Text style={styles.noDataText}>No walks yet</Text>
-          )}
-        </View>
-
-        {/* Best Walk Card (Most Steps) */}
-        <View style={styles.prCard}>
-          <View style={styles.prHeader}>
-            <Ionicons name="trophy-outline" size={14} color={theme.colors.orangeBright} />
-            <Text style={styles.prTitle}>Best Walk</Text>
-          </View>
-          {bestWalkStats ? (
-            <>
-              <Text style={styles.primaryStat}>
-                {bestWalkStats.steps.toLocaleString()} steps
-              </Text>
-              <Text style={styles.secondaryStat}>
-                {activityMetricsService.formatDistance(bestWalkStats.distance)}
-              </Text>
-              <Text style={styles.dateStat}>
-                {formatRelativeDate(bestWalkStats.date)}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.noDataText}>Track walks to see your best</Text>
           )}
         </View>
       </View>
@@ -346,8 +241,8 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginTop: 16,
+    paddingHorizontal: 0,
+    marginTop: 12,
     gap: 12,
   },
   card: {
@@ -355,14 +250,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  prCard: {
-    flex: 1,
-    backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    padding: 10,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -387,42 +274,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  prHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    gap: 4,
-  },
-  prTitle: {
-    fontSize: 10,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.orangeBright,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  prGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  prCell: {
-    width: '47%',
-    backgroundColor: theme.colors.background,
-    borderRadius: 6,
-    padding: 6,
-    alignItems: 'center',
-  },
-  prLabel: {
-    fontSize: 10,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.textMuted,
-    marginBottom: 1,
-  },
-  prTime: {
-    fontSize: 13,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.text,
   },
   primaryStat: {
     fontSize: 24,
