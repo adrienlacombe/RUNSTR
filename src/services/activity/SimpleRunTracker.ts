@@ -33,9 +33,10 @@ import {
 } from 'expo-av';
 
 // Storage keys
-const GPS_POINTS_KEY = '@runstr:gps_points';
+// MEMORY-ONLY ARCHITECTURE: GPS points are NOT stored, only metrics for crash recovery
 const SESSION_STATE_KEY = '@runstr:session_state';
-const CHECKPOINT_KEY = '@runstr:workout_checkpoint';
+const ACTIVE_METRICS_KEY = '@runstr:active_metrics'; // Periodic save: distance, duration, splits
+const LAST_GPS_POINT_KEY = '@runstr:last_gps_point'; // Single point for background task filtering
 
 // Task name
 export const SIMPLE_TRACKER_TASK = 'runstr-simple-tracker';
@@ -59,7 +60,7 @@ export interface RunSession {
   duration: number; // seconds
   pausedDuration: number; // seconds
   pauseCount: number;
-  gpsPoints: GPSPoint[];
+  gpsPoints?: GPSPoint[]; // MEMORY-ONLY: Optional, only populated for route display during tracking
   presetDistance?: number; // Optional race preset distance in meters
   splits?: Split[]; // Kilometer splits for running activities
   elevationGain?: number; // Total elevation gain in meters
@@ -200,9 +201,15 @@ export class SimpleRunTracker {
   // Start time
   private startTime: number = 0;
 
-  // In-memory GPS points cache (synced from AsyncStorage)
-  // This prevents async reads on every UI update (fixes duration bug)
-  private cachedGpsPoints: GPSPoint[] = [];
+  // MEMORY-ONLY ARCHITECTURE: GPS points stored in memory only, never persisted
+  // Distance is calculated incrementally as points arrive
+  private cachedGpsPoints: GPSPoint[] = []; // Only last 100 points for elevation/route display
+  private lastGpsPoint: GPSPoint | null = null; // Last point for incremental distance
+  private runningDistance: number = 0; // Incrementally calculated distance (meters)
+
+  // Periodic metrics save for crash recovery (every 30 seconds)
+  private metricsSaveInterval: NodeJS.Timeout | null = null;
+  private readonly METRICS_SAVE_INTERVAL_MS = 30000; // Save metrics every 30 seconds
 
   // GPS health tracking for error recovery
   private lastGPSUpdate: number = Date.now();
@@ -214,12 +221,7 @@ export class SimpleRunTracker {
   // Auto-stop callback (for UI notification when preset distance reached)
   private autoStopCallback: (() => void) | null = null;
 
-  // FIX for 30-min race condition: Queue system for AsyncStorage writes
-  private writeQueue: Promise<void> = Promise.resolve();
-  private pendingPoints: GPSPoint[] = [];
-  private lastFlushTime = 0;
-  private readonly FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds instead of every GPS update
-  private isWriting = false;
+  // REMOVED: Write queue no longer needed - memory-only architecture eliminates AsyncStorage GPS writes
 
   // GPS Watchdog - detects and recovers from silent GPS failures
   // Tighter timing per user feedback: 5s check interval, 20s timeout = max 25s detection delay
@@ -261,13 +263,11 @@ export class SimpleRunTracker {
     this.isPaused = false;
     this.pauseCount = 0;
     this.presetDistance = presetDistance || null;
-    this.cachedGpsPoints = []; // Clear cache immediately
 
-    // FIX: Reset write queue state for new session
-    this.writeQueue = Promise.resolve();
-    this.pendingPoints = [];
-    this.lastFlushTime = Date.now();
-    this.isWriting = false;
+    // MEMORY-ONLY ARCHITECTURE: Reset GPS state for new session
+    this.cachedGpsPoints = []; // Clear cache immediately
+    this.lastGpsPoint = null; // Reset last point
+    this.runningDistance = 0; // Reset incremental distance
 
     // CRITICAL: Prevent Android from suspending the app (Doze Mode)
     // Reference implementation uses this exact pattern - required for background GPS
@@ -307,6 +307,9 @@ export class SimpleRunTracker {
 
     // Start watchdog to detect and recover from GPS failures
     this.startWatchdog();
+
+    // MEMORY-ONLY ARCHITECTURE: Start periodic metrics save for crash recovery
+    this.startMetricsSave();
 
     // Start silent audio recording for extra Android background insurance
     this.startSilentAudio();
@@ -358,8 +361,9 @@ export class SimpleRunTracker {
         await Location.stopLocationUpdatesAsync(SIMPLE_TRACKER_TASK);
       }
 
-      // Clear previous data from storage
-      await AsyncStorage.removeItem(GPS_POINTS_KEY);
+      // MEMORY-ONLY ARCHITECTURE: Clear previous session data
+      await AsyncStorage.removeItem(LAST_GPS_POINT_KEY);
+      await AsyncStorage.removeItem(ACTIVE_METRICS_KEY);
       await AsyncStorage.removeItem(SESSION_STATE_KEY);
 
       // Save fresh session state
@@ -434,6 +438,7 @@ export class SimpleRunTracker {
 
   /**
    * Stop tracking and return final session
+   * MEMORY-ONLY ARCHITECTURE: Uses incrementally calculated distance, no GPS array persistence
    */
   async stopTracking(): Promise<RunSession | null> {
     if (!this.isTracking) {
@@ -446,27 +451,11 @@ export class SimpleRunTracker {
     // Stop watchdog first
     this.stopWatchdog();
 
+    // Stop periodic metrics save
+    this.stopMetricsSave();
+
     // Stop silent audio recording
     await this.stopSilentAudio();
-
-    // FIX: Flush any pending GPS points before stopping
-    if (this.pendingPoints.length > 0) {
-      console.log(
-        `[SimpleRunTracker] Flushing ${this.pendingPoints.length} pending GPS points before stop...`
-      );
-      this.flushPendingPointsToStorage();
-      // FIX 7: Wait for write queue with timeout to prevent hanging
-      try {
-        await Promise.race([
-          this.writeQueue,
-          new Promise<void>((_, reject) =>
-            setTimeout(() => reject(new Error('Write queue timeout')), 5000)
-          ),
-        ]);
-      } catch (error) {
-        console.warn('[SimpleRunTracker] Write queue timeout, continuing stop');
-      }
-    }
 
     // Stop GPS
     try {
@@ -495,14 +484,8 @@ export class SimpleRunTracker {
     // Android: No-op
     await stopNativeWorkoutSession();
 
-    // Sync final GPS points from storage to cache
-    await this.syncGpsPointsFromStorage();
-    console.log(
-      `[SimpleRunTracker] Retrieved ${this.cachedGpsPoints.length} GPS points`
-    );
-
-    // Calculate distance and elevation from GPS points (post-processing)
-    const distance = this.calculateTotalDistance(this.cachedGpsPoints);
+    // MEMORY-ONLY ARCHITECTURE: Use incrementally calculated distance (already computed)
+    const distance = this.runningDistance;
     const elevationGain = this.calculateElevationGain(this.cachedGpsPoints);
 
     // Get splits for running activities
@@ -511,7 +494,7 @@ export class SimpleRunTracker {
         ? this.splitTracker.getSplits()
         : undefined;
 
-    // Create final session (using cached GPS points)
+    // Create final session (NO gpsPoints array - memory-only architecture)
     const session: RunSession = {
       id: this.sessionId || `run_${Date.now()}`,
       activityType: this.activityType,
@@ -521,7 +504,7 @@ export class SimpleRunTracker {
       duration: this.durationTracker.getDuration(),
       pausedDuration: this.durationTracker.getTotalPausedTime(),
       pauseCount: this.pauseCount,
-      gpsPoints: this.cachedGpsPoints,
+      // gpsPoints NOT included - memory-only architecture
       presetDistance: this.presetDistance || undefined,
       splits,
       elevationGain,
@@ -532,20 +515,19 @@ export class SimpleRunTracker {
     );
 
     // Reset ALL state to prevent corruption between sessions
-    // CRITICAL: Must reset everything to prevent decreasing distance pattern (3km→1.4km→0.6km)
     this.isTracking = false;
     this.isPaused = false;
     this.sessionId = null;
     this.presetDistance = null;
     this.autoStopCallback = null;
 
-    // Reset GPS state (prevents stale data from affecting next session)
+    // MEMORY-ONLY ARCHITECTURE: Reset GPS state
     this.cachedGpsPoints = [];
-    this.pendingPoints = [];
+    this.lastGpsPoint = null;
+    this.runningDistance = 0;
     this.lastGPSUpdate = Date.now();
-    this.lastFlushTime = 0;
 
-    // Reset GPS recovery state (prevents accumulated failure counts)
+    // Reset GPS recovery state
     this.isInGPSRecovery = false;
     this.recoveryPointsSkipped = 0;
     this.gpsFailureCount = 0;
@@ -556,7 +538,8 @@ export class SimpleRunTracker {
 
     // Clear session state from AsyncStorage
     await AsyncStorage.removeItem(SESSION_STATE_KEY);
-    await AsyncStorage.removeItem(GPS_POINTS_KEY);
+    await AsyncStorage.removeItem(ACTIVE_METRICS_KEY);
+    await AsyncStorage.removeItem(LAST_GPS_POINT_KEY);
 
     console.log(
       `[SimpleRunTracker] ✅ Session completed: ${(distance / 1000).toFixed(
@@ -569,15 +552,14 @@ export class SimpleRunTracker {
 
   /**
    * Get current session data (for live UI updates)
-   * NOW SYNCHRONOUS - uses in-memory cache instead of AsyncStorage
+   * MEMORY-ONLY ARCHITECTURE: Uses incrementally calculated distance
    */
   getCurrentSession(): Partial<RunSession> | null {
     if (!this.isTracking) {
       return null;
     }
 
-    // Use cached GPS points (no async read needed!)
-    const distance = this.calculateTotalDistance(this.cachedGpsPoints);
+    // MEMORY-ONLY: Use pre-calculated running distance (instant, no recalculation)
     const elevationGain = this.calculateElevationGain(this.cachedGpsPoints);
 
     // Get splits for running activities
@@ -590,33 +572,19 @@ export class SimpleRunTracker {
       id: this.sessionId || `run_${Date.now()}`,
       activityType: this.activityType,
       startTime: this.startTime,
-      distance,
+      distance: this.runningDistance, // Use incrementally calculated distance
       duration: this.durationTracker.getDuration(),
       pausedDuration: this.durationTracker.getTotalPausedTime(),
       pauseCount: this.pauseCount,
-      gpsPoints: this.cachedGpsPoints.slice(-100), // Last 100 points for route display
+      gpsPoints: this.cachedGpsPoints.slice(-100), // Last 100 points for route display only
       presetDistance: this.presetDistance || undefined,
       splits,
       elevationGain,
     };
   }
 
-  /**
-   * Sync GPS points from AsyncStorage to in-memory cache
-   * Call this when app returns to foreground or background task adds new points
-   */
-  async syncGpsPointsFromStorage(): Promise<void> {
-    try {
-      const points = await this.getStoredPoints();
-      this.cachedGpsPoints = points;
-      console.log(
-        `[SimpleRunTracker] Synced ${points.length} GPS points to cache (for distance only)`
-      );
-      // Timer runs independently - no GPS duration updates!
-    } catch (error) {
-      console.error('[SimpleRunTracker] Error syncing GPS points:', error);
-    }
-  }
+  // REMOVED: syncGpsPointsFromStorage - no longer needed with memory-only architecture
+  // Distance is calculated incrementally, GPS points are not persisted
 
   /**
    * Set callback for auto-stop when preset distance is reached
@@ -636,9 +604,8 @@ export class SimpleRunTracker {
       return false;
     }
 
-    const currentDistance = this.calculateTotalDistance(this.cachedGpsPoints);
-
-    if (currentDistance >= this.presetDistance) {
+    // MEMORY-ONLY: Use incrementally calculated distance
+    if (this.runningDistance >= this.presetDistance) {
       console.log(
         `[SimpleRunTracker] 🎯 AUTO-STOP: Reached preset distance ${(
           this.presetDistance / 1000
@@ -658,40 +625,26 @@ export class SimpleRunTracker {
 
   /**
    * Append GPS points from background task (REAL-TIME UPDATES!)
-   * This is called by SimpleRunTrackerTask when GPS data arrives
+   * MEMORY-ONLY ARCHITECTURE: Calculates distance incrementally, no AsyncStorage writes
    *
-   * Architecture: GPS ONLY for distance, timer is independent stopwatch
-   * GPS → Background Task → Direct cache update → Distance updates
+   * GPS → Background Task → Incremental distance calculation → UI sees fresh data
    * Timer → Pure JS stopwatch → Counts 1, 2, 3, 4, 5...
-   *
-   * CRITICAL FIX: Do NOT check this.isTracking here!
-   * On Android, background TaskManager runs in a SEPARATE JavaScript context.
-   * The singleton in the background task is a DIFFERENT instance with isTracking=false.
-   * Session validation is done in SimpleRunTrackerTask via AsyncStorage (shared between contexts).
    */
   appendGpsPointsToCache(points: GPSPoint[]): void {
-    // REMOVED: isTracking check - background task validates session via AsyncStorage
-    // The background task only calls this if session is active (checked in SimpleRunTrackerTask.ts)
-
     if (points.length === 0) {
       // No points received - check for GPS failure
       const now = Date.now();
       const timeSinceLastGPS = now - this.lastGPSUpdate;
 
       if (timeSinceLastGPS > 10000) {
-        // 10 seconds without GPS
         this.gpsFailureCount++;
         console.error(
           `🚨 [SimpleRunTracker] GPS FAILURE DETECTED - No updates for ${(
             timeSinceLastGPS / 1000
           ).toFixed(1)}s`
         );
-        console.error(
-          `🚨 [SimpleRunTracker] Failure count: ${this.gpsFailureCount}`
-        );
 
         if (timeSinceLastGPS > 30000 && this.gpsFailureCount > 3) {
-          // GPS has been dead for 30+ seconds - alert user
           this.lastGPSError = `GPS signal lost for ${Math.floor(
             timeSinceLastGPS / 1000
           )} seconds`;
@@ -705,10 +658,10 @@ export class SimpleRunTracker {
       return;
     }
 
-    // GPS recovery detection
     const now = Date.now();
     const timeSinceLastGPS = now - this.lastGPSUpdate;
 
+    // GPS recovery detection
     if (timeSinceLastGPS > 10000 && !this.isInGPSRecovery) {
       console.log(
         `🔄 [SimpleRunTracker] GPS recovered after ${(
@@ -719,21 +672,17 @@ export class SimpleRunTracker {
       this.recoveryPointsSkipped = 0;
     }
 
-    // Skip first 3 points after GPS recovery (they're often inaccurate)
+    // Skip first 3 points after GPS recovery (often inaccurate)
     if (this.isInGPSRecovery) {
       if (this.recoveryPointsSkipped < 3) {
         this.recoveryPointsSkipped++;
         console.log(
-          `🔄 [SimpleRunTracker] Skipping recovery point ${this.recoveryPointsSkipped}/3 for distance calculation`
+          `🔄 [SimpleRunTracker] Skipping recovery point ${this.recoveryPointsSkipped}/3`
         );
-        // Still add to cache for route data but don't update distance
-        this.cachedGpsPoints.push(...points);
         this.lastGPSUpdate = now;
         return;
       } else {
-        console.log(
-          '✅ [SimpleRunTracker] GPS recovery complete - resuming normal tracking'
-        );
+        console.log('✅ [SimpleRunTracker] GPS recovery complete');
         this.isInGPSRecovery = false;
         this.gpsFailureCount = 0;
         this.lastGPSError = null;
@@ -743,22 +692,32 @@ export class SimpleRunTracker {
     // Update GPS health
     this.lastGPSUpdate = now;
 
-    // Update in-memory cache (instant distance updates!)
-    this.cachedGpsPoints.push(...points);
+    // MEMORY-ONLY ARCHITECTURE: Calculate incremental distance for each point
+    for (const point of points) {
+      if (this.lastGpsPoint) {
+        const increment = this.haversineDistance(this.lastGpsPoint, point);
 
-    // Keep cache trimmed (last 10,000 points max)
-    if (this.cachedGpsPoints.length > 10000) {
-      this.cachedGpsPoints = this.cachedGpsPoints.slice(-10000);
+        // Movement threshold (0.5m min, 100m max - filter jitter and teleports)
+        if (increment >= 0.5 && increment < 100) {
+          this.runningDistance += increment;
+        }
+      }
+      this.lastGpsPoint = point;
+    }
+
+    // Keep only last 100 points for elevation calculation (not full history)
+    this.cachedGpsPoints.push(...points);
+    if (this.cachedGpsPoints.length > 100) {
+      this.cachedGpsPoints = this.cachedGpsPoints.slice(-100);
     }
 
     // Update split tracker for running activities
     if (this.activityType === 'running') {
-      const currentDistance = this.calculateTotalDistance(this.cachedGpsPoints);
       const currentDuration = this.durationTracker.getDuration();
-      const pausedDuration = this.durationTracker.getTotalPausedTime() * 1000; // Convert to ms
+      const pausedDuration = this.durationTracker.getTotalPausedTime() * 1000;
 
       const newSplit = this.splitTracker.update(
-        currentDistance,
+        this.runningDistance,
         currentDuration,
         pausedDuration
       );
@@ -772,7 +731,6 @@ export class SimpleRunTracker {
           )} (${this.splitTracker.formatPace(newSplit.pace)}/km)`
         );
 
-        // Announce split via TTS (non-blocking)
         TTSAnnouncementService.announceSplit(newSplit).catch((err) => {
           console.error('[SimpleRunTracker] Failed to announce split:', err);
         });
@@ -782,111 +740,65 @@ export class SimpleRunTracker {
     // Check for auto-stop (preset distance reached)
     this.checkAutoStop();
 
-    // DO NOT update duration - timer runs independently like a stopwatch!
-    // GPS is ONLY for distance calculation
-
-    // FIX for 30-min race condition: Batch points instead of immediate writes
-    this.pendingPoints.push(...points);
-
-    // Only flush to storage periodically or if we have many pending points
-    const currentTime = Date.now();
-    const shouldFlush =
-      currentTime - this.lastFlushTime > this.FLUSH_INTERVAL_MS ||
-      this.pendingPoints.length > 100;
-
-    if (shouldFlush && !this.isWriting) {
-      this.flushPendingPointsToStorage();
-      this.lastFlushTime = currentTime;
-    }
-
     console.log(
-      `[SimpleRunTracker] 📍 Appended ${points.length} GPS points to cache (${this.cachedGpsPoints.length} total, ${this.pendingPoints.length} pending)`
+      `[SimpleRunTracker] 📍 Distance: ${(this.runningDistance / 1000).toFixed(
+        2
+      )} km (+${points.length} points)`
     );
   }
 
+  // REMOVED: flushPendingPointsToStorage, appendGpsPointsToStorage, saveGpsPointsToStorage
+  // Memory-only architecture - GPS points are not persisted to storage
+
   /**
-   * Flush pending points to storage using write queue (prevents race conditions)
-   * This serializes all AsyncStorage writes to prevent "sync already in progress" errors
+   * Start periodic metrics save for crash recovery
+   * Saves distance, duration, splits every 30 seconds (tiny writes, not GPS arrays)
    */
-  private flushPendingPointsToStorage(): void {
-    if (this.pendingPoints.length === 0) {
-      return;
+  private startMetricsSave(): void {
+    if (this.metricsSaveInterval) {
+      clearInterval(this.metricsSaveInterval);
     }
 
-    // Copy pending points and clear the buffer
-    const pointsToSave = [...this.pendingPoints];
-    this.pendingPoints = [];
+    this.metricsSaveInterval = setInterval(() => {
+      if (this.isTracking && !this.isPaused) {
+        this.saveActiveMetrics();
+      }
+    }, this.METRICS_SAVE_INTERVAL_MS);
 
-    // Add to write queue to serialize operations
-    // FIX 3: Always return a value to maintain promise chain
-    this.writeQueue = this.writeQueue
-      .then(async () => {
-        this.isWriting = true;
-        try {
-          await this.appendGpsPointsToStorage(pointsToSave);
-        } catch (error) {
-          console.error('[SimpleRunTracker] Queue write failed:', error);
-          // Don't re-throw - let tracking continue even if storage fails
-        } finally {
-          this.isWriting = false;
-        }
-        return; // Explicitly resolve to maintain chain
-      })
-      .catch((err) => {
-        console.error('[SimpleRunTracker] Write queue error:', err);
-        this.isWriting = false;
-        return; // FIX 3: Resolve to prevent chain break
-      });
+    console.log('[SimpleRunTracker] Started periodic metrics save (every 30s)');
   }
 
   /**
-   * Incrementally append GPS points to AsyncStorage (FIX for iOS 30-min crash)
-   * Only saves NEW points instead of entire array every time
-   * This prevents AsyncStorage from being overwhelmed on iOS devices
+   * Stop periodic metrics save
    */
-  private async appendGpsPointsToStorage(newPoints: GPSPoint[]): Promise<void> {
+  private stopMetricsSave(): void {
+    if (this.metricsSaveInterval) {
+      clearInterval(this.metricsSaveInterval);
+      this.metricsSaveInterval = null;
+    }
+    console.log('[SimpleRunTracker] Stopped periodic metrics save');
+  }
+
+  /**
+   * Save current metrics to AsyncStorage for crash recovery
+   * Only saves aggregate metrics (tiny payload), NOT GPS coordinates
+   */
+  private async saveActiveMetrics(): Promise<void> {
     try {
-      // Get existing points from storage
-      const existingData = await AsyncStorage.getItem(GPS_POINTS_KEY);
-      const existing = existingData ? JSON.parse(existingData) : [];
+      const metrics = {
+        distance: this.runningDistance,
+        duration: this.durationTracker.getDuration(),
+        splits: this.activityType === 'running' ? this.splitTracker.getSplits() : [],
+        pauseCount: this.pauseCount,
+        timestamp: Date.now(),
+      };
 
-      // Append new points to existing
-      const combined = [...existing, ...newPoints];
-
-      // Trim if too large (keep last 5000 points = ~1.4 hours of data)
-      // This prevents unbounded growth while keeping enough for long workouts
-      const trimmed = combined.length > 5000 ? combined.slice(-5000) : combined;
-
-      // Save back to storage
-      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(trimmed));
-
+      await AsyncStorage.setItem(ACTIVE_METRICS_KEY, JSON.stringify(metrics));
       console.log(
-        `[SimpleRunTracker] 💾 Incremental save: Added ${newPoints.length} points, ` +
-          `${trimmed.length} total in storage (was ${existing.length})`
+        `[SimpleRunTracker] 💾 Metrics saved: ${(this.runningDistance / 1000).toFixed(2)} km`
       );
     } catch (error) {
-      console.error(
-        '[SimpleRunTracker] Error appending GPS points to storage:',
-        error
-      );
-      // Don't let storage errors crash the tracking - in-memory cache is primary
-    }
-  }
-
-  /**
-   * Save entire GPS points array to storage (used for initial save)
-   * Keep this method for backward compatibility and initial state save
-   */
-  private async saveGpsPointsToStorage(points: GPSPoint[]): Promise<void> {
-    try {
-      // Trim to reasonable size before saving
-      const trimmed = points.length > 5000 ? points.slice(-5000) : points;
-      await AsyncStorage.setItem(GPS_POINTS_KEY, JSON.stringify(trimmed));
-    } catch (error) {
-      console.error(
-        '[SimpleRunTracker] Error saving GPS points to storage:',
-        error
-      );
+      console.error('[SimpleRunTracker] Error saving metrics:', error);
     }
   }
 
@@ -951,21 +863,7 @@ export class SimpleRunTracker {
     return Math.round(totalGain);
   }
 
-  /**
-   * Get stored GPS points from AsyncStorage
-   */
-  private async getStoredPoints(): Promise<GPSPoint[]> {
-    try {
-      const stored = await AsyncStorage.getItem(GPS_POINTS_KEY);
-      if (!stored) {
-        return [];
-      }
-      return JSON.parse(stored);
-    } catch (error) {
-      console.error('[SimpleRunTracker] Error reading GPS points:', error);
-      return [];
-    }
-  }
+  // REMOVED: getStoredPoints - no longer needed with memory-only architecture
 
   /**
    * Save session state to AsyncStorage (includes complete tracker state)
@@ -1190,7 +1088,7 @@ export class SimpleRunTracker {
 
   /**
    * Check for active session and restore if found
-   * Call this when app returns to foreground or on screen mount
+   * MEMORY-ONLY ARCHITECTURE: Restores metrics only, GPS tracking restarts fresh
    */
   async restoreSession(): Promise<boolean> {
     try {
@@ -1221,10 +1119,34 @@ export class SimpleRunTracker {
         pauseStartTime: sessionState.trackerPauseStartTime,
       });
 
-      // Sync GPS points from storage to cache
-      await this.syncGpsPointsFromStorage();
+      // MEMORY-ONLY ARCHITECTURE: Restore metrics (distance, splits) from periodic save
+      try {
+        const metricsStr = await AsyncStorage.getItem(ACTIVE_METRICS_KEY);
+        if (metricsStr) {
+          const metrics = JSON.parse(metricsStr);
+          this.runningDistance = metrics.distance || 0;
+          this.pauseCount = metrics.pauseCount || this.pauseCount;
 
-      // CRITICAL FIX: Restart GPS tracking if session was tracking
+          // Restore splits if available
+          if (metrics.splits && this.activityType === 'running') {
+            this.splitTracker.restoreSplits(metrics.splits);
+          }
+
+          console.log(
+            `[SimpleRunTracker] 📊 Restored metrics: ${(
+              this.runningDistance / 1000
+            ).toFixed(2)} km`
+          );
+        }
+      } catch (metricsError) {
+        console.warn('[SimpleRunTracker] Could not restore metrics:', metricsError);
+      }
+
+      // Reset GPS state fresh (no coordinates to restore - memory-only)
+      this.cachedGpsPoints = [];
+      this.lastGpsPoint = null;
+
+      // Restart GPS tracking if session was active
       if (this.isTracking && !this.isPaused) {
         console.log(
           '[SimpleRunTracker] 🔄 Restarting GPS tracking for restored session...'
@@ -1236,7 +1158,6 @@ export class SimpleRunTracker {
         );
 
         if (!isTaskRunning) {
-          // Restart GPS tracking
           await this.initializeGPS(this.activityType);
           console.log(
             '[SimpleRunTracker] ✅ GPS tracking restarted successfully'
@@ -1250,6 +1171,9 @@ export class SimpleRunTracker {
 
         // Start watchdog for restored session
         this.startWatchdog();
+
+        // Start periodic metrics save
+        this.startMetricsSave();
 
         // Start silent audio for restored session too
         this.startSilentAudio();

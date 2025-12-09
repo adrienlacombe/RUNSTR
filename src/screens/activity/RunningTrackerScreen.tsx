@@ -366,9 +366,7 @@ export const RunningTrackerScreen: React.FC = () => {
           );
         }
 
-        // Sync GPS points from AsyncStorage to cache
-        await simpleRunTracker.syncGpsPointsFromStorage();
-
+        // MEMORY-ONLY ARCHITECTURE: No GPS sync needed, distance is calculated incrementally
         // getCurrentSession() is now synchronous!
         const session = simpleRunTracker.getCurrentSession();
         if (
@@ -726,8 +724,9 @@ export const RunningTrackerScreen: React.FC = () => {
       session.duration
     );
 
-    // SimpleRunTracker already uses GPSPoint[] format (compatible with GPSCoordinate)
-    const gpsCoordinates = session.gpsPoints.map((point) => ({
+    // MEMORY-ONLY ARCHITECTURE: GPS points are only available during tracking
+    // After workout ends, we only have the cached last ~100 points (if any)
+    const gpsCoordinates = (session.gpsPoints || []).map((point) => ({
       latitude: point.latitude,
       longitude: point.longitude,
       altitude: point.altitude,
@@ -737,8 +736,8 @@ export const RunningTrackerScreen: React.FC = () => {
     // Save workout to local storage BEFORE showing modal
     // This ensures data persists even if user dismisses modal
     try {
-      // Get start position for weather lookup
-      const startPosition = session.gpsPoints[0];
+      // Get start position for weather lookup (may be undefined in memory-only mode)
+      const startPosition = session.gpsPoints?.[0];
 
       const workoutId = await LocalWorkoutStorageService.saveGPSWorkout({
         type: 'running',

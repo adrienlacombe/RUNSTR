@@ -18,7 +18,7 @@ import type { GPSPoint } from './SimpleRunTracker';
 
 // Storage keys
 const SESSION_STATE_KEY = '@runstr:session_state';
-const GPS_POINTS_KEY = '@runstr:gps_points';
+const LAST_GPS_POINT_KEY = '@runstr:last_gps_point'; // Only store last point for filtering (not full array)
 
 // Activity-specific GPS filtering thresholds
 // SIMPLIFIED based on October 2024 implementation that worked for 10K runs
@@ -99,18 +99,16 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
       const activityType = (sessionState.activityType || 'running') as ActivityType;
       const thresholds = ACTIVITY_THRESHOLDS[activityType] || ACTIVITY_THRESHOLDS.running;
 
-      // FIX 1: Get last valid GPS point with proper error handling
+      // MEMORY-ONLY ARCHITECTURE: Only read last GPS point (not full array)
+      // This eliminates AsyncStorage write storms that caused 30-min crashes
       let lastValidLocation: GPSPoint | null = null;
       try {
-        const storedPointsStr = await AsyncStorage.getItem(GPS_POINTS_KEY);
-        if (storedPointsStr) {
-          const storedPoints = JSON.parse(storedPointsStr);
-          if (Array.isArray(storedPoints) && storedPoints.length > 0) {
-            lastValidLocation = storedPoints[storedPoints.length - 1];
-          }
+        const lastPointStr = await AsyncStorage.getItem(LAST_GPS_POINT_KEY);
+        if (lastPointStr) {
+          lastValidLocation = JSON.parse(lastPointStr);
         }
       } catch (storageError) {
-        console.error('[GPS-FLOW] ❌ Failed to read stored points:', storageError);
+        console.error('[GPS-FLOW] ❌ Failed to read last GPS point:', storageError);
         // Continue - will use first point as baseline
       }
 
@@ -240,8 +238,14 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
       );
       simpleRunTracker.appendGpsPointsToCache(validLocations);
 
+      // MEMORY-ONLY ARCHITECTURE: Only save the LAST valid point for next filter check
+      // This is a tiny write (single point) instead of growing array (eliminated 30-min crash)
+      if (lastValidLocation) {
+        await AsyncStorage.setItem(LAST_GPS_POINT_KEY, JSON.stringify(lastValidLocation));
+      }
+
       console.log(
-        `[GPS-FLOW] ✅ SUCCESS: ${validLocations.length} GPS points added to tracker cache`
+        `[GPS-FLOW] ✅ SUCCESS: ${validLocations.length} GPS points added to tracker cache (memory-only)`
       );
     } catch (err) {
       console.error('[GPS-FLOW] ❌ Error processing locations:', err);

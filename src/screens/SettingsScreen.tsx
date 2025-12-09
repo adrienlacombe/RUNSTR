@@ -897,7 +897,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingTitle}>Rewards Lightning Address</Text>
                   <Text style={styles.settingSubtitle}>
-                    Receive daily workout rewards to this address
+                    Your Lightning address for receiving payments
                   </Text>
                 </View>
                 <View style={styles.lightningAddressInputRow}>

@@ -6,7 +6,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutType } from '../../types/workout';
-import type { Split } from './SplitTrackingService';
+import type { Split } from '../activity/SplitTrackingService';
 import { RunstrContextGenerator } from '../ai/RunstrContextGenerator';
 
 export interface LocalWorkout {

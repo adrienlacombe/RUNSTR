@@ -252,6 +252,26 @@ export class SplitTrackingService {
   }
 
   /**
+   * Restore splits from saved data (for crash recovery)
+   * MEMORY-ONLY ARCHITECTURE: Allows restoring splits without full GPS history
+   */
+  restoreSplits(savedSplits: Split[]): void {
+    if (!savedSplits || savedSplits.length === 0) {
+      return;
+    }
+
+    this.splits = [...savedSplits];
+
+    // Update lastSplitDistance to last recorded split
+    const lastSplit = savedSplits[savedSplits.length - 1];
+    this.lastSplitDistance = lastSplit.distanceKm * 1000; // Convert km back to meters
+
+    console.log(
+      `[SplitTrackingService] Restored ${savedSplits.length} splits (last: ${lastSplit.distanceKm} km)`
+    );
+  }
+
+  /**
    * Get split count
    */
   getSplitCount(): number {
