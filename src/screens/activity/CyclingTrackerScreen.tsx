@@ -10,6 +10,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -666,16 +667,14 @@ export const CyclingTrackerScreen: React.FC = () => {
   const controlBarState = isTracking ? (isPaused ? 'paused' : 'tracking') : 'idle';
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={['top']}
-    >
-      {/* Countdown Overlay */}
-      <CountdownOverlay countdown={countdown} />
+    <View style={styles.screenContainer}>
+      <View style={styles.contentContainer}>
+        {/* Countdown Overlay */}
+        <CountdownOverlay countdown={countdown} />
 
-      {isTracking ? (
-        /* ============ ACTIVE TRACKING STATE ============ */
-        <View style={styles.activeContainer}>
+        {isTracking ? (
+          /* ============ ACTIVE TRACKING STATE ============ */
+          <View style={styles.activeContainer}>
           {/* Route Badge (if selected) */}
           {selectedRoute && (
             <View style={styles.routeBadge}>
@@ -849,11 +848,22 @@ export const CyclingTrackerScreen: React.FC = () => {
           );
         }}
       />
-    </SafeAreaView>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  // Screen container (replaces SafeAreaView since parent handles safe area)
+  screenContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  // Content container with platform-specific top padding
+  contentContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 8 : 16,
+  },
   // Active tracking state container
   activeContainer: {
     flex: 1,
@@ -863,6 +873,7 @@ const styles = StyleSheet.create({
   idleContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
+    paddingHorizontal: 16,
   },
   // Activity header in idle state
   activityHeader: {
@@ -912,10 +923,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: theme.colors.card,
-    marginHorizontal: 16,
     marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -925,7 +935,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   routeSelectorText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.textMuted,
   },

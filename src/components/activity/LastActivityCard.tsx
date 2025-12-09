@@ -183,16 +183,13 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
     );
   }
 
-  // Cycling: Show Last Ride + This Week
+  // Cycling: Show Last Ride (full width)
   return (
     <View style={styles.container}>
-      {/* Last Ride Card */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="time-outline" size={16} color={theme.colors.textMuted} />
-          <Text style={styles.cardTitle}>
-            Last {labels.singular.charAt(0).toUpperCase() + labels.singular.slice(1)}
-          </Text>
+          <Text style={styles.cardTitle}>Last Ride</Text>
         </View>
         {lastActivity ? (
           <>
@@ -207,31 +204,7 @@ export const LastActivityCard: React.FC<LastActivityCardProps> = ({
             </Text>
           </>
         ) : (
-          <Text style={styles.noDataText}>No {labels.plural} yet</Text>
-        )}
-      </View>
-
-      {/* This Week Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons
-            name="calendar-outline"
-            size={16}
-            color={theme.colors.textMuted}
-          />
-          <Text style={styles.cardTitle}>This Week</Text>
-        </View>
-        {weeklyStats.count > 0 ? (
-          <>
-            <Text style={styles.primaryStat}>
-              {activityMetricsService.formatDistance(weeklyStats.totalDistance)}
-            </Text>
-            <Text style={styles.secondaryStat}>
-              {weeklyStats.count} {weeklyStats.count === 1 ? labels.singular : labels.plural}
-            </Text>
-          </>
-        ) : (
-          <Text style={styles.noDataText}>No {labels.plural} this week</Text>
+          <Text style={styles.noDataText}>No rides yet</Text>
         )}
       </View>
     </View>
@@ -242,14 +215,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     paddingHorizontal: 0,
-    marginTop: 12,
+    marginTop: 16,
     gap: 12,
   },
   card: {
     flex: 1,
     backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -265,29 +238,29 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
     gap: 6,
   },
   cardTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: theme.typography.weights.semiBold,
     color: theme.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   primaryStat: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
   },
   secondaryStat: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.textMuted,
     marginTop: 2,
   },
   dateStat: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.textMuted,
     marginTop: 4,

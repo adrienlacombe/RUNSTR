@@ -225,18 +225,18 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.card,
-    borderRadius: 16,
-    padding: 8,
+    borderRadius: 20,
+    padding: 16,
     marginHorizontal: 0,
     marginVertical: 0,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   title: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
-    marginBottom: 2,
+    marginBottom: 6,
   },
   loadingText: {
     marginTop: 12,
@@ -323,9 +323,9 @@ const styles = StyleSheet.create({
   },
   progressBadge: {
     backgroundColor: theme.colors.background,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: theme.colors.border,
     alignItems: 'center',
@@ -345,26 +345,26 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   stepCount: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
   },
   stepLabel: {
-    fontSize: 11,
+    fontSize: 13,
     color: theme.colors.textMuted,
   },
   percentage: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
   },
   goalText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.textMuted,
   },
   remainingText: {
-    fontSize: 11,
+    fontSize: 13,
     color: theme.colors.textMuted,
   },
   buttonColumn: {

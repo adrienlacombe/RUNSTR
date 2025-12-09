@@ -1,6 +1,7 @@
 /**
- * HoldToStartButton - Hold-down button with circular progress indicator
+ * HoldToStartButton - Hold-down button with SVG circular progress indicator
  * User must hold for 2 seconds to trigger start action
+ * Uses SVG for consistent rendering on both iOS and Android
  */
 
 import React, { useRef } from 'react';
@@ -12,8 +13,12 @@ import {
   PanResponder,
   Platform,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../../styles/theme';
+
+// Create animated Circle component for SVG progress animation
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface HoldToStartButtonProps {
   label: string;
@@ -30,6 +35,19 @@ export const HoldToStartButton: React.FC<HoldToStartButtonProps> = ({
 }) => {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // SVG Circle parameters - matches original 180px circle with 3px border
+  const size = 180;
+  const strokeWidth = 3;
+  const center = size / 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  // Animated strokeDashoffset: full circumference (empty) -> 0 (full)
+  const strokeDashoffset = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circumference, 0],
+  });
 
   const panResponder = useRef(
     PanResponder.create({
@@ -51,10 +69,11 @@ export const HoldToStartButton: React.FC<HoldToStartButtonProps> = ({
 
   const startHoldAnimation = () => {
     // Start circular progress animation
+    // useNativeDriver: false is required for SVG strokeDashoffset animation
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: holdDuration,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(({ finished }) => {
       if (finished) {
         // Hold completed successfully
@@ -69,7 +88,7 @@ export const HoldToStartButton: React.FC<HoldToStartButtonProps> = ({
     Animated.timing(progressAnim, {
       toValue: 0,
       duration: 150,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
 
     // Clear any pending timers
@@ -94,38 +113,40 @@ export const HoldToStartButton: React.FC<HoldToStartButtonProps> = ({
     onHoldComplete();
   };
 
-  // Calculate rotation for progress indicator (0 to 360 degrees)
-  const rotation = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  // Calculate opacity for progress arc
-  const opacity = progressAnim.interpolate({
-    inputRange: [0, 0.1, 1],
-    outputRange: [0, 1, 1],
-  });
-
   return (
     <View
       style={[styles.container, disabled && styles.containerDisabled]}
       {...panResponder.panHandlers}
     >
-      {/* Background circle */}
-      <View style={styles.backgroundCircle} />
+      {/* SVG Progress Ring */}
+      <View style={styles.svgContainer}>
+        <Svg width={size} height={size}>
+          {/* Background circle (gray track with dark fill) */}
+          <Circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke={theme.colors.border}
+            strokeWidth={strokeWidth}
+            fill={theme.colors.card}
+          />
 
-      {/* Progress indicator */}
-      <Animated.View
-        style={[
-          styles.progressCircle,
-          {
-            opacity,
-            transform: [{ rotate: rotation }],
-          },
-        ]}
-      >
-        <View style={styles.progressArc} />
-      </Animated.View>
+          {/* Progress circle (accent colored fill, starts from 12 o'clock) */}
+          <AnimatedCircle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke={theme.colors.accent}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            rotation={-90}
+            origin={`${center}, ${center}`}
+          />
+        </Svg>
+      </View>
 
       {/* Label text */}
       <View style={styles.labelContainer}>
@@ -151,28 +172,11 @@ const styles = StyleSheet.create({
   containerDisabled: {
     opacity: 0.5,
   },
-  backgroundCircle: {
+  svgContainer: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: theme.colors.card,
-    borderWidth: 3,
-    borderColor: theme.colors.border,
-  },
-  progressCircle: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 3,
-    borderColor: 'transparent',
-    borderTopColor: theme.colors.accent,
-    borderRightColor: theme.colors.accent,
-  },
-  progressArc: {
-    width: '100%',
-    height: '100%',
+    // Center the 180px SVG in the 200px container
+    top: 10,
+    left: 10,
   },
   labelContainer: {
     alignItems: 'center',

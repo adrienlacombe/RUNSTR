@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   InteractionManager,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -913,10 +914,11 @@ export const RunningTrackerScreen: React.FC = () => {
   const distanceValue = metrics.distance.replace(' km', '');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* IDLE STATE - Show when not tracking and no countdown */}
-      {!isTracking && !countdown && (
-        <ScrollView
+    <View style={styles.container}>
+      <View style={styles.contentContainer}>
+        {/* IDLE STATE - Show when not tracking and no countdown */}
+        {!isTracking && !countdown && (
+          <ScrollView
           style={styles.scrollableContent}
           contentContainerStyle={styles.idleScrollContent}
           showsVerticalScrollIndicator={false}
@@ -1122,7 +1124,8 @@ export const RunningTrackerScreen: React.FC = () => {
           );
         }}
       />
-    </SafeAreaView>
+      </View>
+    </View>
   );
 };
 
@@ -1130,6 +1133,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 8 : 16,
   },
   scrollableContent: {
     flex: 1,
@@ -1163,16 +1170,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginTop: 12,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     gap: 10,
   },
   routePickerText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.text,
     flex: 1,

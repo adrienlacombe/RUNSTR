@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   AppState,
   AppStateStatus,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -812,16 +813,14 @@ export const WalkingTrackerScreen: React.FC = () => {
   const controlBarState = isTracking ? (isPaused ? 'paused' : 'tracking') : 'idle';
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={['top']}
-    >
-      {/* Countdown Overlay */}
-      <CountdownOverlay countdown={countdown} />
+    <View style={styles.screenContainer}>
+      <View style={styles.contentContainer}>
+        {/* Countdown Overlay */}
+        <CountdownOverlay countdown={countdown} />
 
-      {isTracking ? (
-        /* ============ ACTIVE TRACKING STATE ============ */
-        <View style={styles.activeContainer}>
+        {isTracking ? (
+          /* ============ ACTIVE TRACKING STATE ============ */
+          <View style={styles.activeContainer}>
           {/* Route Badge (if selected) */}
           {selectedRoute && (
             <View style={styles.routeBadge}>
@@ -978,22 +977,33 @@ export const WalkingTrackerScreen: React.FC = () => {
         }}
       />
 
-      {/* Permission Request Modal */}
-      {showPermissionModal && (
-        <PermissionRequestModal
-          visible={showPermissionModal}
-          onComplete={() => {
-            setShowPermissionModal(false);
-            // Re-check permissions after modal closes
-            handleHoldComplete();
-          }}
-        />
-      )}
-    </SafeAreaView>
+        {/* Permission Request Modal */}
+        {showPermissionModal && (
+          <PermissionRequestModal
+            visible={showPermissionModal}
+            onComplete={() => {
+              setShowPermissionModal(false);
+              // Re-check permissions after modal closes
+              handleHoldComplete();
+            }}
+          />
+        )}
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  // Screen container (replaces SafeAreaView since parent handles safe area)
+  screenContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  // Content container with platform-specific top padding
+  contentContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 8 : 16,
+  },
   // Active tracking state container
   activeContainer: {
     flex: 1,
@@ -1037,16 +1047,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginTop: 12,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     gap: 10,
   },
   routeSelectorText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.text,
     flex: 1,
