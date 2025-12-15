@@ -225,6 +225,16 @@ class SatlantisEventServiceClass {
     // Sort by start time (soonest first)
     parsedEvents.sort((a, b) => a.startTime - b.startTime);
 
+    // Batch fetch creator profiles for all events
+    console.log(`[Satlantis] Fetching creator profiles for ${parsedEvents.length} events...`);
+    const uniquePubkeys = [...new Set(parsedEvents.map((e) => e.pubkey))];
+    const profileMap = await this.batchFetchCreatorProfiles(uniquePubkeys);
+
+    // Attach profiles to events
+    for (const event of parsedEvents) {
+      event.creatorProfile = profileMap.get(event.pubkey);
+    }
+
     // Cache results - use shorter TTL for empty results (relay might have disconnected)
     // This prevents caching "0 events" for long when it's due to relay issues
     try {
@@ -238,8 +248,47 @@ class SatlantisEventServiceClass {
       console.warn('[Satlantis] Cache write error:', error);
     }
 
-    console.log(`[Satlantis] Parsed ${parsedEvents.length} sports events`);
+    console.log(`[Satlantis] Parsed ${parsedEvents.length} sports events with profiles`);
     return parsedEvents;
+  }
+
+  /**
+   * Batch fetch creator profiles for multiple pubkeys (efficiency)
+   */
+  private async batchFetchCreatorProfiles(
+    pubkeys: string[]
+  ): Promise<Map<string, { name: string; picture?: string }>> {
+    const profileMap = new Map<string, { name: string; picture?: string }>();
+
+    if (pubkeys.length === 0) return profileMap;
+
+    try {
+      const ndk = await GlobalNDKService.getInstance();
+      const profiles = await Promise.race([
+        ndk.fetchEvents({ kinds: [0 as NDKKind], authors: pubkeys }),
+        new Promise<Set<NDKEvent>>((resolve) =>
+          setTimeout(() => resolve(new Set()), 5000)
+        ),
+      ]);
+
+      for (const profile of profiles) {
+        try {
+          const content = JSON.parse(profile.content);
+          profileMap.set(profile.pubkey, {
+            name: content.display_name || content.name || 'Anonymous',
+            picture: content.picture,
+          });
+        } catch (e) {
+          // Skip malformed profiles
+        }
+      }
+
+      console.log(`[Satlantis] Fetched ${profileMap.size}/${pubkeys.length} creator profiles`);
+    } catch (e) {
+      console.warn('[Satlantis] Batch profile fetch failed:', e);
+    }
+
+    return profileMap;
   }
 
   /**
@@ -290,7 +339,10 @@ class SatlantisEventServiceClass {
       for (const event of events) {
         const parsed = this.parseCalendarEvent(event);
         if (parsed) {
-          // Cache result
+          // Fetch and attach creator profile
+          parsed.creatorProfile = await this.fetchCreatorProfile(pubkey);
+
+          // Cache result (with creator profile included)
           await UnifiedCacheService.setWithCustomTTL(
             cacheKey,
             parsed,
@@ -304,6 +356,32 @@ class SatlantisEventServiceClass {
     }
 
     return null;
+  }
+
+  /**
+   * Fetch creator's profile (kind 0) for caching with event
+   */
+  private async fetchCreatorProfile(
+    pubkey: string
+  ): Promise<{ name: string; picture?: string } | undefined> {
+    try {
+      const ndk = await GlobalNDKService.getInstance();
+      const profileEvent = await Promise.race([
+        ndk.fetchEvent({ kinds: [0 as NDKKind], authors: [pubkey] }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+      ]);
+
+      if (profileEvent) {
+        const content = JSON.parse(profileEvent.content);
+        return {
+          name: content.display_name || content.name || 'Anonymous',
+          picture: content.picture,
+        };
+      }
+    } catch (e) {
+      console.warn('[Satlantis] Failed to fetch creator profile:', e);
+    }
+    return undefined;
   }
 
   /**

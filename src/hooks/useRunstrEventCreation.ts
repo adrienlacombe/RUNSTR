@@ -49,7 +49,7 @@ export interface UseRunstrEventCreationReturn {
   // Helpers
   showDistanceInput: boolean;
   showDurationInput: boolean;
-  showEntryFeeInput: boolean;
+  showDonationInput: boolean;
   showFixedPayoutInput: boolean;
 }
 
@@ -102,7 +102,7 @@ export function useRunstrEventCreation(): UseRunstrEventCreationReturn {
   // Conditional field visibility
   const showDistanceInput = form.scoringType === 'fastest_time';
   const showDurationInput = form.scoringType === 'most_distance';
-  const showEntryFeeInput = form.joinMethod === 'paid';
+  const showDonationInput = form.joinMethod === 'donation';
   const showFixedPayoutInput = form.payoutScheme === 'fixed_amount';
 
   // Submit event
@@ -161,7 +161,7 @@ export function useRunstrEventCreation(): UseRunstrEventCreationReturn {
     submitEvent,
     showDistanceInput,
     showDurationInput,
-    showEntryFeeInput,
+    showDonationInput,
     showFixedPayoutInput,
   };
 }
@@ -191,7 +191,7 @@ export const DURATION_OPTIONS: { value: RunstrDuration; label: string }[] = [
 
 export const JOIN_OPTIONS: { value: RunstrJoinMethod; label: string }[] = [
   { value: 'open', label: 'Free' },
-  { value: 'paid', label: 'Paid' },
+  { value: 'donation', label: 'Donation' },
 ];
 
 export const PAYOUT_OPTIONS: { value: RunstrPayoutScheme; label: string }[] = [

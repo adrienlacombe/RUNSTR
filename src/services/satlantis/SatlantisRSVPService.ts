@@ -20,8 +20,8 @@ import type { SatlantisRSVP, SatlantisRSVPStatus } from '../../types/satlantis';
 // NIP-52 Calendar RSVP kind (not in NDK's standard kinds)
 const KIND_CALENDAR_RSVP = 31925 as NDKKind;
 
-// Cache TTL in seconds (7 days - refresh via pull-to-refresh)
-const CACHE_TTL_RSVPS = 604800; // 7 days
+// Cache TTL in seconds (7 days - refresh via pull-to-refresh or foreground return)
+const CACHE_TTL_RSVPS = 604800; // 7 days for all results (empty or populated)
 
 class SatlantisRSVPServiceClass {
   private static instance: SatlantisRSVPServiceClass;
@@ -47,12 +47,13 @@ class SatlantisRSVPServiceClass {
     // Note: We use eventDTag for cache key since pubkey might vary between API sources
     const cacheKey = `satlantis_rsvps_${eventDTag}`;
 
-    // Check cache (5-minute TTL) unless skip requested
+    // Check cache unless skip requested
+    // Now caches empty results too (with short TTL) to prevent relay spam
     if (!skipCache) {
       try {
         const cached = await UnifiedCacheService.get<SatlantisRSVP[]>(cacheKey);
-        if (cached && cached.length > 0) {
-          // Only use cache if we have actual RSVPs (don't cache empty results)
+        if (cached !== null && cached !== undefined) {
+          // Return from cache (including empty arrays)
           console.log(`[Satlantis RSVP] Cache hit: ${cached.length} RSVPs`);
           return cached;
         }
@@ -145,20 +146,16 @@ class SatlantisRSVPServiceClass {
     // Deduplicate by pubkey (keep most recent RSVP per user)
     const deduped = this.deduplicateRSVPs(rsvps);
 
-    // Only cache if we found RSVPs (don't cache empty results)
-    if (deduped.length > 0) {
-      try {
-        await UnifiedCacheService.setWithCustomTTL(
-          cacheKey,
-          deduped,
-          CACHE_TTL_RSVPS
-        );
-        console.log('[Satlantis RSVP] 💾 Cached', deduped.length, 'RSVPs');
-      } catch (error) {
-        console.warn('[Satlantis RSVP] Cache write error:', error);
-      }
-    } else {
-      console.log('[Satlantis RSVP] ⏭️ Not caching empty results');
+    // Cache results (7 days) - updates via pull-to-refresh or foreground return
+    try {
+      await UnifiedCacheService.setWithCustomTTL(
+        cacheKey,
+        deduped,
+        CACHE_TTL_RSVPS
+      );
+      console.log(`[Satlantis RSVP] 💾 Cached ${deduped.length} RSVPs (TTL: 7 days)`);
+    } catch (error) {
+      console.warn('[Satlantis RSVP] Cache write error:', error);
     }
 
     console.log(

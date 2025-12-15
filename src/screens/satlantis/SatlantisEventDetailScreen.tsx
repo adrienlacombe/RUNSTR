@@ -22,14 +22,11 @@ import { useSatlantisEventDetail } from '../../hooks/useSatlantisEvents';
 import { SatlantisLeaderboard } from '../../components/satlantis/SatlantisLeaderboard';
 import { EventJoinButton } from '../../components/satlantis/EventJoinButton';
 import { EventCreatorControls } from '../../components/satlantis/EventCreatorControls';
-import { EventPaymentModal } from '../../components/event/EventPaymentModal';
 import { SatlantisEventJoinService } from '../../services/satlantis/SatlantisEventJoinService';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatEventDateTime } from '../../types/satlantis';
 import { CacheInvalidator } from '../../services/cache/CacheInvalidator';
-import { GlobalNDKService } from '../../services/nostr/GlobalNDKService';
-import type { InvoiceResult, PendingJoin } from '../../services/satlantis/SatlantisEventJoinService';
 import { nip19 } from 'nostr-tools';
 
 interface SatlantisEventDetailScreenProps {
@@ -219,12 +216,6 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
     }
   }, [currentUser?.npub]);
 
-  // Payment modal state
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [pendingInvoice, setPendingInvoice] = useState<InvoiceResult | null>(
-    null
-  );
-
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -232,59 +223,8 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
     message: '',
   });
 
-  // Pending payment state
-  const [pendingPayment, setPendingPayment] = useState<PendingJoin | null>(null);
-
-  // Creator profile state
-  const [creatorProfile, setCreatorProfile] = useState<{
-    name: string;
-    picture?: string;
-  } | null>(null);
-
-  // Fetch creator profile on event load
-  useEffect(() => {
-    if (!event?.pubkey) return;
-
-    const fetchCreatorProfile = async () => {
-      try {
-        const ndk = await GlobalNDKService.getInstance();
-        const profileEvent = await ndk.fetchEvent({
-          kinds: [0],
-          authors: [event.pubkey],
-        });
-
-        if (profileEvent) {
-          const content = JSON.parse(profileEvent.content);
-          setCreatorProfile({
-            name: content.display_name || content.name || 'Anonymous',
-            picture: content.picture,
-          });
-        } else {
-          setCreatorProfile({ name: 'Anonymous' });
-        }
-      } catch (e) {
-        console.warn('Failed to fetch creator profile:', e);
-        setCreatorProfile({ name: 'Anonymous' });
-      }
-    };
-
-    fetchCreatorProfile();
-  }, [event?.pubkey]);
-
-  // Check for pending payments on mount
-  useEffect(() => {
-    const checkPendingPayments = async () => {
-      const pending = await SatlantisEventJoinService.getPendingJoinForEvent(eventId);
-      setPendingPayment(pending);
-    };
-
-    checkPendingPayments();
-  }, [eventId]);
-
   // Handle successful join
   const handleJoinSuccess = useCallback(() => {
-    setPendingPayment(null); // Clear pending payment on success
-
     // Add user to local participant list immediately for optimistic UI
     if (currentUserHexPubkey) {
       addLocalParticipant(currentUserHexPubkey);
@@ -297,47 +237,6 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
     setAlertVisible(true);
     refresh();
   }, [refresh, currentUserHexPubkey, addLocalParticipant]);
-
-  // Handle payment required (paid events)
-  const handlePaymentRequired = useCallback((invoiceResult: InvoiceResult) => {
-    setPendingInvoice(invoiceResult);
-    setPaymentModalVisible(true);
-  }, []);
-
-  // Handle payment confirmation
-  const handlePaymentConfirmed = useCallback(async () => {
-    if (!event || !pendingInvoice?.invoice) return;
-
-    setPaymentModalVisible(false);
-
-    // Join event with payment proof
-    const result = await SatlantisEventJoinService.joinEvent(
-      event,
-      pendingInvoice.invoice
-    );
-
-    if (result.success) {
-      // Add user to local participant list immediately for optimistic UI
-      if (currentUserHexPubkey) {
-        addLocalParticipant(currentUserHexPubkey);
-      }
-
-      setAlertConfig({
-        title: 'Joined!',
-        message: 'Payment received. You have joined the event.',
-      });
-      setAlertVisible(true);
-      refresh();
-    } else {
-      setAlertConfig({
-        title: 'Error',
-        message: result.error || 'Failed to join event',
-      });
-      setAlertVisible(true);
-    }
-
-    setPendingInvoice(null);
-  }, [event, pendingInvoice, refresh, currentUserHexPubkey, addLocalParticipant]);
 
   // Handle join error
   const handleJoinError = useCallback((error: string) => {
@@ -442,11 +341,11 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
 
           <Text style={styles.eventTitle}>{event.title}</Text>
 
-          {/* Created By */}
+          {/* Created By - uses cached profile from event */}
           <View style={styles.creatorRow}>
-            {creatorProfile?.picture ? (
+            {event.creatorProfile?.picture ? (
               <Image
-                source={{ uri: creatorProfile.picture }}
+                source={{ uri: event.creatorProfile.picture }}
                 style={styles.creatorAvatar}
               />
             ) : (
@@ -457,7 +356,7 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
             <View style={styles.creatorInfo}>
               <Text style={styles.creatorLabel}>Created by</Text>
               <Text style={styles.creatorName}>
-                {creatorProfile?.name || 'Loading...'}
+                {event.creatorProfile?.name || 'Anonymous'}
               </Text>
             </View>
           </View>
@@ -581,30 +480,14 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
                     </Text>
                   </View>
                 )}
-                {event.joinMethod === 'paid' && event.entryFeeSats && (
+                {event.joinMethod === 'donation' && (event.suggestedDonationSats || event.entryFeeSats) && (
                   <View style={styles.runstrInfoItem}>
-                    <Text style={styles.runstrInfoLabel}>Entry Fee</Text>
+                    <Text style={styles.runstrInfoLabel}>Suggested Donation</Text>
                     <Text style={styles.runstrInfoValue}>
-                      {event.entryFeeSats.toLocaleString()} sats
+                      {(event.suggestedDonationSats || event.entryFeeSats || 0).toLocaleString()} sats
                     </Text>
                   </View>
                 )}
-              </View>
-            </View>
-          )}
-
-          {/* Pending Payment Banner */}
-          {pendingPayment && (
-            <View style={styles.pendingPaymentBanner}>
-              <View style={styles.pendingPaymentContent}>
-                <Ionicons name="warning" size={20} color={theme.colors.orangeBright} />
-                <View style={styles.pendingPaymentText}>
-                  <Text style={styles.pendingPaymentTitle}>Payment Saved</Text>
-                  <Text style={styles.pendingPaymentMessage}>
-                    Your payment of {pendingPayment.amountSats.toLocaleString()} sats was saved.
-                    Tap the button below to complete joining.
-                  </Text>
-                </View>
               </View>
             </View>
           )}
@@ -614,7 +497,6 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
             <EventJoinButton
               event={event}
               onJoinSuccess={handleJoinSuccess}
-              onPaymentRequired={handlePaymentRequired}
               onError={handleJoinError}
             />
           </View>
@@ -654,21 +536,6 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
 
         <View style={styles.bottomPadding} />
       </ScrollView>
-
-      {/* Payment Modal */}
-      {event && pendingInvoice && (
-        <EventPaymentModal
-          visible={paymentModalVisible}
-          eventName={event.title}
-          amountSats={pendingInvoice.amountSats || 0}
-          invoice={pendingInvoice.invoice || ''}
-          onPaid={handlePaymentConfirmed}
-          onCancel={() => {
-            setPaymentModalVisible(false);
-            setPendingInvoice(null);
-          }}
-        />
-      )}
 
       {/* Alert */}
       <CustomAlert
@@ -900,35 +767,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-  },
-  // Pending Payment Banner
-  pendingPaymentBanner: {
-    marginTop: 16,
-    backgroundColor: 'rgba(255, 149, 0, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.orangeBright,
-    overflow: 'hidden',
-  },
-  pendingPaymentContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 12,
-    gap: 10,
-  },
-  pendingPaymentText: {
-    flex: 1,
-  },
-  pendingPaymentTitle: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.orangeBright,
-    marginBottom: 4,
-  },
-  pendingPaymentMessage: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    lineHeight: 18,
   },
   // Debug Section Styles
   debugToggle: {

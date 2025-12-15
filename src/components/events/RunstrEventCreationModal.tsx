@@ -55,7 +55,7 @@ export const RunstrEventCreationModal: React.FC<
     submitEvent,
     showDistanceInput,
     showDurationInput,
-    showEntryFeeInput,
+    showDonationInput,
     showFixedPayoutInput,
   } = useRunstrEventCreation();
 
@@ -390,14 +390,14 @@ export const RunstrEventCreationModal: React.FC<
               </View>
             </View>
 
-            {/* Entry Fee (for paid events) */}
-            {showEntryFeeInput && (
+            {/* Suggested Donation (for donation events) */}
+            {showDonationInput && (
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Entry Fee (sats)</Text>
+                <Text style={styles.label}>Suggested Donation (sats)</Text>
                 <TextInput
                   style={styles.textInput}
-                  value={form.entryFee}
-                  onChangeText={(text) => updateField('entryFee', text)}
+                  value={form.suggestedDonation}
+                  onChangeText={(text) => updateField('suggestedDonation', text)}
                   placeholder="e.g., 2100"
                   placeholderTextColor={theme.colors.textMuted}
                   keyboardType="numeric"

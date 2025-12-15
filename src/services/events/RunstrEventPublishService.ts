@@ -18,6 +18,8 @@ import type {
 } from '../../types/runstrEvent';
 import { DISTANCE_PRESETS, getDurationSeconds } from '../../types/runstrEvent';
 import { NWCWalletService } from '../wallet/NWCWalletService';
+import { UnifiedCacheService } from '../cache/UnifiedCacheService';
+import type { SatlantisEvent, SatlantisSportType } from '../../types/satlantis';
 
 // NIP-52 Calendar Event kind
 const KIND_CALENDAR_EVENT = 31923;
@@ -102,6 +104,10 @@ class RunstrEventPublishServiceClass {
         console.log(
           `✅ [RunstrEventPublish] Published to ${publishedCount} relays`
         );
+
+        // Optimistic cache: Add to local cache immediately
+        await this.addToLocalCache(config, dTag, ndkEvent.pubkey);
+
         return {
           success: true,
           eventId: ndkEvent.id,
@@ -188,9 +194,13 @@ class RunstrEventPublishServiceClass {
     tags.push(['join_method', config.joinMethod]);
     tags.push(['duration_type', config.duration]);
 
-    // Entry fee (if paid event)
-    if (config.joinMethod === 'paid' && config.entryFeeSats) {
-      tags.push(['entry_fee', config.entryFeeSats.toString()]);
+    // Suggested donation (if donation event)
+    if (config.joinMethod === 'donation' && config.suggestedDonationSats) {
+      tags.push(['suggested_donation', config.suggestedDonationSats.toString()]);
+    }
+    // Legacy: entry_fee for backward compatibility with 'paid' events
+    if (config.joinMethod === 'paid' && config.suggestedDonationSats) {
+      tags.push(['entry_fee', config.suggestedDonationSats.toString()]);
     }
 
     // Prize pool
@@ -237,9 +247,7 @@ class RunstrEventPublishServiceClass {
       return 'Target distance is required for fastest time events';
     }
 
-    if (config.joinMethod === 'paid' && !config.entryFeeSats) {
-      return 'Entry fee is required for paid events';
-    }
+    // Donation events don't require a suggested amount (soft requirement)
 
     if (
       config.scoringType === 'participation' &&
@@ -260,6 +268,91 @@ class RunstrEventPublishServiceClass {
   }
 
   /**
+   * Add newly created event to local cache for optimistic UI
+   */
+  private async addToLocalCache(
+    config: RunstrEventConfig,
+    dTag: string,
+    pubkey: string
+  ): Promise<void> {
+    try {
+      // Build SatlantisEvent from config
+      const satlantisEvent: SatlantisEvent = {
+        id: dTag,
+        pubkey,
+        title: config.title,
+        description: config.description || '',
+        startTime: config.startTime,
+        endTime: config.endTime,
+        sportType: this.mapActivityToSport(config.activityType),
+        distance: config.targetDistance,
+        distanceUnit: config.targetDistanceUnit,
+        tags: ['runstr', 'sports', config.activityType],
+        isRunstrEvent: true,
+        scoringType: config.scoringType,
+        payoutScheme: config.payoutScheme,
+        joinMethod: config.joinMethod,
+        suggestedDonationSats: config.suggestedDonationSats,
+        entryFeeSats: config.suggestedDonationSats, // backward compatibility
+        prizePoolSats: config.prizePoolSats,
+        fixedPayoutSats: config.fixedPayoutAmount,
+        durationType: config.duration,
+        activityType: config.activityType,
+        creatorHasNWC: config.creatorHasNWC,
+      };
+
+      // Cache single event (7 days)
+      const eventCacheKey = `satlantis_event_${pubkey}_${dTag}`;
+      await UnifiedCacheService.setWithCustomTTL(
+        eventCacheKey,
+        satlantisEvent,
+        604800
+      );
+
+      // Add to discovery list cache (prepend to existing)
+      const listCacheKey = `satlantis_events_{}`;
+      const existingList =
+        await UnifiedCacheService.get<SatlantisEvent[]>(listCacheKey);
+      if (existingList) {
+        const updatedList = [satlantisEvent, ...existingList];
+        await UnifiedCacheService.setWithCustomTTL(
+          listCacheKey,
+          updatedList,
+          604800
+        );
+        console.log(
+          `✅ [RunstrEventPublish] Event added to discovery cache (${updatedList.length} total)`
+        );
+      } else {
+        // No existing cache - create new list with just this event
+        await UnifiedCacheService.setWithCustomTTL(
+          listCacheKey,
+          [satlantisEvent],
+          604800
+        );
+        console.log('✅ [RunstrEventPublish] Created new discovery cache');
+      }
+
+      console.log('✅ [RunstrEventPublish] Event added to local cache');
+    } catch (e) {
+      console.warn('⚠️ [RunstrEventPublish] Failed to add to cache:', e);
+      // Don't throw - cache failure shouldn't fail the publish
+    }
+  }
+
+  /**
+   * Map RUNSTR activity type to Satlantis sport type
+   */
+  private mapActivityToSport(activityType: RunstrActivityType): SatlantisSportType {
+    const mapping: Record<RunstrActivityType, SatlantisSportType> = {
+      running: 'running',
+      cycling: 'cycling',
+      walking: 'walking',
+    };
+    return mapping[activityType] || 'other';
+  }
+
+  /**
    * Build config from form state
    */
   buildConfigFromForm(
@@ -271,7 +364,7 @@ class RunstrEventPublishServiceClass {
       targetDistance: string;
       duration: RunstrDuration;
       joinMethod: RunstrJoinMethod;
-      entryFee: string;
+      suggestedDonation: string;
       payoutScheme: RunstrPayoutScheme;
       prizePool: string;
       fixedPayout: string;
@@ -300,9 +393,9 @@ class RunstrEventPublishServiceClass {
           ? parseInt(formState.fixedPayout, 10) || undefined
           : undefined,
       joinMethod: formState.joinMethod,
-      entryFeeSats:
-        formState.joinMethod === 'paid'
-          ? parseInt(formState.entryFee, 10) || undefined
+      suggestedDonationSats:
+        formState.joinMethod === 'donation'
+          ? parseInt(formState.suggestedDonation, 10) || undefined
           : undefined,
       duration: formState.duration,
       startTime: start,

@@ -1,11 +1,13 @@
 /**
- * EventJoinButton - Smart join/pay button for Satlantis events
+ * EventJoinButton - Smart join/donate button for Satlantis events
  *
  * Shows different states based on event configuration and user status:
  * - "Join Event" for free events
- * - "Pay to Join (X sats)" for paid events
- * - "Joined ✓" if user already RSVPd
+ * - "Donate & Join (X sats)" for donation events (soft requirement)
+ * - "Joined" if user already RSVPd
  * - Disabled for ended events
+ *
+ * Uses ExternalZapModal pattern for donations - any Lightning wallet can pay.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,43 +20,54 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-import {
-  SatlantisEventJoinService,
-  InvoiceResult,
-} from '../../services/satlantis/SatlantisEventJoinService';
+import { SatlantisEventJoinService } from '../../services/satlantis/SatlantisEventJoinService';
+import { ExternalZapModal } from '../nutzap/ExternalZapModal';
+import { ProfileService } from '../../services/user/profileService';
 import type { SatlantisEvent } from '../../types/satlantis';
 
 interface EventJoinButtonProps {
   event: SatlantisEvent;
   onJoinSuccess?: () => void;
-  onPaymentRequired?: (invoiceResult: InvoiceResult) => void;
   onError?: (error: string) => void;
 }
 
 type ButtonState =
   | 'loading'
   | 'join_free'
-  | 'join_paid'
+  | 'join_donation' // Shows donation modal
   | 'joined'
   | 'ended'
-  | 'error'
-  | 'verifying' // Verifying payment for paid events
-  | 'retry_pending'; // Has pending payment that needs retry
+  | 'error';
 
 export const EventJoinButton: React.FC<EventJoinButtonProps> = ({
   event,
   onJoinSuccess,
-  onPaymentRequired,
   onError,
 }) => {
   const [state, setState] = useState<ButtonState>('loading');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [optimisticJoined, setOptimisticJoined] = useState(false); // Optimistic UI
+  const [optimisticJoined, setOptimisticJoined] = useState(false);
+  const [showDonationModal, setShowDonationModal] = useState(false);
+  const [creatorLightningAddress, setCreatorLightningAddress] = useState<string>('');
 
   // Check initial state
   useEffect(() => {
     checkJoinStatus();
+    resolveCreatorLightningAddress();
   }, [event.id]);
+
+  // Resolve creator's lightning address for donations
+  const resolveCreatorLightningAddress = useCallback(async () => {
+    try {
+      const profile = await ProfileService.getUserProfile(event.pubkey);
+      if (profile?.lud16) {
+        setCreatorLightningAddress(profile.lud16);
+        console.log('[EventJoinButton] Creator lightning address:', profile.lud16);
+      }
+    } catch (error) {
+      console.warn('[EventJoinButton] Could not resolve creator lightning address:', error);
+    }
+  }, [event.pubkey]);
 
   const checkJoinStatus = useCallback(async () => {
     try {
@@ -69,24 +82,16 @@ export const EventJoinButton: React.FC<EventJoinButtonProps> = ({
       const hasJoined = await SatlantisEventJoinService.hasUserJoined(event);
       if (hasJoined) {
         setState('joined');
-        setOptimisticJoined(false); // Clear optimistic state if actually joined
+        setOptimisticJoined(false);
         return;
       }
 
-      // Check for pending join (payment made but RSVP failed)
-      const pendingJoin = await SatlantisEventJoinService.getPendingJoinForEvent(event.id);
-      if (pendingJoin) {
-        setState('retry_pending');
-        return;
-      }
-
-      // Determine join type
-      const requirements =
-        SatlantisEventJoinService.getJoinRequirements(event);
+      // Determine join type based on event configuration
+      const requirements = SatlantisEventJoinService.getJoinRequirements(event);
       if (!requirements.canJoin) {
         setState('ended');
-      } else if (requirements.requiresPayment) {
-        setState('join_paid');
+      } else if (requirements.hasDonation) {
+        setState('join_donation');
       } else {
         setState('join_free');
       }
@@ -96,75 +101,68 @@ export const EventJoinButton: React.FC<EventJoinButtonProps> = ({
     }
   }, [event]);
 
-  const handlePress = useCallback(async () => {
-    if (isProcessing) return;
-
+  // Handle direct join (free events or after donation)
+  const handleJoinEvent = useCallback(async (donationMade?: boolean) => {
     setIsProcessing(true);
+    setOptimisticJoined(true);
 
     try {
-      if (state === 'join_free') {
-        // Optimistic UI - show as joined immediately
-        setOptimisticJoined(true);
+      const result = await SatlantisEventJoinService.joinEvent(event, donationMade);
 
-        // Free join - publish RSVP directly
-        const result = await SatlantisEventJoinService.joinEvent(event);
-
-        if (result.success) {
-          setState('joined');
-          onJoinSuccess?.();
-        } else {
-          // Revert optimistic state on failure
-          setOptimisticJoined(false);
-          onError?.(result.error || 'Failed to join event');
-        }
-      } else if (state === 'join_paid') {
-        // Paid join - generate invoice first
-        const invoiceResult =
-          await SatlantisEventJoinService.generateEntryInvoice(event);
-
-        if (invoiceResult.success && invoiceResult.invoice) {
-          onPaymentRequired?.(invoiceResult);
-        } else {
-          onError?.(invoiceResult.error || 'Failed to generate invoice');
-        }
-      } else if (state === 'retry_pending') {
-        // Retry pending join - payment already made
-        const pendingJoin = await SatlantisEventJoinService.getPendingJoinForEvent(event.id);
-        if (pendingJoin) {
-          setOptimisticJoined(true);
-
-          // Skip verification since we already verified before saving
-          const result = await SatlantisEventJoinService.joinEvent(
-            event,
-            pendingJoin.paymentProof,
-            true // skipVerification
-          );
-
-          if (result.success) {
-            setState('joined');
-            onJoinSuccess?.();
-          } else {
-            setOptimisticJoined(false);
-            onError?.(result.error || 'Failed to join event');
-          }
-        }
+      if (result.success) {
+        setState('joined');
+        onJoinSuccess?.();
+      } else {
+        setOptimisticJoined(false);
+        onError?.(result.error || 'Failed to join event');
       }
     } catch (error) {
-      console.error('[EventJoinButton] Error:', error);
       setOptimisticJoined(false);
       onError?.(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsProcessing(false);
     }
-  }, [state, event, isProcessing, onJoinSuccess, onPaymentRequired, onError]);
+  }, [event, onJoinSuccess, onError]);
 
-  // Refresh join status (called after payment completion)
-  const refreshStatus = useCallback(() => {
-    checkJoinStatus();
-  }, [checkJoinStatus]);
+  const handlePress = useCallback(async () => {
+    if (isProcessing) return;
+
+    if (state === 'join_free') {
+      await handleJoinEvent();
+    } else if (state === 'join_donation') {
+      // Show donation modal
+      if (creatorLightningAddress) {
+        setShowDonationModal(true);
+      } else {
+        // No lightning address - just join without donation
+        console.log('[EventJoinButton] No creator lightning address, joining without donation');
+        await handleJoinEvent(false);
+      }
+    }
+  }, [state, isProcessing, creatorLightningAddress, handleJoinEvent]);
+
+  // Handle donation success - join event after donation
+  const handleDonationSuccess = useCallback(async () => {
+    setShowDonationModal(false);
+    await handleJoinEvent(true);
+  }, [handleJoinEvent]);
+
+  // Handle donation modal close - ask if they want to join without donating
+  const handleDonationClose = useCallback(() => {
+    setShowDonationModal(false);
+  }, []);
+
+  // Handle "Join Without Donating" option
+  const handleJoinWithoutDonation = useCallback(async () => {
+    setShowDonationModal(false);
+    await handleJoinEvent(false);
+  }, [handleJoinEvent]);
 
   // Use optimistic state for display
   const isJoined = state === 'joined' || optimisticJoined;
+
+  // Get suggested donation amount
+  const donationAmount = event.suggestedDonationSats || event.entryFeeSats || 0;
 
   // Render based on state
   const renderContent = () => {
@@ -172,7 +170,6 @@ export const EventJoinButton: React.FC<EventJoinButtonProps> = ({
       return <ActivityIndicator size="small" color={theme.colors.background} />;
     }
 
-    // Show joined state (actual or optimistic)
     if (isJoined) {
       return (
         <View style={styles.joinedContent}>
@@ -195,26 +192,15 @@ export const EventJoinButton: React.FC<EventJoinButtonProps> = ({
       case 'join_free':
         return <Text style={styles.buttonText}>Join Event</Text>;
 
-      case 'join_paid':
+      case 'join_donation':
         return (
-          <Text style={styles.buttonText}>
-            Pay to Join ({event.entryFeeSats?.toLocaleString()} sats)
-          </Text>
-        );
-
-      case 'verifying':
-        return (
-          <View style={styles.verifyingContent}>
-            <ActivityIndicator size="small" color={theme.colors.background} />
-            <Text style={styles.buttonText}>Verifying...</Text>
-          </View>
-        );
-
-      case 'retry_pending':
-        return (
-          <View style={styles.retryContent}>
-            <Ionicons name="refresh" size={18} color={theme.colors.background} />
-            <Text style={styles.buttonText}>Retry Join</Text>
+          <View style={styles.donationContent}>
+            <Ionicons name="flash" size={18} color={theme.colors.background} />
+            <Text style={styles.buttonText}>
+              {donationAmount > 0
+                ? `Donate & Join (${donationAmount.toLocaleString()} sats)`
+                : 'Donate & Join'}
+            </Text>
           </View>
         );
 
@@ -226,33 +212,58 @@ export const EventJoinButton: React.FC<EventJoinButtonProps> = ({
     }
   };
 
-  // retry_pending should be tappable (not disabled)
   const isDisabled =
     state === 'loading' ||
     isJoined ||
     state === 'ended' ||
     state === 'error' ||
-    state === 'verifying' ||
-    (isProcessing && state !== 'retry_pending');
+    isProcessing;
 
   const buttonStyle = [
     styles.button,
     isJoined && styles.buttonJoined,
     state === 'ended' && styles.buttonEnded,
-    state === 'join_paid' && styles.buttonPaid,
-    state === 'retry_pending' && styles.buttonRetry,
+    state === 'join_donation' && styles.buttonDonation,
     isDisabled && !isJoined && styles.buttonDisabled,
   ];
 
   return (
-    <TouchableOpacity
-      style={buttonStyle}
-      onPress={handlePress}
-      disabled={isDisabled}
-      activeOpacity={0.7}
-    >
-      {renderContent()}
-    </TouchableOpacity>
+    <>
+      <TouchableOpacity
+        style={buttonStyle}
+        onPress={handlePress}
+        disabled={isDisabled}
+        activeOpacity={0.7}
+      >
+        {renderContent()}
+      </TouchableOpacity>
+
+      {/* Donation Modal - Uses ExternalZapModal pattern */}
+      {showDonationModal && creatorLightningAddress && (
+        <ExternalZapModal
+          visible={showDonationModal}
+          recipientNpub={creatorLightningAddress}
+          recipientName={event.creatorProfile?.name || 'Event Creator'}
+          amount={donationAmount > 0 ? donationAmount : undefined}
+          memo={`Support: ${event.title}`}
+          onClose={handleDonationClose}
+          onSuccess={handleDonationSuccess}
+        />
+      )}
+
+      {/* Join Without Donating Option - shown when modal is closed */}
+      {state === 'join_donation' && !showDonationModal && !isJoined && (
+        <TouchableOpacity
+          style={styles.skipDonationButton}
+          onPress={handleJoinWithoutDonation}
+          disabled={isProcessing}
+        >
+          <Text style={styles.skipDonationText}>
+            Join without donating
+          </Text>
+        </TouchableOpacity>
+      )}
+    </>
   );
 };
 
@@ -271,7 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 48,
   },
-  buttonPaid: {
+  buttonDonation: {
     backgroundColor: theme.colors.orangeBright,
   },
   buttonJoined: {
@@ -312,18 +323,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: theme.typography.weights.medium,
   },
-  buttonRetry: {
-    backgroundColor: theme.colors.orangeBright,
-  },
-  verifyingContent: {
+  donationContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  retryContent: {
-    flexDirection: 'row',
+  skipDonationButton: {
+    marginTop: 8,
+    paddingVertical: 8,
     alignItems: 'center',
-    gap: 6,
+  },
+  skipDonationText: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });
 

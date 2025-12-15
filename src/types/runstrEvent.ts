@@ -55,9 +55,10 @@ export function getValidPayoutSchemes(scoringType: RunstrScoringType): RunstrPay
 /**
  * Event join methods
  * - open: Free to join, anyone can participate
- * - paid: Entry fee required (Lightning invoice)
+ * - paid: Legacy - entry fee required (Lightning invoice)
+ * - donation: Suggested donation (soft requirement, any wallet)
  */
-export type RunstrJoinMethod = 'open' | 'paid';
+export type RunstrJoinMethod = 'open' | 'paid' | 'donation';
 
 // ============================================================================
 // Duration Types
@@ -155,7 +156,7 @@ export interface RunstrEventConfig {
 
   // Join method
   joinMethod: RunstrJoinMethod;
-  entryFeeSats?: number; // required if joinMethod is 'paid'
+  suggestedDonationSats?: number; // suggested donation for 'donation' join method
 
   // Duration
   duration: RunstrDuration;
@@ -195,7 +196,7 @@ export interface RunstrEventFormState {
   targetDistance: string; // String for input field
   duration: RunstrDuration;
   joinMethod: RunstrJoinMethod;
-  entryFee: string; // String for input field
+  suggestedDonation: string; // String for input field (suggested donation amount in sats)
   payoutScheme: RunstrPayoutScheme;
   prizePool: string; // String for input field
   fixedPayout: string; // String for input field
@@ -213,7 +214,7 @@ export const DEFAULT_FORM_STATE: RunstrEventFormState = {
   targetDistance: '5',
   duration: '1d',
   joinMethod: 'open',
-  entryFee: '',
+  suggestedDonation: '',
   payoutScheme: 'winner_takes_all',
   prizePool: '',
   fixedPayout: '',
@@ -366,13 +367,8 @@ export function validateEventForm(form: RunstrEventFormState): ValidationError[]
     }
   }
 
-  // Entry fee required for paid events
-  if (form.joinMethod === 'paid') {
-    const entryFee = parseInt(form.entryFee, 10);
-    if (isNaN(entryFee) || entryFee <= 0) {
-      errors.push({ field: 'entryFee', message: 'Entry fee is required for paid events' });
-    }
-  }
+  // Suggested donation is optional for donation events (soft requirement)
+  // No validation error - users can set 0 or leave empty
 
   // Prize pool validation (optional but if set, must be positive)
   if (form.prizePool) {

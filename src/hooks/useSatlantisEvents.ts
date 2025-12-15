@@ -12,6 +12,7 @@ import { SatlantisRSVPService } from '../services/satlantis/SatlantisRSVPService
 import { Competition1301QueryService } from '../services/competition/Competition1301QueryService';
 import { SatlantisEventScoringService } from '../services/scoring/SatlantisEventScoringService';
 import { UnifiedCacheService } from '../services/cache/UnifiedCacheService';
+import { AppStateManager } from '../services/core/AppStateManager';
 import type {
   SatlantisEvent,
   SatlantisEventFilter,
@@ -78,6 +79,18 @@ export function useSatlantisEvents(
     return () => {
       isMounted.current = false;
     };
+  }, [loadEvents]);
+
+  // Refresh events when app returns to foreground
+  useEffect(() => {
+    const unsubscribe = AppStateManager.onStateChange((isActive) => {
+      if (isActive && isMounted.current) {
+        console.log('[useSatlantisEvents] App returned to foreground - refreshing events');
+        loadEvents(true); // Force refresh from relays
+      }
+    });
+
+    return () => unsubscribe();
   }, [loadEvents]);
 
   return {
@@ -281,9 +294,10 @@ export function useSatlantisEventDetail(
 
     try {
       // Check cache first (unless forceRefresh)
+      // Now accepts empty arrays too (with shorter TTL) to prevent relay spam
       if (!forceRefresh) {
         const cached = await UnifiedCacheService.get<SatlantisLeaderboardEntry[]>(cacheKey);
-        if (cached && cached.length > 0) {
+        if (cached !== null && cached !== undefined) {
           console.log(`[useSatlantisEventDetail] 💾 Leaderboard cache hit: ${cached.length} entries`);
           setLeaderboard(cached);
           setIsLoadingLeaderboard(false);
@@ -386,6 +400,18 @@ export function useSatlantisEventDetail(
 
     return () => clearInterval(interval);
   }, [event, eventStatus, participants]);
+
+  // Refresh event detail when app returns to foreground
+  useEffect(() => {
+    const unsubscribe = AppStateManager.onStateChange((isActive) => {
+      if (isActive && isMounted.current && eventPubkey && eventId) {
+        console.log('[useSatlantisEventDetail] App returned to foreground - refreshing event detail');
+        loadEventDetail(true); // Force refresh from relays
+      }
+    });
+
+    return () => unsubscribe();
+  }, [loadEventDetail, eventPubkey, eventId]);
 
   return {
     event,

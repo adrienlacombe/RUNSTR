@@ -88,7 +88,10 @@ export interface SatlantisEvent {
   /** Join method (open, paid, donation) */
   joinMethod?: RunstrJoinMethod;
 
-  /** Entry fee in satoshis (only for paid events) */
+  /** Suggested donation in satoshis (for donation events) */
+  suggestedDonationSats?: number;
+
+  /** @deprecated Use suggestedDonationSats - kept for backward compatibility */
   entryFeeSats?: number;
 
   /** Total prize pool in satoshis */
@@ -105,6 +108,12 @@ export interface SatlantisEvent {
 
   /** Whether creator has NWC configured for auto-payout */
   creatorHasNWC?: boolean;
+
+  /** Creator's profile (cached with event for 7 days) */
+  creatorProfile?: {
+    name: string;
+    picture?: string;
+  };
 }
 
 /**

@@ -1,26 +1,29 @@
 /**
- * SatlantisEventJoinService - Handle event joining with optional payment
+ * SatlantisEventJoinService - Handle event joining with optional donation
  *
  * Coordinates the flow of joining RUNSTR events:
  * - Free events: Direct RSVP publish
- * - Paid events: Generate invoice → User pays → RSVP with payment proof
+ * - Donation events: Show donation modal → User donates (optional) → RSVP
+ *
+ * Key changes (Apple compliance):
+ * - Donations are soft requirements (users can join without donating)
+ * - No NWC required for joining - uses ExternalZapModal pattern
+ * - "Suggested donation" instead of "entry fee"
  *
  * Usage:
  * ```typescript
  * // Free event
  * await SatlantisEventJoinService.joinEvent(event);
  *
- * // Paid event
- * const invoice = await SatlantisEventJoinService.generateEntryInvoice(event);
- * // User pays invoice externally...
- * await SatlantisEventJoinService.joinEvent(event, invoice);
+ * // Donation event (after user donates or skips)
+ * await SatlantisEventJoinService.joinEvent(event, true); // donated
+ * await SatlantisEventJoinService.joinEvent(event, false); // skipped donation
  * ```
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
 import { SatlantisRSVPService } from './SatlantisRSVPService';
-import { NWCWalletService } from '../wallet/NWCWalletService';
 import UnifiedSigningService from '../auth/UnifiedSigningService';
 import { UnifiedCacheService } from '../cache/UnifiedCacheService';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
@@ -29,9 +32,6 @@ import type { SatlantisEvent } from '../../types/satlantis';
 
 // NIP-52 Calendar RSVP kind
 const KIND_CALENDAR_RSVP = 31925 as NDKKind;
-
-// Storage key for pending joins (payment made but RSVP failed)
-const PENDING_JOINS_KEY = '@runstr:pending_event_joins';
 
 // Storage key for local join backup (in case Nostr RSVP query fails)
 const LOCAL_JOINS_KEY = '@runstr:local_event_joins';
@@ -55,7 +55,6 @@ export interface JoinEventResult {
   success: boolean;
   error?: string;
   rsvpEventId?: string;
-  canRetry?: boolean; // True if payment was made but RSVP failed
 }
 
 export interface PaymentVerificationResult {
@@ -93,51 +92,14 @@ class SatlantisEventJoinServiceClass {
   /**
    * Join an event - publishes kind 31925 RSVP
    * @param event - The event to join
-   * @param paymentProof - Lightning invoice (for paid events)
-   * @param skipVerification - Skip payment verification (for retrying after verification)
+   * @param donationMade - Whether user made a donation (for tracking purposes)
    */
   async joinEvent(
     event: SatlantisEvent,
-    paymentProof?: string,
-    skipVerification?: boolean
+    donationMade?: boolean
   ): Promise<JoinEventResult> {
     try {
-      console.log(`[EventJoin] Joining event: ${event.title}`);
-
-      // Validate paid event has payment proof
-      if (event.joinMethod === 'paid' && event.entryFeeSats && !paymentProof) {
-        return {
-          success: false,
-          error: 'Payment required for this event',
-        };
-      }
-
-      // For paid events, verify payment first (unless skipping for retry)
-      if (event.joinMethod === 'paid' && paymentProof && !skipVerification) {
-        console.log('[EventJoin] Verifying payment before RSVP...');
-        const verification = await this.verifyPayment(paymentProof);
-
-        if (!verification.isPaid) {
-          console.log('[EventJoin] Payment not confirmed yet');
-          return {
-            success: false,
-            error: verification.error || 'Payment not confirmed. Please wait and try again.',
-          };
-        }
-        console.log('[EventJoin] Payment confirmed!');
-      }
-
-      // For paid events, save pending join BEFORE attempting RSVP
-      // This ensures we don't lose the payment if RSVP fails
-      if (paymentProof && event.entryFeeSats) {
-        await this.savePendingJoin({
-          eventId: event.id,
-          eventPubkey: event.pubkey,
-          paymentProof,
-          amountSats: event.entryFeeSats,
-          timestamp: Date.now(),
-        });
-      }
+      console.log(`[EventJoin] Joining event: ${event.title}`, { donationMade });
 
       // Get signer
       const signingService = UnifiedSigningService.getInstance();
@@ -147,7 +109,6 @@ class SatlantisEventJoinServiceClass {
         return {
           success: false,
           error: 'Not authenticated',
-          canRetry: !!paymentProof, // Can retry if payment was made
         };
       }
 
@@ -161,11 +122,12 @@ class SatlantisEventJoinServiceClass {
         ['d', `rsvp-${event.id}`],
       ];
 
-      // Add payment proof tags if provided
-      if (paymentProof) {
-        tags.push(['payment_proof', paymentProof]);
-        if (event.entryFeeSats) {
-          tags.push(['amount', event.entryFeeSats.toString()]);
+      // Add donation tag if user donated (for analytics, not verification)
+      if (donationMade) {
+        tags.push(['donated', 'true']);
+        const donationAmount = event.suggestedDonationSats || event.entryFeeSats;
+        if (donationAmount) {
+          tags.push(['donation_amount', donationAmount.toString()]);
         }
       }
 
@@ -215,9 +177,6 @@ class SatlantisEventJoinServiceClass {
           await this.saveLocalJoin(event.id, event.pubkey, userPubkey);
         }
 
-        // Remove pending join on success
-        await this.removePendingJoin(event.id);
-
         // Invalidate cache so participant list updates
         await this.invalidateEventCache(event.pubkey, event.id);
 
@@ -226,12 +185,10 @@ class SatlantisEventJoinServiceClass {
           rsvpEventId: rsvpEvent.id,
         };
       } else {
-        // RSVP failed but payment was made - user can retry
         console.log('[EventJoin] ❌ RSVP publish failed - 0 relays accepted');
         return {
           success: false,
-          error: 'Failed to publish RSVP. Your payment is saved - tap Retry.',
-          canRetry: !!paymentProof,
+          error: 'Failed to publish RSVP. Please try again.',
         };
       }
     } catch (error) {
@@ -239,63 +196,20 @@ class SatlantisEventJoinServiceClass {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        canRetry: !!paymentProof, // Can retry if payment was made
       };
     }
   }
 
   /**
-   * Generate Lightning invoice for paid event entry
-   * Uses the user's NWC wallet to create an invoice
+   * @deprecated - No longer used. Donations use ExternalZapModal pattern.
+   * Kept for backward compatibility but will be removed in future version.
    */
   async generateEntryInvoice(event: SatlantisEvent): Promise<InvoiceResult> {
-    try {
-      if (!event.entryFeeSats || event.entryFeeSats <= 0) {
-        return {
-          success: false,
-          error: 'Event has no entry fee',
-        };
-      }
-
-      // Check if user has NWC configured
-      const hasNWC = await NWCWalletService.hasNWCConfigured();
-      if (!hasNWC) {
-        return {
-          success: false,
-          error: 'No wallet configured. Please set up NWC in Settings.',
-        };
-      }
-
-      console.log(
-        `[EventJoin] Generating invoice for ${event.entryFeeSats} sats`
-      );
-
-      const description = `Join event: ${event.title}`;
-      const result = await NWCWalletService.createInvoice(
-        event.entryFeeSats,
-        description
-      );
-
-      if (result.success && result.invoice) {
-        return {
-          success: true,
-          invoice: result.invoice,
-          paymentHash: result.paymentHash,
-          amountSats: event.entryFeeSats,
-        };
-      } else {
-        return {
-          success: false,
-          error: result.error || 'Failed to create invoice',
-        };
-      }
-    } catch (error) {
-      console.error('[EventJoin] Invoice error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
+    console.warn('[EventJoin] generateEntryInvoice is deprecated. Use ExternalZapModal instead.');
+    return {
+      success: false,
+      error: 'This method is deprecated. Donations now use ExternalZapModal.',
+    };
   }
 
   /**
@@ -325,8 +239,8 @@ class SatlantisEventJoinServiceClass {
    * Get event join requirements
    */
   getJoinRequirements(event: SatlantisEvent): {
-    requiresPayment: boolean;
-    entryFee: number;
+    hasDonation: boolean;
+    suggestedDonation: number;
     canJoin: boolean;
     reason?: string;
   } {
@@ -335,103 +249,38 @@ class SatlantisEventJoinServiceClass {
     // Check if event has ended
     if (now > event.endTime) {
       return {
-        requiresPayment: false,
-        entryFee: 0,
+        hasDonation: false,
+        suggestedDonation: 0,
         canJoin: false,
         reason: 'Event has ended',
       };
     }
 
-    // Check join method
-    const requiresPayment =
-      event.joinMethod === 'paid' && (event.entryFeeSats || 0) > 0;
+    // Check join method - both 'paid' (legacy) and 'donation' show donation modal
+    const donationAmount = event.suggestedDonationSats || event.entryFeeSats || 0;
+    const hasDonation =
+      (event.joinMethod === 'donation' || event.joinMethod === 'paid') && donationAmount > 0;
 
     return {
-      requiresPayment,
-      entryFee: event.entryFeeSats || 0,
+      hasDonation,
+      suggestedDonation: donationAmount,
       canJoin: true,
     };
   }
 
   /**
-   * Verify if a Lightning invoice has been paid
-   * Uses NWC wallet to check payment status
+   * @deprecated - No longer used. Payment verification removed in favor of trust-based donations.
    */
-  async verifyPayment(invoice: string): Promise<PaymentVerificationResult> {
-    try {
-      console.log('[EventJoin] Verifying payment...');
-      const result = await NWCWalletService.lookupInvoice(invoice);
-
-      if (result.success) {
-        console.log(`[EventJoin] Payment verified: ${result.paid ? 'PAID' : 'NOT PAID'}`);
-        return {
-          isPaid: result.paid,
-        };
-      } else {
-        console.log('[EventJoin] Payment verification failed:', result.error);
-        return {
-          isPaid: false,
-          error: result.error || 'Could not verify payment',
-        };
-      }
-    } catch (error) {
-      console.error('[EventJoin] Payment verification error:', error);
-      return {
-        isPaid: false,
-        error: error instanceof Error ? error.message : 'Verification failed',
-      };
-    }
+  async verifyPayment(_invoice: string): Promise<PaymentVerificationResult> {
+    console.warn('[EventJoin] verifyPayment is deprecated. Donations use honor system.');
+    return { isPaid: false, error: 'Method deprecated' };
   }
 
   /**
-   * Save a pending join for retry (payment made but RSVP failed)
+   * @deprecated - Pending joins no longer needed with simplified donation flow.
    */
-  async savePendingJoin(pending: PendingJoin): Promise<void> {
-    try {
-      const existing = await this.getPendingJoins();
-      // Remove any existing pending for this event
-      const filtered = existing.filter(p => p.eventId !== pending.eventId);
-      filtered.push(pending);
-      await AsyncStorage.setItem(PENDING_JOINS_KEY, JSON.stringify(filtered));
-      console.log(`[EventJoin] Saved pending join for event: ${pending.eventId}`);
-    } catch (error) {
-      console.error('[EventJoin] Error saving pending join:', error);
-    }
-  }
-
-  /**
-   * Get all pending joins (payments made but RSVP failed)
-   */
-  async getPendingJoins(): Promise<PendingJoin[]> {
-    try {
-      const stored = await AsyncStorage.getItem(PENDING_JOINS_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error('[EventJoin] Error getting pending joins:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Remove a pending join after successful RSVP
-   */
-  async removePendingJoin(eventId: string): Promise<void> {
-    try {
-      const existing = await this.getPendingJoins();
-      const filtered = existing.filter(p => p.eventId !== eventId);
-      await AsyncStorage.setItem(PENDING_JOINS_KEY, JSON.stringify(filtered));
-      console.log(`[EventJoin] Removed pending join for event: ${eventId}`);
-    } catch (error) {
-      console.error('[EventJoin] Error removing pending join:', error);
-    }
-  }
-
-  /**
-   * Get pending join for a specific event
-   */
-  async getPendingJoinForEvent(eventId: string): Promise<PendingJoin | null> {
-    const pending = await this.getPendingJoins();
-    return pending.find(p => p.eventId === eventId) || null;
+  async getPendingJoinForEvent(_eventId: string): Promise<PendingJoin | null> {
+    return null;
   }
 
   /**

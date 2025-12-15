@@ -297,7 +297,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
                       style={[styles.textInput, error && styles.textInputError]}
                       value={nsecInput}
                       onChangeText={handleNsecChange}
-                      placeholder="Your secure password"
+                      placeholder="nsec..."
                       placeholderTextColor={theme.colors.textOrange}
                       secureTextEntry={true}
                       autoCapitalize="none"
@@ -368,23 +368,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
                             )}
                           </View>
                         ) : (
-                          <>
-                            <Text style={styles.amberButtonText}>
-                              Login with Amber
-                            </Text>
-                            <Text style={styles.amberSubtext}>
-                              Secure key management
-                            </Text>
-                          </>
+                          <Text style={styles.amberButtonText}>
+                            Login with Amber
+                          </Text>
                         )}
                       </TouchableOpacity>
-
-                      {!isLoading && (
-                        <Text style={styles.amberHelp}>
-                          Amber will open to approve login.\n Grant all
-                          permissions when asked.
-                        </Text>
-                      )}
                     </View>
                   )}
                 </View>
@@ -463,7 +451,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputHeader: {
-    marginBottom: 32,
+    marginBottom: 20,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -547,7 +535,7 @@ const styles = StyleSheet.create({
 
   // Amber styles
   amberSection: {
-    marginTop: 24,
+    marginTop: 16,
     alignItems: 'center',
   },
   divider: {
@@ -582,11 +570,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.accentText,
   },
-  amberSubtext: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
   amberLoadingContainer: {
     alignItems: 'center',
   },
@@ -594,14 +577,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
     marginTop: 8,
-  },
-  amberHelp: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 12,
-    paddingHorizontal: 20,
-    lineHeight: 16,
   },
 
   // Signup button styles
