@@ -27,6 +27,7 @@ import { SatlantisEventJoinService } from '../../services/satlantis/SatlantisEve
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatEventDateTime } from '../../types/satlantis';
+import { CacheInvalidator } from '../../services/cache/CacheInvalidator';
 import type { InvoiceResult, PendingJoin } from '../../services/satlantis/SatlantisEventJoinService';
 import { nip19 } from 'nostr-tools';
 
@@ -196,6 +197,15 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
     refresh,
     addLocalParticipant,
   } = useSatlantisEventDetail(eventPubkey, eventId);
+
+  // Handle pull-to-refresh with proper cache invalidation
+  const handleRefresh = useCallback(async () => {
+    console.log(`[SatlantisEventDetail] 🔄 Pull-to-refresh triggered for event ${eventId}`);
+    // Invalidate this specific event's caches before refreshing
+    CacheInvalidator.onSatlantisEventRefresh(eventId);
+    // Then refresh with forceRefresh=true
+    await refresh();
+  }, [eventId, refresh]);
 
   // Get user's hex pubkey for optimistic UI
   const currentUserHexPubkey = React.useMemo(() => {
@@ -367,7 +377,7 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={refresh}
+            onRefresh={handleRefresh}
             tintColor={theme.colors.accent}
             colors={[theme.colors.accent]}
           />
@@ -563,19 +573,11 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
           />
         </View>
 
-        {/* Creator Controls - shown only to event creator for RUNSTR events */}
+        {/* Payout Controls - shown to ANYONE when event ended and has prize pool */}
         {event.isRunstrEvent &&
           event.prizePoolSats &&
           event.prizePoolSats > 0 &&
-          currentUser?.npub &&
-          (() => {
-            try {
-              const decoded = nip19.decode(currentUser.npub);
-              return decoded.data === event.pubkey;
-            } catch {
-              return false;
-            }
-          })() && (
+          eventStatus === 'ended' && (
             <View style={styles.creatorControlsSection}>
               <EventCreatorControls
                 event={event}

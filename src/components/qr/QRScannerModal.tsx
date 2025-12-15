@@ -46,27 +46,12 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
   }, [visible]);
 
   const checkNativeScannerSupport = async () => {
-    if (Platform.OS === 'android') {
-      // Android uses Google Code Scanner - available on most devices
-      console.log('[QRScanner] Android detected, using native scanner');
-      setUseNativeScanner(true);
-      return;
-    }
-
-    if (Platform.OS === 'ios') {
-      // iOS 16+ required for DataScannerViewController
-      const osVersion = Platform.Version;
-      const majorVersion =
-        typeof osVersion === 'string'
-          ? parseInt(osVersion.split('.')[0], 10)
-          : osVersion;
-      console.log('[QRScanner] iOS version:', majorVersion, '- using', majorVersion >= 16 ? 'native' : 'fallback', 'scanner');
-      setUseNativeScanner(majorVersion >= 16);
-    } else {
-      // Web or other platforms - use fallback
-      console.log('[QRScanner] Using fallback scanner');
-      setUseNativeScanner(false);
-    }
+    // Always use fallback continuous camera scanner
+    // Native scanner APIs (launchScanner, onModernBarcodeScanned, dismissScanner)
+    // are iOS 16+ only and don't work on Android
+    // The fallback CameraView with onBarcodeScanned works reliably on all platforms
+    console.log('[QRScanner] Using fallback continuous camera scanner');
+    setUseNativeScanner(false);
   };
 
   /**

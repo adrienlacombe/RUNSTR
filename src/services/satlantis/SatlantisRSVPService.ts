@@ -20,8 +20,8 @@ import type { SatlantisRSVP, SatlantisRSVPStatus } from '../../types/satlantis';
 // NIP-52 Calendar RSVP kind (not in NDK's standard kinds)
 const KIND_CALENDAR_RSVP = 31925 as NDKKind;
 
-// Cache TTL in seconds
-const CACHE_TTL_RSVPS = 300; // 5 minutes
+// Cache TTL in seconds (24 hours - refresh via pull-to-refresh)
+const CACHE_TTL_RSVPS = 86400; // 24 hours
 
 class SatlantisRSVPServiceClass {
   private static instance: SatlantisRSVPServiceClass;
@@ -170,12 +170,16 @@ class SatlantisRSVPServiceClass {
   /**
    * Get accepted participants (pubkeys) for an event
    * Merges Nostr RSVPs with local joins (in case RSVP didn't propagate to relays)
+   * @param eventPubkey - Event organizer's pubkey
+   * @param eventDTag - Event d-tag identifier
+   * @param skipCache - If true, bypasses cache and queries Nostr directly
    */
   async getEventParticipants(
     eventPubkey: string,
-    eventDTag: string
+    eventDTag: string,
+    skipCache: boolean = false
   ): Promise<string[]> {
-    const rsvps = await this.getEventRSVPs(eventPubkey, eventDTag);
+    const rsvps = await this.getEventRSVPs(eventPubkey, eventDTag, skipCache);
 
     // Get participants from Nostr RSVPs
     const nostrParticipants = rsvps

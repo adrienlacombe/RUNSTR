@@ -443,12 +443,17 @@ class SatlantisEventJoinServiceClass {
     eventDTag: string
   ): Promise<void> {
     try {
-      const eventRef = `31923:${eventPubkey}:${eventDTag}`;
-      const cacheKey = `satlantis_rsvps_${eventRef}`;
+      // ✅ FIX: Use same cache key format as SatlantisRSVPService (eventDTag only)
+      const cacheKey = `satlantis_rsvps_${eventDTag}`;
+
+      // Also invalidate leaderboard cache so it refreshes
+      const leaderboardCacheKey = `satlantis_leaderboard_${eventDTag}`;
 
       // Actually clear the cache so fresh query happens
       await UnifiedCacheService.invalidate(cacheKey);
+      await UnifiedCacheService.invalidate(leaderboardCacheKey);
       console.log('[EventJoin] 🗑️ Cleared RSVP cache:', cacheKey);
+      console.log('[EventJoin] 🗑️ Cleared leaderboard cache:', leaderboardCacheKey);
     } catch (error) {
       console.warn('[EventJoin] Cache clear error:', error);
     }

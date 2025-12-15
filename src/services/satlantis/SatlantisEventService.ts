@@ -51,10 +51,10 @@ const SPORTS_TAGS = [
   'charity',
 ];
 
-// Cache TTLs in seconds
+// Cache TTLs in seconds (24 hours - refresh via pull-to-refresh)
 const CACHE_TTL = {
-  EVENTS_LIST: 300, // 5 minutes for discovery feed
-  SINGLE_EVENT: 3600, // 1 hour for single event detail
+  EVENTS_LIST: 86400, // 24 hours for discovery feed
+  SINGLE_EVENT: 86400, // 24 hours for single event detail
 };
 
 class SatlantisEventServiceClass {
@@ -244,22 +244,30 @@ class SatlantisEventServiceClass {
 
   /**
    * Get single event by ID
+   * @param eventId - Event d-tag identifier
+   * @param pubkey - Event organizer's pubkey
+   * @param forceRefresh - If true, bypasses cache and queries Nostr directly
    */
   async getEventById(
     eventId: string,
-    pubkey: string
+    pubkey: string,
+    forceRefresh: boolean = false
   ): Promise<SatlantisEvent | null> {
     const cacheKey = `satlantis_event_${pubkey}_${eventId}`;
 
-    // Check cache first
-    try {
-      const cached = await UnifiedCacheService.get<SatlantisEvent>(cacheKey);
-      if (cached) {
-        console.log(`[Satlantis] Cache hit for event ${eventId}`);
-        return cached;
+    // Check cache first (unless forceRefresh)
+    if (!forceRefresh) {
+      try {
+        const cached = await UnifiedCacheService.get<SatlantisEvent>(cacheKey);
+        if (cached) {
+          console.log(`[Satlantis] Cache hit for event ${eventId}`);
+          return cached;
+        }
+      } catch (error) {
+        console.warn('[Satlantis] Cache read error:', error);
       }
-    } catch (error) {
-      console.warn('[Satlantis] Cache read error:', error);
+    } else {
+      console.log(`[Satlantis] Force refresh - bypassing cache for event ${eventId}`);
     }
 
     const ndk = await GlobalNDKService.getInstance();

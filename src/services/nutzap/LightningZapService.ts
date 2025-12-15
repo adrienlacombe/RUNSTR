@@ -68,12 +68,12 @@ class LightningZapService {
       const lud16 = await this.getLightningAddress(recipientPubkey);
       if (!lud16) {
         console.log(
-          '[LightningZap] No Lightning address found, fallback to nutzap'
+          '[LightningZap] No Lightning address found in recipient profile'
         );
         return {
           success: false,
           method: 'none',
-          error: 'No Lightning address',
+          error: 'Recipient has no Lightning address configured in their Nostr profile',
         };
       }
 

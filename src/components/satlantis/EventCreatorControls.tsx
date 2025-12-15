@@ -1,19 +1,20 @@
 /**
- * EventCreatorControls - Creator management UI for RUNSTR events
+ * EventCreatorControls - Payout UI for RUNSTR events
  *
- * Shows event management options for the creator:
+ * Shows payout options for ANYONE viewing the event:
+ * - Winner list with avatar + name + earned amount
+ * - Pay Winners button (tap = external wallet, long-press = NWC batch)
  * - Payout status and history
- * - Manual payout trigger button
- * - Winner list with payment status
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -23,6 +24,9 @@ import {
   PayoutCalculation,
 } from '../../services/events/RunstrAutoPayoutService';
 import { NWCWalletService } from '../../services/wallet/NWCWalletService';
+import { useNWCZap } from '../../hooks/useNWCZap';
+import { ZappableUserRow } from '../ui/ZappableUserRow';
+import { ExternalZapModal } from '../nutzap/ExternalZapModal';
 import type { SatlantisEvent, SatlantisLeaderboardEntry } from '../../types/satlantis';
 
 interface EventCreatorControlsProps {
@@ -41,6 +45,17 @@ export const EventCreatorControls: React.FC<EventCreatorControlsProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasNWC, setHasNWC] = useState(false);
   const [calculatedPayouts, setCalculatedPayouts] = useState<PayoutCalculation[]>([]);
+
+  // External payment modal state
+  const [showExternalModal, setShowExternalModal] = useState(false);
+  const [currentPayoutIndex, setCurrentPayoutIndex] = useState(0);
+
+  // Long press detection
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
+
+  // NWC zap hook for batch payments
+  const { sendZap, hasWallet: nwcHasWallet, isLoading: nwcLoading } = useNWCZap();
 
   // Load initial status
   useEffect(() => {
@@ -70,31 +85,82 @@ export const EventCreatorControls: React.FC<EventCreatorControlsProps> = ({
     }
   }, [event.id, leaderboard]);
 
-  const handlePayoutPress = useCallback(async () => {
-    if (isProcessing) return;
+  // TAP: Open external payment modal
+  const handleTap = useCallback(() => {
+    if (calculatedPayouts.length === 0) return;
+    setCurrentPayoutIndex(0);
+    setShowExternalModal(true);
+  }, [calculatedPayouts]);
+
+  // LONG-PRESS: NWC batch payment
+  const handleLongPress = useCallback(async () => {
+    if (!hasNWC) {
+      Alert.alert(
+        'NWC Required',
+        'Set up NWC wallet in Settings to batch pay all winners',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (calculatedPayouts.length === 0) return;
 
     setIsProcessing(true);
-    try {
-      // Calculate payouts
-      const payouts = RunstrAutoPayoutService.calculatePayouts(event, leaderboard);
-      if (payouts.length === 0) {
-        console.log('[EventCreatorControls] No payouts to execute');
-        return;
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const payout of calculatedPayouts) {
+      try {
+        console.log(`[Payout] Sending ${payout.amountSats} sats to ${payout.npub.slice(0, 12)}...`);
+        const success = await sendZap(
+          payout.npub,
+          payout.amountSats,
+          `${event.title} - Rank #${payout.rank}`
+        );
+        if (success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+        // Rate limiting delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`[Payout] Failed for ${payout.npub}:`, error);
+        failCount++;
       }
-
-      // Execute payouts
-      const result = await RunstrAutoPayoutService.executePayouts(event, payouts);
-
-      // Reload status
-      await loadStatus();
-
-      onPayoutComplete?.();
-    } catch (error) {
-      console.error('[EventCreatorControls] Payout error:', error);
-    } finally {
-      setIsProcessing(false);
     }
-  }, [event, leaderboard, isProcessing, loadStatus, onPayoutComplete]);
+
+    setIsProcessing(false);
+
+    // Show result
+    if (failCount === 0) {
+      Alert.alert('Success!', `Paid ${successCount} winners`);
+    } else {
+      Alert.alert('Partial Success', `Paid ${successCount}, failed ${failCount}`);
+    }
+
+    onPayoutComplete?.();
+  }, [hasNWC, calculatedPayouts, sendZap, event.title, onPayoutComplete]);
+
+  // Button press handlers for tap vs long-press detection
+  const handlePressIn = useCallback(() => {
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      handleLongPress();
+    }, 400);
+  }, [handleLongPress]);
+
+  const handlePressOut = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    // If it wasn't a long press, trigger tap
+    if (!isLongPress.current && !isProcessing) {
+      handleTap();
+    }
+  }, [handleTap, isProcessing]);
 
   // Check payout eligibility
   const { canPayout, reason } = RunstrAutoPayoutService.canAutoPayoutEvent(event);
@@ -174,7 +240,7 @@ export const EventCreatorControls: React.FC<EventCreatorControlsProps> = ({
 
         <TouchableOpacity
           style={styles.retryButton}
-          onPress={handlePayoutPress}
+          onPress={handleLongPress}
           disabled={isProcessing || !hasNWC}
         >
           {isProcessing ? (
@@ -192,7 +258,7 @@ export const EventCreatorControls: React.FC<EventCreatorControlsProps> = ({
     <View style={styles.container}>
       <Text style={styles.title}>Event Payouts</Text>
 
-      {/* Payout Preview */}
+      {/* Payout Preview with Avatar + Name */}
       {calculatedPayouts.length > 0 && (
         <View style={styles.previewBox}>
           <Text style={styles.previewTitle}>Payout Preview</Text>
@@ -207,54 +273,71 @@ export const EventCreatorControls: React.FC<EventCreatorControlsProps> = ({
               <View style={styles.previewRank}>
                 <Text style={styles.previewRankText}>#{payout.rank}</Text>
               </View>
-              <Text style={styles.previewNpub}>
-                {payout.npub.substring(0, 12)}...
-              </Text>
-              <Text style={styles.previewAmount}>
-                {payout.amountSats.toLocaleString()} sats
-                {payout.percentage && (
-                  <Text style={styles.previewPercent}> ({payout.percentage}%)</Text>
-                )}
-              </Text>
+              <ZappableUserRow
+                npub={payout.npub}
+                showQuickZap={false}
+                style={styles.winnerRow}
+                additionalContent={
+                  <View style={styles.amountContainer}>
+                    <Text style={styles.previewAmount}>
+                      {payout.amountSats.toLocaleString()} sats
+                    </Text>
+                    {payout.percentage && (
+                      <Text style={styles.previewPercent}>({payout.percentage}%)</Text>
+                    )}
+                  </View>
+                }
+              />
             </View>
           ))}
         </View>
       )}
 
-      {/* NWC Status */}
-      {!hasNWC && (
-        <View style={styles.warningBox}>
-          <Ionicons name="wallet-outline" size={20} color="#FF9500" />
-          <Text style={styles.warningText}>
-            Set up NWC wallet in Settings to enable auto-payout
-          </Text>
-        </View>
-      )}
-
-      {/* Payout Button */}
+      {/* Payout Button - Tap for external, long-press for NWC */}
       <TouchableOpacity
         style={[
           styles.payoutButton,
-          (!hasNWC || !canPayout || calculatedPayouts.length === 0) &&
-            styles.payoutButtonDisabled,
+          calculatedPayouts.length === 0 && styles.payoutButtonDisabled,
         ]}
-        onPress={handlePayoutPress}
-        disabled={isProcessing || !hasNWC || !canPayout || calculatedPayouts.length === 0}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={isProcessing || calculatedPayouts.length === 0}
+        activeOpacity={0.8}
       >
         {isProcessing ? (
           <ActivityIndicator size="small" color={theme.colors.background} />
         ) : (
           <>
             <Ionicons name="flash" size={20} color={theme.colors.background} />
-            <Text style={styles.payoutButtonText}>
-              Pay Winners ({event.prizePoolSats?.toLocaleString() || 0} sats)
-            </Text>
+            <Text style={styles.payoutButtonText}>Pay Winners</Text>
           </>
         )}
       </TouchableOpacity>
 
-      {!canPayout && reason && (
-        <Text style={styles.disabledReason}>{reason}</Text>
+      {/* Hint text */}
+      <Text style={styles.hintText}>
+        Tap for wallet options • Hold for NWC batch pay
+      </Text>
+
+      {/* External Payment Modal */}
+      {showExternalModal && calculatedPayouts[currentPayoutIndex] && (
+        <ExternalZapModal
+          visible={showExternalModal}
+          onClose={() => setShowExternalModal(false)}
+          recipientNpub={calculatedPayouts[currentPayoutIndex].npub}
+          recipientName={`Winner #${calculatedPayouts[currentPayoutIndex].rank}`}
+          amount={calculatedPayouts[currentPayoutIndex].amountSats}
+          memo={`${event.title} - Rank #${calculatedPayouts[currentPayoutIndex].rank}`}
+          onSuccess={() => {
+            // Move to next payout or close
+            if (currentPayoutIndex < calculatedPayouts.length - 1) {
+              setCurrentPayoutIndex(currentPayoutIndex + 1);
+            } else {
+              setShowExternalModal(false);
+              onPayoutComplete?.();
+            }
+          }}
+        />
       )}
     </View>
   );
@@ -346,17 +429,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   previewRankText: {
     color: theme.colors.background,
     fontSize: 12,
     fontWeight: theme.typography.weights.bold,
   },
-  previewNpub: {
+  winnerRow: {
     flex: 1,
-    fontSize: 13,
-    color: theme.colors.text,
+    backgroundColor: 'transparent',
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
   },
   previewAmount: {
     fontSize: 13,
@@ -364,8 +449,15 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
   },
   previewPercent: {
+    fontSize: 11,
     fontWeight: theme.typography.weights.regular,
     color: theme.colors.textMuted,
+  },
+  hintText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 8,
   },
   payoutButton: {
     flexDirection: 'row',

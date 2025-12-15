@@ -232,6 +232,9 @@ class RunstrAutoPayoutServiceClass {
       };
     }
 
+    // Capture start time for status tracking
+    const startedAt = Math.floor(Date.now() / 1000);
+
     // Update status to in_progress
     await this.updatePayoutStatus(event.id, {
       eventId: event.id,
@@ -239,7 +242,7 @@ class RunstrAutoPayoutServiceClass {
       totalPrize: event.prizePoolSats || 0,
       paidAmount: 0,
       results: [],
-      startedAt: Math.floor(Date.now() / 1000),
+      startedAt,
     });
 
     const results: PayoutResult[] = [];
@@ -309,14 +312,14 @@ class RunstrAutoPayoutServiceClass {
           ? 'failed'
           : 'partial';
 
-    // Update final status
+    // Update final status (preserve original startedAt)
     await this.updatePayoutStatus(event.id, {
       eventId: event.id,
       status: finalStatus,
       totalPrize: event.prizePoolSats || 0,
       paidAmount: totalPaid,
       results,
-      startedAt: Math.floor(Date.now() / 1000),
+      startedAt,
       completedAt: Math.floor(Date.now() / 1000),
     });
 

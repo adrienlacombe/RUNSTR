@@ -75,24 +75,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           },
           {
             action: async () => {
-              setStatusMessage('Loading your teams...');
-              await initService.prefetchTeams();
+              setStatusMessage('Loading events...');
+              await initService.prefetchSatlantisEvents();
             },
-            duration: 1000,
-          },
-          {
-            action: async () => {
-              setStatusMessage('Syncing your workouts...');
-              await initService.prefetchWorkouts();
-            },
-            duration: 800,
-          },
-          {
-            action: async () => {
-              setStatusMessage('Loading Season 1 data...');
-              await initService.prefetchSeason1();
-            },
-            duration: 1000,
+            duration: 1500,
           },
           {
             action: async () => {
