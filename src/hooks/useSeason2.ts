@@ -203,7 +203,7 @@ interface UseSeason2StatusReturn {
   isActive: boolean;
   isUpcoming: boolean;
   isEnded: boolean;
-  prizePoolLottery: number;
+  prizePoolBonus: number;
   prizePoolCharity: number;
   entryFeeSats: number;
 }
@@ -221,7 +221,7 @@ export function useSeason2Status(): UseSeason2StatusReturn {
     isActive: status === 'active',
     isUpcoming: status === 'upcoming',
     isEnded: status === 'ended',
-    prizePoolLottery: SEASON_2_CONFIG.prizePoolLottery,
+    prizePoolBonus: SEASON_2_CONFIG.prizePoolBonus,
     prizePoolCharity: SEASON_2_CONFIG.prizePoolCharity,
     entryFeeSats: SEASON_2_CONFIG.entryFeeSats,
   };

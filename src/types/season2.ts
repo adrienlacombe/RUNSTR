@@ -40,7 +40,7 @@ export interface Season2Config {
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   entryFeeSats: number;
-  prizePoolLottery: number; // sats for lottery
+  prizePoolBonus: number; // sats for bonus giveaway
   prizePoolCharity: number; // sats for charity prizes
   adminPubkey: string;
   participantListDTag: string;

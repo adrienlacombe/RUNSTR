@@ -1,7 +1,7 @@
 /**
  * RewardEarnedModal - Display when user earns daily workout reward
- * Simple black and orange theme
- * Shows amount earned (50 sats)
+ * Uses CustomAlert-style black/orange theme matching app style
+ * Shows amount earned (21 sats for qualifying workouts >= 1km)
  */
 
 import React from 'react';
@@ -11,7 +11,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -22,13 +22,27 @@ interface RewardEarnedModalProps {
   onClose: () => void;
 }
 
-const { width } = Dimensions.get('window');
-
 export const RewardEarnedModal: React.FC<RewardEarnedModalProps> = ({
   visible,
   amount,
   onClose,
 }) => {
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      fadeAnim.setValue(0);
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}
@@ -37,20 +51,31 @@ export const RewardEarnedModal: React.FC<RewardEarnedModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <Animated.View style={[styles.alertBox, { opacity: fadeAnim }]}>
           {/* Lightning bolt icon */}
           <View style={styles.iconContainer}>
-            <Ionicons name="flash" size={64} color="#FF9D42" />
+            <Ionicons
+              name="flash"
+              size={48}
+              color={theme.colors.orangeBright}
+            />
           </View>
 
+          {/* Title */}
+          <Text style={styles.title}>Reward Earned</Text>
+
           {/* Amount text */}
-          <Text style={styles.amountText}>You earned {amount} sats! ⚡</Text>
+          <Text style={styles.message}>You earned {amount} sats!</Text>
 
           {/* Close button */}
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>Nice!</Text>
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.button}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.buttonText}>Nice!</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -64,45 +89,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  modal: {
-    backgroundColor: '#0a0a0a',
-    borderWidth: 3,
-    borderColor: '#FF9D42',
-    borderRadius: 20,
-    padding: 32,
+  alertBox: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.orangeDeep,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
     alignItems: 'center',
-    width: width - 80,
-    maxWidth: 340,
-    // Add subtle shadow
-    shadowColor: '#FF9D42',
-    shadowOffset: { width: 0, height: 0 },
+    shadowColor: theme.colors.orangeDeep,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowRadius: 8,
+    elevation: 8,
   },
   iconContainer: {
-    marginBottom: 20,
-    // Animated pulse effect could be added here
+    marginBottom: 16,
   },
-  amountText: {
-    fontSize: 22,
+  title: {
+    fontSize: 18,
     fontWeight: theme.typography.weights.bold,
-    color: '#FFFFFF',
+    color: theme.colors.orangeBright,
+    marginBottom: 8,
     textAlign: 'center',
-    marginBottom: 28,
-    lineHeight: 30,
   },
-  closeButton: {
-    backgroundColor: '#FF9D42',
-    paddingVertical: 14,
+  message: {
+    fontSize: 16,
+    color: theme.colors.text,
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: theme.colors.orangeDeep,
+    borderWidth: 1,
+    borderColor: theme.colors.orangeBright,
+    paddingVertical: 12,
     paddingHorizontal: 48,
-    borderRadius: 12,
+    borderRadius: 8,
     minWidth: 140,
     alignItems: 'center',
   },
-  closeButtonText: {
-    fontSize: 18,
-    fontWeight: theme.typography.weights.bold,
-    color: '#000000',
+  buttonText: {
+    fontSize: 15,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.background,
   },
 });

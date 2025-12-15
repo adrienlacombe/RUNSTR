@@ -15,7 +15,7 @@ interface Season2InfoCardProps {
 }
 
 export const Season2InfoCard: React.FC<Season2InfoCardProps> = ({ onPress }) => {
-  const { dateRange, prizePoolLottery, prizePoolCharity, status } =
+  const { dateRange, prizePoolBonus, prizePoolCharity, status } =
     useSeason2Status();
 
   const getStatusBadge = () => {
@@ -54,9 +54,9 @@ export const Season2InfoCard: React.FC<Season2InfoCardProps> = ({ onPress }) => 
       <View style={styles.prizeRow}>
         <View style={styles.prizeItem}>
           <Text style={styles.prizeAmount}>
-            {formatSats(prizePoolLottery)}
+            {formatSats(prizePoolBonus)}
           </Text>
-          <Text style={styles.prizeLabel}>Lottery</Text>
+          <Text style={styles.prizeLabel}>Bonus Prize</Text>
         </View>
         <View style={styles.prizeDivider} />
         <View style={styles.prizeItem}>

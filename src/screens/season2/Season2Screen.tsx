@@ -9,7 +9,7 @@
  * - Signup section
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,8 @@ import {
   Season2SignupSection,
 } from '../../components/season2';
 import { useSeason2Leaderboard, useSeason2Registration } from '../../hooks/useSeason2';
+import { Season2PayoutService } from '../../services/season/Season2PayoutService';
+import { getSeason2Status } from '../../constants/season2';
 import type { Season2ActivityType } from '../../types/season2';
 
 interface TabButtonProps {
@@ -64,6 +66,26 @@ export const Season2Screen: React.FC = () => {
   const { leaderboard, isLoading, refresh } = useSeason2Leaderboard(activeTab);
   const { isRegistered } = useSeason2Registration();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Trigger automatic payouts when season ends
+  useEffect(() => {
+    const checkAndExecutePayouts = async () => {
+      const status = getSeason2Status();
+      if (status === 'ended') {
+        console.log('[Season2Screen] Season ended, checking payouts...');
+        const results = await Season2PayoutService.executePayouts();
+        if (results) {
+          console.log('[Season2Screen] Payout results:', {
+            bonusSuccess: results.bonusWinner?.success,
+            charitySuccessCount: results.charityPayouts.filter(p => p.success).length,
+            totalSuccess: results.totalSuccess,
+          });
+        }
+      }
+    };
+
+    checkAndExecutePayouts();
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);

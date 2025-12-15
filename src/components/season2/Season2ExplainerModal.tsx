@@ -27,7 +27,7 @@ export const Season2ExplainerModal: React.FC<Season2ExplainerModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { dateRange, prizePoolLottery, prizePoolCharity, entryFeeSats } =
+  const { dateRange, prizePoolBonus, prizePoolCharity, entryFeeSats } =
     useSeason2Status();
 
   const charityPrizePerCategory = Math.floor(prizePoolCharity / 3);
@@ -82,12 +82,12 @@ export const Season2ExplainerModal: React.FC<Season2ExplainerModalProps> = ({
 
               <View style={styles.prizeBox}>
                 <Text style={styles.prizeAmount}>
-                  {formatSats(prizePoolLottery)}
+                  {formatSats(prizePoolBonus)}
                 </Text>
-                <Text style={styles.prizeLabel}>Random Lottery Draw</Text>
+                <Text style={styles.prizeLabel}>Bonus Giveaway</Text>
                 <Text style={styles.prizeDescription}>
-                  All registered participants are entered into the lottery.
-                  Winner selected at random at the end of the competition.
+                  All registered participants are eligible for the bonus prize.
+                  One participant will be selected at the end of the competition.
                 </Text>
               </View>
 

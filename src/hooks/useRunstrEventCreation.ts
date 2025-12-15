@@ -48,6 +48,7 @@ export interface UseRunstrEventCreationReturn {
 
   // Helpers
   showDistanceInput: boolean;
+  showDurationInput: boolean;
   showEntryFeeInput: boolean;
   showFixedPayoutInput: boolean;
 }
@@ -66,12 +67,13 @@ export function useRunstrEventCreation(): UseRunstrEventCreationReturn {
       setForm((prev) => {
         const updated = { ...prev, [field]: value };
 
-        // Auto-adjust payout scheme if switching to participation
+        // Auto-adjust payout scheme if switching to participation (Complete)
         if (field === 'scoringType' && value === 'participation') {
-          const validSchemes = getValidPayoutSchemes('participation');
-          if (!validSchemes.includes(updated.payoutScheme)) {
-            updated.payoutScheme = 'random_lottery';
-          }
+          updated.payoutScheme = 'fixed_amount'; // Force fixed for Complete
+        }
+        // Auto-adjust if switching FROM participation to Speed/Distance
+        if (field === 'scoringType' && value !== 'participation' && prev.payoutScheme === 'fixed_amount') {
+          updated.payoutScheme = 'winner_takes_all'; // Default to Top 1
         }
 
         return updated;
@@ -99,6 +101,7 @@ export function useRunstrEventCreation(): UseRunstrEventCreationReturn {
 
   // Conditional field visibility
   const showDistanceInput = form.scoringType === 'fastest_time';
+  const showDurationInput = form.scoringType === 'most_distance';
   const showEntryFeeInput = form.joinMethod === 'paid';
   const showFixedPayoutInput = form.payoutScheme === 'fixed_amount';
 
@@ -157,6 +160,7 @@ export function useRunstrEventCreation(): UseRunstrEventCreationReturn {
     submitError,
     submitEvent,
     showDistanceInput,
+    showDurationInput,
     showEntryFeeInput,
     showFixedPayoutInput,
   };
@@ -174,9 +178,9 @@ export const ACTIVITY_OPTIONS: { value: RunstrActivityType; label: string }[] =
   ];
 
 export const SCORING_OPTIONS: { value: RunstrScoringType; label: string }[] = [
-  { value: 'fastest_time', label: 'Fastest' },
+  { value: 'fastest_time', label: 'Speed' },
   { value: 'most_distance', label: 'Distance' },
-  { value: 'participation', label: 'All' },
+  { value: 'participation', label: 'Complete' },
 ];
 
 export const DURATION_OPTIONS: { value: RunstrDuration; label: string }[] = [
@@ -186,15 +190,14 @@ export const DURATION_OPTIONS: { value: RunstrDuration; label: string }[] = [
 ];
 
 export const JOIN_OPTIONS: { value: RunstrJoinMethod; label: string }[] = [
-  { value: 'open', label: 'Open' },
+  { value: 'open', label: 'Free' },
   { value: 'paid', label: 'Paid' },
-  { value: 'donation', label: 'Donate' },
 ];
 
 export const PAYOUT_OPTIONS: { value: RunstrPayoutScheme; label: string }[] = [
-  { value: 'winner_takes_all', label: 'Winner' },
+  { value: 'winner_takes_all', label: 'Top 1' },
   { value: 'top_3_split', label: 'Top 3' },
-  { value: 'random_lottery', label: 'Lottery' },
+  { value: 'top_5_split', label: 'Top 5' },
   { value: 'fixed_amount', label: 'Fixed' },
 ];
 

@@ -25,26 +25,27 @@ export type RunstrScoringType = 'fastest_time' | 'most_distance' | 'participatio
 
 /**
  * Prize payout schemes
- * - winner_takes_all: 1st place gets 100%
- * - top_3_split: 60% / 25% / 15% split
- * - random_lottery: Random participant wins entire prize
- * - fixed_amount: Each participant gets fixed sats amount
+ * - winner_takes_all: 1st place gets 100% (Top 1)
+ * - top_3_split: 60% / 25% / 15% split (Top 3)
+ * - top_5_split: 40% / 25% / 17% / 11% / 7% split (Top 5)
+ * - fixed_amount: Each participant gets fixed sats amount (for Complete scoring)
  */
 export type RunstrPayoutScheme =
   | 'winner_takes_all'
   | 'top_3_split'
-  | 'random_lottery'
+  | 'top_5_split'
   | 'fixed_amount';
 
 /**
  * Get valid payout schemes for a scoring type
- * Participation scoring only allows fixed_amount or random_lottery (no ranking)
+ * Participation (Complete) scoring only allows fixed_amount
+ * Speed/Distance scoring allows Top 1, Top 3, Top 5
  */
 export function getValidPayoutSchemes(scoringType: RunstrScoringType): RunstrPayoutScheme[] {
   if (scoringType === 'participation') {
-    return ['random_lottery', 'fixed_amount'];
+    return ['fixed_amount']; // Complete scoring = fixed payout only
   }
-  return ['winner_takes_all', 'top_3_split', 'random_lottery', 'fixed_amount'];
+  return ['winner_takes_all', 'top_3_split', 'top_5_split']; // Speed/Distance
 }
 
 // ============================================================================
@@ -55,9 +56,8 @@ export function getValidPayoutSchemes(scoringType: RunstrScoringType): RunstrPay
  * Event join methods
  * - open: Free to join, anyone can participate
  * - paid: Entry fee required (Lightning invoice)
- * - donation: Optional contribution (pay what you want)
  */
-export type RunstrJoinMethod = 'open' | 'paid' | 'donation';
+export type RunstrJoinMethod = 'open' | 'paid';
 
 // ============================================================================
 // Duration Types
@@ -65,9 +65,9 @@ export type RunstrJoinMethod = 'open' | 'paid' | 'donation';
 
 /**
  * Event duration presets
- * - 1d: 24 hours
- * - 1w: 7 days
- * - 1m: 30 days
+ * - 1d: 24 hours (default for Speed/Complete)
+ * - 1w: 7 days (for Distance competitions)
+ * - 1m: 30 days (for Distance competitions)
  */
 export type RunstrDuration = '1d' | '1w' | '1m';
 
@@ -77,11 +77,13 @@ export type RunstrDuration = '1d' | '1w' | '1m';
 export function getDurationSeconds(duration: RunstrDuration): number {
   switch (duration) {
     case '1d':
-      return 24 * 60 * 60; // 86400
+      return 24 * 60 * 60; // 86400 (1 day)
     case '1w':
-      return 7 * 24 * 60 * 60; // 604800
+      return 7 * 24 * 60 * 60; // 604800 (1 week)
     case '1m':
-      return 30 * 24 * 60 * 60; // 2592000
+      return 30 * 24 * 60 * 60; // 2592000 (1 month)
+    default:
+      return 24 * 60 * 60; // Default to 1 day
   }
 }
 
@@ -96,6 +98,8 @@ export function getDurationLabel(duration: RunstrDuration): string {
       return '1 Week';
     case '1m':
       return '1 Month';
+    default:
+      return '1 Day';
   }
 }
 
@@ -134,6 +138,7 @@ export interface RunstrEventConfig {
   // Basic info
   title: string;
   description?: string;
+  bannerImageUrl?: string; // URL of uploaded banner image
 
   // Activity
   activityType: RunstrActivityType;
@@ -194,6 +199,7 @@ export interface RunstrEventFormState {
   payoutScheme: RunstrPayoutScheme;
   prizePool: string; // String for input field
   fixedPayout: string; // String for input field
+  bannerImageUrl: string; // URL of uploaded banner image
 }
 
 /**
@@ -211,6 +217,7 @@ export const DEFAULT_FORM_STATE: RunstrEventFormState = {
   payoutScheme: 'winner_takes_all',
   prizePool: '',
   fixedPayout: '',
+  bannerImageUrl: '',
 };
 
 // ============================================================================
@@ -284,7 +291,26 @@ export function calculatePayouts(
       return payouts;
     }
 
-    case 'random_lottery': {
+    case 'top_5_split': {
+      const payouts: PayoutCalculation[] = [];
+      const splits = [0.40, 0.25, 0.17, 0.11, 0.07]; // 40/25/17/11/7
+
+      for (let rank = 1; rank <= Math.min(5, recipients.length); rank++) {
+        const recipient = recipients.find((r) => r.rank === rank);
+        if (recipient) {
+          const percentage = splits[rank - 1] * 100;
+          payouts.push({
+            recipient,
+            amountSats: Math.floor(prizePoolSats * splits[rank - 1]),
+            percentage,
+          });
+        }
+      }
+      return payouts;
+    }
+
+    // Legacy case - kept for backward compatibility with old events
+    case 'random_lottery' as RunstrPayoutScheme: {
       // Random selection happens at event end
       // For calculation, assume any participant could win
       const randomIndex = Math.floor(Math.random() * recipients.length);
@@ -306,6 +332,9 @@ export function calculatePayouts(
         amountSats: fixedAmountPerPerson,
       }));
     }
+
+    default:
+      return [];
   }
 }
 
@@ -364,14 +393,14 @@ export function validateEventForm(form: RunstrEventFormState): ValidationError[]
     }
   }
 
-  // Payout scheme validation for participation
+  // Payout scheme validation for participation (Complete scoring)
   if (
     form.scoringType === 'participation' &&
-    !['random_lottery', 'fixed_amount'].includes(form.payoutScheme)
+    form.payoutScheme !== 'fixed_amount'
   ) {
     errors.push({
       field: 'payoutScheme',
-      message: 'Participation events can only use Lottery or Fixed Amount payout',
+      message: 'Complete scoring requires Fixed Amount payout',
     });
   }
 

@@ -209,6 +209,11 @@ class RunstrEventPublishServiceClass {
     // Activity type for leaderboard queries
     tags.push(['activity_type', config.activityType]);
 
+    // Banner image (if provided)
+    if (config.bannerImageUrl) {
+      tags.push(['image', config.bannerImageUrl]);
+    }
+
     return tags;
   }
 
@@ -238,9 +243,9 @@ class RunstrEventPublishServiceClass {
 
     if (
       config.scoringType === 'participation' &&
-      !['random_lottery', 'fixed_amount'].includes(config.payoutScheme)
+      config.payoutScheme !== 'fixed_amount'
     ) {
-      return 'Participation events can only use Lottery or Fixed Amount payout';
+      return 'Complete scoring requires Fixed Amount payout';
     }
 
     if (config.payoutScheme === 'fixed_amount' && !config.fixedPayoutAmount) {
@@ -270,6 +275,7 @@ class RunstrEventPublishServiceClass {
       payoutScheme: RunstrPayoutScheme;
       prizePool: string;
       fixedPayout: string;
+      bannerImageUrl: string;
     },
     startTime?: number
   ): RunstrEventConfig {
@@ -279,6 +285,7 @@ class RunstrEventPublishServiceClass {
     return {
       title: formState.title.trim(),
       description: formState.description.trim() || undefined,
+      bannerImageUrl: formState.bannerImageUrl || undefined,
       activityType: formState.activityType,
       scoringType: formState.scoringType,
       targetDistance:

@@ -18,7 +18,9 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../../styles/theme';
 import { CustomAlert } from '../ui/CustomAlert';
 import {
@@ -30,6 +32,8 @@ import {
   PAYOUT_OPTIONS,
   DISTANCE_OPTIONS,
 } from '../../hooks/useRunstrEventCreation';
+import ImageUploadService from '../../services/media/ImageUploadService';
+import UnifiedSigningService from '../../services/auth/UnifiedSigningService';
 
 interface RunstrEventCreationModalProps {
   visible: boolean;
@@ -50,6 +54,7 @@ export const RunstrEventCreationModal: React.FC<
     submitError,
     submitEvent,
     showDistanceInput,
+    showDurationInput,
     showEntryFeeInput,
     showFixedPayoutInput,
   } = useRunstrEventCreation();
@@ -58,6 +63,9 @@ export const RunstrEventCreationModal: React.FC<
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
+
+  // Image upload state
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const handleClose = () => {
     resetForm();
@@ -85,6 +93,67 @@ export const RunstrEventCreationModal: React.FC<
     setAlertVisible(false);
     if (alertTitle === 'Event Created!') {
       handleClose();
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setAlertTitle('Permission Required');
+        setAlertMessage('Please allow access to your photo library to add a banner image.');
+        setAlertVisible(true);
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9], // Banner aspect ratio
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      setIsUploadingImage(true);
+
+      // Get signer for NIP-98 auth
+      const signingService = UnifiedSigningService.getInstance();
+      const signer = await signingService.getSigner();
+
+      if (!signer) {
+        setAlertTitle('Error');
+        setAlertMessage('Please log in to upload images');
+        setAlertVisible(true);
+        setIsUploadingImage(false);
+        return;
+      }
+
+      // Upload image
+      const uploadResult = await ImageUploadService.uploadImage(
+        result.assets[0].uri,
+        'event-banner.png',
+        signer
+      );
+
+      if (uploadResult.success && uploadResult.url) {
+        updateField('bannerImageUrl', uploadResult.url);
+      } else {
+        setAlertTitle('Upload Failed');
+        setAlertMessage(uploadResult.error || 'Failed to upload image');
+        setAlertVisible(true);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      setAlertTitle('Error');
+      setAlertMessage('Failed to select image');
+      setAlertVisible(true);
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -128,6 +197,48 @@ export const RunstrEventCreationModal: React.FC<
                 placeholder="e.g., New Year's 5K Challenge"
                 placeholderTextColor={theme.colors.textMuted}
               />
+            </View>
+
+            {/* About / Description */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>About</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={form.description}
+                onChangeText={(text) => updateField('description', text)}
+                placeholder="Describe your event..."
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Event Banner Image */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Event Banner (optional)</Text>
+              <TouchableOpacity
+                style={styles.imagePickerButton}
+                onPress={handlePickImage}
+                disabled={isUploadingImage}
+                activeOpacity={0.7}
+              >
+                {isUploadingImage ? (
+                  <View style={styles.imagePlaceholder}>
+                    <ActivityIndicator color={theme.colors.primary} />
+                    <Text style={styles.imagePlaceholderText}>Uploading...</Text>
+                  </View>
+                ) : form.bannerImageUrl ? (
+                  <Image
+                    source={{ uri: form.bannerImageUrl }}
+                    style={styles.bannerPreview}
+                  />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Text style={styles.imagePlaceholderText}>+ Add Image</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
 
             {/* Activity Type */}
@@ -188,7 +299,7 @@ export const RunstrEventCreationModal: React.FC<
               </View>
             </View>
 
-            {/* Target Distance (for fastest_time) */}
+            {/* Target Distance (for fastest_time / Speed scoring) */}
             {showDistanceInput && (
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Distance</Text>
@@ -219,34 +330,36 @@ export const RunstrEventCreationModal: React.FC<
               </View>
             )}
 
-            {/* Duration */}
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Duration</Text>
-              <View style={styles.buttonRow}>
-                {DURATION_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.optionButton,
-                      form.duration === opt.value &&
-                        styles.optionButtonSelected,
-                    ]}
-                    onPress={() => updateField('duration', opt.value)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
+            {/* Duration (for most_distance / Distance scoring) */}
+            {showDurationInput && (
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Duration</Text>
+                <View style={styles.buttonRow}>
+                  {DURATION_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
                       style={[
-                        styles.optionButtonText,
+                        styles.optionButton,
                         form.duration === opt.value &&
-                          styles.optionButtonTextSelected,
+                          styles.optionButtonSelected,
                       ]}
+                      onPress={() => updateField('duration', opt.value)}
+                      activeOpacity={0.7}
                     >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.optionButtonText,
+                          form.duration === opt.value &&
+                            styles.optionButtonTextSelected,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
             {/* Join Method */}
             <View style={styles.formGroup}>
@@ -334,9 +447,6 @@ export const RunstrEventCreationModal: React.FC<
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="numeric"
               />
-              <Text style={styles.helper}>
-                Auto-paid from your NWC wallet when event ends
-              </Text>
             </View>
 
             {/* Fixed Payout Amount (for fixed_amount scheme) */}
@@ -456,6 +566,34 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  textArea: {
+    minHeight: 80,
+    paddingTop: 12,
+  },
+  imagePickerButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  imagePlaceholder: {
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePlaceholderText: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    marginTop: 4,
+  },
+  bannerPreview: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
   },
   helper: {
     fontSize: 12,

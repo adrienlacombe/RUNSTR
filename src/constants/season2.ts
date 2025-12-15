@@ -2,7 +2,7 @@
  * RUNSTR Season 2 Configuration Constants
  *
  * Two-month distance-based competition: January 1 - March 1, 2026
- * Prize pool: 500k sats lottery + 500k sats charity prizes
+ * Prize pool: 500k sats bonus giveaway + 500k sats charity prizes
  */
 
 import type { Season2Config, Season2Status } from '../types/season2';
@@ -21,7 +21,7 @@ export const SEASON_2_CONFIG: Season2Config = {
   startDate: '2026-01-01T00:00:00Z',
   endDate: '2026-03-01T23:59:59Z',
   entryFeeSats: 24000,
-  prizePoolLottery: 500000, // 500k sats random draw
+  prizePoolBonus: 500000, // 500k sats bonus giveaway
   prizePoolCharity: 500000, // 500k sats split 3 ways (~166k per category)
   adminPubkey: RUNSTR_ADMIN_PUBKEY,
   participantListDTag: 'runstr-season-2-participants',
@@ -30,6 +30,10 @@ export const SEASON_2_CONFIG: Season2Config = {
 
 // AsyncStorage key for local joins
 export const SEASON_2_LOCAL_JOINS_KEY = '@runstr:season2_local_joins';
+
+// Payout tracking keys
+export const SEASON_2_PAYOUT_KEY = '@runstr:season2_payout_completed';
+export const SEASON_2_PAYOUT_RESULTS_KEY = '@runstr:season2_payout_results';
 
 // Cache TTLs
 export const SEASON_2_CACHE_TTL = {

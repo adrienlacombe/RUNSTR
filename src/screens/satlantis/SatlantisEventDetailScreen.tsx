@@ -28,6 +28,7 @@ import { CustomAlert } from '../../components/ui/CustomAlert';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatEventDateTime } from '../../types/satlantis';
 import { CacheInvalidator } from '../../services/cache/CacheInvalidator';
+import { GlobalNDKService } from '../../services/nostr/GlobalNDKService';
 import type { InvoiceResult, PendingJoin } from '../../services/satlantis/SatlantisEventJoinService';
 import { nip19 } from 'nostr-tools';
 
@@ -234,6 +235,42 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
   // Pending payment state
   const [pendingPayment, setPendingPayment] = useState<PendingJoin | null>(null);
 
+  // Creator profile state
+  const [creatorProfile, setCreatorProfile] = useState<{
+    name: string;
+    picture?: string;
+  } | null>(null);
+
+  // Fetch creator profile on event load
+  useEffect(() => {
+    if (!event?.pubkey) return;
+
+    const fetchCreatorProfile = async () => {
+      try {
+        const ndk = await GlobalNDKService.getInstance();
+        const profileEvent = await ndk.fetchEvent({
+          kinds: [0],
+          authors: [event.pubkey],
+        });
+
+        if (profileEvent) {
+          const content = JSON.parse(profileEvent.content);
+          setCreatorProfile({
+            name: content.display_name || content.name || 'Anonymous',
+            picture: content.picture,
+          });
+        } else {
+          setCreatorProfile({ name: 'Anonymous' });
+        }
+      } catch (e) {
+        console.warn('Failed to fetch creator profile:', e);
+        setCreatorProfile({ name: 'Anonymous' });
+      }
+    };
+
+    fetchCreatorProfile();
+  }, [event?.pubkey]);
+
   // Check for pending payments on mount
   useEffect(() => {
     const checkPendingPayments = async () => {
@@ -405,6 +442,26 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
 
           <Text style={styles.eventTitle}>{event.title}</Text>
 
+          {/* Created By */}
+          <View style={styles.creatorRow}>
+            {creatorProfile?.picture ? (
+              <Image
+                source={{ uri: creatorProfile.picture }}
+                style={styles.creatorAvatar}
+              />
+            ) : (
+              <View style={styles.creatorAvatarPlaceholder}>
+                <Ionicons name="person" size={16} color={theme.colors.textMuted} />
+              </View>
+            )}
+            <View style={styles.creatorInfo}>
+              <Text style={styles.creatorLabel}>Created by</Text>
+              <Text style={styles.creatorName}>
+                {creatorProfile?.name || 'Loading...'}
+              </Text>
+            </View>
+          </View>
+
           {/* Date/Time */}
           <View style={styles.metaRow}>
             <Ionicons name="calendar" size={18} color={theme.colors.accent} />
@@ -507,11 +564,11 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
                     <Text style={styles.runstrInfoLabel}>Payout</Text>
                     <Text style={styles.runstrInfoValue}>
                       {event.payoutScheme === 'winner_takes_all'
-                        ? 'Winner Takes All'
+                        ? 'Top 1'
                         : event.payoutScheme === 'top_3_split'
-                          ? 'Top 3 Split'
-                          : event.payoutScheme === 'random_lottery'
-                            ? 'Random Lottery'
+                          ? 'Top 3'
+                          : event.payoutScheme === 'top_5_split'
+                            ? 'Top 5'
                             : 'Fixed Amount'}
                     </Text>
                   </View>
@@ -719,6 +776,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 12,
+  },
+  creatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  creatorAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.border,
+  },
+  creatorAvatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  creatorInfo: {
+    marginLeft: 10,
+  },
+  creatorLabel: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+  },
+  creatorName: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text,
   },
   metaContent: {
     marginLeft: 12,
