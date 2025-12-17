@@ -6,6 +6,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-12-17
+
+**Bug Fixes & Optimizations**
+
+### 🐛 Bug Fixes
+
+**Kind 1 Posting**
+- Fixed social post creation bug
+
+**GPS Tracker**
+- Improved GPS tracking compatibility for older Android versions
+- Enhanced location permission handling
+
+**Daily Rewards**
+- Fixed instant daily rewards timing issue
+
+**Event Results**
+- Fixed event results display bug
+
+### ⚡ Performance
+
+**Season II Leaderboard**
+- Optimized leaderboard queries for faster loading
+
+### ✨ Features
+
+**Web of Trust (WOT)**
+- Added WOT score display to stats screen
+- New WOT service integration
+
+**Reward Notifications**
+- New reward notification system
+
+### 📱 Platform Updates
+- iOS: Version 1.0.5 (Build 105)
+- Android: Version 1.0.5 (Build 105)
+
 ## [1.0.0] - 2025-12-13
 
 **Achievement**: RUNSTR 1.0 - Major milestone release with Events system and Season 2
