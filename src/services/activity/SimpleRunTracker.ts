@@ -224,11 +224,12 @@ export class SimpleRunTracker {
   // REMOVED: Write queue no longer needed - memory-only architecture eliminates AsyncStorage GPS writes
 
   // GPS Watchdog - detects and recovers from silent GPS failures
-  // Tighter timing per user feedback: 5s check interval, 20s timeout = max 25s detection delay
+  // Increased restarts (100 vs 5) to handle aggressive Android battery management
+  // Counter resets when GPS successfully receives points, allowing unlimited recovery
   private watchdogInterval: NodeJS.Timeout | null = null;
   private gpsRestartAttempts = 0;
-  private readonly MAX_GPS_RESTARTS = 5;
-  private readonly GPS_TIMEOUT_MS = 20000; // 20 seconds without GPS = dead
+  private readonly MAX_GPS_RESTARTS = 100; // Increased from 5 - resets on successful GPS
+  private readonly GPS_TIMEOUT_MS = 15000; // 15 seconds without GPS = dead (was 20s)
   private readonly WATCHDOG_CHECK_MS = 5000; // Check every 5 seconds
 
   // Silent audio recording - keeps app alive in background (Android insurance)
@@ -326,6 +327,33 @@ export class SimpleRunTracker {
   ): Promise<void> {
     try {
       console.log(`[SimpleRunTracker] Initializing GPS for ${activityType}...`);
+
+      // === DIAGNOSTIC LOGGING FOR ANDROID GPS ISSUES ===
+      // Log platform info to help debug device-specific failures
+      console.log(`[GPS-DIAG] Platform: ${Platform.OS}`);
+      if (Platform.OS === 'android') {
+        console.log(`[GPS-DIAG] Android API Level: ${Platform.Version}`);
+      }
+
+      // Check and log permission status
+      const foregroundPerm = await Location.getForegroundPermissionsAsync();
+      const backgroundPerm = await Location.getBackgroundPermissionsAsync();
+      console.log(`[GPS-DIAG] Foreground permission: ${foregroundPerm.status}`);
+      console.log(`[GPS-DIAG] Background permission: ${backgroundPerm.status}`);
+
+      // Android 12+: Check if precise location was granted
+      if (Platform.OS === 'android' && (Platform.Version as number) >= 31) {
+        const accuracy = (foregroundPerm as any).accuracy;
+        console.log(
+          `[GPS-DIAG] Location accuracy: ${accuracy || 'full (default)'}`
+        );
+        if (accuracy === 'coarse') {
+          console.warn(
+            '[GPS-DIAG] ⚠️ APPROXIMATE location only - GPS tracking will be inaccurate!'
+          );
+        }
+      }
+      // === END DIAGNOSTIC LOGGING ===
 
       // Android: Request battery optimization exemption FIRST (CRITICAL!)
       // Without this, Android will kill the background location service after ~30 seconds
@@ -1027,6 +1055,20 @@ export class SimpleRunTracker {
       console.log('[WATCHDOG] GPS recovery successful');
     } catch (error) {
       console.error('[WATCHDOG] GPS recovery failed:', error);
+    }
+  }
+
+  /**
+   * Reset GPS restart counter - called when GPS successfully receives a point
+   * This allows unlimited recovery from intermittent failures (e.g., Samsung battery management)
+   * while still eventually giving up if GPS is truly broken (permissions revoked, hardware failure)
+   */
+  public resetGPSRestartCounter(): void {
+    if (this.gpsRestartAttempts > 0) {
+      console.log(
+        `[WATCHDOG] GPS working - resetting restart counter (was ${this.gpsRestartAttempts})`
+      );
+      this.gpsRestartAttempts = 0;
     }
   }
 

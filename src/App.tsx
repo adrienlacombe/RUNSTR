@@ -179,6 +179,7 @@ import {
   CustomAlertProvider,
   CustomAlertManager,
 } from './components/ui/CustomAlert';
+import { RewardNotificationProvider } from './components/rewards/RewardNotificationProvider';
 import {
   parseEventDeepLink,
   type ParsedEventData,
@@ -1176,13 +1177,15 @@ export default function App() {
   return (
     <AppErrorBoundary>
       <CustomAlertProvider>
-        <AuthProvider>
-          <NavigationDataProvider>
-            <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-              <AppContent />
-            </View>
-          </NavigationDataProvider>
-        </AuthProvider>
+        <RewardNotificationProvider>
+          <AuthProvider>
+            <NavigationDataProvider>
+              <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+                <AppContent />
+              </View>
+            </NavigationDataProvider>
+          </AuthProvider>
+        </RewardNotificationProvider>
       </CustomAlertProvider>
     </AppErrorBoundary>
   );

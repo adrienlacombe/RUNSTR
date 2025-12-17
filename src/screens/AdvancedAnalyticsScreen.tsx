@@ -39,6 +39,7 @@ import { FitnessTestInstructionsModal } from '../components/fitness/FitnessTestI
 import FitnessTestService from '../services/fitness/FitnessTestService';
 import { PersonalRecordsService } from '../services/analytics/PersonalRecordsService';
 import type { AllPersonalRecords } from '../services/analytics/PersonalRecordsService';
+import { DailyRewardService } from '../services/rewards/DailyRewardService';
 
 const PRIVACY_NOTICE_KEY = '@runstr:analytics_privacy_accepted';
 const HEALTH_PROFILE_KEY = '@runstr:health_profile';
@@ -55,6 +56,7 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
   );
   const [personalRecords, setPersonalRecords] =
     useState<AllPersonalRecords | null>(null);
+  const [weeklyRewardsEarned, setWeeklyRewardsEarned] = useState(0);
 
   // Fitness Test state
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
@@ -148,6 +150,19 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
 
       setAnalytics(summary);
       setPersonalRecords(prs);
+
+      // Fetch weekly rewards earned
+      try {
+        const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+        if (pubkey) {
+          const weeklyRewards =
+            await DailyRewardService.getWeeklyRewardsEarned(pubkey);
+          setWeeklyRewardsEarned(weeklyRewards);
+        }
+      } catch (rewardError) {
+        console.log('[AdvancedAnalytics] Could not fetch weekly rewards');
+      }
+
       setLoading(false);
       console.log('[AdvancedAnalytics] ✅ Analytics calculation complete');
     } catch (error) {
@@ -280,7 +295,10 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         <GoalsHabitsCard />
 
         {/* Section 4: Streak Rewards */}
-        <StreakRewardsCard workouts={workouts} />
+        <StreakRewardsCard
+          workouts={workouts}
+          weeklyRewardsEarned={weeklyRewardsEarned}
+        />
 
         {/* RUNSTR Fitness Test Card - HIDDEN FOR NOW
         <View style={styles.fitnessTestCard}>

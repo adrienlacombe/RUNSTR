@@ -6,8 +6,7 @@
  * for sending rewards, isolated from user wallets.
  */
 
-// @ts-ignore - TypeScript has issues with nwc export but it works at runtime
-import { nwc } from '@getalby/sdk';
+import { NWCClient } from '@getalby/sdk';
 import { REWARD_CONFIG } from '../../config/rewards';
 
 export interface RewardPaymentResult {
@@ -27,8 +26,7 @@ export interface WalletHealthStatus {
  * Maintains a persistent connection to the reward sender's Lightning wallet
  */
 class RewardSenderWalletClass {
-  // @ts-ignore - TypeScript has issues with nwc export but it works at runtime
-  private nwcClient: nwc.NWCClient | null = null;
+  private nwcClient: NWCClient | null = null;
   private initializationPromise: Promise<void> | null = null;
 
   /**
@@ -58,7 +56,7 @@ class RewardSenderWalletClass {
       console.log('[RewardWallet] Initializing NWC client...');
 
       // Create NWC client with reward sender credentials
-      this.nwcClient = new nwc.NWCClient({
+      this.nwcClient = new NWCClient({
         nostrWalletConnectUrl: nwcUrl,
       });
 

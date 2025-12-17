@@ -29,9 +29,10 @@ import { RewardSenderWallet } from './RewardSenderWallet';
 import { ProfileService } from '../user/profileService';
 import { RewardLightningAddressService } from './RewardLightningAddressService';
 import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
+import { RewardNotificationManager } from './RewardNotificationManager';
 
-// DEBUG FLAG: Set to true to show visible alerts for debugging reward failures
-const DEBUG_REWARDS = true;
+// DEBUG FLAG: Set to false for production (only shows debug alerts for failures)
+const DEBUG_REWARDS = false;
 
 export interface RewardResult {
   success: boolean;
@@ -164,7 +165,7 @@ class DailyRewardServiceClass {
 
   /**
    * Record that user claimed reward
-   * Saves timestamp for eligibility checking
+   * Saves timestamp for eligibility checking and updates weekly total
    */
   private async recordReward(
     userPubkey: string,
@@ -183,6 +184,9 @@ class DailyRewardServiceClass {
       const currentTotal = totalStr ? parseInt(totalStr) : 0;
       const newTotal = currentTotal + amount;
       await AsyncStorage.setItem(totalKey, newTotal.toString());
+
+      // Update weekly rewards earned
+      await this.addWeeklyReward(userPubkey, amount);
 
       console.log('[Reward] Recorded reward:', {
         user: userPubkey.slice(0, 8) + '...',
@@ -206,6 +210,79 @@ class DailyRewardServiceClass {
     } catch (error) {
       console.error('[Reward] Error getting total rewards:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Get current ISO week number (Mon-Sun)
+   */
+  private getCurrentWeekNumber(): string {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const days = Math.floor(
+      (now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000)
+    );
+    const weekNum = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    return `${now.getFullYear()}-W${weekNum}`;
+  }
+
+  /**
+   * Get weekly rewards earned by user
+   * Resets automatically when a new week starts (Monday)
+   */
+  async getWeeklyRewardsEarned(userPubkey: string): Promise<number> {
+    try {
+      const weeklyKey = `${REWARD_STORAGE_KEYS.WEEKLY_REWARDS_EARNED}:${userPubkey}`;
+      const weekKey = `${REWARD_STORAGE_KEYS.WEEKLY_REWARDS_WEEK}:${userPubkey}`;
+
+      const currentWeek = this.getCurrentWeekNumber();
+      const savedWeek = await AsyncStorage.getItem(weekKey);
+
+      // If new week, reset weekly total
+      if (savedWeek !== currentWeek) {
+        await AsyncStorage.setItem(weekKey, currentWeek);
+        await AsyncStorage.setItem(weeklyKey, '0');
+        return 0;
+      }
+
+      const weeklyStr = await AsyncStorage.getItem(weeklyKey);
+      return weeklyStr ? parseInt(weeklyStr) : 0;
+    } catch (error) {
+      console.error('[Reward] Error getting weekly rewards:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Add to weekly rewards total
+   */
+  private async addWeeklyReward(
+    userPubkey: string,
+    amount: number
+  ): Promise<void> {
+    try {
+      const weeklyKey = `${REWARD_STORAGE_KEYS.WEEKLY_REWARDS_EARNED}:${userPubkey}`;
+      const weekKey = `${REWARD_STORAGE_KEYS.WEEKLY_REWARDS_WEEK}:${userPubkey}`;
+      const currentWeek = this.getCurrentWeekNumber();
+
+      const savedWeek = await AsyncStorage.getItem(weekKey);
+      let currentTotal = 0;
+
+      // If same week, get current total
+      if (savedWeek === currentWeek) {
+        const weeklyStr = await AsyncStorage.getItem(weeklyKey);
+        currentTotal = weeklyStr ? parseInt(weeklyStr) : 0;
+      } else {
+        // New week - save week identifier
+        await AsyncStorage.setItem(weekKey, currentWeek);
+      }
+
+      const newTotal = currentTotal + amount;
+      await AsyncStorage.setItem(weeklyKey, newTotal.toString());
+
+      console.log('[Reward] Updated weekly total:', newTotal, 'sats');
+    } catch (error) {
+      console.error('[Reward] Error updating weekly rewards:', error);
     }
   }
 
@@ -315,9 +392,10 @@ class DailyRewardServiceClass {
           'sats'
         );
 
-        if (DEBUG_REWARDS) {
-          Alert.alert('Reward Success! 🎉', `${REWARD_CONFIG.DAILY_WORKOUT_REWARD} sats sent to ${lightningAddress}!`);
-        }
+        // Show branded reward notification (black/orange theme)
+        RewardNotificationManager.showRewardEarned(
+          REWARD_CONFIG.DAILY_WORKOUT_REWARD
+        );
 
         return {
           success: true,

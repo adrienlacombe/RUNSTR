@@ -11,13 +11,13 @@ export const REWARD_CONFIG = {
    */
   SENDER_NWC:
     process.env.REWARD_SENDER_NWC ||
-    'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=e827878f1a5b3ab0a65d47fc8301d78a5e3f586c6ab5b5f4f1fd565338c22aa4&lud16=RUNSTR@coinos.io',
+    'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=a50e5e32b590939a3cea777ab87cf3591f9dbde3841395900c5d723e64f1934f&lud16=RUNSTR@coinos.io',
 
   /**
    * Daily Workout Reward Amount
    * Amount in satoshis sent for first workout of the day
    */
-  DAILY_WORKOUT_REWARD: 21,
+  DAILY_WORKOUT_REWARD: 50,
 
   /**
    * Minimum Workout Distance for Reward
@@ -52,4 +52,6 @@ export const REWARD_STORAGE_KEYS = {
   LAST_REWARD_DATE: '@runstr:last_reward_date',
   REWARD_COUNT_TODAY: '@runstr:reward_count_today',
   TOTAL_REWARDS_EARNED: '@runstr:total_rewards_earned',
+  WEEKLY_REWARDS_EARNED: '@runstr:weekly_rewards_earned',
+  WEEKLY_REWARDS_WEEK: '@runstr:weekly_rewards_week',
 } as const;

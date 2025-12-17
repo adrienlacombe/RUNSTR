@@ -13,10 +13,12 @@ import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageSer
 
 interface StreakRewardsCardProps {
   workouts: LocalWorkout[];
+  weeklyRewardsEarned?: number;
 }
 
 export const StreakRewardsCard: React.FC<StreakRewardsCardProps> = ({
   workouts,
+  weeklyRewardsEarned = 0,
 }) => {
   const [daysThisWeek, setDaysThisWeek] = useState(0);
   const [totalStreak, setTotalStreak] = useState(0);
@@ -104,14 +106,14 @@ export const StreakRewardsCard: React.FC<StreakRewardsCardProps> = ({
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Ionicons name="flame" size={16} color="#FF9D42" />
-          <Text style={styles.title}>Streaks</Text>
+          <Text style={styles.title}>Streak Rewards</Text>
         </View>
       </View>
 
       <View style={styles.content}>
-        {/* Days this week display */}
+        {/* Weekly rewards display */}
         <Text style={styles.daysText}>
-          {daysThisWeek} day{daysThisWeek !== 1 ? 's' : ''} this week
+          {weeklyRewardsEarned} sats this week
         </Text>
 
         {/* Compact progress dots */}

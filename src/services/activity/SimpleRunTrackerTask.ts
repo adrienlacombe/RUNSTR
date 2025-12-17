@@ -238,6 +238,11 @@ TaskManager.defineTask(SIMPLE_TRACKER_TASK, async ({ data, error }) => {
       );
       simpleRunTracker.appendGpsPointsToCache(validLocations);
 
+      // Reset GPS watchdog restart counter - GPS is working!
+      // This allows unlimited recovery from intermittent failures (e.g., Samsung battery management)
+      // by resetting the counter each time we successfully receive GPS data.
+      simpleRunTracker.resetGPSRestartCounter();
+
       // MEMORY-ONLY ARCHITECTURE: Only save the LAST valid point for next filter check
       // This is a tiny write (single point) instead of growing array (eliminated 30-min crash)
       if (lastValidLocation) {

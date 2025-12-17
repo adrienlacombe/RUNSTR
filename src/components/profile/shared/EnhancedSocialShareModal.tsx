@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { theme } from '../../../styles/theme';
@@ -57,6 +58,8 @@ export const EnhancedSocialShareModal: React.FC<
     height: 600,
   });
   const [signer, setSigner] = useState<NDKSigner | null>(null);
+  // Delay SVG rendering on Android to let modal fully mount (prevents crashes on restricted launchers like Olauncher)
+  const [svgReady, setSvgReady] = useState(Platform.OS !== 'android');
   const cardRef = useRef<View>(null);
 
   const publishingService = WorkoutPublishingService.getInstance();
@@ -67,6 +70,18 @@ export const EnhancedSocialShareModal: React.FC<
   useEffect(() => {
     if (visible) {
       loadSigner();
+    }
+  }, [visible]);
+
+  // Delay SVG rendering on Android to let modal fully mount (prevents crashes on Olauncher)
+  useEffect(() => {
+    if (Platform.OS === 'android' && visible) {
+      setSvgReady(false);
+      const timer = setTimeout(() => setSvgReady(true), 300);
+      return () => clearTimeout(timer);
+    } else if (!visible) {
+      // Reset when modal closes
+      setSvgReady(Platform.OS !== 'android');
     }
   }, [visible]);
 
@@ -287,7 +302,7 @@ export const EnhancedSocialShareModal: React.FC<
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
@@ -349,7 +364,7 @@ export const EnhancedSocialShareModal: React.FC<
                     Plain text post (no image)
                   </Text>
                 </View>
-              ) : cardSvg ? (
+              ) : cardSvg && svgReady ? (
                 <View
                   style={[
                     styles.cardWrapper,

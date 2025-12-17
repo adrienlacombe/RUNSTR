@@ -48,8 +48,8 @@ export class EventSnapshotStore {
     const now = new Date();
     const daysSince = (now.getTime() - event.getTime()) / (1000 * 60 * 60 * 24);
 
-    if (daysSince > 7) {
-      // Completed events (>7 days past): Never expire
+    if (daysSince > 0) {
+      // ANY past event: Cache indefinitely (final results won't change)
       return Infinity;
     } else if (daysSince < 0) {
       // Upcoming events: 5 minutes

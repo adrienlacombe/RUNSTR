@@ -1,10 +1,11 @@
 /**
  * LevelCard - 3-column display of Level, Total XP, and XP to Next Level
+ * Also displays RUNSTR Rank (Web of Trust score from Brainstorm)
  * Matches HealthSnapshotCard styling exactly
  * Uses distance-based XP calculation from WorkoutLevelService
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,11 +13,32 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { nip19 } from 'nostr-tools';
 import { theme } from '../../styles/theme';
 import { WorkoutLevelService } from '../../services/fitness/WorkoutLevelService';
+import { WoTService } from '../../services/wot/WoTService';
+import { useAuth } from '../../contexts/AuthContext';
 import type { LevelStats } from '../../types/workoutLevel';
+
+/**
+ * Format a timestamp as relative time (e.g., "2 hours ago")
+ */
+function formatTimeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
 
 interface LocalWorkout {
   id: string;
@@ -31,14 +53,88 @@ interface LevelCardProps {
 }
 
 export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
+  const { currentUser } = useAuth();
   const [stats, setStats] = useState<LevelStats | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  // RUNSTR Rank (WoT) state
+  const [wotScore, setWotScore] = useState<number | null>(null);
+  const [wotLoading, setWotLoading] = useState(false);
+  const [wotError, setWotError] = useState<string | null>(null);
+  const [wotFetchedAt, setWotFetchedAt] = useState<number | null>(null);
 
   useEffect(() => {
     const levelService = WorkoutLevelService.getInstance();
     const calculated = levelService.calculateLevelStats(workouts);
     setStats(calculated);
   }, [workouts]);
+
+  // Fetch RUNSTR Rank on mount (check cache first)
+  useEffect(() => {
+    const loadWoTScore = async () => {
+      if (!currentUser?.npub) return;
+
+      try {
+        // Convert npub to hex
+        const decoded = nip19.decode(currentUser.npub);
+        if (decoded.type !== 'npub' || typeof decoded.data !== 'string') {
+          console.log('[LevelCard] Invalid npub format');
+          return;
+        }
+        const hexPubkey = decoded.data;
+
+        const wotService = WoTService.getInstance();
+
+        // Check if we have a cached score
+        const cached = await wotService.getCachedScoreWithMeta(hexPubkey);
+        if (cached) {
+          setWotScore(cached.score);
+          setWotFetchedAt(cached.fetchedAt);
+          console.log('[LevelCard] Loaded cached RUNSTR Rank:', cached.score);
+        } else {
+          // No cache - fetch from network on first view
+          console.log('[LevelCard] No cached score, fetching from network...');
+          setWotLoading(true);
+          const score = await wotService.fetchAndCacheScore(hexPubkey);
+          setWotScore(score);
+          setWotFetchedAt(Date.now());
+          setWotLoading(false);
+        }
+      } catch (error) {
+        console.error('[LevelCard] Error loading WoT score:', error);
+        setWotError('Failed to load RUNSTR Rank');
+        setWotLoading(false);
+      }
+    };
+
+    loadWoTScore();
+  }, [currentUser?.npub]);
+
+  // Refresh RUNSTR Rank manually
+  const handleRefreshWoT = useCallback(async () => {
+    if (!currentUser?.npub) return;
+
+    try {
+      setWotLoading(true);
+      setWotError(null);
+
+      const decoded = nip19.decode(currentUser.npub);
+      if (decoded.type !== 'npub' || typeof decoded.data !== 'string') {
+        throw new Error('Invalid npub format');
+      }
+      const hexPubkey = decoded.data;
+
+      const wotService = WoTService.getInstance();
+      const score = await wotService.refreshScore(hexPubkey);
+      setWotScore(score);
+      setWotFetchedAt(Date.now());
+    } catch (error) {
+      console.error('[LevelCard] Error refreshing WoT score:', error);
+      setWotError('Failed to refresh');
+    } finally {
+      setWotLoading(false);
+    }
+  }, [currentUser?.npub]);
 
   if (!stats) {
     return (
@@ -138,6 +234,51 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
             </Text>
             <Text style={styles.progressPercent}>{progressPercent}%</Text>
           </View>
+        </View>
+
+        {/* RUNSTR Rank (Web of Trust) Section */}
+        <View style={styles.wotSection}>
+          <View style={styles.wotHeader}>
+            <View style={styles.wotTitleRow}>
+              <Ionicons name="shield-checkmark" size={14} color="#FF9D42" />
+              <Text style={styles.wotTitle}>RUNSTR Rank</Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleRefreshWoT}
+              disabled={wotLoading}
+              style={styles.refreshButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {wotLoading ? (
+                <ActivityIndicator size="small" color="#FF9D42" />
+              ) : (
+                <Ionicons name="refresh" size={16} color="#FF9D42" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.wotContent}>
+            {wotLoading && wotScore === null ? (
+              <Text style={styles.wotLoadingText}>Calculating rank...</Text>
+            ) : wotError ? (
+              <Text style={styles.wotErrorText}>{wotError}</Text>
+            ) : (
+              <>
+                <Text style={styles.wotScoreValue}>
+                  {WoTService.getInstance().formatScore(wotScore)}
+                </Text>
+                <Text style={styles.wotTierLabel}>
+                  {WoTService.getInstance().getRankTier(wotScore)}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {wotFetchedAt && !wotLoading && (
+            <Text style={styles.wotLastUpdated}>
+              Updated {formatTimeAgo(wotFetchedAt)}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
 
@@ -447,5 +588,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: theme.typography.weights.semiBold,
     color: '#FF9D42',
+  },
+
+  // RUNSTR Rank (WoT) styles
+  wotSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1a1a1a',
+  },
+
+  wotHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  wotTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  wotTitle: {
+    fontSize: 12,
+    fontWeight: theme.typography.weights.semiBold,
+    color: '#FF9D42',
+  },
+
+  refreshButton: {
+    padding: 4,
+  },
+
+  wotContent: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+
+  wotScoreValue: {
+    fontSize: 18,
+    fontWeight: theme.typography.weights.bold,
+    color: '#FF9D42',
+  },
+
+  wotTierLabel: {
+    fontSize: 12,
+    fontWeight: theme.typography.weights.medium,
+    color: '#FFB366',
+  },
+
+  wotLoadingText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    fontStyle: 'italic',
+  },
+
+  wotErrorText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+  },
+
+  wotLastUpdated: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+    marginTop: 4,
   },
 });

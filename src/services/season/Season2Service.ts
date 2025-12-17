@@ -50,15 +50,19 @@ class Season2ServiceClass {
   /**
    * Get all participants (local joins + official list)
    * Local joins are only visible to the user who joined
+   * @param currentUserPubkey - Current user's pubkey for local join visibility
+   * @param forceRefresh - Skip cache and fetch fresh from Nostr
    */
-  async getParticipants(currentUserPubkey?: string): Promise<string[]> {
+  async getParticipants(currentUserPubkey?: string, forceRefresh = false): Promise<string[]> {
     const cacheKey = 'season2:participants';
 
-    // Check cache first
-    const cached = await UnifiedCacheService.get<string[]>(cacheKey);
-    if (cached && !currentUserPubkey) {
-      console.log(`[Season2] Cache hit: ${cached.length} participants`);
-      return cached;
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await UnifiedCacheService.get<string[]>(cacheKey);
+      if (cached && !currentUserPubkey) {
+        console.log(`[Season2] Cache hit: ${cached.length} participants`);
+        return cached;
+      }
     }
 
     // Fetch official list from Nostr
@@ -228,24 +232,30 @@ class Season2ServiceClass {
 
   /**
    * Get leaderboard for specific activity type
+   * @param activityType - Running, Walking, or Cycling
+   * @param currentUserPubkey - Current user's pubkey for local join visibility
+   * @param forceRefresh - Skip cache and fetch fresh from Nostr
    */
   async getLeaderboard(
     activityType: Season2ActivityType,
-    currentUserPubkey?: string
+    currentUserPubkey?: string,
+    forceRefresh = false
   ): Promise<Season2Leaderboard> {
     const cacheKey = `season2:leaderboard:${activityType}`;
 
-    // Check cache first (but include current user's local status)
-    const cached = await UnifiedCacheService.get<Season2Leaderboard>(cacheKey);
-    if (cached && !currentUserPubkey) {
-      console.log(`[Season2] Cache hit for ${activityType} leaderboard`);
-      return cached;
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await UnifiedCacheService.get<Season2Leaderboard>(cacheKey);
+      if (cached && !currentUserPubkey) {
+        console.log(`[Season2] Cache hit for ${activityType} leaderboard`);
+        return cached;
+      }
     }
 
-    console.log(`[Season2] Calculating ${activityType} leaderboard...`);
+    console.log(`[Season2] ${forceRefresh ? 'Force refreshing' : 'Calculating'} ${activityType} leaderboard...`);
 
-    // Get participants
-    const participants = await this.getParticipants(currentUserPubkey);
+    // Get participants (also force refresh if requested)
+    const participants = await this.getParticipants(currentUserPubkey, forceRefresh);
     if (participants.length === 0) {
       return this.emptyLeaderboard(activityType);
     }

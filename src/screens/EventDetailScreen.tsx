@@ -153,9 +153,10 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({
           usedSnapshot = true;
 
           // For active/upcoming events, refresh in background
-          if (snapshot.eventStatus !== 'completed') {
+          // Also refresh completed events if they have stale/empty participant data
+          if (snapshot.eventStatus !== 'completed' || snapshot.participantCount === 0) {
             console.log(
-              '🔄 Scheduling background refresh for active/upcoming event'
+              '🔄 Scheduling background refresh for active/upcoming event or stale completed event'
             );
             loadFreshDataInBackground(eventId, event);
           }

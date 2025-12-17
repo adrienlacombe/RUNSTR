@@ -33,6 +33,7 @@ interface UseSeason2LeaderboardReturn {
 
 /**
  * Hook for Season 2 leaderboard data
+ * Uses permanent cache - data only refreshes on pull-to-refresh
  * @param activityType - Running, Walking, or Cycling
  */
 export function useSeason2Leaderboard(
@@ -45,8 +46,11 @@ export function useSeason2Leaderboard(
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
 
-  const loadLeaderboard = useCallback(async () => {
-    setIsLoading(true);
+  const loadLeaderboard = useCallback(async (forceRefresh = false) => {
+    // Only show loading on initial load, not on refresh
+    if (!leaderboard) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -55,7 +59,8 @@ export function useSeason2Leaderboard(
 
       const data = await Season2Service.getLeaderboard(
         activityType,
-        userPubkey || undefined
+        userPubkey || undefined,
+        forceRefresh
       );
 
       if (isMounted.current) {
@@ -71,22 +76,22 @@ export function useSeason2Leaderboard(
         setIsLoading(false);
       }
     }
-  }, [activityType]);
+  }, [activityType, leaderboard]);
 
   useEffect(() => {
     isMounted.current = true;
-    loadLeaderboard();
+    loadLeaderboard(false); // Initial load from cache
 
     return () => {
       isMounted.current = false;
     };
-  }, [loadLeaderboard]);
+  }, [activityType]); // Only depend on activityType, not loadLeaderboard
 
   return {
     leaderboard,
     isLoading,
     error,
-    refresh: loadLeaderboard,
+    refresh: () => loadLeaderboard(true), // Force refresh from Nostr
   };
 }
 

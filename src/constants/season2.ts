@@ -35,11 +35,11 @@ export const SEASON_2_LOCAL_JOINS_KEY = '@runstr:season2_local_joins';
 export const SEASON_2_PAYOUT_KEY = '@runstr:season2_payout_completed';
 export const SEASON_2_PAYOUT_RESULTS_KEY = '@runstr:season2_payout_results';
 
-// Cache TTLs
+// Cache TTLs - Permanent cache, only refreshed on pull-to-refresh
 export const SEASON_2_CACHE_TTL = {
-  PARTICIPANTS: 5 * 60, // 5 minutes
-  LEADERBOARD: 5 * 60, // 5 minutes
-  CHARITY_RANKINGS: 5 * 60, // 5 minutes
+  PARTICIPANTS: Infinity,     // Never expires - refresh on pull-to-refresh
+  LEADERBOARD: Infinity,      // Never expires - refresh on pull-to-refresh
+  CHARITY_RANKINGS: Infinity, // Never expires - refresh on pull-to-refresh
 };
 
 /**
