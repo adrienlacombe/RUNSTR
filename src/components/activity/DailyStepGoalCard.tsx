@@ -180,18 +180,6 @@ export const DailyStepGoalCard: React.FC<DailyStepGoalCardProps> = ({
         </View>
       </View>
 
-      {/* Background Active Badge */}
-      {isBackgroundActive && (
-        <View style={styles.backgroundActiveBadge}>
-          <Ionicons
-            name="refresh-circle"
-            size={16}
-            color={theme.colors.accent}
-          />
-          <Text style={styles.backgroundActiveText}>Auto-counting enabled</Text>
-        </View>
-      )}
-
       {/* Background Tracking Banner */}
       {showBackgroundBanner && !isBackgroundActive && onEnableBackground && (
         <View style={styles.backgroundBanner}>
@@ -255,21 +243,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  backgroundActiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-    marginTop: 8,
-  },
-  backgroundActiveText: {
-    fontSize: 12,
-    fontWeight: theme.typography.weights.medium,
-    color: theme.colors.accent,
   },
   backgroundBanner: {
     backgroundColor: theme.colors.background,

@@ -53,7 +53,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PublishableWorkout } from '../../services/nostr/workoutPublishingService';
 import { theme } from '../../styles/theme';
 
-const STEP_UPDATE_INTERVAL = 5 * 60 * 1000; // Update every 5 minutes
+const STEP_UPDATE_INTERVAL = 60 * 1000; // Update every 1 minute (was 5 minutes)
 
 export const WalkingTrackerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -64,6 +64,7 @@ export const WalkingTrackerScreen: React.FC = () => {
     duration: '0:00',
     steps: '0',
     elevation: '0 m',
+    calories: '0',
   });
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedRoute, setSelectedRoute] = useState<{ id: string; name: string } | null>(null);
@@ -114,6 +115,11 @@ export const WalkingTrackerScreen: React.FC = () => {
   const [stepCounterError, setStepCounterError] = useState<string | null>(null);
   const [postingState, setPostingState] = useState<PostingState>('idle');
   const stepUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Live pedometer step tracking (real steps during active walking)
+  const liveStepsRef = useRef<number>(0);
+  const unsubscribeLiveStepsRef = useRef<(() => void) | null>(null);
+
   const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [showBackgroundBanner, setShowBackgroundBanner] = useState(false);
   const [isBackgroundActive, setIsBackgroundActive] = useState(false);
@@ -130,6 +136,8 @@ export const WalkingTrackerScreen: React.FC = () => {
       if (metricsUpdateRef.current) clearInterval(metricsUpdateRef.current);
       if (stepUpdateIntervalRef.current)
         clearInterval(stepUpdateIntervalRef.current);
+      if (unsubscribeLiveStepsRef.current)
+        unsubscribeLiveStepsRef.current();
     };
   }, []);
 
@@ -157,7 +165,7 @@ export const WalkingTrackerScreen: React.FC = () => {
     loadProfileAndId();
   }, []);
 
-  // Daily step counter initialization (optional, non-blocking)
+  // Daily step counter initialization (runs once on mount)
   useEffect(() => {
     const checkBackgroundTracking = async () => {
       try {
@@ -242,34 +250,37 @@ export const WalkingTrackerScreen: React.FC = () => {
     };
 
     checkBackgroundTracking();
+  }, []); // Empty dependency - only run once on mount
 
-    // Set up polling only if background active
-    const setupPolling = async () => {
-      if (isBackgroundActive) {
-        stepUpdateIntervalRef.current = setInterval(async () => {
-          try {
-            const stepData = await dailyStepCounterService.getTodaySteps();
-            if (stepData) {
-              setDailySteps(stepData.steps);
-              const goal = await dailyStepGoalService.getGoal();
-              const progress = dailyStepGoalService.calculateProgress(
-                stepData.steps,
-                goal
-              );
-              setStepProgress(progress);
-            }
-          } catch (error) {
-            console.error('[WalkingTrackerScreen] Error polling steps:', error);
-          }
-        }, STEP_UPDATE_INTERVAL);
+  // Separate useEffect for step polling (starts when isBackgroundActive becomes true)
+  useEffect(() => {
+    if (!isBackgroundActive) return;
+
+    const pollSteps = async () => {
+      try {
+        const stepData = await dailyStepCounterService.getTodaySteps();
+        if (stepData) {
+          setDailySteps(stepData.steps);
+          const goal = await dailyStepGoalService.getGoal();
+          const progress = dailyStepGoalService.calculateProgress(stepData.steps, goal);
+          setStepProgress(progress);
+        }
+      } catch (error) {
+        console.error('[WalkingTrackerScreen] Error polling steps:', error);
       }
     };
 
-    setupPolling();
+    // Poll immediately when background becomes active
+    pollSteps();
+    console.log('[WalkingTrackerScreen] Step polling started');
+
+    // Then poll at regular intervals
+    stepUpdateIntervalRef.current = setInterval(pollSteps, STEP_UPDATE_INTERVAL);
 
     return () => {
       if (stepUpdateIntervalRef.current) {
         clearInterval(stepUpdateIntervalRef.current);
+        console.log('[WalkingTrackerScreen] Step polling stopped');
       }
     };
   }, [isBackgroundActive]);
@@ -319,7 +330,11 @@ export const WalkingTrackerScreen: React.FC = () => {
           );
 
           const distance = session.distance || 0;
-          const steps = activityMetricsService.estimateSteps(distance);
+          // Use real pedometer steps, fall back to GPS estimate if pedometer unavailable
+          const steps = liveStepsRef.current > 0
+            ? liveStepsRef.current
+            : activityMetricsService.estimateSteps(distance);
+          const calories = activityMetricsService.estimateCalories('walking', distance, currentElapsed);
 
           setMetrics({
             distance: activityMetricsService.formatDistance(distance),
@@ -328,6 +343,7 @@ export const WalkingTrackerScreen: React.FC = () => {
             elevation: activityMetricsService.formatElevation(
               session.elevationGain || 0
             ),
+            calories: calories.toString(),
           });
           setElapsedTime(currentElapsed);
 
@@ -335,7 +351,7 @@ export const WalkingTrackerScreen: React.FC = () => {
             `[WalkingTrackerScreen] ✅ Synced: ${(
               distance / 1000
             ).toFixed(2)} km, ` +
-              `${currentElapsed}s, ${steps} steps, tracking continued in background`
+              `${currentElapsed}s, ${steps} steps (live: ${liveStepsRef.current}), tracking continued in background`
           );
         }
       }
@@ -433,6 +449,18 @@ export const WalkingTrackerScreen: React.FC = () => {
     pauseStartTimeRef.current = 0;
     totalPausedTimeRef.current = 0;
 
+    // Reset live step counter for new session
+    liveStepsRef.current = 0;
+
+    // Subscribe to live pedometer updates for real step counting
+    unsubscribeLiveStepsRef.current = dailyStepCounterService.subscribeLiveSteps(
+      (incrementalSteps: number) => {
+        liveStepsRef.current = incrementalSteps;
+        console.log(`[WalkingTrackerScreen] Live steps: ${incrementalSteps}`);
+      }
+    );
+    console.log('[WalkingTrackerScreen] Live pedometer subscription started');
+
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
         const now = Date.now();
@@ -450,7 +478,11 @@ export const WalkingTrackerScreen: React.FC = () => {
     const session = simpleRunTracker.getCurrentSession();
     if (session) {
       const distance = session.distance || 0;
-      const steps = activityMetricsService.estimateSteps(distance);
+      // Use real pedometer steps, fall back to GPS estimate if pedometer unavailable
+      const steps = liveStepsRef.current > 0
+        ? liveStepsRef.current
+        : activityMetricsService.estimateSteps(distance);
+      const calories = activityMetricsService.estimateCalories('walking', distance, elapsedTime);
 
       setMetrics({
         distance: activityMetricsService.formatDistance(distance),
@@ -459,6 +491,7 @@ export const WalkingTrackerScreen: React.FC = () => {
         elevation: activityMetricsService.formatElevation(
           session.elevationGain || 0
         ),
+        calories: calories.toString(),
       });
     }
   };
@@ -491,6 +524,12 @@ export const WalkingTrackerScreen: React.FC = () => {
       clearInterval(metricsUpdateRef.current);
       metricsUpdateRef.current = null;
     }
+    // Unsubscribe from live pedometer updates
+    if (unsubscribeLiveStepsRef.current) {
+      unsubscribeLiveStepsRef.current();
+      unsubscribeLiveStepsRef.current = null;
+      console.log('[WalkingTrackerScreen] Live pedometer subscription stopped');
+    }
 
     const session = await simpleRunTracker.stopTracking();
     setIsTracking(false);
@@ -504,7 +543,11 @@ export const WalkingTrackerScreen: React.FC = () => {
   };
 
   const showWorkoutSummary = async (session: RunSession) => {
-    const steps = activityMetricsService.estimateSteps(session.distance);
+    // Use real pedometer steps, fall back to GPS estimate if pedometer unavailable
+    const steps = liveStepsRef.current > 0
+      ? liveStepsRef.current
+      : activityMetricsService.estimateSteps(session.distance);
+    console.log(`[WalkingTracker] Workout summary steps: ${steps} (live: ${liveStepsRef.current})`);
     const calories = activityMetricsService.estimateCalories(
       'walking',
       session.distance,
@@ -542,6 +585,16 @@ export const WalkingTrackerScreen: React.FC = () => {
         } catch (routeError) {
           console.error('[WalkingTracker] Failed to add workout to route:', routeError);
         }
+      }
+
+      // Refresh daily step count to include newly tracked steps
+      dailyStepCounterService.clearCache();
+      const updatedSteps = await dailyStepCounterService.getTodaySteps();
+      if (updatedSteps) {
+        setDailySteps(updatedSteps.steps);
+        const progress = dailyStepGoalService.calculateProgress(updatedSteps.steps, stepGoal);
+        setStepProgress(progress);
+        console.log(`[WalkingTracker] ✅ Daily steps refreshed: ${updatedSteps.steps}`);
       }
 
       setWorkoutData({
@@ -584,6 +637,7 @@ export const WalkingTrackerScreen: React.FC = () => {
       duration: '0:00',
       steps: '0',
       elevation: '0 m',
+      calories: '0',
     });
     setElapsedTime(0);
   };
@@ -776,7 +830,7 @@ export const WalkingTrackerScreen: React.FC = () => {
     }
   }, [elapsedTime]);
 
-  // Secondary metrics for active tracking
+  // Secondary metrics for active tracking (duration already shows in HeroMetric)
   const secondaryMetrics: SecondaryMetric[] = [
     {
       value: metrics.distance,
@@ -784,14 +838,14 @@ export const WalkingTrackerScreen: React.FC = () => {
       icon: 'navigate-outline',
     },
     {
-      value: metrics.duration,
-      label: 'Duration',
-      icon: 'time-outline',
-    },
-    {
       value: metrics.elevation,
       label: 'Elevation',
       icon: 'trending-up-outline',
+    },
+    {
+      value: `${metrics.calories} cal`,
+      label: 'Calories',
+      icon: 'flame-outline',
     },
   ];
 
