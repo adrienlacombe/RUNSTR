@@ -18,22 +18,18 @@ import { theme } from '../../styles/theme';
 import { useSatlantisEvents } from '../../hooks/useSatlantisEvents';
 import { SatlantisEventCard } from '../../components/satlantis/SatlantisEventCard';
 import { RunstrEventCreationModal } from '../../components/events/RunstrEventCreationModal';
+import { FilterChips } from '../../components/ui/FilterChips';
 import type { SatlantisEvent, SatlantisSportType } from '../../types/satlantis';
 
 interface SatlantisDiscoveryScreenProps {
   navigation: any;
 }
 
-interface SportFilter {
-  label: string;
-  value: SatlantisSportType | 'all';
-}
-
-const SPORT_FILTERS: SportFilter[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Running', value: 'running' },
-  { label: 'Cycling', value: 'cycling' },
-  { label: 'Walking', value: 'walking' },
+const SPORT_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'running', label: 'Running' },
+  { key: 'cycling', label: 'Cycling' },
+  { key: 'walking', label: 'Walking' },
 ];
 
 export const SatlantisDiscoveryScreen: React.FC<SatlantisDiscoveryScreenProps> = ({
@@ -69,7 +65,14 @@ export const SatlantisDiscoveryScreen: React.FC<SatlantisDiscoveryScreenProps> =
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Events</Text>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+      </TouchableOpacity>
+      <View style={styles.headerSpacer} />
       <TouchableOpacity
         style={styles.createButton}
         onPress={() => setShowCreationModal(true)}
@@ -81,33 +84,11 @@ export const SatlantisDiscoveryScreen: React.FC<SatlantisDiscoveryScreenProps> =
   );
 
   const renderFilters = () => (
-    <View style={styles.filterContainer}>
-      <FlatList
-        horizontal
-        data={SPORT_FILTERS}
-        keyExtractor={(item) => item.value}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedSport === item.value && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedSport(item.value)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedSport === item.value && styles.filterTextActive,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.filterList}
-      />
-    </View>
+    <FilterChips
+      options={SPORT_FILTERS}
+      activeKey={selectedSport}
+      onSelect={(key) => setSelectedSport(key as SatlantisSportType | 'all')}
+    />
   );
 
   const renderEmpty = () => (
@@ -183,10 +164,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: theme.typography.weights.bold,
-    color: '#FFB366',
+  backButton: {
+    padding: 4,
+  },
+  headerSpacer: {
+    flex: 1,
   },
   createButton: {
     width: 36,
@@ -195,35 +177,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFB366',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  filterContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  filterList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: theme.colors.cardBackground,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: '#FFB366',
-    borderColor: '#FFB366',
-  },
-  filterText: {
-    fontSize: 14,
-    color: theme.colors.textMuted,
-  },
-  filterTextActive: {
-    color: theme.colors.background,
-    fontWeight: theme.typography.weights.semiBold,
   },
   listContent: {
     padding: 16,

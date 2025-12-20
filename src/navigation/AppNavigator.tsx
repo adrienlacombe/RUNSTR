@@ -34,6 +34,12 @@ import { HealthProfileScreen } from '../screens/HealthProfileScreen';
 import { FitnessTestResultsScreen } from '../screens/FitnessTestResultsScreen';
 import { SatlantisDiscoveryScreen } from '../screens/satlantis/SatlantisDiscoveryScreen';
 import { SatlantisEventDetailScreen } from '../screens/satlantis/SatlantisEventDetailScreen';
+import { RewardsScreen } from '../screens/RewardsScreen';
+import { DonateScreen } from '../screens/DonateScreen';
+import { TeamsScreen } from '../screens/TeamsScreen';
+import { AdvancedAnalyticsScreen } from '../screens/AdvancedAnalyticsScreen';
+import { EventsScreen } from '../screens/EventsScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import type { DiscoveredNostrUser } from '../services/user/UserDiscoveryService';
 
 // Navigation Configuration
@@ -77,6 +83,12 @@ export type RootStackParamList = {
   FitnessTestResults: { testId: string };
   SatlantisDiscovery: undefined;
   SatlantisEventDetail: { eventId: string; eventPubkey: string };
+  Teams: undefined;
+  Rewards: undefined;
+  Donate: undefined;
+  AdvancedAnalytics: undefined;
+  Events: undefined;
+  Settings: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -541,6 +553,66 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
       <Stack.Screen
         name="SatlantisEventDetail"
         component={SatlantisEventDetailScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
+      />
+
+      {/* Teams Screen - Hardcoded teams + charities selection */}
+      <Stack.Screen
+        name="Teams"
+        component={TeamsScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
+      />
+
+      {/* Rewards Screen - Wallet + earnings management */}
+      <Stack.Screen
+        name="Rewards"
+        component={RewardsScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
+      />
+
+      {/* Donate Screen - Charity donations */}
+      <Stack.Screen
+        name="Donate"
+        component={DonateScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
+      />
+
+      {/* Advanced Analytics Screen - Stats dashboard */}
+      <Stack.Screen
+        name="AdvancedAnalytics"
+        component={AdvancedAnalyticsScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
+      />
+
+      {/* Events Screen - Leaderboards (5K/10K/21K/Marathon) */}
+      <Stack.Screen
+        name="Events"
+        component={EventsScreen}
+        options={{
+          ...defaultScreenOptions,
+          headerShown: false,
+        }}
+      />
+
+      {/* Settings Screen */}
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
         options={{
           ...defaultScreenOptions,
           headerShown: false,

@@ -50,7 +50,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: theme.colors.text, // Light orange background (#FFB366)
+    backgroundColor: theme.colors.buttons.primary.background, // Deep orange (#FF7B1C)
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

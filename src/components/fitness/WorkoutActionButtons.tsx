@@ -150,7 +150,7 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
 
     const iconName =
       variant === 'save' ? 'cloud-upload-outline' : 'chatbubble-outline';
-    const successText = variant === 'save' ? 'Published!' : 'Shared!';
+    const successText = variant === 'save' ? 'Entered!' : 'Shared!';
 
     return (
       <TouchableOpacity
@@ -187,7 +187,7 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
     <View style={compact ? styles.compactContainer : styles.container}>
       {workout.canSyncToNostr &&
         renderButton(
-          'Public',
+          'Compete',
           handleSaveToNostr,
           workout.canSyncToNostr,
           state.saving,
@@ -208,7 +208,7 @@ export const WorkoutActionButtons: React.FC<WorkoutActionButtonsProps> = ({
       {/* Status indicators for already completed actions */}
       {workout.syncedToNostr && !workout.canSyncToNostr && (
         <View style={styles.competingButton}>
-          <Text style={styles.competingButtonText}>✓ Public</Text>
+          <Text style={styles.competingButtonText}>✓ Competing</Text>
         </View>
       )}
 

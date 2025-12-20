@@ -546,7 +546,7 @@ export const MeditationTrackerScreen: React.FC<MeditationTrackerScreenProps> = (
                 color={theme.colors.background}
                 style={styles.buttonIcon}
               />
-              <Text style={styles.competeButtonText}>Public</Text>
+              <Text style={styles.competeButtonText}>Compete</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.doneButton} onPress={handleDone}>

@@ -149,10 +149,10 @@ export class WorkoutPublishingService {
         pubkey = user.pubkey;
       }
 
-      // For kind 1301, ALWAYS use RUNSTR team for leaderboard compatibility
-      // User's team selection only affects kind 1 social posts
+      // Get user's selected team from TeamsScreen (defaults to RUNSTR if not set)
       const RUNSTR_TEAM_ID = '87d30c8b-aa18-4424-a629-d41ea7f89078';
-      const competitionTeam = workout.competitionTeam || RUNSTR_TEAM_ID;
+      const selectedTeamId = await AsyncStorage.getItem('@runstr:selected_team_id');
+      const competitionTeam = workout.competitionTeam || selectedTeamId || RUNSTR_TEAM_ID;
 
       // Get user's selected charity for tagging
       const selectedCharity =
@@ -344,6 +344,10 @@ export class WorkoutPublishingService {
         }
       }
 
+      // Get user's selected team and charity for tagging
+      const selectedTeamId = await AsyncStorage.getItem('@runstr:selected_team_id');
+      const selectedCharity = await CharitySelectionService.getSelectedCharity();
+
       // Create unsigned NDKEvent
       const ndkEvent = new NDKEvent(ndk);
       ndkEvent.kind = 1;
@@ -355,7 +359,9 @@ export class WorkoutPublishingService {
       ndkEvent.tags = this.createSocialPostTags(
         workout,
         imageUrl,
-        imageDimensions
+        imageDimensions,
+        selectedTeamId,
+        selectedCharity
       );
       ndkEvent.created_at = Math.floor(Date.now() / 1000);
 
@@ -1049,11 +1055,14 @@ export class WorkoutPublishingService {
 
   /**
    * Create tags for kind 1 social posts with NIP-94 image metadata
+   * ✅ UPDATED: Now includes team and charity tags from user's TeamsScreen selection
    */
   private createSocialPostTags(
     workout: PublishableWorkout,
     imageUrl?: string,
-    imageDimensions?: { width: number; height: number }
+    imageDimensions?: { width: number; height: number },
+    selectedTeamId?: string | null,
+    selectedCharity?: Charity | null
   ): string[][] {
     const tags: string[][] = [
       ['t', 'fitness'], // General fitness hashtag
@@ -1091,6 +1100,29 @@ export class WorkoutPublishingService {
     // Reference the original workout event if it exists
     if (workout.nostrEventId) {
       tags.push(['e', workout.nostrEventId]);
+    }
+
+    // Add team tag if user has selected a team
+    if (selectedTeamId) {
+      tags.push(['team', selectedTeamId]);
+      // Add team name hashtag
+      const team = HARDCODED_TEAMS.find((t) => t.id === selectedTeamId);
+      if (team?.name) {
+        const teamHashtag = team.name.replace(/[^a-zA-Z0-9]/g, '');
+        tags.push(['t', teamHashtag]);
+      }
+      console.log(`   ✅ Added team tag to kind 1: ${selectedTeamId}`);
+    }
+
+    // Add charity tag if user has selected a charity
+    if (selectedCharity) {
+      tags.push([
+        'charity',
+        selectedCharity.id,
+        selectedCharity.name,
+        selectedCharity.lightningAddress,
+      ]);
+      console.log(`   ✅ Added charity tag to kind 1: ${selectedCharity.name}`);
     }
 
     return tags;

@@ -157,6 +157,10 @@ import { HealthProfileScreen } from './screens/HealthProfileScreen';
 import { SatlantisDiscoveryScreen } from './screens/satlantis/SatlantisDiscoveryScreen';
 import { SatlantisEventDetailScreen } from './screens/satlantis/SatlantisEventDetailScreen';
 import { Season2Screen } from './screens/season2/Season2Screen';
+import { RewardsScreen } from './screens/RewardsScreen';
+import { DonateScreen } from './screens/DonateScreen';
+import { TeamsScreen } from './screens/TeamsScreen';
+import { EventsScreen } from './screens/EventsScreen';
 import { User } from './types';
 import { useWalletStore } from './store/walletStore';
 import { theme } from './styles/theme';
@@ -228,6 +232,9 @@ type AuthenticatedStackParamList = {
   SatlantisDiscovery: undefined;
   SatlantisEventDetail: { eventId: string; eventPubkey: string };
   Season2: undefined;
+  Teams: undefined;
+  Rewards: undefined;
+  Events: undefined;
 };
 
 const AuthenticatedStack = createStackNavigator<AuthenticatedStackParamList>();
@@ -841,11 +848,6 @@ const AppContent: React.FC<AppContentProps> = ({ onPermissionComplete }) => {
         >
           {({ navigation, route }) => (
             <SettingsScreen
-              currentTeam={route.params?.currentTeam}
-              onNavigateToTeamDiscovery={
-                route.params?.onNavigateToTeamDiscovery
-              }
-              onViewCurrentTeam={route.params?.onViewCurrentTeam}
               onCaptainDashboard={route.params?.onCaptainDashboard}
               onHelp={() => navigation.navigate('HelpSupport')}
               onContactSupport={() => navigation.navigate('ContactSupport')}
@@ -983,6 +985,33 @@ const AppContent: React.FC<AppContentProps> = ({ onPermissionComplete }) => {
             headerShown: false,
           }}
           component={Season2Screen}
+        />
+
+        {/* Teams Screen - Hardcoded teams + charities selection */}
+        <AuthenticatedStack.Screen
+          name="Teams"
+          options={{
+            headerShown: false,
+          }}
+          component={TeamsScreen}
+        />
+
+        {/* Rewards Screen - Wallet + earnings management */}
+        <AuthenticatedStack.Screen
+          name="Rewards"
+          options={{
+            headerShown: false,
+          }}
+          component={RewardsScreen}
+        />
+
+        {/* Events Screen - Leaderboards (5K/10K/21K/Marathon) */}
+        <AuthenticatedStack.Screen
+          name="Events"
+          options={{
+            headerShown: false,
+          }}
+          component={EventsScreen}
         />
       </AuthenticatedStack.Navigator>
     );

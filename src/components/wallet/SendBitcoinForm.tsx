@@ -33,6 +33,11 @@ export const SendBitcoinForm: React.FC<SendBitcoinFormProps> = ({
   const [currency, setCurrency] = useState<CurrencyType>('sats');
   const [usdValue, setUsdValue] = useState('');
 
+  // Focus state tracking for visual feedback
+  const [destinationFocused, setDestinationFocused] = useState(false);
+  const [amountFocused, setAmountFocused] = useState(false);
+  const [messageFocused, setMessageFocused] = useState(false);
+
   // Mock BTC/USD rate (in production this would come from an API)
   const btcToUsdRate = 40000;
   const satsPerBtc = 100000000;
@@ -118,13 +123,15 @@ export const SendBitcoinForm: React.FC<SendBitcoinFormProps> = ({
         <Text style={styles.label}>To</Text>
         <View style={styles.inputRow}>
           <TextInput
-            style={[styles.input, styles.destinationInput]}
+            style={[styles.input, styles.destinationInput, destinationFocused && styles.inputFocused]}
             value={destination}
             onChangeText={setDestination}
             placeholder="Lightning address or invoice"
             placeholderTextColor="#666"
             autoCapitalize="none"
             autoCorrect={false}
+            onFocus={() => setDestinationFocused(true)}
+            onBlur={() => setDestinationFocused(false)}
           />
           <TouchableOpacity style={styles.scanButton}>
             <Text style={styles.scanText}>📷</Text>
@@ -137,12 +144,14 @@ export const SendBitcoinForm: React.FC<SendBitcoinFormProps> = ({
         <Text style={styles.label}>Amount</Text>
         <View style={styles.amountRow}>
           <TextInput
-            style={[styles.input, styles.amountInput]}
+            style={[styles.input, styles.amountInput, amountFocused && styles.inputFocused]}
             value={amount}
             onChangeText={setAmount}
             placeholder="0"
             placeholderTextColor="#666"
             keyboardType="numeric"
+            onFocus={() => setAmountFocused(true)}
+            onBlur={() => setAmountFocused(false)}
           />
 
           <View style={styles.currencyToggle}>
@@ -189,11 +198,13 @@ export const SendBitcoinForm: React.FC<SendBitcoinFormProps> = ({
       <View style={styles.formGroup}>
         <Text style={styles.label}>Message (Optional)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, messageFocused && styles.inputFocused]}
           value={message}
           onChangeText={setMessage}
           placeholder="What's this for?"
           placeholderTextColor="#666"
+          onFocus={() => setMessageFocused(true)}
+          onBlur={() => setMessageFocused(false)}
         />
       </View>
 
@@ -268,6 +279,9 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     color: theme.colors.text,
+  },
+  inputFocused: {
+    borderColor: theme.colors.inputFocus,
   },
   destinationInput: {
     flex: 1,

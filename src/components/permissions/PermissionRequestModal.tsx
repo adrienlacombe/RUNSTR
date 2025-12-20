@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Platform,
   Linking,
+  AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -39,6 +40,17 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
   // Check which permissions are already granted on mount
   useEffect(() => {
     checkExistingPermissions();
+  }, []);
+
+  // Re-check permissions when app returns to foreground (after Settings)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        console.log('[PermissionRequestModal] App returned to foreground, re-checking permissions...');
+        checkExistingPermissions();
+      }
+    });
+    return () => subscription?.remove();
   }, []);
 
   const checkExistingPermissions = async () => {

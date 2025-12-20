@@ -4,12 +4,13 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { theme } from '../../styles/theme';
 import { SyncSource, Workout } from '../../types';
 import { PublicWorkoutsTab } from './tabs/PublicWorkoutsTab';
 import { AllWorkoutsTab } from './tabs/AllWorkoutsTab';
 import { SyncDropdown } from './shared/SyncDropdown';
+import { ToggleButtons } from '../ui/ToggleButtons';
 
 interface WorkoutsTabProps {
   syncSources: SyncSource[];
@@ -33,23 +34,6 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
   onWorkoutsSynced,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
-
-  const renderTabButton = (tab: TabType, label: string) => (
-    <TouchableOpacity
-      key={tab}
-      style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
-      onPress={() => setActiveTab(tab)}
-    >
-      <Text
-        style={[
-          styles.tabButtonText,
-          activeTab === tab && styles.tabButtonTextActive,
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -86,10 +70,14 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
 
       {/* Tab Toggle */}
       <View style={styles.tabToggleContainer}>
-        <View style={styles.tabToggle}>
-          {renderTabButton('public', 'Public')}
-          {renderTabButton('all', 'All')}
-        </View>
+        <ToggleButtons
+          options={[
+            { key: 'public', label: 'Public' },
+            { key: 'all', label: 'All' },
+          ]}
+          activeKey={activeTab}
+          onSelect={(key) => setActiveTab(key as TabType)}
+        />
       </View>
 
       {/* Active Tab Content */}
@@ -114,33 +102,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-  },
-  tabToggle: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  tabButtonActive: {
-    backgroundColor: theme.colors.accent,
-  },
-  tabButtonText: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  tabButtonTextActive: {
-    color: theme.colors.accentText,
-    fontWeight: '600',
   },
   tabContent: {
     flex: 1,

@@ -54,7 +54,7 @@ export const ComingSoonModal: React.FC<ComingSoonModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: theme.colors.modalOverlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

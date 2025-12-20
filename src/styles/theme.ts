@@ -36,6 +36,12 @@ export const colors = {
   buttonHover: '#1a1a1a', // hover states, .nav-item.active
   buttonPrimary: '#FF7B1C', // Primary button background (deep orange)
 
+  // Modal overlay - standardized opacity
+  modalOverlay: 'rgba(0, 0, 0, 0.85)', // Consistent overlay for all modals
+
+  // Input focus state
+  inputFocus: '#FF7B1C', // Orange border when input is focused
+
   // Special backgrounds
   prizeBackground: '#1a1a1a', // .challenge-prize background
   navBackground: '#0a0a0a', // .bottom-nav background
@@ -53,6 +59,20 @@ export const colors = {
   error: '#ff4444', // Error messages and validation
   warning: '#fbbf24', // Warning/security indicators (amber)
   success: '#FF9D42', // Success states - ORANGE not green (matches theme)
+
+  // Consolidated button styling - single source of truth
+  buttons: {
+    primary: {
+      background: '#FF7B1C',
+      text: '#000000',
+      border: '#E65100',
+    },
+    secondary: {
+      background: 'transparent',
+      text: '#FF7B1C',
+      border: '#FF7B1C',
+    },
+  },
 } as const;
 
 export const typography = {

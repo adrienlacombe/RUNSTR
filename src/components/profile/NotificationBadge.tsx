@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   badge: {
-    backgroundColor: '#dc2626', // Red badge
+    backgroundColor: theme.colors.accent, // Orange badge (matches app theme)
     borderRadius: 20,
     minWidth: 32,
     height: 32,

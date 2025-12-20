@@ -1,7 +1,7 @@
 /**
  * MyTeamsBox Component (renamed to Stats)
  * Simple navigation box for Profile screen - shows "STATS"
- * Navigates to AdvancedAnalyticsScreen for fitness analytics
+ * Navigates to WorkoutHistoryScreen (which has Advanced button at top for AdvancedAnalytics)
  */
 
 import React from 'react';
@@ -14,8 +14,14 @@ export const MyTeamsBox: React.FC = () => {
   const navigation = useNavigation<any>();
 
   const handlePress = () => {
-    // Navigate to AdvancedAnalytics screen (Stats)
-    navigation.navigate('AdvancedAnalytics' as any);
+    // Navigate to WorkoutHistory screen (has Stats button at top for analytics)
+    // Use parent navigator since WorkoutHistory is in the stack, not the tab navigator
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      parentNav.navigate('WorkoutHistory');
+    } else {
+      navigation.navigate('WorkoutHistory');
+    }
   };
 
   return (
@@ -24,7 +30,7 @@ export const MyTeamsBox: React.FC = () => {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <Ionicons name="analytics-outline" size={24} color={theme.colors.text} />
+      <Ionicons name="stats-chart-outline" size={24} color={theme.colors.text} />
       <Text style={styles.title}>STATS</Text>
     </TouchableOpacity>
   );

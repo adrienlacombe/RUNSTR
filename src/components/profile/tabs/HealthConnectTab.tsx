@@ -340,7 +340,7 @@ const HealthConnectTabContent: React.FC<HealthConnectTabProps> = ({
           <Text style={styles.postButtonText}>Post</Text>
         </TouchableOpacity>
 
-        {/* Public button - Kind 1301 competition entry */}
+        {/* Compete button - Kind 1301 competition entry */}
         <TouchableOpacity
           style={[styles.actionButton, styles.publicButton]}
           onPress={() => handleCompete(item)}
@@ -350,7 +350,7 @@ const HealthConnectTabContent: React.FC<HealthConnectTabProps> = ({
             size={16}
             color={theme.colors.accentText}
           />
-          <Text style={styles.publicButtonText}>Public</Text>
+          <Text style={styles.publicButtonText}>Compete</Text>
         </TouchableOpacity>
       </View>
     </WorkoutCard>

@@ -6,19 +6,14 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { theme } from '../../styles/theme';
 import { PublicWorkoutsTab } from './tabs/PublicWorkoutsTab';
 import { PrivateWorkoutsTab } from './tabs/PrivateWorkoutsTab';
 import { AppleHealthTab } from './tabs/AppleHealthTab';
 import { HealthConnectTab } from './tabs/HealthConnectTab';
 import { GarminHealthTab } from './tabs/GarminHealthTab';
+import { ToggleButtons } from '../ui/ToggleButtons';
 import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageService';
 
 // GARMIN: Removed 'garmin' from WorkoutTabType until security issues fixed
@@ -58,95 +53,22 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<WorkoutTabType>(initialTab);
 
+  // Build tab options based on platform
+  const tabOptions = [
+    { key: 'private', label: 'Phone' },
+    ...(Platform.OS === 'ios' ? [{ key: 'apple', label: 'Watch' }] : []),
+    ...(Platform.OS === 'android' ? [{ key: 'healthconnect', label: 'Health' }] : []),
+  ];
+
   return (
     <View style={styles.container}>
       {/* Tab Switcher */}
       <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'private' && styles.tabActive]}
-          onPress={() => setActiveTab('private')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'private' && styles.tabTextActive,
-            ]}
-          >
-            Local
-          </Text>
-          {activeTab === 'private' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
-
-        {/* PUBLIC TAB: Hidden (local-first architecture - Nostr is cloud backup, not primary view) */}
-        {/* <TouchableOpacity
-          style={[styles.tab, activeTab === 'public' && styles.tabActive]}
-          onPress={() => setActiveTab('public')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'public' && styles.tabTextActive,
-            ]}
-          >
-            Public
-          </Text>
-          {activeTab === 'public' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity> */}
-
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'apple' && styles.tabActive]}
-            onPress={() => setActiveTab('apple')}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'apple' && styles.tabTextActive,
-              ]}
-            >
-              Apple
-            </Text>
-            {activeTab === 'apple' && <View style={styles.tabIndicator} />}
-          </TouchableOpacity>
-        )}
-
-        {Platform.OS === 'android' && (
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'healthconnect' && styles.tabActive]}
-            onPress={() => setActiveTab('healthconnect')}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'healthconnect' && styles.tabTextActive,
-              ]}
-            >
-              Health
-            </Text>
-            {activeTab === 'healthconnect' && <View style={styles.tabIndicator} />}
-          </TouchableOpacity>
-        )}
-
-        {/* GARMIN: Hidden until CRITICAL security issues fixed (client_secret in bundle, deep link validation) */}
-        {/* <TouchableOpacity
-          style={[styles.tab, activeTab === 'garmin' && styles.tabActive]}
-          onPress={() => setActiveTab('garmin')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'garmin' && styles.tabTextActive,
-            ]}
-          >
-            Garmin
-          </Text>
-          {activeTab === 'garmin' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity> */}
+        <ToggleButtons
+          options={tabOptions}
+          activeKey={activeTab}
+          onSelect={(key) => setActiveTab(key as WorkoutTabType)}
+        />
       </View>
 
       {/* Tab Content */}
@@ -200,46 +122,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-
   tabBar: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.cardBackground,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
-
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-
-  tabActive: {
-    // Active tab styling handled by indicator
-  },
-
-  tabText: {
-    fontSize: 14,
-    fontWeight: theme.typography.weights.medium,
-    color: theme.colors.textMuted,
-  },
-
-  tabTextActive: {
-    color: theme.colors.text,
-    fontWeight: theme.typography.weights.semiBold,
-  },
-
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: theme.colors.accent,
-  },
-
   tabContent: {
     flex: 1,
   },

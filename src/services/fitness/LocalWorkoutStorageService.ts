@@ -428,14 +428,16 @@ export class LocalWorkoutStorageService {
         );
       });
 
-      // REWARD TRIGGER: Any workout hitting local storage triggers daily reward check
-      // Rate limited to 1 per day by DailyRewardService.canClaimToday()
+      // REWARD TRIGGER: Only user-generated workouts on a new day trigger rewards
+      // Uses checkStreakAndReward() which:
+      // 1. Filters by source (only gps_tracker, manual_entry, daily_steps)
+      // 2. Uses atomic "streak incremented today" flag to prevent race conditions
       try {
         const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
         if (pubkey) {
-          console.log(`[LocalWorkoutStorage] Triggering daily reward check for ${workout.type} workout...`);
+          console.log(`[LocalWorkoutStorage] Checking streak reward for ${workout.source} workout...`);
           // Fire and forget - don't block workout save for reward
-          DailyRewardService.sendReward(pubkey).catch((rewardError) => {
+          DailyRewardService.checkStreakAndReward(pubkey, workout.source).catch((rewardError) => {
             console.warn('[LocalWorkoutStorage] Reward error (silent):', rewardError);
           });
         }

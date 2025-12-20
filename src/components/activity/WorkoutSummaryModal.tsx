@@ -25,6 +25,7 @@ import TTSAnnouncementService from '../../services/activity/TTSAnnouncementServi
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
 import { activityMetricsService } from '../../services/activity/ActivityMetricsService';
 import { UnifiedSigningService } from '../../services/auth/UnifiedSigningService';
+import WorkoutStatusTracker from '../../services/fitness/WorkoutStatusTracker';
 import { CustomAlert } from '../ui/CustomAlert';
 import { RewardEarnedModal } from '../rewards/RewardEarnedModal';
 import routeStorageService from '../../services/routes/RouteStorageService';
@@ -200,6 +201,18 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
     }
   }, [visible, workout]);
 
+  // Check existing posting status when modal opens (prevents duplicate posts)
+  useEffect(() => {
+    const checkExistingStatus = async () => {
+      if (visible && workout.localWorkoutId) {
+        const status = await WorkoutStatusTracker.getStatus(workout.localWorkoutId);
+        setSaved(status.competedInNostr);
+        setPosted(status.postedToNostr);
+      }
+    };
+    checkExistingStatus();
+  }, [visible, workout.localWorkoutId]);
+
   const formatDistance = (meters: number): string => {
     const km = meters / 1000;
     return `${km.toFixed(2)} km`;
@@ -333,6 +346,15 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
 
       if (result.success) {
         setSaved(true);
+
+        // Mark as competed in persistent status tracker (prevents duplicate posts)
+        const workoutId = workout.localWorkoutId || publishableWorkout.id;
+        try {
+          await WorkoutStatusTracker.markAsCompeted(workoutId, result.eventId);
+          console.log(`✅ Marked workout ${workoutId} as competed in status tracker`);
+        } catch (statusError) {
+          console.warn('⚠️ Failed to update workout status tracker:', statusError);
+        }
 
         // Mark as synced in local storage if this was a local workout
         if (workout.localWorkoutId && result.eventId) {
@@ -701,7 +723,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
                     color={theme.colors.accentText}
                   />
                   <Text style={styles.saveButtonText}>
-                    {saved ? 'Published' : 'Public'}
+                    {saved ? 'Competing' : 'Compete'}
                   </Text>
                 </>
               )}
@@ -716,8 +738,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
               followers on social media
             </Text>
             <Text style={styles.infoText}>
-              <Text style={styles.infoBold}>Public:</Text> Enter into active
-              competitions and leaderboards
+              <Text style={styles.infoBold}>Compete:</Text> Enter this workout
+              into active competitions and leaderboards
             </Text>
           </View>
 
@@ -739,9 +761,21 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
           setShowSocialModal(false);
           setPreparedWorkout(null);
         }}
-        onSuccess={() => {
+        onSuccess={async () => {
           setPosted(true);
           setShowSocialModal(false);
+
+          // Mark as posted in persistent status tracker (prevents duplicate posts)
+          if (preparedWorkout?.id || workout.localWorkoutId) {
+            try {
+              const workoutId = workout.localWorkoutId || preparedWorkout?.id || '';
+              await WorkoutStatusTracker.markAsPosted(workoutId);
+              console.log(`✅ Marked workout ${workoutId} as posted in status tracker`);
+            } catch (statusError) {
+              console.warn('⚠️ Failed to update workout status tracker:', statusError);
+            }
+          }
+
           setPreparedWorkout(null);
         }}
       />

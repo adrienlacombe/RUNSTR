@@ -52,8 +52,6 @@ import type { NostrProfile } from '../../services/nostr/NostrProfileService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PublishableWorkout } from '../../services/nostr/workoutPublishingService';
 import { theme } from '../../styles/theme';
-import { appPermissionService } from '../../services/initialization/AppPermissionService';
-import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
 
 const STEP_UPDATE_INTERVAL = 5 * 60 * 1000; // Update every 5 minutes
 
@@ -125,7 +123,6 @@ export const WalkingTrackerScreen: React.FC = () => {
   const [userId, setUserId] = useState<string>('');
   const [preparedWorkout, setPreparedWorkout] =
     useState<PublishableWorkout | null>(null);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -360,20 +357,7 @@ export const WalkingTrackerScreen: React.FC = () => {
   }, [isTracking]);
 
   const handleHoldComplete = async () => {
-    console.log(
-      '[WalkingTrackerScreen] Hold complete, checking permissions...'
-    );
-
-    // ✅ Check permissions BEFORE starting countdown
-    const permissionStatus = await appPermissionService.checkAllPermissions();
-
-    if (!permissionStatus.location) {
-      console.log('[WalkingTrackerScreen] Missing permissions, showing modal');
-      setShowPermissionModal(true);
-      return;
-    }
-
-    // Permissions granted, start countdown
+    // Start countdown
     console.log(
       '[WalkingTrackerScreen] Permissions granted, starting countdown...'
     );
@@ -974,18 +958,6 @@ export const WalkingTrackerScreen: React.FC = () => {
           );
         }}
       />
-
-        {/* Permission Request Modal */}
-        {showPermissionModal && (
-          <PermissionRequestModal
-            visible={showPermissionModal}
-            onComplete={() => {
-              setShowPermissionModal(false);
-              // Re-check permissions after modal closes
-              handleHoldComplete();
-            }}
-          />
-        )}
       </View>
     </View>
   );

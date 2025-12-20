@@ -7,7 +7,6 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutData, WorkoutType } from '../../types/workout';
-import { DailyRewardService } from '../rewards/DailyRewardService';
 
 // Environment-based logging utility
 const isDevelopment = __DEV__;
@@ -621,22 +620,9 @@ export class HealthConnectService {
       this.lastSyncAt = new Date();
       debugLog(`Health Connect: Cached ${workouts.length} workouts`);
 
-      // REWARD TRIGGER: New Health Connect workouts cached triggers daily reward check
-      // Rate limited to 1 per day by DailyRewardService.canClaimToday()
-      if (workouts.length > 0) {
-        try {
-          const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-          if (pubkey) {
-            debugLog(`Health Connect: Triggering daily reward check for ${workouts.length} imports...`);
-            DailyRewardService.sendReward(pubkey).catch((rewardError) => {
-              debugLog('Health Connect: Reward error (silent):', rewardError);
-            });
-          }
-        } catch (rewardError) {
-          // Silent failure - never block Health Connect sync for reward issues
-          debugLog('Health Connect: Reward trigger error (silent):', rewardError);
-        }
-      }
+      // NOTE: Reward trigger removed - Health Connect imports should NOT trigger rewards
+      // Only user-generated workouts (gps_tracker, manual_entry, daily_steps) trigger rewards
+      // This is handled in LocalWorkoutStorageService.checkStreakAndReward()
     } catch (error) {
       console.warn('Failed to cache Health Connect workouts:', error);
     }

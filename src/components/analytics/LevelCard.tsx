@@ -1,8 +1,6 @@
 /**
- * LevelCard - 3-column display of Level, Total XP, and XP to Next Level
- * Also displays RUNSTR Rank (Web of Trust score from Brainstorm)
- * Matches HealthSnapshotCard styling exactly
- * Uses distance-based XP calculation from WorkoutLevelService
+ * LevelCard - Displays RUNSTR Rank (Web of Trust score from Brainstorm)
+ * Tapping the card opens a modal explaining how to improve rank
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,10 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { nip19 } from 'nostr-tools';
 import { theme } from '../../styles/theme';
-import { WorkoutLevelService } from '../../services/fitness/WorkoutLevelService';
 import { WoTService } from '../../services/wot/WoTService';
 import { useAuth } from '../../contexts/AuthContext';
-import type { LevelStats } from '../../types/workoutLevel';
 
 /**
  * Format a timestamp as relative time (e.g., "2 hours ago")
@@ -40,21 +36,8 @@ function formatTimeAgo(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
-interface LocalWorkout {
-  id: string;
-  type: string;
-  distance?: number;
-  duration?: number;
-  startTime: string;
-}
-
-interface LevelCardProps {
-  workouts: LocalWorkout[];
-}
-
-export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
+export const LevelCard: React.FC = () => {
   const { currentUser } = useAuth();
-  const [stats, setStats] = useState<LevelStats | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   // RUNSTR Rank (WoT) state
@@ -62,12 +45,6 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
   const [wotLoading, setWotLoading] = useState(false);
   const [wotError, setWotError] = useState<string | null>(null);
   const [wotFetchedAt, setWotFetchedAt] = useState<number | null>(null);
-
-  useEffect(() => {
-    const levelService = WorkoutLevelService.getInstance();
-    const calculated = levelService.calculateLevelStats(workouts);
-    setStats(calculated);
-  }, [workouts]);
 
   // Fetch RUNSTR Rank on mount (check cache first)
   useEffect(() => {
@@ -136,36 +113,6 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
     }
   }, [currentUser?.npub]);
 
-  if (!stats) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.columnsContainer}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Level</Text>
-            <Text style={styles.value}>-</Text>
-            <Text style={styles.category}>-</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.column}>
-            <Text style={styles.label}>Total</Text>
-            <Text style={styles.value}>-</Text>
-            <Text style={styles.category}>XP</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.column}>
-            <Text style={styles.label}>Next At</Text>
-            <Text style={styles.value}>-</Text>
-            <Text style={styles.category}>XP</Text>
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  const { level } = stats;
-  const levelService = WorkoutLevelService.getInstance();
-  const progressPercent = Math.round(level.progress * 100);
-
   return (
     <>
       <TouchableOpacity
@@ -173,78 +120,18 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
         onPress={() => setShowModal(true)}
         activeOpacity={0.7}
       >
-        {/* Header with title and chevron */}
+        {/* Header with title, refresh, and chevron */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Ionicons name="trophy" size={16} color="#FF9D42" />
-            <Text style={styles.title}>Level</Text>
+            <Ionicons name="shield-checkmark" size={16} color="#FF9D42" />
+            <Text style={styles.title}>RUNSTR Rank</Text>
           </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={theme.colors.textMuted}
-          />
-        </View>
-
-        {/* 3-column layout matching HealthSnapshotCard */}
-        <View style={styles.columnsContainer}>
-          {/* Level Column */}
-          <View style={styles.column}>
-            <Text style={styles.label}>Level</Text>
-            <Text style={styles.value}>{level.level}</Text>
-            <Text style={styles.category}>{level.title}</Text>
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* Total XP Column */}
-          <View style={styles.column}>
-            <Text style={styles.label}>Total</Text>
-            <Text style={styles.value}>
-              {levelService.formatXP(level.totalXP)}
-            </Text>
-            <Text style={styles.category}>XP</Text>
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* Next Level XP Column */}
-          <View style={styles.column}>
-            <Text style={styles.label}>Next At</Text>
-            <Text style={styles.value}>
-              {levelService.formatXP(level.xpForNextLevel)}
-            </Text>
-            <Text style={styles.category}>XP</Text>
-          </View>
-        </View>
-
-        {/* Progress bar section */}
-        <View style={styles.progressSection}>
-          <View style={styles.progressTrack}>
-            <View
-              style={[styles.progressFill, { width: `${progressPercent}%` }]}
-            />
-          </View>
-          <View style={styles.progressLabels}>
-            <Text style={styles.progressText}>
-              {levelService.formatXP(level.currentXP)} /{' '}
-              {levelService.formatXP(level.xpForNextLevel)} XP
-            </Text>
-            <Text style={styles.progressPercent}>{progressPercent}%</Text>
-          </View>
-        </View>
-
-        {/* RUNSTR Rank (Web of Trust) Section */}
-        <View style={styles.wotSection}>
-          <View style={styles.wotHeader}>
-            <View style={styles.wotTitleRow}>
-              <Ionicons name="shield-checkmark" size={14} color="#FF9D42" />
-              <Text style={styles.wotTitle}>RUNSTR Rank</Text>
-            </View>
+          <View style={styles.headerRight}>
             <TouchableOpacity
-              onPress={handleRefreshWoT}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleRefreshWoT();
+              }}
               disabled={wotLoading}
               style={styles.refreshButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -255,34 +142,40 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
                 <Ionicons name="refresh" size={16} color="#FF9D42" />
               )}
             </TouchableOpacity>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={theme.colors.textMuted}
+            />
           </View>
+        </View>
 
-          <View style={styles.wotContent}>
-            {wotLoading && wotScore === null ? (
-              <Text style={styles.wotLoadingText}>Calculating rank...</Text>
-            ) : wotError ? (
-              <Text style={styles.wotErrorText}>{wotError}</Text>
-            ) : (
-              <>
-                <Text style={styles.wotScoreValue}>
-                  {WoTService.getInstance().formatScore(wotScore)}
-                </Text>
-                <Text style={styles.wotTierLabel}>
-                  {WoTService.getInstance().getRankTier(wotScore)}
-                </Text>
-              </>
-            )}
-          </View>
-
-          {wotFetchedAt && !wotLoading && (
-            <Text style={styles.wotLastUpdated}>
-              Updated {formatTimeAgo(wotFetchedAt)}
-            </Text>
+        {/* Rank Display */}
+        <View style={styles.rankContent}>
+          {wotLoading && wotScore === null ? (
+            <Text style={styles.loadingText}>Calculating rank...</Text>
+          ) : wotError ? (
+            <Text style={styles.errorText}>{wotError}</Text>
+          ) : (
+            <>
+              <Text style={styles.scoreValue}>
+                {WoTService.getInstance().formatScore(wotScore)}
+              </Text>
+              <Text style={styles.tierLabel}>
+                {WoTService.getInstance().getRankTier(wotScore)}
+              </Text>
+            </>
           )}
         </View>
+
+        {wotFetchedAt && !wotLoading && (
+          <Text style={styles.lastUpdated}>
+            Updated {formatTimeAgo(wotFetchedAt)}
+          </Text>
+        )}
       </TouchableOpacity>
 
-      {/* XP Explanation Modal */}
+      {/* RUNSTR Rank Explanation Modal */}
       <Modal
         visible={showModal}
         animationType="slide"
@@ -292,7 +185,7 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>How XP Works</Text>
+              <Text style={styles.modalTitle}>About RUNSTR Rank</Text>
               <TouchableOpacity
                 onPress={() => setShowModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -302,71 +195,68 @@ export const LevelCard: React.FC<LevelCardProps> = ({ workouts }) => {
             </View>
 
             <ScrollView style={styles.modalBody}>
-              {/* XP Earning */}
+              {/* What is RUNSTR Rank */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Earn XP by Working Out</Text>
-                <View style={styles.xpRow}>
-                  <Ionicons name="flash" size={18} color="#FF9D42" />
-                  <Text style={styles.xpText}>10 XP per kilometer</Text>
+                <Text style={styles.sectionTitle}>What is RUNSTR Rank?</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Your RUNSTR Rank reflects your reputation in the Nostr
+                  network, calculated using Web of Trust principles.
+                </Text>
+              </View>
+
+              {/* How to Improve */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>How to Improve Your Rank</Text>
+                <View style={styles.itemList}>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="paper-plane" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Post workouts and engage with the community
+                    </Text>
+                  </View>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="flash" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Zap other athletes for great performances
+                    </Text>
+                  </View>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="people" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Follow and connect with other RUNSTR users
+                    </Text>
+                  </View>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="star" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Get followed by trusted community members
+                    </Text>
+                  </View>
                 </View>
               </View>
 
-              {/* Distance Thresholds */}
+              {/* Why It Matters */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  Minimum Distance Requirements
-                </Text>
-                <Text style={styles.sectionSubtitle}>
-                  Workouts must meet these thresholds to earn XP:
-                </Text>
-                <View style={styles.thresholdList}>
-                  <View style={styles.thresholdRow}>
-                    <Ionicons name="walk" size={18} color="#FF9D42" />
-                    <Text style={styles.thresholdText}>Walking: 1+ km</Text>
+                <Text style={styles.sectionTitle}>Why It Matters</Text>
+                <View style={styles.itemList}>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="gift" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Future reward distributions may require minimum rank
+                    </Text>
                   </View>
-                  <View style={styles.thresholdRow}>
-                    <Ionicons name="fitness" size={18} color="#FF9D42" />
-                    <Text style={styles.thresholdText}>Running: 2+ km</Text>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="trophy" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Some competitions will have rank requirements
+                    </Text>
                   </View>
-                  <View style={styles.thresholdRow}>
-                    <Ionicons name="bicycle" size={18} color="#FF9D42" />
-                    <Text style={styles.thresholdText}>Cycling: 3+ km</Text>
+                  <View style={styles.itemRow}>
+                    <Ionicons name="shield-checkmark" size={18} color="#FF9D42" />
+                    <Text style={styles.itemText}>
+                      Higher rank = more trust from the community
+                    </Text>
                   </View>
-                </View>
-              </View>
-
-              {/* Level Progression */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Level Progression</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Each level requires 15% more XP than the previous. Base XP for
-                  Level 1: 100 XP
-                </Text>
-              </View>
-
-              {/* Milestones */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Level Milestones</Text>
-                <View style={styles.milestoneList}>
-                  {[
-                    { level: 1, title: 'Beginner' },
-                    { level: 5, title: 'Rookie' },
-                    { level: 10, title: 'Athlete' },
-                    { level: 20, title: 'Veteran' },
-                    { level: 30, title: 'Champion' },
-                    { level: 50, title: 'Legend' },
-                    { level: 75, title: 'Master' },
-                    { level: 100, title: 'Elite' },
-                    { level: 150, title: 'Grandmaster' },
-                    { level: 200, title: 'Mythic' },
-                  ].map((milestone) => (
-                    <View key={milestone.level} style={styles.milestoneRow}>
-                      <Text style={styles.milestoneLevel}>
-                        Level {milestone.level}
-                      </Text>
-                      <Text style={styles.milestoneTitle}>{milestone.title}</Text>
-                    </View>
-                  ))}
                 </View>
               </View>
             </ScrollView>
@@ -383,7 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#1a1a1a',
-    padding: 10,
+    padding: 12,
     marginBottom: 12,
   },
 
@@ -391,7 +281,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   titleRow: {
@@ -406,78 +296,49 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
-  columnsContainer: {
+  headerRight: {
     flexDirection: 'row',
-  },
-
-  column: {
-    flex: 1,
     alignItems: 'center',
+    gap: 8,
   },
 
-  divider: {
-    width: 1,
-    backgroundColor: '#1a1a1a',
-    marginHorizontal: 8,
+  refreshButton: {
+    padding: 4,
   },
 
-  label: {
-    fontSize: 10,
-    fontWeight: theme.typography.weights.semiBold,
-    color: '#CC7A33',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+  rankContent: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
   },
 
-  value: {
-    fontSize: 18,
+  scoreValue: {
+    fontSize: 24,
     fontWeight: theme.typography.weights.bold,
     color: '#FF9D42',
-    marginBottom: 2,
   },
 
-  category: {
-    fontSize: 10,
+  tierLabel: {
+    fontSize: 14,
     fontWeight: theme.typography.weights.medium,
     color: '#FFB366',
   },
 
-  progressSection: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
+  loadingText: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    fontStyle: 'italic',
   },
 
-  progressTrack: {
-    height: 4,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 2,
-    overflow: 'hidden',
+  errorText: {
+    fontSize: 14,
+    color: '#FF6B6B',
   },
 
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#FF7B1C',
-    borderRadius: 2,
-  },
-
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-
-  progressText: {
-    fontSize: 10,
-    color: '#CC7A33',
-  },
-
-  progressPercent: {
-    fontSize: 10,
-    fontWeight: theme.typography.weights.semiBold,
-    color: '#CC7A33',
+  lastUpdated: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    marginTop: 8,
   },
 
   // Modal styles
@@ -516,143 +377,39 @@ const styles = StyleSheet.create({
   },
 
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
 
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: theme.typography.weights.semiBold,
     color: '#FF9D42',
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
   sectionSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: theme.colors.textMuted,
-    marginBottom: 10,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
-  xpRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  itemList: {
     gap: 10,
+  },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
     backgroundColor: '#1a1a1a',
     padding: 12,
     borderRadius: 8,
   },
 
-  xpText: {
-    fontSize: 16,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-  },
-
-  thresholdList: {
-    gap: 8,
-  },
-
-  thresholdRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#1a1a1a',
-    padding: 10,
-    borderRadius: 8,
-  },
-
-  thresholdText: {
+  itemText: {
     fontSize: 14,
     color: theme.colors.text,
-  },
-
-  milestoneList: {
-    gap: 6,
-  },
-
-  milestoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1a1a1a',
-    padding: 10,
-    borderRadius: 8,
-  },
-
-  milestoneLevel: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-  },
-
-  milestoneTitle: {
-    fontSize: 13,
-    fontWeight: theme.typography.weights.semiBold,
-    color: '#FF9D42',
-  },
-
-  // RUNSTR Rank (WoT) styles
-  wotSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-  },
-
-  wotHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-
-  wotTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-
-  wotTitle: {
-    fontSize: 12,
-    fontWeight: theme.typography.weights.semiBold,
-    color: '#FF9D42',
-  },
-
-  refreshButton: {
-    padding: 4,
-  },
-
-  wotContent: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-
-  wotScoreValue: {
-    fontSize: 18,
-    fontWeight: theme.typography.weights.bold,
-    color: '#FF9D42',
-  },
-
-  wotTierLabel: {
-    fontSize: 12,
-    fontWeight: theme.typography.weights.medium,
-    color: '#FFB366',
-  },
-
-  wotLoadingText: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    fontStyle: 'italic',
-  },
-
-  wotErrorText: {
-    fontSize: 12,
-    color: '#FF6B6B',
-  },
-
-  wotLastUpdated: {
-    fontSize: 10,
-    color: theme.colors.textMuted,
-    marginTop: 4,
+    flex: 1,
+    lineHeight: 20,
   },
 });

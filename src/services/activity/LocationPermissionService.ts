@@ -158,11 +158,27 @@ class LocationPermissionService {
         return true;
       }
 
-      // Android 11+ (API 30+): MUST go to Settings - in-app dialog won't work
+      // Android 14+ (API 34+): Try system dialog first - it works better now
+      if (androidVersion >= ANDROID_14) {
+        console.log('📍 Android 14+: Trying system dialog first...');
+        const { status } = await Location.requestBackgroundPermissionsAsync();
+
+        if (status === 'granted') {
+          console.log('✅ Android 14+: Background location granted via system dialog');
+          await AsyncStorage.setItem(BACKGROUND_PERMISSION_KEY, 'true');
+          return true;
+        }
+
+        // If dialog didn't grant, fall through to Settings guide
+        console.log('📍 Android 14+: System dialog did not grant, showing Settings guide...');
+        return this.showAndroid11BackgroundSettingsGuide();
+      }
+
+      // Android 11-13 (API 30-33): MUST go to Settings - in-app dialog won't work
       // See: https://developer.android.com/about/versions/11/privacy/location
       if (androidVersion >= ANDROID_11) {
         console.log(
-          '📍 Android 11+: Background location must be granted from Settings'
+          '📍 Android 11-13: Background location must be granted from Settings'
         );
         return this.showAndroid11BackgroundSettingsGuide();
       }
@@ -297,6 +313,9 @@ class LocationPermissionService {
    * On Android 11+, background location MUST be granted from Settings
    * The in-app dialog doesn't have an option to enable it
    * See: https://developer.android.com/about/versions/11/privacy/location
+   *
+   * Returns false after opening Settings - the PermissionRequestModal's AppState
+   * listener will detect when user returns and re-check permissions.
    */
   private showAndroid11BackgroundSettingsGuide(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -323,9 +342,9 @@ class LocationPermissionService {
               console.log('📍 Opening Settings for Android 11+ background location');
               await AsyncStorage.setItem(BACKGROUND_PERMISSION_KEY, 'true');
               await Linking.openSettings();
-              // We can't know if they actually enabled it, so return true
-              // to allow tracking to proceed (foreground still works)
-              resolve(true);
+              // Return false - the modal's AppState listener will re-check
+              // permissions when user returns from Settings
+              resolve(false);
             },
           },
         ],

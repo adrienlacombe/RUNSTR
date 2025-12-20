@@ -97,7 +97,7 @@ export const CharitySelectionModal: React.FC<CharitySelectionModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: theme.colors.modalOverlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

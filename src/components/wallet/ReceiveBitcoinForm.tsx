@@ -31,6 +31,10 @@ export const ReceiveBitcoinForm: React.FC<ReceiveBitcoinFormProps> = ({
   const [invoice, setInvoice] = useState('');
   const [usdValue, setUsdValue] = useState('');
 
+  // Focus state tracking for visual feedback
+  const [amountFocused, setAmountFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
+
   // Mock BTC/USD rate (in production this would come from an API)
   const btcToUsdRate = 40000;
   const satsPerBtc = 100000000;
@@ -116,12 +120,14 @@ export const ReceiveBitcoinForm: React.FC<ReceiveBitcoinFormProps> = ({
         <Text style={styles.label}>Amount (Optional)</Text>
         <View style={styles.amountRow}>
           <TextInput
-            style={[styles.input, styles.amountInput]}
+            style={[styles.input, styles.amountInput, amountFocused && styles.inputFocused]}
             value={amount}
             onChangeText={setAmount}
             placeholder="Any amount"
             placeholderTextColor="#666"
             keyboardType="numeric"
+            onFocus={() => setAmountFocused(true)}
+            onBlur={() => setAmountFocused(false)}
           />
 
           <View style={styles.currencyToggle}>
@@ -168,11 +174,13 @@ export const ReceiveBitcoinForm: React.FC<ReceiveBitcoinFormProps> = ({
       <View style={styles.formGroup}>
         <Text style={styles.label}>Description (Optional)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, descriptionFocused && styles.inputFocused]}
           value={description}
           onChangeText={setDescription}
           placeholder="What's this payment for?"
           placeholderTextColor="#666"
+          onFocus={() => setDescriptionFocused(true)}
+          onBlur={() => setDescriptionFocused(false)}
         />
       </View>
 
@@ -244,6 +252,9 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     color: theme.colors.text,
+  },
+  inputFocused: {
+    borderColor: theme.colors.inputFocus,
   },
   amountRow: {
     flexDirection: 'row',

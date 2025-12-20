@@ -10,7 +10,6 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
@@ -19,6 +18,14 @@ import { useTeamJoin } from '../../store/teamStore';
 import type { DiscoveryTeam } from '../../types';
 import { DifficultyIndicator } from '../ui/DifficultyIndicator';
 import { PrizeDisplay } from '../ui/PrizeDisplay';
+import { CustomAlert } from '../ui/CustomAlert';
+
+interface AlertState {
+  visible: boolean;
+  title: string;
+  message: string;
+  buttons: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[];
+}
 
 interface TeamJoinModalProps {
   visible: boolean;
@@ -44,6 +51,27 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
     privacyLevel: 'public' as 'public' | 'team' | 'private',
   });
 
+  // Alert state for CustomAlert
+  const [alertState, setAlertState] = useState<AlertState>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [{ text: 'OK' }],
+  });
+
+  const showAlert = (title: string, message: string, buttons?: AlertState['buttons']) => {
+    setAlertState({
+      visible: true,
+      title,
+      message,
+      buttons: buttons || [{ text: 'OK' }],
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertState(prev => ({ ...prev, visible: false }));
+  };
+
   // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
@@ -58,13 +86,14 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
       const result = await joinTeam(team.id, userId);
 
       if (result.success) {
-        Alert.alert(
+        showAlert(
           'Welcome to the Team!',
           `You've successfully joined ${team.name}. Start competing in challenges and events to earn bitcoin rewards!`,
           [
             {
               text: 'Start Competing',
               onPress: () => {
+                hideAlert();
                 onSuccess();
                 onClose();
               },
@@ -72,10 +101,10 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
           ]
         );
       } else {
-        Alert.alert('Join Failed', result.error || 'Failed to join team');
+        showAlert('Join Failed', result.error || 'Failed to join team');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (err) {
+      showAlert('Error', 'Something went wrong. Please try again.');
     }
   };
 
@@ -87,16 +116,16 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
 
       if (result.success) {
         setShowLeaveConfirmation(false);
-        Alert.alert(
+        showAlert(
           'Left Team',
           `You've left ${currentTeam.name}. You can now join a new team.`,
-          [{ text: 'Continue', onPress: () => {} }]
+          [{ text: 'Continue' }]
         );
       } else {
-        Alert.alert('Leave Failed', result.error || 'Failed to leave team');
+        showAlert('Leave Failed', result.error || 'Failed to leave team');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (err) {
+      showAlert('Error', 'Something went wrong. Please try again.');
     }
   };
 
@@ -297,6 +326,15 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
           )}
         </ScrollView>
       </View>
+
+      {/* Themed Alert Modal */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        onClose={hideAlert}
+      />
     </Modal>
   );
 };

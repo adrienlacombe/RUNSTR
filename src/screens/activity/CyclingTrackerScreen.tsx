@@ -25,8 +25,6 @@ import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStora
 import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
 import routeStorageService from '../../services/routes/RouteStorageService';
 import { theme } from '../../styles/theme';
-import { appPermissionService } from '../../services/initialization/AppPermissionService';
-import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Weekly distance goal components
 import {
@@ -68,7 +66,6 @@ export const CyclingTrackerScreen: React.FC = () => {
   const [selectedRoute, setSelectedRoute] = useState<{ id: string; name: string } | null>(null);
   const [routeSelectionVisible, setRouteSelectionVisible] = useState(false);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
@@ -280,15 +277,6 @@ export const CyclingTrackerScreen: React.FC = () => {
 
   const handleHoldComplete = async () => {
     console.log('[CyclingTrackerScreen] Hold complete, starting countdown...');
-
-    // Check permissions BEFORE countdown
-    const permissionStatus = await appPermissionService.checkAllPermissions();
-
-    if (!permissionStatus.location) {
-      console.log('[CyclingTrackerScreen] Missing permissions, showing modal');
-      setShowPermissionModal(true);
-      return;
-    }
 
     // Start countdown: 3 → 2 → 1 → GO!
     setCountdown(3);
@@ -804,18 +792,6 @@ export const CyclingTrackerScreen: React.FC = () => {
         }}
         onClose={() => setRouteSelectionVisible(false)}
       />
-
-      {/* Permission Request Modal - Only mount when needed to prevent auto-start bug */}
-      {showPermissionModal && (
-        <PermissionRequestModal
-          visible={true}
-          onComplete={() => {
-            setShowPermissionModal(false);
-            // Permissions granted - proceed directly with tracking (no re-check)
-            proceedWithTracking();
-          }}
-        />
-      )}
 
       {/* Distance Goal Picker Modal */}
       <DistanceGoalPickerModal

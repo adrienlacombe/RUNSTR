@@ -8,7 +8,6 @@
 import { Platform, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutData, WorkoutType } from '../../types/workout';
-import { DailyRewardService } from '../rewards/DailyRewardService';
 
 // Environment-based logging utility
 const isDevelopment = __DEV__;
@@ -610,8 +609,17 @@ export class HealthKitService {
    * Transform HealthKit workout to our format with activity type mapping
    */
   private transformWorkout(hkWorkout: any): HealthKitWorkout {
-    const activityType =
-      HK_WORKOUT_TYPE_MAP[hkWorkout.workoutActivityType] || 'other';
+    const sourceName = hkWorkout.sourceName || 'Unknown';
+
+    // First try the standard mapping
+    let activityType = HK_WORKOUT_TYPE_MAP[hkWorkout.workoutActivityType];
+
+    // If unmapped, check if it's from Garmin - default to running
+    // This fixes Garmin workouts synced via Apple HealthKit showing as "other"
+    if (!activityType) {
+      const isGarmin = sourceName.toLowerCase().includes('garmin');
+      activityType = isGarmin ? 'running' : 'other';
+    }
 
     return {
       UUID: hkWorkout.uuid,
@@ -622,7 +630,7 @@ export class HealthKitService {
       totalDistance: hkWorkout.totalDistance || 0,
       totalEnergyBurned: hkWorkout.totalEnergyBurned || 0,
       workoutActivityType: hkWorkout.workoutActivityType || 0,
-      sourceName: hkWorkout.sourceName || 'Unknown',
+      sourceName: sourceName,
       activityType: activityType,
     };
   }
@@ -672,8 +680,16 @@ export class HealthKitService {
   ): WorkoutData | null {
     try {
       // Map HealthKit activity type to RUNSTR workout type
-      const workoutType =
-        HK_WORKOUT_TYPE_MAP[hkWorkout.workoutActivityType] || 'other';
+      let workoutType = HK_WORKOUT_TYPE_MAP[hkWorkout.workoutActivityType];
+
+      // If unmapped, check if from Garmin - default to running
+      // This fixes Garmin workouts synced via Apple HealthKit showing as "other"
+      if (!workoutType) {
+        const isGarmin = (hkWorkout.sourceName || '')
+          .toLowerCase()
+          .includes('garmin');
+        workoutType = isGarmin ? 'running' : 'other';
+      }
 
       // Convert and validate duration
       const duration = Math.round(hkWorkout.duration || 0);
@@ -747,20 +763,9 @@ export class HealthKitService {
         `HealthKit: Cached workout - ${workout.type}, ${workout.duration}s`
       );
 
-      // REWARD TRIGGER: New HealthKit workout saved triggers daily reward check
-      // Rate limited to 1 per day by DailyRewardService.canClaimToday()
-      try {
-        const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-        if (pubkey) {
-          debugLog(`HealthKit: Triggering daily reward check for ${workout.type} import...`);
-          DailyRewardService.sendReward(pubkey).catch((rewardError) => {
-            debugLog('HealthKit: Reward error (silent):', rewardError);
-          });
-        }
-      } catch (rewardError) {
-        // Silent failure - never block HealthKit sync for reward issues
-        debugLog('HealthKit: Reward trigger error (silent):', rewardError);
-      }
+      // NOTE: Reward trigger removed - HealthKit imports should NOT trigger rewards
+      // Only user-generated workouts (gps_tracker, manual_entry, daily_steps) trigger rewards
+      // This is handled in LocalWorkoutStorageService.checkStreakAndReward()
 
       return 'saved';
     } catch (error) {

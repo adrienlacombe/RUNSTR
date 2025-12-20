@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.large,
     alignItems: 'center',
   },
-  // Default button - exact CSS: background: #fff; color: #000;
+  // Default button - deep orange with black text
   defaultButton: {
-    backgroundColor: theme.colors.text,
+    backgroundColor: theme.colors.buttons.primary.background, // Deep orange (#FF7B1C)
   },
   // Active/joined/watching button - exact CSS: background: #1a1a1a; color: #fff; border: 1px solid #333;
   activeButton: {

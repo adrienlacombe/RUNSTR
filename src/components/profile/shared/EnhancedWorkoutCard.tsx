@@ -520,7 +520,7 @@ export const EnhancedWorkoutCard: React.FC<EnhancedWorkoutCardProps> = ({
                     style={styles.buttonIcon}
                   />
                   <Text style={styles.actionButtonText}>
-                    {status.competed ? 'In Competition' : 'Public'}
+                    {status.competed ? 'Competing' : 'Compete'}
                   </Text>
                 </>
               )}

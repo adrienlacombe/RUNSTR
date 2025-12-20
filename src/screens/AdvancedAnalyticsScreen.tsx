@@ -34,12 +34,10 @@ import { LevelCard } from '../components/analytics/LevelCard';
 import { CoachRunstrCard } from '../components/analytics/CoachRunstrCard';
 import { GoalsHabitsCard } from '../components/analytics/GoalsHabitsCard';
 import { CollapsibleAchievementsCard } from '../components/analytics/CollapsibleAchievementsCard';
-import { StreakRewardsCard } from '../components/rewards/StreakRewardsCard';
 import { FitnessTestInstructionsModal } from '../components/fitness/FitnessTestInstructionsModal';
 import FitnessTestService from '../services/fitness/FitnessTestService';
 import { PersonalRecordsService } from '../services/analytics/PersonalRecordsService';
 import type { AllPersonalRecords } from '../services/analytics/PersonalRecordsService';
-import { DailyRewardService } from '../services/rewards/DailyRewardService';
 
 const PRIVACY_NOTICE_KEY = '@runstr:analytics_privacy_accepted';
 const HEALTH_PROFILE_KEY = '@runstr:health_profile';
@@ -56,7 +54,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
   );
   const [personalRecords, setPersonalRecords] =
     useState<AllPersonalRecords | null>(null);
-  const [weeklyRewardsEarned, setWeeklyRewardsEarned] = useState(0);
 
   // Fitness Test state
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
@@ -150,18 +147,6 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
 
       setAnalytics(summary);
       setPersonalRecords(prs);
-
-      // Fetch weekly rewards earned
-      try {
-        const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-        if (pubkey) {
-          const weeklyRewards =
-            await DailyRewardService.getWeeklyRewardsEarned(pubkey);
-          setWeeklyRewardsEarned(weeklyRewards);
-        }
-      } catch (rewardError) {
-        console.log('[AdvancedAnalytics] Could not fetch weekly rewards');
-      }
 
       setLoading(false);
       console.log('[AdvancedAnalytics] ✅ Analytics calculation complete');
@@ -282,23 +267,16 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Section 1: Level (XP-based progression system) */}
-        <Text style={styles.sectionTitle}>Level</Text>
-        <LevelCard workouts={workouts} />
+        {/* RUNSTR Rank (Web of Trust) */}
+        <LevelCard />
 
-        {/* Section 2: Achievements (Personal Records) */}
+        {/* Achievements (Personal Records) */}
         {personalRecords && (
           <CollapsibleAchievementsCard personalRecords={personalRecords} />
         )}
 
         {/* Section 3: Goals & Habits */}
         <GoalsHabitsCard />
-
-        {/* Section 4: Streak Rewards */}
-        <StreakRewardsCard
-          workouts={workouts}
-          weeklyRewardsEarned={weeklyRewardsEarned}
-        />
 
         {/* RUNSTR Fitness Test Card - HIDDEN FOR NOW
         <View style={styles.fitnessTestCard}>
@@ -369,6 +347,24 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
 
         {/* COACH RUNSTR - AI-Powered Insights */}
         <CoachRunstrCard workouts={workouts} />
+
+        {/* View Workout History Link */}
+        <TouchableOpacity
+          style={styles.historyLink}
+          onPress={async () => {
+            const userPubkey = await AsyncStorage.getItem('@runstr:npub');
+            const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+            (navigation as any).navigate('WorkoutHistory', {
+              userId: hexPubkey || userPubkey || '',
+              pubkey: userPubkey || '',
+            });
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="list-outline" size={20} color={theme.colors.orangeBright} />
+          <Text style={styles.historyLinkText}>View Workout History</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+        </TouchableOpacity>
 
         {/* Last Updated */}
         {analytics && (

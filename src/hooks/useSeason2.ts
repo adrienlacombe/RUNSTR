@@ -46,24 +46,29 @@ export function useSeason2Leaderboard(
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
 
+  // Use a ref to always have the latest activityType to avoid stale closure
+  const activityTypeRef = useRef(activityType);
+  activityTypeRef.current = activityType;
+
   const loadLeaderboard = useCallback(async (forceRefresh = false) => {
-    // Only show loading on initial load, not on refresh
-    if (!leaderboard) {
-      setIsLoading(true);
-    }
+    setIsLoading(true);
     setError(null);
 
     try {
       // Get current user's pubkey for local join visibility
       const userPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
 
+      // Use ref to ensure we have the latest activityType
+      const currentActivityType = activityTypeRef.current;
+
       const data = await Season2Service.getLeaderboard(
-        activityType,
+        currentActivityType,
         userPubkey || undefined,
         forceRefresh
       );
 
-      if (isMounted.current) {
+      // Only update state if component is mounted AND activityType hasn't changed
+      if (isMounted.current && activityTypeRef.current === currentActivityType) {
         setLeaderboard(data);
       }
     } catch (err) {
@@ -76,16 +81,21 @@ export function useSeason2Leaderboard(
         setIsLoading(false);
       }
     }
-  }, [activityType, leaderboard]);
+  }, []); // Empty deps - uses ref for activityType
 
   useEffect(() => {
     isMounted.current = true;
+
+    // Reset state when activity type changes to show loading
+    setLeaderboard(null);
+    setIsLoading(true);
+
     loadLeaderboard(false); // Initial load from cache
 
     return () => {
       isMounted.current = false;
     };
-  }, [activityType]); // Only depend on activityType, not loadLeaderboard
+  }, [activityType, loadLeaderboard]);
 
   return {
     leaderboard,

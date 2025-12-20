@@ -1,6 +1,7 @@
 /**
- * YourWorkoutsBox Component
- * Simple navigation box for Profile screen - shows "My Workouts"
+ * YourWorkoutsBox Component (renamed to Teams)
+ * Simple navigation box for Profile screen - shows "TEAMS"
+ * Navigates to TeamsScreen for hardcoded teams + charities selection
  */
 
 import React from 'react';
@@ -8,32 +9,18 @@ import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const YourWorkoutsBox: React.FC = () => {
   const navigation = useNavigation<any>();
 
-  const handlePress = async () => {
-    try {
-      const userPubkey = await AsyncStorage.getItem('@runstr:npub');
-      const hexPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-
-      // Navigate to WorkoutHistory screen in parent stack
-      const parentNav = navigation.getParent();
-      if (parentNav) {
-        parentNav.navigate('WorkoutHistory' as any, {
-          userId: hexPubkey || userPubkey || '',
-          pubkey: userPubkey || '',
-        });
-      } else {
-        // Fallback: try direct navigation
-        navigation.navigate('WorkoutHistory' as any, {
-          userId: hexPubkey || userPubkey || '',
-          pubkey: userPubkey || '',
-        });
-      }
-    } catch (error) {
-      console.error('Navigation error:', error);
+  const handlePress = () => {
+    // Navigate to Teams screen (hardcoded teams + charities)
+    // Use parent navigator since Teams is in the stack, not the tab navigator
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      parentNav.navigate('Teams');
+    } else {
+      navigation.navigate('Teams');
     }
   };
 
@@ -43,8 +30,8 @@ export const YourWorkoutsBox: React.FC = () => {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <Ionicons name="barbell-outline" size={24} color={theme.colors.text} />
-      <Text style={styles.title}>HISTORY</Text>
+      <Ionicons name="people-outline" size={24} color={theme.colors.text} />
+      <Text style={styles.title}>TEAMS</Text>
     </TouchableOpacity>
   );
 };

@@ -316,7 +316,7 @@ export const FitnessTestResultsScreen: React.FC = () => {
                 testResult.kind1301EventId && styles.publishedButtonText,
               ]}
             >
-              {testResult.kind1301EventId ? 'Published' : 'Public'}
+              {testResult.kind1301EventId ? 'Competing' : 'Compete'}
             </Text>
           </TouchableOpacity>
 

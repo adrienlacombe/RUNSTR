@@ -6,6 +6,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-12-19
+
+**Major UI/UX Improvements**
+
+### Design System Enhancements
+- Standardized modal overlays with consistent 85% opacity across all modals
+- Consolidated button styling with centralized `theme.colors.buttons` configuration
+- Added input focus states with orange accent borders for better feedback
+- Notification badges redesigned from red to orange for visual cohesion with app theme
+
+### New Reusable Components
+- **FilterChips**: Horizontal scrollable filter component for activity type filtering
+- **ToggleButtons**: Unified tab switching component with orange active states
+- **Enhanced ZapModal**: Preset amount buttons (100-5000 sats), custom input with balance validation
+
+### Navigation Improvements
+- Events screen now features back button navigation for improved UX flow
+- Cleaner header design with intuitive return navigation
+
+### Component Refactoring
+- WorkoutsTab now uses shared ToggleButtons component for consistency
+- WorkoutActionButtons renamed for clarity:
+  - "Public" → "Compete" (action-oriented)
+  - "Published!" → "Entered!" (clearer feedback)
+  - Status: "✓ Public" → "✓ Competing"
+
+### Theme System
+- Centralized modal styling across all overlay components
+- Added `inputFocus` and `modalOverlay` to theme constants
+- Removed hardcoded color values in favor of theme references
+
+### 📱 Platform Updates
+- iOS: Version 1.2.0 (Build 120)
+- Android: Version 1.2.0 (Build 120)
+
 ## [1.0.5] - 2025-12-17
 
 **Bug Fixes & Optimizations**

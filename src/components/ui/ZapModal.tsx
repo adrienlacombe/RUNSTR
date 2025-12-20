@@ -212,7 +212,7 @@ export const ZapModal: React.FC<ZapModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.colors.modalOverlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

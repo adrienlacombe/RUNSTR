@@ -568,7 +568,7 @@ export const ManualEntryScreen: React.FC<ManualEntryScreenProps> = ({
                       size={20}
                       color={theme.colors.background}
                     />
-                    <Text style={styles.competeButtonText}>Public</Text>
+                    <Text style={styles.competeButtonText}>Compete</Text>
                   </>
                 )}
               </TouchableOpacity>

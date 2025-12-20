@@ -29,10 +29,21 @@ import { RewardSenderWallet } from './RewardSenderWallet';
 import { ProfileService } from '../user/profileService';
 import { RewardLightningAddressService } from './RewardLightningAddressService';
 import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
-import { RewardNotificationManager } from './RewardNotificationManager';
+import { RewardNotificationManager, DonationSplit } from './RewardNotificationManager';
+import { getCharityById, Charity } from '../../constants/charities';
+// Note: Team donations disabled - teams don't have lightning addresses yet
+
+// Storage keys for donation settings
+// Note: SELECTED_TEAM_KEY is in TeamsScreen but not used here (team payments disabled)
+const SELECTED_CHARITY_KEY = '@runstr:selected_charity_id';
+const DONATION_PERCENTAGE_KEY = '@runstr:donation_percentage';
 
 // DEBUG FLAG: Set to false for production (only shows debug alerts for failures)
 const DEBUG_REWARDS = false;
+
+// Workout sources that count as "user-generated" (not imports/syncs)
+// Only these sources trigger daily rewards
+const REWARD_ELIGIBLE_SOURCES = ['gps_tracker', 'manual_entry', 'daily_steps'];
 
 export interface RewardResult {
   success: boolean;
@@ -69,6 +80,44 @@ class DailyRewardServiceClass {
       // If error, assume not eligible (safer)
       return false;
     }
+  }
+
+  /**
+   * Check if workout should trigger streak reward
+   * Only user-generated workouts on a new day trigger rewards
+   *
+   * This method combines source filtering with atomic "streak incremented today" tracking
+   * to prevent race conditions when multiple workouts are saved concurrently.
+   *
+   * @param userPubkey - User's public key
+   * @param workoutSource - The workout.source field (e.g., 'gps_tracker', 'imported_nostr')
+   */
+  async checkStreakAndReward(
+    userPubkey: string,
+    workoutSource: string
+  ): Promise<RewardResult> {
+    // Step 1: Filter by source - only user-generated workouts
+    if (!REWARD_ELIGIBLE_SOURCES.includes(workoutSource)) {
+      console.log(`[Reward] Skipping reward for ${workoutSource} (not user-generated)`);
+      return { success: false, reason: 'source_not_eligible' };
+    }
+
+    // Step 2: Atomic streak check - only first workout of the day
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const streakKey = `@runstr:streak_incremented_today:${today}`;
+
+    const alreadyIncremented = await AsyncStorage.getItem(streakKey);
+    if (alreadyIncremented) {
+      console.log('[Reward] Streak already incremented today, skipping reward');
+      return { success: false, reason: 'streak_already_incremented' };
+    }
+
+    // Step 3: Mark streak as incremented BEFORE sending reward (prevents race condition)
+    await AsyncStorage.setItem(streakKey, new Date().toISOString());
+    console.log('[Reward] Streak incremented! Triggering daily reward...');
+
+    // Step 4: Send the reward
+    return this.sendReward(userPubkey);
   }
 
   /**
@@ -113,6 +162,63 @@ class DailyRewardServiceClass {
       console.error('[Reward] Error getting user Lightning address:', error);
       return null;
     }
+  }
+
+  /**
+   * Load donation settings from AsyncStorage
+   * Returns donation percentage and selected charity
+   * Note: Team donations disabled until teams have lightning addresses
+   */
+  private async getDonationSettings(): Promise<{
+    donationPercentage: number;
+    charity: Charity | undefined;
+  }> {
+    try {
+      const [donationPctStr, charityId] = await Promise.all([
+        AsyncStorage.getItem(DONATION_PERCENTAGE_KEY),
+        AsyncStorage.getItem(SELECTED_CHARITY_KEY),
+      ]);
+
+      const donationPercentage = donationPctStr ? parseInt(donationPctStr) : 0;
+      const charity = getCharityById(charityId || undefined);
+
+      console.log('[Reward] Donation settings:', {
+        donationPercentage,
+        charityId: charity?.id,
+      });
+
+      return { donationPercentage, charity };
+    } catch (error) {
+      console.error('[Reward] Error loading donation settings:', error);
+      return { donationPercentage: 0, charity: undefined };
+    }
+  }
+
+  /**
+   * Calculate payment split based on donation percentage
+   * All donations go to charity (team donations disabled until teams have lightning addresses)
+   */
+  private calculateSplit(
+    totalAmount: number,
+    donationPercentage: number,
+    charity: Charity | undefined
+  ): DonationSplit {
+    if (donationPercentage === 0 || !charity) {
+      // No donation or no charity selected - user gets everything
+      return {
+        userAmount: totalAmount,
+        charityAmount: 0,
+      };
+    }
+
+    const charityAmount = Math.floor(totalAmount * (donationPercentage / 100));
+    const userAmount = totalAmount - charityAmount;
+
+    return {
+      userAmount,
+      charityAmount,
+      charityName: charity?.name,
+    };
   }
 
   /**
@@ -287,7 +393,7 @@ class DailyRewardServiceClass {
   }
 
   /**
-   * Send reward to user
+   * Send reward to user (and optionally team/charity based on donation settings)
    * Main entry point for reward system
    *
    * SILENT FAILURE PHILOSOPHY:
@@ -298,13 +404,16 @@ class DailyRewardServiceClass {
    * - This ensures workout publishing is reliable regardless of payment status
    *
    * USER EXPERIENCE:
-   * - Success: User sees "You earned 50 sats!" popup after workout
+   * - Success: User sees "You earned X sats!" popup after workout
+   * - With donation: Shows breakdown (e.g., "25 sats to you, 12 to OpenSats, 13 to team")
    * - Failure: User sees nothing (workout still posts normally)
    *
-   * NEW PAYMENT FLOW:
-   * - No longer requires user to have NWC wallet in app
-   * - Pays directly to Lightning address from user's Nostr profile
-   * - Works with any Lightning wallet that supports LNURL
+   * DONATION SPLIT FLOW:
+   * 1. Load donation settings (percentage, team, charity)
+   * 2. Calculate split amounts
+   * 3. Pay user their portion
+   * 4. Pay charity (if selected and donation > 0)
+   * 5. Pay team (if has Lightning address and donation > 0)
    */
   async sendReward(userPubkey: string): Promise<RewardResult> {
     try {
@@ -345,71 +454,91 @@ class DailyRewardServiceClass {
         };
       }
 
-      // Request invoice from user's Lightning address
+      // Load donation settings and calculate split (charity only - no team payments)
+      const { donationPercentage, charity } = await this.getDonationSettings();
+      const totalAmount = REWARD_CONFIG.DAILY_WORKOUT_REWARD;
+      const split = this.calculateSplit(totalAmount, donationPercentage, charity);
+
+      console.log('[Reward] Payment split:', split);
+
       if (DEBUG_REWARDS) {
-        Alert.alert('Reward Debug', `Requesting invoice from ${lightningAddress} for ${REWARD_CONFIG.DAILY_WORKOUT_REWARD} sats...`);
-      }
-      const userInvoice = await this.requestInvoiceFromUserAddress(
-        lightningAddress,
-        REWARD_CONFIG.DAILY_WORKOUT_REWARD
-      );
-      if (!userInvoice) {
-        console.log(
-          '[Reward] Could not get invoice from Lightning address, skipping reward'
+        Alert.alert('Reward Debug',
+          `Split calculation:\n` +
+          `Total: ${totalAmount} sats\n` +
+          `Donation %: ${donationPercentage}%\n` +
+          `User: ${split.userAmount} sats\n` +
+          `Charity: ${split.charityAmount} sats`
         );
-        if (DEBUG_REWARDS) {
-          Alert.alert('Reward Debug', `LNURL invoice request failed!\n\nCould not get invoice from ${lightningAddress}.\n\nPossible causes:\n- Lightning address provider is down\n- Network timeout\n- Invalid address format`);
-        }
-        return {
-          success: false,
-          reason: 'invoice_failed',
-        };
       }
 
-      // Send payment using app's dedicated reward sender wallet
-      //
-      // PAYMENT ARCHITECTURE:
-      // - User provides: Lightning address in their Nostr profile (lud16 field)
-      // - App requests: Invoice from Lightning address via LNURL protocol
-      // - RewardSenderWallet: Pays invoice using REWARD_SENDER_NWC from .env
-      // - User receives: 50 sats directly to their Lightning wallet
-      console.log(
-        '[Reward] Sending payment to Lightning address:',
-        lightningAddress
-      );
+      // Track payment results
+      let userPaymentSuccess = false;
+      let charityPaymentSuccess = false;
 
-      const paymentResult = await RewardSenderWallet.sendRewardPayment(
-        userInvoice
-      );
+      // 1. Pay user their portion (required)
+      if (split.userAmount > 0) {
+        const userInvoice = await this.requestInvoiceFromUserAddress(
+          lightningAddress,
+          split.userAmount
+        );
+        if (userInvoice) {
+          const result = await RewardSenderWallet.sendRewardPayment(userInvoice);
+          userPaymentSuccess = result.success;
+          console.log('[Reward] User payment:', userPaymentSuccess ? '✅' : '❌');
+        }
+      } else {
+        // If user amount is 0 (100% donation), skip user payment
+        userPaymentSuccess = true;
+      }
 
-      if (paymentResult.success) {
-        // Record reward
-        await this.recordReward(userPubkey, REWARD_CONFIG.DAILY_WORKOUT_REWARD);
+      // 2. Pay charity (if amount > 0)
+      if (split.charityAmount > 0 && charity?.lightningAddress) {
+        try {
+          const charityInvoice = await this.requestInvoiceFromUserAddress(
+            charity.lightningAddress,
+            split.charityAmount
+          );
+          if (charityInvoice) {
+            const result = await RewardSenderWallet.sendRewardPayment(charityInvoice);
+            charityPaymentSuccess = result.success;
+            console.log(`[Reward] Charity (${charity.name}) payment:`, charityPaymentSuccess ? '✅' : '❌');
+          }
+        } catch (error) {
+          console.error('[Reward] Charity payment error:', error);
+        }
+      }
+
+      // Note: Team payments disabled until teams have lightning addresses configured
+
+      // Consider reward successful if user payment worked
+      if (userPaymentSuccess || split.userAmount === 0) {
+        // Record the full reward amount (for stats)
+        await this.recordReward(userPubkey, totalAmount);
 
         console.log(
           '[Reward] ✅ Reward sent successfully:',
-          REWARD_CONFIG.DAILY_WORKOUT_REWARD,
-          'sats'
+          `User: ${split.userAmount}, Charity: ${split.charityAmount}`
         );
 
-        // Show branded reward notification (black/orange theme)
-        RewardNotificationManager.showRewardEarned(
-          REWARD_CONFIG.DAILY_WORKOUT_REWARD
-        );
+        // Show branded reward notification with donation split info
+        const donationSplit: DonationSplit = {
+          userAmount: split.userAmount,
+          charityAmount: split.charityAmount,
+          charityName: split.charityAmount > 0 ? charity?.name : undefined,
+        };
+
+        RewardNotificationManager.showRewardEarned(totalAmount, donationSplit);
 
         return {
           success: true,
-          amount: REWARD_CONFIG.DAILY_WORKOUT_REWARD,
+          amount: totalAmount,
         };
       } else {
         // SILENT FAILURE - just log
-        console.log(
-          '[Reward] ❌ Payment failed (silent):',
-          paymentResult.error
-        );
+        console.log('[Reward] ❌ User payment failed (silent)');
 
         if (DEBUG_REWARDS) {
-          Alert.alert('Reward Debug', `Payment failed!\n\nError: ${paymentResult.error || 'Unknown error'}\n\nPossible causes:\n- Reward wallet empty\n- NWC connection failed\n- Invoice expired`);
+          Alert.alert('Reward Debug', 'User payment failed!\n\nPossible causes:\n- Reward wallet empty\n- NWC connection failed\n- Invoice expired');
         }
 
         return {

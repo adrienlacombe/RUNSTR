@@ -157,7 +157,7 @@ export const EnhancedWorkoutHistoryScreen: React.FC<
 
         Alert.alert(
           'Success',
-          'Workout posted as kind 1301 event!\nIt will now appear in your Public tab and competitions.'
+          'Workout entered into competition!\nIt will now appear in your Public tab and leaderboards.'
         );
       } else {
         throw new Error(result.error || 'Failed to publish workout');

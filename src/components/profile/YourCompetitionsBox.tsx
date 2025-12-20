@@ -1,27 +1,27 @@
 /**
- * YourCompetitionsBox Component
- * Simple navigation box for Profile screen - shows "My Competitions"
+ * YourCompetitionsBox Component (renamed to Rewards)
+ * Simple navigation box for Profile screen - shows "REWARDS"
+ * Navigates to RewardsScreen for wallet/earnings management
  */
 
 import React from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 
-type RootStackParamList = {
-  CompetitionsList: undefined;
-};
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
 export const YourCompetitionsBox: React.FC = () => {
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation<any>();
 
   const handlePress = () => {
-    // @ts-ignore - CompetitionsList is in the navigation stack
-    navigation.navigate('CompetitionsList');
+    // Navigate to Rewards screen (wallet/earnings)
+    // Use parent navigator since Rewards is in the stack, not the tab navigator
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      parentNav.navigate('Rewards');
+    } else {
+      navigation.navigate('Rewards');
+    }
   };
 
   return (
@@ -30,8 +30,8 @@ export const YourCompetitionsBox: React.FC = () => {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <Ionicons name="trophy-outline" size={24} color={theme.colors.text} />
-      <Text style={styles.title}>LEADERBOARDS</Text>
+      <Ionicons name="wallet-outline" size={24} color={theme.colors.text} />
+      <Text style={styles.title}>REWARDS</Text>
     </TouchableOpacity>
   );
 };

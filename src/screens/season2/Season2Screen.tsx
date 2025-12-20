@@ -15,7 +15,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   SafeAreaView,
 } from 'react-native';
@@ -29,39 +28,48 @@ import {
   Season2ExplainerModal,
   Season2SignupSection,
 } from '../../components/season2';
+import { ToggleButtons } from '../../components/ui/ToggleButtons';
+import { EventsContent, LeaderboardsContent } from '../../components/compete';
+import { RunstrEventCreationModal } from '../../components/events/RunstrEventCreationModal';
 import { useSeason2Leaderboard, useSeason2Registration } from '../../hooks/useSeason2';
 import { Season2PayoutService } from '../../services/season/Season2PayoutService';
 import { getSeason2Status } from '../../constants/season2';
 import type { Season2ActivityType } from '../../types/season2';
+import type { SatlantisEvent } from '../../types/satlantis';
 
-interface TabButtonProps {
-  label: string;
-  isActive: boolean;
-  onPress: () => void;
-}
+type CompeteTab = 'season2' | 'events' | 'leaderboards';
 
-const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress }) => (
-  <TouchableOpacity
-    style={[styles.tabButton, isActive && styles.tabButtonActive]}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
-const TABS: { label: string; value: Season2ActivityType }[] = [
-  { label: 'Running', value: 'running' },
-  { label: 'Walking', value: 'walking' },
-  { label: 'Cycling', value: 'cycling' },
+const COMPETE_TABS = [
+  { key: 'season2', label: 'Season II' },
+  { key: 'events', label: 'Events' },
+  { key: 'leaderboards', label: 'Leaderboards' },
 ];
 
-export const Season2Screen: React.FC = () => {
-  const navigation = useNavigation<any>();
+const TABS = [
+  { key: 'running', label: 'Running' },
+  { key: 'walking', label: 'Walking' },
+  { key: 'cycling', label: 'Cycling' },
+];
+
+interface Season2ScreenProps {
+  navigation?: any;
+}
+
+export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNavigation }) => {
+  const hookNavigation = useNavigation<any>();
+  const navigation = propNavigation || hookNavigation;
+
+  // Top-level tab state (Season II / Events / Leaderboards)
+  const [activeCompeteTab, setActiveCompeteTab] = useState<CompeteTab>('season2');
+
+  // Season II activity tab state (Running / Walking / Cycling)
   const [activeTab, setActiveTab] = useState<Season2ActivityType>('running');
   const [showExplainer, setShowExplainer] = useState(false);
+  const [showCreationModal, setShowCreationModal] = useState(false);
+
+  // Lazy loading flags
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [leaderboardsLoaded, setLeaderboardsLoaded] = useState(false);
 
   const { leaderboard, isLoading, refresh } = useSeason2Leaderboard(activeTab);
   const { isRegistered } = useSeason2Registration();
@@ -87,6 +95,16 @@ export const Season2Screen: React.FC = () => {
     checkAndExecutePayouts();
   }, []);
 
+  // Lazy loading - mark tabs as loaded when first selected
+  useEffect(() => {
+    if (activeCompeteTab === 'events' && !eventsLoaded) {
+      setEventsLoaded(true);
+    }
+    if (activeCompeteTab === 'leaderboards' && !leaderboardsLoaded) {
+      setLeaderboardsLoaded(true);
+    }
+  }, [activeCompeteTab, eventsLoaded, leaderboardsLoaded]);
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await refresh();
@@ -97,19 +115,37 @@ export const Season2Screen: React.FC = () => {
     setActiveTab(tab);
   };
 
+  // Handle event press - navigate to event detail
+  const handleEventPress = useCallback((event: SatlantisEvent) => {
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      parentNav.navigate('SatlantisEventDetail', {
+        eventId: event.id,
+        eventPubkey: event.pubkey,
+      });
+    } else {
+      navigation.navigate('SatlantisEventDetail', {
+        eventId: event.id,
+        eventPubkey: event.pubkey,
+      });
+    }
+  }, [navigation]);
+
+  // Handle event creation complete
+  const handleEventCreated = useCallback((eventId: string) => {
+    console.log('[Season2Screen] Event created:', eventId);
+    setShowCreationModal(false);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>RUNSTR SEASON II</Text>
-        <View style={styles.headerSpacer} />
+      {/* Top-Level Competition Toggle */}
+      <View style={styles.topToggleContainer}>
+        <ToggleButtons
+          options={COMPETE_TABS}
+          activeKey={activeCompeteTab}
+          onSelect={(key) => setActiveCompeteTab(key as CompeteTab)}
+        />
       </View>
 
       <ScrollView
@@ -124,49 +160,64 @@ export const Season2Screen: React.FC = () => {
           />
         }
       >
-        {/* Info Card */}
-        <Season2InfoCard onPress={() => setShowExplainer(true)} />
+        {/* Season II Tab Content */}
+        {activeCompeteTab === 'season2' && (
+          <>
+            {/* Info Card */}
+            <Season2InfoCard onPress={() => setShowExplainer(true)} />
 
-        {/* Tab Bar */}
-        <View style={styles.tabBar}>
-          {TABS.map((tab) => (
-            <TabButton
-              key={tab.value}
-              label={tab.label}
-              isActive={activeTab === tab.value}
-              onPress={() => handleTabChange(tab.value)}
+            {/* Activity Tab Bar */}
+            <View style={styles.tabBarContainer}>
+              <ToggleButtons
+                options={TABS}
+                activeKey={activeTab}
+                onSelect={(key) => handleTabChange(key as Season2ActivityType)}
+              />
+            </View>
+
+            {/* Leaderboard */}
+            <Season2Leaderboard
+              participants={leaderboard?.participants || []}
+              isLoading={isLoading}
+              emptyMessage={`No ${activeTab} workouts yet`}
             />
-          ))}
-        </View>
 
-        {/* Leaderboard */}
-        <Season2Leaderboard
-          participants={leaderboard?.participants || []}
-          isLoading={isLoading}
-          emptyMessage={`No ${activeTab} workouts yet`}
-        />
-
-        {/* Charity Rankings */}
-        <CharityRankings
-          rankings={leaderboard?.charityRankings || []}
-          isLoading={isLoading}
-        />
-
-        {/* Signup Section */}
-        {!isRegistered && <Season2SignupSection />}
-
-        {/* Registered Status */}
-        {isRegistered && (
-          <View style={styles.registeredInfo}>
-            <Ionicons
-              name="checkmark-circle"
-              size={20}
-              color={theme.colors.success}
+            {/* Charity Rankings */}
+            <CharityRankings
+              rankings={leaderboard?.charityRankings || []}
+              isLoading={isLoading}
             />
-            <Text style={styles.registeredText}>
-              You're competing in SEASON II
-            </Text>
-          </View>
+
+            {/* Signup Section */}
+            {!isRegistered && <Season2SignupSection />}
+
+            {/* Registered Status */}
+            {isRegistered && (
+              <View style={styles.registeredInfo}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color={theme.colors.success}
+                />
+                <Text style={styles.registeredText}>
+                  You're competing in SEASON II
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Events Tab Content */}
+        {activeCompeteTab === 'events' && eventsLoaded && (
+          <EventsContent
+            onEventPress={handleEventPress}
+            onCreateEvent={() => setShowCreationModal(true)}
+          />
+        )}
+
+        {/* Leaderboards Tab Content */}
+        {activeCompeteTab === 'leaderboards' && leaderboardsLoaded && (
+          <LeaderboardsContent />
         )}
       </ScrollView>
 
@@ -174,6 +225,13 @@ export const Season2Screen: React.FC = () => {
       <Season2ExplainerModal
         visible={showExplainer}
         onClose={() => setShowExplainer(false)}
+      />
+
+      {/* Event Creation Modal */}
+      <RunstrEventCreationModal
+        visible={showCreationModal}
+        onClose={() => setShowCreationModal(false)}
+        onEventCreated={handleEventCreated}
       />
     </SafeAreaView>
   );
@@ -214,30 +272,8 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.large,
-    padding: 4,
+  tabBarContainer: {
     marginBottom: 16,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: theme.borderRadius.medium,
-  },
-  tabButtonActive: {
-    backgroundColor: theme.colors.orangeBright,
-  },
-  tabText: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    fontWeight: theme.typography.weights.medium,
-  },
-  tabTextActive: {
-    color: theme.colors.background,
-    fontWeight: theme.typography.weights.semiBold,
   },
   registeredInfo: {
     flexDirection: 'row',
@@ -249,6 +285,10 @@ const styles = StyleSheet.create({
   registeredText: {
     color: theme.colors.text,
     fontSize: 14,
+  },
+  topToggleContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
 });
 

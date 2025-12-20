@@ -11,8 +11,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Text,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
@@ -35,6 +37,7 @@ interface TeamLeaderboards {
 }
 
 export const EventsScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [teamLeaderboards, setTeamLeaderboards] = useState<TeamLeaderboards[]>(
     []
   );
@@ -136,7 +139,14 @@ export const EventsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Events</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
@@ -151,7 +161,14 @@ export const EventsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Events</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.emptyContainer}>
           <Ionicons
@@ -173,7 +190,14 @@ export const EventsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Events</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -204,8 +228,16 @@ export const EventsScreen: React.FC = () => {
   // Main content - Show leaderboards grouped by team
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header with back button only */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Events</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -307,16 +339,20 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1a1a1a',
   },
 
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.accent,
+  backButton: {
+    padding: 4,
+  },
+
+  headerSpacer: {
+    flex: 1,
   },
 
   scrollContent: {

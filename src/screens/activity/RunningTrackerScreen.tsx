@@ -34,8 +34,6 @@ import type { FormattedMetrics } from '../../services/activity/ActivityMetricsSe
 import { BatteryWarning } from '../../components/activity/BatteryWarning';
 import { WorkoutSummaryModal } from '../../components/activity/WorkoutSummaryModal';
 import LocalWorkoutStorageService from '../../services/fitness/LocalWorkoutStorageService';
-import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
-import { appPermissionService } from '../../services/initialization/AppPermissionService';
 import routeStorageService from '../../services/routes/RouteStorageService';
 import { RouteSelectionModal } from '../../components/routes/RouteSelectionModal';
 import { HoldToStartButton } from '../../components/activity/HoldToStartButton';
@@ -104,7 +102,6 @@ export const RunningTrackerScreen: React.FC = () => {
   });
   const [elapsedTime, setElapsedTime] = useState(0);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [workoutData, setWorkoutData] = useState<{
     type: 'running' | 'walking' | 'cycling';
@@ -428,16 +425,6 @@ export const RunningTrackerScreen: React.FC = () => {
   const handleHoldComplete = async () => {
     console.log('[RunningTrackerScreen] Hold complete, starting countdown...');
 
-    // First check if we have required permissions
-    const permissionStatus = await appPermissionService.checkAllPermissions();
-
-    if (!permissionStatus.location) {
-      // Show permission request modal
-      console.log('[RunningTrackerScreen] Missing permissions, showing modal');
-      setShowPermissionModal(true);
-      return;
-    }
-
     // Start countdown: 3 → 2 → 1 → GO!
     setCountdown(3);
     setTimeout(() => {
@@ -506,12 +493,6 @@ export const RunningTrackerScreen: React.FC = () => {
     metricsUpdateRef.current = setInterval(() => {
       updateMetrics();
     }, METRICS_UPDATE_INTERVAL_MS);
-  };
-
-  const handlePermissionsGranted = () => {
-    // Permissions were granted, close modal and start tracking
-    setShowPermissionModal(false);
-    proceedWithTracking();
   };
 
   const formatElapsedTime = (seconds: number): string => {
@@ -936,14 +917,6 @@ export const RunningTrackerScreen: React.FC = () => {
         buttons={alertConfig.buttons}
         onClose={() => setAlertVisible(false)}
       />
-
-      {/* Permission Request Modal - Only mount when needed to prevent auto-start bug */}
-      {showPermissionModal && (
-        <PermissionRequestModal
-          visible={true}
-          onComplete={handlePermissionsGranted}
-        />
-      )}
 
       {/* Route Selection Modal */}
       <RouteSelectionModal

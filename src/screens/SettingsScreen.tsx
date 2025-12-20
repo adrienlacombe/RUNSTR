@@ -15,12 +15,9 @@ import {
   Switch,
   RefreshControl,
   Modal,
-  TextInput,
 } from 'react-native';
-import * as Linking from 'expo-linking';
 import Slider from '@react-native-community/slider';
 import { theme } from '../styles/theme';
-import { Team } from '../types';
 import {
   TTSPreferencesService,
   type TTSSettings,
@@ -28,43 +25,18 @@ import {
 import TTSAnnouncementService from '../services/activity/TTSAnnouncementService';
 import { DeleteAccountService } from '../services/auth/DeleteAccountService';
 import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
 import { CustomAlert } from '../components/ui/CustomAlert';
 import { SettingsAccordion } from '../components/ui/SettingsAccordion';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { NWCStorageService } from '../services/wallet/NWCStorageService';
-import { NWCWalletService } from '../services/wallet/NWCWalletService';
-import { WalletConfigModal } from '../components/wallet/WalletConfigModal';
-import { SendModal } from '../components/wallet/SendModal';
-import { ReceiveModal } from '../components/wallet/ReceiveModal';
-import { HistoryModal } from '../components/wallet/HistoryModal';
-import { QRScannerModal } from '../components/qr/QRScannerModal';
-import { NWCQRConfirmationModal } from '../components/wallet/NWCQRConfirmationModal';
-import type { QRData } from '../services/qr/QRCodeService';
-import { useNutzap } from '../hooks/useNutzap';
-import { useWalletStore } from '../store/walletStore';
 import { dailyStepCounterService } from '../services/activity/DailyStepCounterService';
-import { CharitySelectionService } from '../services/charity/CharitySelectionService';
-import type { Charity } from '../constants/charities';
-import { Alert } from 'react-native';
-import { CharitySelectionModal } from '../components/charity/CharitySelectionModal';
 import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
-import { ModelManager, type AIModel } from '../services/ai/ModelManager';
-import { LocalTeamMembershipService } from '../services/team/LocalTeamMembershipService';
-import { RewardLightningAddressService } from '../services/rewards/RewardLightningAddressService';
-import { TeamSelectionModal } from '../components/team/TeamSelectionModal';
-import { HARDCODED_TEAMS } from '../constants/hardcodedTeams';
-import type { LocalMembership } from '../services/team/teamMembershipService';
-import { useNavigationData } from '../contexts/NavigationDataContext';
+import { ModelManager } from '../services/ai/ModelManager';
 
 interface SettingsScreenProps {
-  currentTeam?: Team;
-  onNavigateToTeamDiscovery?: () => void;
-  onViewCurrentTeam?: () => void;
   onCaptainDashboard?: () => void;
   onHelp?: () => void;
   onContactSupport?: () => void;
@@ -103,9 +75,6 @@ const SettingItem: React.FC<SettingItemProps> = ({
 };
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
-  currentTeam,
-  onNavigateToTeamDiscovery,
-  onViewCurrentTeam,
   onCaptainDashboard,
   onHelp,
   onContactSupport,
@@ -113,7 +82,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onSignOut,
 }) => {
   const navigation = useNavigation();
-  const { profileData } = useNavigationData();
   const [userRole, setUserRole] = useState<'captain' | 'member' | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [userNsec, setUserNsec] = useState<string | null>(null);
@@ -127,18 +95,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [backgroundTrackingEnabled, setBackgroundTrackingEnabled] =
     useState(false);
 
-  // Competition Team state
-  const [competitionTeam, setCompetitionTeam] = useState<string | null>(null);
-  const [showTeamSelectionModal, setShowTeamSelectionModal] = useState(false);
-
-  // Charity Selection state
-  const [selectedCharity, setSelectedCharity] = useState<Charity | null>(null);
-  const [showCharityModal, setShowCharityModal] = useState(false);
-
-  // Reward Lightning Address state
-  const [rewardLightningAddress, setRewardLightningAddress] = useState<string>('');
-  const [isValidLightningAddress, setIsValidLightningAddress] = useState(false);
-  const [isSavingLightningAddress, setIsSavingLightningAddress] = useState(false);
 
   // Coach RUNSTR AI state
   const [showPPQModal, setShowPPQModal] = useState(false);
@@ -147,24 +103,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     useState<string>('claude-haiku-4.5');
   const [showModelPicker, setShowModelPicker] = useState(false);
 
-  // NWC Wallet state
-  const [hasNWC, setHasNWC] = useState(false);
-  const [showWalletConfig, setShowWalletConfig] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Wallet modals state
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [showReceiveModal, setShowReceiveModal] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [userNpub, setUserNpub] = useState<string>('');
-
-  // QR Scanner state (Phase 1: moved from ProfileScreen)
-  const [showQRScanner, setShowQRScanner] = useState(false);
-  const [showNWCConfirmation, setShowNWCConfirmation] = useState(false);
-  const [scannedNWCString, setScannedNWCString] = useState<string>('');
-
-  // Wallet balance state (don't initialize hooks unconditionally to prevent infinite loop)
-  const [walletBalance, setWalletBalance] = useState(0);
 
   // Alert state for CustomAlert
   const [alertVisible, setAlertVisible] = useState(false);
@@ -214,28 +153,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
       // ✅ PERFORMANCE FIX: Batch AsyncStorage reads using multiGet
       // This is 3x faster than sequential getItem calls
-      const keys = ['@runstr:user_role', '@runstr:user_nsec', '@runstr:npub'];
+      const keys = ['@runstr:user_role', '@runstr:user_nsec'];
       const values = await AsyncStorage.multiGet(keys);
 
       const storedRole = values[0][1]; // [key, value] pairs
       const nsec = values[1][1];
-      const npub = values[2][1];
 
       setUserRole(storedRole as 'captain' | 'member' | null);
       setUserNsec(nsec);
-
-      if (npub) {
-        setUserNpub(npub);
-      }
-
-      // Check NWC wallet status
-      const nwcAvailable = await NWCStorageService.hasNWC();
-      setHasNWC(nwcAvailable);
-
-      // Load wallet balance if NWC is configured
-      if (nwcAvailable) {
-        await loadWalletBalance();
-      }
 
       // Check if background step tracking is available and enabled
       const available = await dailyStepCounterService.isAvailable();
@@ -245,45 +170,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         setBackgroundTrackingEnabled(permissionStatus === 'granted');
       }
 
-      // Load selected charity
-      const charity = await CharitySelectionService.getSelectedCharity();
-      setSelectedCharity(charity);
-
-      // Load reward lightning address
-      const savedLightningAddress = await RewardLightningAddressService.getRewardLightningAddress();
-      if (savedLightningAddress) {
-        setRewardLightningAddress(savedLightningAddress);
-        setIsValidLightningAddress(true);
-      }
-
-      // Load competition team
-      const currentCompetitionTeam =
-        await LocalTeamMembershipService.getCompetitionTeam();
-      setCompetitionTeam(currentCompetitionTeam);
-
       // Load selected AI model
       const model = await ModelManager.getSelectedModel();
       setSelectedAIModel(model);
     } catch (error) {
       console.error('Error loading settings:', error);
-    }
-  };
-
-  const loadWalletBalance = async () => {
-    try {
-      const walletService = NWCWalletService;
-      const result = await walletService.getBalance();
-
-      if (result.balance !== undefined) {
-        setWalletBalance(result.balance);
-      } else if (result.error) {
-        console.error(
-          '[Settings] Failed to load wallet balance:',
-          result.error
-        );
-      }
-    } catch (error) {
-      console.error('[Settings] Error loading wallet balance:', error);
     }
   };
 
@@ -482,83 +373,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const handleWalletConfigSuccess = async () => {
-    // Reload NWC status after successful configuration
-    const nwcAvailable = await NWCStorageService.hasNWC();
-    setHasNWC(nwcAvailable);
-
-    // Wallet initialization removed to prevent infinite loop
-    // Balance will be loaded when user opens wallet features
-  };
-
-  // Helper function to format balance
-  const formatBalance = (sats: number): string => {
-    if (sats >= 1000000) {
-      return `${(sats / 1000000).toFixed(2)}M sats`;
-    } else if (sats >= 1000) {
-      return `${(sats / 1000).toFixed(1)}K sats`;
-    }
-    return `${sats} sats`;
-  };
-
-  const handleDisconnectWallet = async () => {
-    setAlertTitle('Disconnect Wallet?');
-    setAlertMessage(
-      'This will remove your wallet connection. You can reconnect anytime.'
-    );
-    setAlertButtons([
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disconnect',
-        style: 'destructive',
-        onPress: async () => {
-          await NWCStorageService.clearNWC();
-          setHasNWC(false);
-        },
-      },
-    ]);
-    setAlertVisible(true);
-  };
-
-  // QR Scanner handlers (Phase 1: moved from ProfileScreen)
-  const handleQRScanned = (qrData: QRData) => {
-    try {
-      // Only handle NWC QR codes in Settings
-      if (qrData.type === 'nwc') {
-        // Validate NWC data before setting state
-        if (
-          !qrData.connectionString ||
-          typeof qrData.connectionString !== 'string'
-        ) {
-          throw new Error('Invalid NWC connection string');
-        }
-        setScannedNWCString(qrData.connectionString);
-        setShowNWCConfirmation(true);
-      } else {
-        // Other QR types not handled in Settings
-        Alert.alert(
-          'Wrong QR Code Type',
-          'Please scan an NWC wallet connection QR code. Event and challenge QR codes should be scanned from the event pages.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('[SettingsScreen] QR scan error:', error);
-      Alert.alert(
-        'Error',
-        'Failed to process QR code. Please try scanning again.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleNWCConnected = async () => {
-    console.log('[SettingsScreen] NWC wallet connected successfully');
-    // Reload settings to update wallet status
-    await loadSettings();
-    setShowNWCConfirmation(false);
-  };
-
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -572,97 +386,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const handleChangeCharity = () => {
-    setShowCharityModal(true);
-  };
-
-  const handleCharitySelect = async (charity: Charity) => {
-    try {
-      const success = await CharitySelectionService.setSelectedCharity(
-        charity.id
-      );
-      if (success) {
-        setSelectedCharity(charity);
-        setShowCharityModal(false);
-      }
-    } catch (error) {
-      console.error('Error setting charity:', error);
-      setShowCharityModal(false);
-      setTimeout(() => {
-        setAlertTitle('Error');
-        setAlertMessage('Failed to update charity. Please try again.');
-        setAlertButtons([{ text: 'OK' }]);
-        setAlertVisible(true);
-      }, 100);
-    }
-  };
-
-  const handleCharityCancel = () => {
-    setShowCharityModal(false);
-  };
-
-  // Competition Team handlers
-  const handleChangeCompetitionTeam = () => {
-    setShowTeamSelectionModal(true);
-  };
-
-  const handleTeamSelect = async (teamId: string | null) => {
-    try {
-      if (teamId) {
-        await LocalTeamMembershipService.setCompetitionTeam(teamId);
-      } else {
-        await LocalTeamMembershipService.clearCompetitionTeam();
-      }
-      setCompetitionTeam(teamId);
-      setShowTeamSelectionModal(false);
-    } catch (error) {
-      console.error('Error setting competition team:', error);
-      setShowTeamSelectionModal(false);
-      setTimeout(() => {
-        setAlertTitle('Error');
-        setAlertMessage('Failed to update team. Please try again.');
-        setAlertButtons([{ text: 'OK' }]);
-        setAlertVisible(true);
-      }, 100);
-    }
-  };
-
-  const handleTeamCancel = () => {
-    setShowTeamSelectionModal(false);
-  };
-
-  // Reward Lightning Address handlers
-  const handleLightningAddressChange = (text: string) => {
-    setRewardLightningAddress(text);
-    setIsValidLightningAddress(RewardLightningAddressService.isValidLightningAddress(text));
-  };
-
-  const handleSaveLightningAddress = async () => {
-    if (!isValidLightningAddress || !rewardLightningAddress.trim()) {
-      return;
-    }
-
-    setIsSavingLightningAddress(true);
-    try {
-      await RewardLightningAddressService.setRewardLightningAddress(rewardLightningAddress.trim());
-      setAlertTitle('Saved');
-      setAlertMessage('Your rewards lightning address has been saved. It will be included in your workout events.');
-      setAlertButtons([{ text: 'OK' }]);
-      setAlertVisible(true);
-    } catch (error) {
-      console.error('Error saving lightning address:', error);
-      setAlertTitle('Error');
-      setAlertMessage('Failed to save lightning address. Please check the format and try again.');
-      setAlertButtons([{ text: 'OK' }]);
-      setAlertVisible(true);
-    } finally {
-      setIsSavingLightningAddress(false);
-    }
-  };
-
-  const handleUnlockRewards = () => {
-    Linking.openURL('https://www.runstr.club/pages/season2.html');
-  };
 
   const handleModelSelect = async (modelId: string) => {
     try {
@@ -869,113 +592,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </SettingsAccordion>
         </View>
 
-        {/* Competition Settings Accordion */}
-        <View style={styles.section}>
-          <SettingsAccordion
-            title="COMPETITION SETTINGS"
-            defaultExpanded={false}
-          >
-            <Card style={styles.accordionCard}>
-              {/* Competition Team Selection */}
-              <TouchableOpacity
-                style={styles.competitionTeamSelector}
-                onPress={handleChangeCompetitionTeam}
-                activeOpacity={0.7}
-              >
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Your Competition Team</Text>
-                  <Text style={styles.competitionTeamName}>
-                    {competitionTeam
-                      ? LocalTeamMembershipService.getTeamNameById(competitionTeam) || 'Unknown Team'
-                      : 'No Team'}
-                  </Text>
-                  <Text style={styles.settingSubtitle}>
-                    Team shown in social posts
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={theme.colors.textMuted}
-                />
-              </TouchableOpacity>
-
-              {/* Charity Support */}
-              <TouchableOpacity
-                style={styles.competitionTeamSelector}
-                onPress={handleChangeCharity}
-                activeOpacity={0.7}
-              >
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Your Charity</Text>
-                  <Text style={styles.competitionTeamName}>
-                    {selectedCharity
-                      ? selectedCharity.name
-                      : 'No charity selected'}
-                  </Text>
-                  <Text style={styles.settingSubtitle}>
-                    {selectedCharity
-                      ? 'All competition winnings go here'
-                      : 'Tap to select a charity'}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={theme.colors.textMuted}
-                />
-              </TouchableOpacity>
-
-              {/* Rewards Lightning Address */}
-              <View style={styles.lightningAddressSection}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Rewards Lightning Address</Text>
-                  <Text style={styles.settingSubtitle}>
-                    Your Lightning address for receiving payments
-                  </Text>
-                </View>
-                <View style={styles.lightningAddressInputRow}>
-                  <TextInput
-                    style={[
-                      styles.lightningAddressInput,
-                      rewardLightningAddress && !isValidLightningAddress && styles.lightningAddressInputError,
-                    ]}
-                    value={rewardLightningAddress}
-                    onChangeText={handleLightningAddressChange}
-                    placeholder="user@getalby.com"
-                    placeholderTextColor={theme.colors.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.lightningAddressSaveButton,
-                      (!isValidLightningAddress || isSavingLightningAddress) && styles.lightningAddressSaveButtonDisabled,
-                    ]}
-                    onPress={handleSaveLightningAddress}
-                    disabled={!isValidLightningAddress || isSavingLightningAddress}
-                  >
-                    {isSavingLightningAddress ? (
-                      <ActivityIndicator size="small" color="#000" />
-                    ) : (
-                      <Ionicons
-                        name={isValidLightningAddress ? 'checkmark' : 'save-outline'}
-                        size={20}
-                        color={isValidLightningAddress ? '#000' : theme.colors.textMuted}
-                      />
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {rewardLightningAddress && !isValidLightningAddress && (
-                  <Text style={styles.lightningAddressError}>
-                    Invalid format. Use: user@domain.com
-                  </Text>
-                )}
-              </View>
-            </Card>
-          </SettingsAccordion>
-        </View>
 
         {/* Coach RUNSTR AI Accordion (includes Voice Announcements) */}
         <View style={styles.section}>
@@ -1186,9 +802,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </SettingsAccordion>
         </View>
 
-        {/* Advanced Accordion (collapsed by default) */}
+        {/* Password Accordion (collapsed by default) */}
         <View style={styles.section}>
-          <SettingsAccordion title="ADVANCED" defaultExpanded={false}>
+          <SettingsAccordion title="PASSWORD" defaultExpanded={false}>
             <Card style={styles.accordionCard}>
               {/* Account Security */}
               <SettingItem
@@ -1207,144 +823,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   </View>
                 }
               />
-
-              {/* Wallet Subsection */}
-              <View style={styles.voiceSubsection}>
-                <Text style={styles.subsectionTitle}>Wallet</Text>
-
-                {hasNWC ? (
-                  <>
-                    {/* Balance Display */}
-                    <View style={styles.settingItem}>
-                      <View style={styles.settingInfo}>
-                        <Text style={styles.settingTitle}>Balance</Text>
-                        <Text style={styles.walletBalance}>
-                          {formatBalance(walletBalance)}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.refreshButton}
-                        onPress={loadWalletBalance}
-                      >
-                        <Ionicons
-                          name="refresh"
-                          size={20}
-                          color={theme.colors.text}
-                        />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Wallet Actions */}
-                    <View style={styles.walletActions}>
-                      <TouchableOpacity
-                        key="send-button"
-                        style={styles.walletActionButton}
-                        onPress={() => setShowSendModal(true)}
-                      >
-                        <Ionicons
-                          name="arrow-up-outline"
-                          size={20}
-                          color={theme.colors.text}
-                        />
-                        <Text style={styles.walletActionText}>Send</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        key="receive-button"
-                        style={styles.walletActionButton}
-                        onPress={() => setShowReceiveModal(true)}
-                      >
-                        <Ionicons
-                          name="arrow-down-outline"
-                          size={20}
-                          color={theme.colors.text}
-                        />
-                        <Text style={styles.walletActionText}>Receive</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        key="history-button"
-                        style={styles.walletActionButton}
-                        onPress={() => setShowHistoryModal(true)}
-                      >
-                        <Ionicons
-                          name="time-outline"
-                          size={20}
-                          color={theme.colors.text}
-                        />
-                        <Text style={styles.walletActionText}>History</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Disconnect Option */}
-                    <TouchableOpacity
-                      style={styles.disconnectWalletButton}
-                      onPress={handleDisconnectWallet}
-                    >
-                      <Text style={styles.disconnectWalletText}>
-                        Disconnect Wallet
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  /* Connect Wallet Prompt */
-                  <View style={styles.connectWalletContainer}>
-                    <Ionicons
-                      name="wallet-outline"
-                      size={48}
-                      color={theme.colors.textMuted}
-                    />
-                    <Text style={styles.connectWalletTitle}>
-                      Connect Your Wallet
-                    </Text>
-                    <Text style={styles.connectWalletDescription}>
-                      Connect a Lightning wallet via Nostr Wallet Connect (NWC)
-                      to send and receive Bitcoin payments
-                    </Text>
-
-                    {/* Two connection options */}
-                    <TouchableOpacity
-                      key="scan-qr-button"
-                      style={styles.connectWalletButton}
-                      onPress={() => setShowQRScanner(true)}
-                    >
-                      <Ionicons
-                        name="qr-code-outline"
-                        size={20}
-                        color={theme.colors.background}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.connectWalletButtonText}>
-                        Scan QR Code
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      key="manual-entry-button"
-                      style={[
-                        styles.connectWalletButton,
-                        styles.connectWalletButtonSecondary,
-                      ]}
-                      onPress={() => setShowWalletConfig(true)}
-                    >
-                      <Ionicons
-                        name="create-outline"
-                        size={20}
-                        color={theme.colors.text}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={[
-                          styles.connectWalletButtonText,
-                          styles.connectWalletButtonTextSecondary,
-                        ]}
-                      >
-                        Enter Manually
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
             </Card>
           </SettingsAccordion>
         </View>
@@ -1424,29 +902,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         onClose={() => setAlertVisible(false)}
       />
 
-      {/* Charity Selection Modal */}
-      <CharitySelectionModal
-        visible={showCharityModal}
-        charities={CharitySelectionService.getAllCharities()}
-        selectedCharityId={selectedCharity?.id}
-        onSelect={handleCharitySelect}
-        onCancel={handleCharityCancel}
-      />
-
-      {/* Team Selection Modal */}
-      <TeamSelectionModal
-        visible={showTeamSelectionModal}
-        teams={HARDCODED_TEAMS.map((t) => ({
-          teamId: t.id,
-          teamName: t.name,
-          captainPubkey: t.captainHex,
-          joinedAt: Date.now(),
-          status: 'local' as const,
-        }))}
-        currentTeamId={competitionTeam}
-        onSelect={handleTeamSelect}
-        onCancel={handleTeamCancel}
-      />
 
       {/* PPQ.AI API Key Configuration Modal */}
       <PPQAPIKeyModal
@@ -1509,53 +964,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </View>
       </Modal>
 
-      {/* Wallet Configuration Modal */}
-      <WalletConfigModal
-        visible={showWalletConfig}
-        onClose={() => setShowWalletConfig(false)}
-        onSuccess={handleWalletConfigSuccess}
-        allowSkip={true}
-      />
-
-      {/* Send Modal */}
-      <SendModal
-        visible={showSendModal}
-        onClose={() => setShowSendModal(false)}
-        currentBalance={walletBalance}
-      />
-
-      {/* Receive Modal */}
-      <ReceiveModal
-        visible={showReceiveModal}
-        onClose={() => setShowReceiveModal(false)}
-        currentBalance={walletBalance}
-        userNpub={userNpub}
-      />
-
-      {/* History Modal */}
-      <HistoryModal
-        visible={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-      />
-
-      {/* QR Scanner Modal (Phase 1: moved from ProfileScreen) */}
-      {showQRScanner && (
-        <QRScannerModal
-          visible={showQRScanner}
-          onClose={() => setShowQRScanner(false)}
-          onScanned={handleQRScanned}
-        />
-      )}
-
-      {/* NWC Wallet Connection Confirmation Modal */}
-      {showNWCConfirmation && (
-        <NWCQRConfirmationModal
-          visible={showNWCConfirmation}
-          onClose={() => setShowNWCConfirmation(false)}
-          connectionString={scannedNWCString}
-          onSuccess={handleNWCConnected}
-        />
-      )}
     </SafeAreaView>
   );
 };

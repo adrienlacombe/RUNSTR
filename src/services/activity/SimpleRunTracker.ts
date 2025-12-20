@@ -731,8 +731,11 @@ export class SimpleRunTracker {
       if (this.lastGpsPoint) {
         const increment = this.haversineDistance(this.lastGpsPoint, point);
 
-        // Movement threshold (0.5m min, 100m max - filter jitter and teleports)
-        if (increment >= 0.5 && increment < 100) {
+        // Movement threshold (0.5m min - filter jitter)
+        // Note: Teleport filtering already done in Stage 1 (SimpleRunTrackerTask)
+        // Removed redundant < 100m check that caused 85% data loss on Android 16
+        // due to threshold mismatch (Stage 1 accepts ≤100m, Stage 2 rejected ≥100m)
+        if (increment >= 0.5) {
           this.runningDistance += increment;
         }
       }

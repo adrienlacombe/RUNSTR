@@ -1,6 +1,6 @@
 /**
  * BottomTabNavigator - Main tab navigation for authenticated users
- * Teams tab for discovery and Profile tab for user data
+ * Exercise tab for tracking, Compete tab for Season II, Profile tab for user data
  */
 
 import React, { Suspense } from 'react';
@@ -31,10 +31,10 @@ const ActivityTrackerScreen = React.lazy(() =>
   }))
 );
 
-// Lazy load Events (Satlantis) screen
-const SatlantisDiscoveryScreen = React.lazy(() =>
-  import('../screens/satlantis/SatlantisDiscoveryScreen').then((m) => ({
-    default: m.SatlantisDiscoveryScreen,
+// Lazy load Compete (Season2) screen
+const Season2Screen = React.lazy(() =>
+  import('../screens/season2/Season2Screen').then((m) => ({
+    default: m.Season2Screen,
   }))
 );
 
@@ -62,7 +62,7 @@ import { createNavigationHandlers } from './navigationHandlers';
 export type BottomTabParamList = {
   Teams: undefined;
   Exercise: undefined;
-  Events: undefined;
+  Compete: undefined;
   Profile: undefined;
 };
 
@@ -118,8 +118,8 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Exercise') {
             iconName = focused ? 'fitness' : 'fitness-outline';
-          } else if (route.name === 'Events') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'Compete') {
+            iconName = focused ? 'trophy' : 'trophy-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -151,17 +151,17 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({
         )}
       </Tab.Screen>
 
-      {/* Events Tab - Race Events from Satlantis */}
+      {/* Compete Tab - Season II with Custom Events & Leaderboards */}
       <Tab.Screen
-        name="Events"
+        name="Compete"
         options={{
-          title: 'Events',
+          title: 'Compete',
           headerShown: false,
         }}
       >
         {({ navigation }) => (
           <Suspense fallback={<LoadingFallback />}>
-            <SatlantisDiscoveryScreen navigation={navigation} />
+            <Season2Screen navigation={navigation} />
           </Suspense>
         )}
       </Tab.Screen>

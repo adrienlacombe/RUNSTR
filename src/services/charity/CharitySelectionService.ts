@@ -9,7 +9,8 @@ import { getCharityById, CHARITIES } from '../../constants/charities';
 import type { Charity } from '../../constants/charities';
 
 const STORAGE_KEYS = {
-  SELECTED_CHARITY: '@runstr:selected_charity',
+  // Must match TeamsScreen storage key for consistency
+  SELECTED_CHARITY: '@runstr:selected_charity_id',
   CHARITY_STATS: '@runstr:charity_stats',
 };
 
@@ -19,15 +20,16 @@ export interface CharityStats {
 }
 
 class CharitySelectionServiceClass {
-  private cachedCharity: Charity | null = null;
+  private cachedCharity: Charity | null | undefined = undefined;
   private cachedStats: CharityStats | null = null;
 
   /**
-   * Get user's selected charity (defaults to HRF)
+   * Get user's selected charity (returns null if none selected)
+   * Users can select/deselect charities in TeamsScreen
    */
-  async getSelectedCharity(): Promise<Charity> {
+  async getSelectedCharity(): Promise<Charity | null> {
     // Return cached charity if available
-    if (this.cachedCharity) {
+    if (this.cachedCharity !== undefined) {
       return this.cachedCharity;
     }
 
@@ -36,41 +38,25 @@ class CharitySelectionServiceClass {
         STORAGE_KEYS.SELECTED_CHARITY
       );
 
-      // If no charity selected, default to HRF
+      // If no charity selected, return null (selection is optional)
       if (!charityId) {
-        const hrf = getCharityById('hrf');
-        if (hrf) {
-          this.cachedCharity = hrf;
-          return hrf;
-        }
+        this.cachedCharity = null;
+        return null;
       }
 
       // Get charity by stored ID
-      const charity = getCharityById(charityId || '');
+      const charity = getCharityById(charityId);
       if (charity) {
         this.cachedCharity = charity;
         return charity;
       }
 
-      // Fallback to HRF if charity not found
-      const hrf = getCharityById('hrf');
-      if (hrf) {
-        this.cachedCharity = hrf;
-        return hrf;
-      }
-
-      // Last resort: return first charity
-      this.cachedCharity = CHARITIES[0];
-      return CHARITIES[0];
+      // Charity ID not found - return null
+      this.cachedCharity = null;
+      return null;
     } catch (error) {
       console.error('[CharitySelection] Error getting charity:', error);
-      // Default to HRF on error
-      const hrf = getCharityById('hrf');
-      if (hrf) {
-        this.cachedCharity = hrf;
-        return hrf;
-      }
-      return CHARITIES[0];
+      return null;
     }
   }
 
@@ -165,7 +151,7 @@ class CharitySelectionServiceClass {
    * Clear cache (useful when user logs out or switches accounts)
    */
   clearCache(): void {
-    this.cachedCharity = null;
+    this.cachedCharity = undefined;
     this.cachedStats = null;
   }
 

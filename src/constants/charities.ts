@@ -14,22 +14,6 @@ export interface Charity {
 
 export const CHARITIES: Charity[] = [
   {
-    id: 'opensats',
-    name: 'OpenSats',
-    displayName: 'OpenSats',
-    lightningAddress: 'opensats@vlt.ge',
-    description: 'Supporting open source Bitcoin development',
-    website: 'https://opensats.org',
-  },
-  {
-    id: 'hrf',
-    name: 'Human Rights Foundation',
-    displayName: 'The HRF',
-    lightningAddress: 'hrf@btcpay.hrf.org',
-    description: 'Promoting freedom and human rights worldwide',
-    website: 'https://hrf.org',
-  },
-  {
     id: 'bitcoin-beach',
     name: 'Bitcoin Beach',
     displayName: 'Bitcoin Beach',

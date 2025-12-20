@@ -179,7 +179,7 @@ export const PrivacyNoticeModal: React.FC<PrivacyNoticeModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: theme.colors.modalOverlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

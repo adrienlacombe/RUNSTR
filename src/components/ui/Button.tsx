@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
 
   primaryButtonText: {
-    color: theme.colors.text,
+    color: theme.colors.buttons.primary.text, // Black text on orange background
     fontSize: theme.typography.aboutTitle,
     fontWeight: theme.typography.weights.medium,
   },

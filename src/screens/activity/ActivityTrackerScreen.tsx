@@ -17,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../styles/theme';
+import { PermissionRequestModal } from '../../components/permissions/PermissionRequestModal';
+import { appPermissionService } from '../../services/initialization/AppPermissionService';
 import { RunningTrackerScreen } from './RunningTrackerScreen';
 import { WalkingTrackerScreen } from './WalkingTrackerScreen';
 import { CyclingTrackerScreen } from './CyclingTrackerScreen';
@@ -485,6 +487,7 @@ export const ActivityTrackerScreen: React.FC = () => {
   const [showStrengthMenu, setShowStrengthMenu] = useState(false);
   const [showDietMenu, setShowDietMenu] = useState(false);
   const [showWellnessMenu, setShowWellnessMenu] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   // Selected sub-options for each category
   const [selectedStrength, setSelectedStrength] = useState<StrengthOption>('pushups');
@@ -534,6 +537,18 @@ export const ActivityTrackerScreen: React.FC = () => {
     };
     loadSavedActivity();
     loadCustomExercises();
+  }, []);
+
+  // Check permissions on mount - show modal if location permission not granted
+  useEffect(() => {
+    const checkPermissions = async () => {
+      const status = await appPermissionService.checkAllPermissions();
+      if (!status.location) {
+        console.log('[ActivityTracker] Location permission not granted, showing modal');
+        setShowPermissionModal(true);
+      }
+    };
+    checkPermissions();
   }, []);
 
   // Save activity to AsyncStorage whenever it changes
@@ -739,6 +754,17 @@ export const ActivityTrackerScreen: React.FC = () => {
         onSelectOption={handleWellnessOptionSelect}
         customExercises={customWellness}
       />
+
+      {/* Permission Request Modal - shown on first visit if location not granted */}
+      {showPermissionModal && (
+        <PermissionRequestModal
+          visible={true}
+          onComplete={() => {
+            setShowPermissionModal(false);
+            console.log('[ActivityTracker] Permissions granted');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };

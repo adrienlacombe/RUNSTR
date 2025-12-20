@@ -27,9 +27,21 @@ import type { NostrProfile } from '../services/nostr/NostrProfileService';
 import { LoadingOverlay } from '../components/ui/LoadingStates';
 import { Ionicons } from '@expo/vector-icons';
 import { EnhancedSocialShareModal } from '../components/profile/shared/EnhancedSocialShareModal';
+import { ToggleButtons } from '../components/ui/ToggleButtons';
 
 // Two-Tab Workout Components
 import { WorkoutTabNavigator } from '../components/profile/WorkoutTabNavigator';
+
+// Analytics Content (embeddable)
+import { AdvancedAnalyticsContent } from '../components/analytics/AdvancedAnalyticsContent';
+
+// Stats screen top-level tabs
+type StatsTab = 'history' | 'advanced';
+
+const STATS_TABS = [
+  { key: 'history', label: 'Workout History' },
+  { key: 'advanced', label: 'Advanced' },
+];
 // Import type from the service file (not from the default export)
 import type { LocalWorkout } from '../services/fitness/LocalWorkoutStorageService';
 
@@ -46,6 +58,7 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
   route,
 }) => {
   const navigation = useNavigation<any>();
+  const [activeStatsTab, setActiveStatsTab] = useState<StatsTab>('history');
   const [pubkey, setPubkey] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [signer, setSigner] = useState<NDKSigner | null>(null);
@@ -488,49 +501,71 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Header - back button only */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Workouts</Text>
-        <TouchableOpacity
-          onPress={handleImportNostrHistory}
-          style={styles.syncButton}
-          disabled={importing}
-        >
-          <Ionicons
-            name={importing ? 'sync' : 'cloud-download-outline'}
-            size={24}
-            color={importing ? theme.colors.textMuted : '#FF9D42'}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
-      {/* Import Progress Banner */}
-      {importing && importProgress && (
-        <View style={styles.importProgressBanner}>
-          <Ionicons name="cloud-download" size={18} color="#FF9D42" />
-          <Text style={styles.importProgressText}>
-            {importProgress.total === 0
-              ? 'Connecting to Nostr relays...'
-              : `Syncing workouts: ${importProgress.current} / ${importProgress.total}`}
-          </Text>
-        </View>
+      {/* Top-Level Stats Toggle */}
+      <View style={styles.topToggleContainer}>
+        <ToggleButtons
+          options={STATS_TABS}
+          activeKey={activeStatsTab}
+          onSelect={(key) => setActiveStatsTab(key as StatsTab)}
+        />
+      </View>
+
+      {/* Workout History Tab Content */}
+      {activeStatsTab === 'history' && (
+        <>
+          {/* Import Banner (styled like Create Event) */}
+          <TouchableOpacity
+            style={[styles.importBanner, importing && styles.importBannerDisabled]}
+            onPress={handleImportNostrHistory}
+            activeOpacity={0.7}
+            disabled={importing}
+          >
+            <Ionicons
+              name={importing ? 'sync' : 'cloud-download-outline'}
+              size={20}
+              color={importing ? theme.colors.textMuted : theme.colors.text}
+            />
+            <Text style={[styles.importBannerText, importing && styles.importBannerTextDisabled]}>
+              {importing
+                ? importProgress?.total === 0
+                  ? 'Connecting to Nostr relays...'
+                  : `Syncing: ${importProgress?.current || 0} / ${importProgress?.total || 0}`
+                : 'Import from Nostr'}
+            </Text>
+            {!importing && (
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+            )}
+          </TouchableOpacity>
+
+          {/* Phone/Watch Toggle + Workout List */}
+          <WorkoutTabNavigator
+            userId={userId}
+            pubkey={pubkey}
+            onPostToNostr={handlePostToNostr}
+            onPostToSocial={handlePostToSocial}
+            onCompeteHealthKit={handleCompeteHealthKit}
+            onSocialShareHealthKit={handleSocialShareHealthKit}
+            onCompeteHealthConnect={handleCompeteHealthConnect}
+            onSocialShareHealthConnect={handleSocialShareHealthConnect}
+            onNavigateToAnalytics={handleNavigateToAnalytics}
+          />
+        </>
       )}
 
-      {/* Three-Tab Workout Navigator */}
-      <WorkoutTabNavigator
-        userId={userId}
-        pubkey={pubkey}
-        onPostToNostr={handlePostToNostr}
-        onPostToSocial={handlePostToSocial}
-        onCompeteHealthKit={handleCompeteHealthKit}
-        onSocialShareHealthKit={handleSocialShareHealthKit}
-        onCompeteHealthConnect={handleCompeteHealthConnect}
-        onSocialShareHealthConnect={handleSocialShareHealthConnect}
-        onNavigateToAnalytics={handleNavigateToAnalytics}
-      />
+      {/* Advanced Tab Content */}
+      {activeStatsTab === 'advanced' && (
+        <AdvancedAnalyticsContent
+          onPrivacyDeclined={() => setActiveStatsTab('history')}
+        />
+      )}
 
       {/* Enhanced Social Share Modal */}
       <EnhancedSocialShareModal
@@ -572,34 +607,42 @@ const styles = StyleSheet.create({
     padding: 8,
   },
 
-  headerTitle: {
+  headerSpacer: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-    textAlign: 'center',
   },
 
-  syncButton: {
-    padding: 8,
+  topToggleContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
 
-  importProgressBanner: {
+  importBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 157, 66, 0.1)',
-    paddingVertical: 10,
+    backgroundColor: theme.colors.cardBackground,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 157, 66, 0.2)',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: theme.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12,
   },
 
-  importProgressText: {
-    color: '#FF9D42',
-    fontSize: 14,
-    fontWeight: '500',
+  importBannerDisabled: {
+    opacity: 0.7,
+  },
+
+  importBannerText: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: theme.typography.weights.medium,
+  },
+
+  importBannerTextDisabled: {
+    color: theme.colors.textMuted,
   },
 
   errorContainer: {

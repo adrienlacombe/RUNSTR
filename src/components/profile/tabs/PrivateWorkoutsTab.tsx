@@ -255,7 +255,7 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
                     size={16}
                     color="#000"
                   />
-                  <Text style={styles.publicButtonText}>Public</Text>
+                  <Text style={styles.publicButtonText}>Compete</Text>
                 </>
               )}
             </TouchableOpacity>

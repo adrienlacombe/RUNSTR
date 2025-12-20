@@ -39,6 +39,7 @@ export const EventParticipantManagementSection: React.FC<
   const [showAddModal, setShowAddModal] = useState(false);
   const [newParticipantPubkey, setNewParticipantPubkey] = useState('');
   const [isAddingParticipant, setIsAddingParticipant] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
 
   const listService = NostrListService.getInstance();
   const dTag = `event-${eventId}-participants`;
@@ -310,13 +311,15 @@ export const EventParticipantManagementSection: React.FC<
             </Text>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, inputFocused && styles.inputFocused]}
               placeholder="npub1... or hex pubkey"
               placeholderTextColor={theme.colors.textMuted}
               value={newParticipantPubkey}
               onChangeText={setNewParticipantPubkey}
               autoCapitalize="none"
               autoCorrect={false}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
             />
 
             <View style={styles.modalActions}>
@@ -459,6 +462,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text,
     marginBottom: 20,
+  },
+  inputFocused: {
+    borderColor: theme.colors.inputFocus,
   },
   modalActions: {
     flexDirection: 'row',

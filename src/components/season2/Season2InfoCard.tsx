@@ -1,5 +1,5 @@
 /**
- * Season2InfoCard - Info card with dates and prize summary
+ * Season2InfoCard - Simple info card with title and dates
  * Tappable to open explainer modal
  */
 
@@ -8,15 +8,13 @@ import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { useSeason2Status } from '../../hooks/useSeason2';
-import { formatSats } from '../../constants/season2';
 
 interface Season2InfoCardProps {
   onPress: () => void;
 }
 
 export const Season2InfoCard: React.FC<Season2InfoCardProps> = ({ onPress }) => {
-  const { dateRange, prizePoolBonus, prizePoolCharity, status } =
-    useSeason2Status();
+  const { dateRange, status } = useSeason2Status();
 
   const getStatusBadge = () => {
     switch (status) {
@@ -37,6 +35,10 @@ export const Season2InfoCard: React.FC<Season2InfoCardProps> = ({ onPress }) => 
       onPress={onPress}
       activeOpacity={0.7}
     >
+      {/* Title */}
+      <Text style={styles.title}>RUNSTR SEASON II</Text>
+
+      {/* Date and status row */}
       <View style={styles.topRow}>
         <View style={styles.dateSection}>
           <Ionicons
@@ -48,22 +50,6 @@ export const Season2InfoCard: React.FC<Season2InfoCardProps> = ({ onPress }) => 
         </View>
         <View style={[styles.statusBadge, { backgroundColor: badge.color }]}>
           <Text style={styles.statusText}>{badge.label}</Text>
-        </View>
-      </View>
-
-      <View style={styles.prizeRow}>
-        <View style={styles.prizeItem}>
-          <Text style={styles.prizeAmount}>
-            {formatSats(prizePoolBonus)}
-          </Text>
-          <Text style={styles.prizeLabel}>Bonus Prize</Text>
-        </View>
-        <View style={styles.prizeDivider} />
-        <View style={styles.prizeItem}>
-          <Text style={styles.prizeAmount}>
-            {formatSats(prizePoolCharity)}
-          </Text>
-          <Text style={styles.prizeLabel}>Charity Prizes</Text>
         </View>
       </View>
 
@@ -87,6 +73,13 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     padding: 16,
     marginBottom: 16,
+  },
+  title: {
+    color: theme.colors.orangeBright,
+    fontSize: 18,
+    fontWeight: theme.typography.weights.bold,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   topRow: {
     flexDirection: 'row',
@@ -112,31 +105,6 @@ const styles = StyleSheet.create({
     color: theme.colors.background,
     fontSize: 10,
     fontWeight: theme.typography.weights.bold,
-  },
-  prizeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 24,
-    marginBottom: 12,
-  },
-  prizeItem: {
-    alignItems: 'center',
-  },
-  prizeAmount: {
-    color: theme.colors.orangeBright,
-    fontSize: 20,
-    fontWeight: theme.typography.weights.bold,
-  },
-  prizeLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  prizeDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: theme.colors.border,
   },
   infoHint: {
     flexDirection: 'row',
