@@ -33,7 +33,6 @@ import {
   type PostingState,
 } from '../../components/activity/DailyStepGoalCard';
 import { dailyStepCounterService } from '../../services/activity/DailyStepCounterService';
-import { nativeStepCounterService } from '../../services/activity/NativeStepCounterService';
 import { dailyStepGoalService } from '../../services/activity/DailyStepGoalService';
 import type { DailyStepData } from '../../services/activity/DailyStepCounterService';
 import type { StepGoalProgress } from '../../services/activity/DailyStepGoalService';
@@ -55,7 +54,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PublishableWorkout } from '../../services/nostr/workoutPublishingService';
 import { theme } from '../../styles/theme';
 
-const STEP_UPDATE_INTERVAL = 60 * 1000; // Update every 1 minute (was 5 minutes)
+const STEP_UPDATE_INTERVAL = 5 * 1000; // Update every 5 seconds for near-real-time
 
 export const WalkingTrackerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -121,6 +120,8 @@ export const WalkingTrackerScreen: React.FC = () => {
   // Live pedometer step tracking (real steps during active walking)
   const liveStepsRef = useRef<number>(0);
   const unsubscribeLiveStepsRef = useRef<(() => void) | null>(null);
+  // Starting step count for Android (captured when walk begins)
+  const startingStepsRef = useRef<number>(0);
 
   const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [showBackgroundBanner, setShowBackgroundBanner] = useState(false);
@@ -453,14 +454,18 @@ export const WalkingTrackerScreen: React.FC = () => {
 
     // Reset live step counter for new session
     liveStepsRef.current = 0;
+    startingStepsRef.current = 0;
 
     // Platform-specific live step tracking
     if (Platform.OS === 'android') {
-      // Android: Use NativeStepCounterService (foreground service with step sensor)
-      const started = await nativeStepCounterService.startTracking();
-      console.log(`[WalkingTrackerScreen] Android native step counter started: ${started}`);
+      // Android: Capture starting step count from Health Connect
+      // We'll calculate steps walked as (current - starting)
+      dailyStepCounterService.clearCache();
+      const stepData = await dailyStepCounterService.getTodaySteps();
+      startingStepsRef.current = stepData?.steps || 0;
+      console.log(`[WalkingTracker] Starting steps: ${startingStepsRef.current}`);
     } else {
-      // iOS: Use Pedometer.watchStepCount() subscription
+      // iOS: Use Pedometer.watchStepCount() subscription for real-time updates
       unsubscribeLiveStepsRef.current = dailyStepCounterService.subscribeLiveSteps(
         (incrementalSteps: number) => {
           liveStepsRef.current = incrementalSteps;
@@ -480,7 +485,7 @@ export const WalkingTrackerScreen: React.FC = () => {
       }
     }, 1000);
 
-    metricsUpdateRef.current = setInterval(updateMetrics, 1000); // Update every second for consistent UX across activities
+    metricsUpdateRef.current = setInterval(updateMetrics, 5000); // Poll every 5 seconds for step updates
   };
 
   const updateMetrics = async () => {
@@ -488,24 +493,32 @@ export const WalkingTrackerScreen: React.FC = () => {
     if (session) {
       const distance = session.distance || 0;
 
-      // For Android, poll nativeStepCounterService for live steps
+      // Get current step count based on platform
+      let steps = 0;
       if (Platform.OS === 'android') {
+        // Android: Query Health Connect for current steps, calculate delta from start
         try {
-          const androidSteps = await nativeStepCounterService.getStepsSinceStart();
-          // Only update if steps increased (avoid flickering with stale data)
-          if (androidSteps > liveStepsRef.current) {
-            console.log(`[WalkingTracker] Android steps: ${liveStepsRef.current} → ${androidSteps}`);
-            liveStepsRef.current = androidSteps;
+          dailyStepCounterService.clearCache(); // Force fresh data
+          const stepData = await dailyStepCounterService.getTodaySteps();
+          const currentSteps = stepData?.steps || 0;
+          steps = Math.max(0, currentSteps - startingStepsRef.current);
+          if (steps > liveStepsRef.current) {
+            console.log(`[WalkingTracker] Steps: ${currentSteps} - ${startingStepsRef.current} = ${steps}`);
           }
         } catch (e) {
-          // Silently continue with GPS estimate if native counter fails
+          console.log('[WalkingTracker] Error getting steps from Health Connect');
         }
+      } else {
+        // iOS: Use real-time subscription (liveStepsRef updated by callback)
+        steps = liveStepsRef.current;
       }
 
-      // Use real pedometer steps, fall back to GPS estimate if pedometer unavailable
-      const steps = liveStepsRef.current > 0
-        ? liveStepsRef.current
-        : activityMetricsService.estimateSteps(distance);
+      // Fallback to GPS estimate if no steps detected but walking
+      if (steps === 0 && distance > 0) {
+        steps = activityMetricsService.estimateSteps(distance);
+      }
+
+      liveStepsRef.current = steps;
       const calories = activityMetricsService.estimateCalories('walking', distance, elapsedTime);
 
       setMetrics({
@@ -551,9 +564,8 @@ export const WalkingTrackerScreen: React.FC = () => {
 
     // Platform-specific step tracking cleanup
     if (Platform.OS === 'android') {
-      // Stop Android native step counter
-      await nativeStepCounterService.stopTracking();
-      console.log('[WalkingTrackerScreen] Android native step counter stopped');
+      // Android: Just log completion (Health Connect polling handles itself)
+      console.log(`[WalkingTrackerScreen] Android walk stopped - ${liveStepsRef.current} steps tracked`);
     } else if (unsubscribeLiveStepsRef.current) {
       // Unsubscribe from iOS pedometer
       unsubscribeLiveStepsRef.current();
