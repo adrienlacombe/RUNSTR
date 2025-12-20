@@ -32,6 +32,7 @@ import {
   type PostingState,
 } from '../../components/activity/DailyStepGoalCard';
 import { dailyStepCounterService } from '../../services/activity/DailyStepCounterService';
+import { nativeStepCounterService } from '../../services/activity/NativeStepCounterService';
 import { dailyStepGoalService } from '../../services/activity/DailyStepGoalService';
 import type { DailyStepData } from '../../services/activity/DailyStepCounterService';
 import type { StepGoalProgress } from '../../services/activity/DailyStepGoalService';
@@ -441,7 +442,7 @@ export const WalkingTrackerScreen: React.FC = () => {
     }
   };
 
-  const initializeTracking = () => {
+  const initializeTracking = async () => {
     setIsTracking(true);
     setIsPaused(false);
     isPausedRef.current = false;
@@ -452,14 +453,21 @@ export const WalkingTrackerScreen: React.FC = () => {
     // Reset live step counter for new session
     liveStepsRef.current = 0;
 
-    // Subscribe to live pedometer updates for real step counting
-    unsubscribeLiveStepsRef.current = dailyStepCounterService.subscribeLiveSteps(
-      (incrementalSteps: number) => {
-        liveStepsRef.current = incrementalSteps;
-        console.log(`[WalkingTrackerScreen] Live steps: ${incrementalSteps}`);
-      }
-    );
-    console.log('[WalkingTrackerScreen] Live pedometer subscription started');
+    // Platform-specific live step tracking
+    if (Platform.OS === 'android') {
+      // Android: Use NativeStepCounterService (foreground service with step sensor)
+      const started = await nativeStepCounterService.startTracking();
+      console.log(`[WalkingTrackerScreen] Android native step counter started: ${started}`);
+    } else {
+      // iOS: Use Pedometer.watchStepCount() subscription
+      unsubscribeLiveStepsRef.current = dailyStepCounterService.subscribeLiveSteps(
+        (incrementalSteps: number) => {
+          liveStepsRef.current = incrementalSteps;
+          console.log(`[WalkingTrackerScreen] Live steps: ${incrementalSteps}`);
+        }
+      );
+      console.log('[WalkingTrackerScreen] iOS pedometer subscription started');
+    }
 
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
@@ -474,10 +482,17 @@ export const WalkingTrackerScreen: React.FC = () => {
     metricsUpdateRef.current = setInterval(updateMetrics, 1000); // Update every second for consistent UX across activities
   };
 
-  const updateMetrics = () => {
+  const updateMetrics = async () => {
     const session = simpleRunTracker.getCurrentSession();
     if (session) {
       const distance = session.distance || 0;
+
+      // For Android, poll nativeStepCounterService for live steps
+      if (Platform.OS === 'android') {
+        const androidSteps = await nativeStepCounterService.getStepsSinceStart();
+        liveStepsRef.current = androidSteps;
+      }
+
       // Use real pedometer steps, fall back to GPS estimate if pedometer unavailable
       const steps = liveStepsRef.current > 0
         ? liveStepsRef.current
@@ -524,18 +539,25 @@ export const WalkingTrackerScreen: React.FC = () => {
       clearInterval(metricsUpdateRef.current);
       metricsUpdateRef.current = null;
     }
-    // Unsubscribe from live pedometer updates
-    if (unsubscribeLiveStepsRef.current) {
+
+    // Platform-specific step tracking cleanup
+    if (Platform.OS === 'android') {
+      // Stop Android native step counter
+      await nativeStepCounterService.stopTracking();
+      console.log('[WalkingTrackerScreen] Android native step counter stopped');
+    } else if (unsubscribeLiveStepsRef.current) {
+      // Unsubscribe from iOS pedometer
       unsubscribeLiveStepsRef.current();
       unsubscribeLiveStepsRef.current = null;
-      console.log('[WalkingTrackerScreen] Live pedometer subscription stopped');
+      console.log('[WalkingTrackerScreen] iOS pedometer subscription stopped');
     }
 
     const session = await simpleRunTracker.stopTracking();
     setIsTracking(false);
     setIsPaused(false);
 
-    if (session && session.distance > 10) {
+    // Show summary for any tracked workout (steps > 0 or distance > 0)
+    if (session && (liveStepsRef.current > 0 || session.distance > 0)) {
       showWorkoutSummary(session);
     } else {
       resetMetrics();
@@ -874,7 +896,7 @@ export const WalkingTrackerScreen: React.FC = () => {
             <HeroMetric
               primaryValue={metrics.steps}
               primaryUnit="steps"
-              secondaryValue={metrics.duration}
+              secondaryValue={activityMetricsService.formatDuration(elapsedTime)}
             />
           </View>
 

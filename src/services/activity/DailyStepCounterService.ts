@@ -22,7 +22,7 @@ export interface DailyStepData {
 export class DailyStepCounterService {
   private static instance: DailyStepCounterService;
   private cachedSteps: DailyStepData | null = null;
-  private cacheExpiry: number = 5 * 60 * 1000; // 5 minutes
+  private cacheExpiry: number = 30 * 1000; // 30 seconds (was 5 minutes)
 
   private constructor() {
     console.log(`[DailyStepCounterService] Initialized for ${Platform.OS}`);
