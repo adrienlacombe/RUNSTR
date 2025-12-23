@@ -26,6 +26,8 @@ import { getUserNostrIdentifiers } from '../../utils/nostr';
 import unifiedCache from '../cache/UnifiedNostrCache';
 import { CacheTTL, CacheKeys } from '../../constants/cacheTTL';
 import { CaptainCache } from '../../utils/captainCache';
+import { WorkoutEventStore } from '../fitness/WorkoutEventStore';
+import { FrozenEventStore } from '../cache/FrozenEventStore';
 
 export class NostrPrefetchService {
   private static instance: NostrPrefetchService;
@@ -87,12 +89,57 @@ export class NostrPrefetchService {
           reportProgress('Profile loaded (fallback)');
         });
 
+      // ❄️ Initialize FrozenEventStore (instant - reads from AsyncStorage)
+      // Enables instant display of ended event leaderboards
+      FrozenEventStore.initializeMemoryCache().catch((err) => {
+        console.warn('[Prefetch] FrozenEventStore init failed:', err?.message);
+      });
+
+      // ✅ Initialize WorkoutEventStore in background (non-blocking)
+      // Loads from cache immediately, fetches fresh data in background
+      this.initializeWorkoutStore().catch((err) => {
+        console.warn('[Prefetch] WorkoutEventStore init failed:', err?.message);
+      });
+
       console.log(
         '✅ Prefetch complete (<1s) - non-essential data loads on-demand'
       );
     } catch (error) {
       console.error('❌ Prefetch failed:', error);
       // Don't throw - app should still work with partial data
+    }
+  }
+
+  /**
+   * Initialize WorkoutEventStore (kind 1301 events)
+   * NON-BLOCKING: Loads from cache first, fetches fresh in background
+   * This ensures leaderboards never show infinite spinners
+   */
+  private async initializeWorkoutStore(): Promise<void> {
+    try {
+      const workoutStore = WorkoutEventStore.getInstance();
+
+      // Initialize with 5-second timeout for relay fetch
+      await Promise.race([
+        workoutStore.initialize(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('WorkoutStore timeout')), 5000)
+        ),
+      ]);
+
+      const stats = workoutStore.getStats();
+      console.log(
+        `[Prefetch] WorkoutEventStore initialized: ${stats.totalWorkouts} workouts, ${stats.todaysWorkouts} today`
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message === 'WorkoutStore timeout') {
+        console.warn(
+          '[Prefetch] WorkoutEventStore init timed out - store will continue loading in background'
+        );
+      } else {
+        console.error('[Prefetch] WorkoutEventStore init failed:', error);
+      }
+      // Non-blocking - store will continue to work with cached data
     }
   }
 

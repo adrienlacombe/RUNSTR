@@ -416,7 +416,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   cardWrapper: {
-    transformOrigin: 'top left',
     overflow: 'hidden',
     borderRadius: 12,
     borderWidth: 1,

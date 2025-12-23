@@ -383,7 +383,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryProps> = ({
           // No reward, show success message immediately
           setAlertState({
             visible: true,
-            title: 'Saved to Nostr! ✅',
+            title: 'Saved to Nostr!',
             message: 'Your workout has been saved to Nostr!',
           });
         }

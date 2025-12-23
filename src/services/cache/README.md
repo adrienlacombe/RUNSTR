@@ -28,6 +28,33 @@ The following services will be removed in Phase 5:
 
 ### Active Files
 
+#### **FrozenEventStore.ts** (NEW)
+Permanent storage for ended event data - ensures ended events always show their final leaderboard.
+
+**Features:**
+- Freezes participant list and leaderboard permanently when events end
+- Never re-fetches data for ended events (reduces relay load)
+- Memory cache for instant access + AsyncStorage for persistence
+- Initialized during app startup via NostrPrefetchService
+
+**Usage:**
+```typescript
+import { FrozenEventStore } from './FrozenEventStore';
+
+// Check if event is frozen
+const frozenData = await FrozenEventStore.get(eventId);
+if (frozenData) {
+  // Use frozen participants and leaderboard
+  setParticipants(frozenData.participants);
+  setLeaderboard(frozenData.leaderboard);
+}
+
+// Freeze event when it ends
+if (FrozenEventStore.shouldFreeze(eventEndTime)) {
+  await FrozenEventStore.freeze(eventId, eventPubkey, participants, leaderboard, eventEndTime);
+}
+```
+
 #### **UnifiedNostrCache.ts** (NEW)
 Central caching service that replaces all legacy cache implementations.
 

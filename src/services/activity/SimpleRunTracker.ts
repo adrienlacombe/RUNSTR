@@ -706,12 +706,13 @@ export class SimpleRunTracker {
       this.recoveryPointsSkipped = 0;
     }
 
-    // Skip first 3 points after GPS recovery (often inaccurate)
+    // Skip first 2 points after GPS recovery (often inaccurate)
+    // Reduced from 3 to 2 to minimize distance loss during walking
     if (this.isInGPSRecovery) {
-      if (this.recoveryPointsSkipped < 3) {
+      if (this.recoveryPointsSkipped < 2) {
         this.recoveryPointsSkipped++;
         console.log(
-          `🔄 [SimpleRunTracker] Skipping recovery point ${this.recoveryPointsSkipped}/3`
+          `🔄 [SimpleRunTracker] Skipping recovery point ${this.recoveryPointsSkipped}/2`
         );
         this.lastGPSUpdate = now;
         return;

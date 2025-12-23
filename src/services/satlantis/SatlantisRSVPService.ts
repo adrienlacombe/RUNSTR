@@ -20,8 +20,11 @@ import type { SatlantisRSVP, SatlantisRSVPStatus } from '../../types/satlantis';
 // NIP-52 Calendar RSVP kind (not in NDK's standard kinds)
 const KIND_CALENDAR_RSVP = 31925 as NDKKind;
 
-// Cache TTL in seconds (7 days - refresh via pull-to-refresh or foreground return)
-const CACHE_TTL_RSVPS = 604800; // 7 days for all results (empty or populated)
+// Cache TTL in seconds
+// Populated results: 7 days (refresh via pull-to-refresh or foreground return)
+// Empty results: 5 minutes (prevents spam but allows quick recovery)
+const CACHE_TTL_RSVPS = 604800; // 7 days for populated results
+const CACHE_TTL_RSVPS_EMPTY = 300; // 5 minutes for empty results
 
 class SatlantisRSVPServiceClass {
   private static instance: SatlantisRSVPServiceClass;
@@ -146,14 +149,18 @@ class SatlantisRSVPServiceClass {
     // Deduplicate by pubkey (keep most recent RSVP per user)
     const deduped = this.deduplicateRSVPs(rsvps);
 
-    // Cache results (7 days) - updates via pull-to-refresh or foreground return
+    // Cache results - use shorter TTL for empty results to allow quick recovery
+    // Empty results cached only 5 minutes (relay may have been down)
+    // Populated results cached 7 days (refresh via pull-to-refresh)
     try {
+      const cacheTTL = deduped.length > 0 ? CACHE_TTL_RSVPS : CACHE_TTL_RSVPS_EMPTY;
+      const ttlLabel = deduped.length > 0 ? '7 days' : '5 minutes';
       await UnifiedCacheService.setWithCustomTTL(
         cacheKey,
         deduped,
-        CACHE_TTL_RSVPS
+        cacheTTL
       );
-      console.log(`[Satlantis RSVP] 💾 Cached ${deduped.length} RSVPs (TTL: 7 days)`);
+      console.log(`[Satlantis RSVP] 💾 Cached ${deduped.length} RSVPs (TTL: ${ttlLabel})`);
     } catch (error) {
       console.warn('[Satlantis RSVP] Cache write error:', error);
     }

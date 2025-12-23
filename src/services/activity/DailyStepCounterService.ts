@@ -1,13 +1,12 @@
 /**
  * DailyStepCounterService - Cross-platform daily step counting
  * iOS: Uses Expo Pedometer API (HealthKit) for auto-counting
- * Android: Uses Health Connect aggregation API first (like iOS uses HealthKit),
- *          falls back to local tracked workout steps if Health Connect unavailable
+ * Android: Uses native step sensor or Health Connect aggregation API
+ *          Returns 0 if no step data available (no mixing of data sources)
  */
 
 import { Pedometer } from 'expo-sensors';
 import { Platform, Linking } from 'react-native';
-import LocalWorkoutStorageService from '../fitness/LocalWorkoutStorageService';
 import healthConnectService from '../fitness/healthConnectService';
 import { privacyROMDetectionService } from '../platform/PrivacyROMDetectionService';
 import { nativeStepCounterService } from './NativeStepCounterService';
@@ -121,9 +120,9 @@ export class DailyStepCounterService {
 
   /**
    * Get today's step count (from midnight to now)
-   * Uses cached value if less than 5 minutes old
+   * Uses cached value if less than 5 seconds old
    * iOS: Uses Pedometer API (HealthKit) - auto-counted throughout day
-   * Android: Uses LocalWorkoutStorageService - tracked workouts only
+   * Android: Uses native step sensor or Health Connect API
    */
   async getTodaySteps(): Promise<DailyStepData | null> {
     try {
@@ -254,12 +253,10 @@ export class DailyStepCounterService {
       console.log('[DailyStepCounterService] Health Connect not available:', error);
     }
 
-    // 3. Fall back to local tracked workout steps
-    console.log('[DailyStepCounterService] Android: Falling back to local tracked steps...');
-    const result = await LocalWorkoutStorageService.getTodayTrackedSteps();
-
+    // 3. No step data available - return 0 (don't mix data sources with local tracked workouts)
+    console.log('[DailyStepCounterService] Android: No step data from native sensor or Health Connect, returning 0');
     const stepData: DailyStepData = {
-      steps: result.steps,
+      steps: 0,
       startTime,
       endTime,
       lastUpdated: new Date(),
@@ -267,8 +264,6 @@ export class DailyStepCounterService {
 
     // Update cache
     this.cachedSteps = stepData;
-
-    console.log(`[DailyStepCounterService] Android ✅ Local tracked steps: ${result.steps} from ${result.workoutCount} workouts`);
     return stepData;
   }
 

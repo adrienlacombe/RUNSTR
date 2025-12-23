@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Season2Service } from '../services/season/Season2Service';
+import { UnifiedCacheService } from '../services/cache/UnifiedCacheService';
 import {
   getSeason2Status,
   getSeason2DateRange,
@@ -51,23 +52,41 @@ export function useSeason2Leaderboard(
   activityTypeRef.current = activityType;
 
   const loadLeaderboard = useCallback(async (forceRefresh = false) => {
-    setIsLoading(true);
     setError(null);
 
     try {
-      // Get current user's pubkey for local join visibility
       const userPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-
-      // Use ref to ensure we have the latest activityType
       const currentActivityType = activityTypeRef.current;
+      const cacheKey = `season2:leaderboard:${currentActivityType}`;
 
+      // CACHE-FIRST PATTERN: Show cached data instantly, fetch fresh in background
+      if (!forceRefresh) {
+        const cached = await UnifiedCacheService.get<Season2Leaderboard>(cacheKey);
+        if (cached && isMounted.current && activityTypeRef.current === currentActivityType) {
+          console.log(`[useSeason2] Cache hit for ${currentActivityType} - showing instantly`);
+          setLeaderboard(cached);
+          setIsLoading(false); // Stop spinner immediately!
+
+          // Background refresh (non-blocking) - don't show loading state
+          Season2Service.getLeaderboard(currentActivityType, userPubkey || undefined, false)
+            .then(fresh => {
+              if (isMounted.current && activityTypeRef.current === currentActivityType) {
+                setLeaderboard(fresh);
+              }
+            })
+            .catch(err => console.warn('[useSeason2] Background refresh failed:', err));
+          return;
+        }
+      }
+
+      // No cache or force refresh - show loading state and fetch
+      setIsLoading(true);
       const data = await Season2Service.getLeaderboard(
         currentActivityType,
         userPubkey || undefined,
         forceRefresh
       );
 
-      // Only update state if component is mounted AND activityType hasn't changed
       if (isMounted.current && activityTypeRef.current === currentActivityType) {
         setLeaderboard(data);
       }
@@ -86,11 +105,13 @@ export function useSeason2Leaderboard(
   useEffect(() => {
     isMounted.current = true;
 
-    // Reset state when activity type changes to show loading
-    setLeaderboard(null);
-    setIsLoading(true);
+    // Don't reset leaderboard to null - let cache-first pattern handle it
+    // Only show loading if we don't have any data yet
+    if (!leaderboard) {
+      setIsLoading(true);
+    }
 
-    loadLeaderboard(false); // Initial load from cache
+    loadLeaderboard(false); // Initial load - cache-first
 
     return () => {
       isMounted.current = false;

@@ -37,28 +37,73 @@ class SatlantisEventScoringServiceClass {
    * @param metrics - Map of npub → member workout metrics
    * @param scoringType - How to score: fastest_time, most_distance, participation
    * @param targetDistance - Target distance in km (required for fastest_time)
+   * @param allParticipants - All registered participants (includes those without workouts)
    */
   buildLeaderboard(
     metrics: Map<string, WorkoutMetrics>,
     scoringType: RunstrScoringType = 'fastest_time',
-    targetDistance?: number
+    targetDistance?: number,
+    allParticipants?: string[]
   ): SatlantisLeaderboardEntry[] {
     console.log(
       `[Scoring] Building leaderboard with ${scoringType} scoring, ` +
-        `${metrics.size} participants, target: ${targetDistance}km`
+        `${metrics.size} with workouts, ${allParticipants?.length || 0} total participants, target: ${targetDistance}km`
     );
+
+    let entries: SatlantisLeaderboardEntry[];
 
     switch (scoringType) {
       case 'fastest_time':
-        return this.buildFastestTimeLeaderboard(metrics, targetDistance);
+        entries = this.buildFastestTimeLeaderboard(metrics, targetDistance);
+        break;
       case 'most_distance':
-        return this.buildMostDistanceLeaderboard(metrics);
+        entries = this.buildMostDistanceLeaderboard(metrics);
+        break;
       case 'participation':
-        return this.buildParticipationLeaderboard(metrics);
+        entries = this.buildParticipationLeaderboard(metrics);
+        break;
       default:
         console.warn(`[Scoring] Unknown scoring type: ${scoringType}, using fastest_time`);
-        return this.buildFastestTimeLeaderboard(metrics, targetDistance);
+        entries = this.buildFastestTimeLeaderboard(metrics, targetDistance);
     }
+
+    // Add participants without workouts at the bottom of the leaderboard
+    if (allParticipants && allParticipants.length > 0) {
+      const participantsWithWorkouts = new Set(entries.map(e => e.npub));
+      let addedCount = 0;
+
+      for (const npub of allParticipants) {
+        if (!participantsWithWorkouts.has(npub)) {
+          entries.push({
+            rank: 0, // Will be assigned after
+            npub,
+            name: '', // Resolved by UI component
+            score: 0,
+            formattedScore: scoringType === 'fastest_time' ? '--:--' : '0.00 km',
+            workoutCount: 0,
+            workoutId: undefined,
+          });
+          addedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        console.log(`[Scoring] Added ${addedCount} participants without workouts`);
+      }
+
+      // Re-assign ranks (participants without workouts share last rank)
+      const lastRankWithWorkouts = entries.filter(e => e.workoutCount > 0).length;
+      entries.forEach((entry, index) => {
+        if (entry.workoutCount > 0) {
+          entry.rank = index + 1;
+        } else {
+          // All 0-workout participants share the next rank
+          entry.rank = lastRankWithWorkouts + 1;
+        }
+      });
+    }
+
+    return entries;
   }
 
   /**
@@ -197,11 +242,20 @@ class SatlantisEventScoringServiceClass {
   /**
    * Parse split tags from a NostrWorkout's raw event
    * Split format: ["split", "5", "00:25:30"] = km 5 completed at 25:30 elapsed
+   *
+   * Also accepts pre-parsed splits from StoredWorkout (Map<number, number>)
+   * This enables using workouts from WorkoutEventStore without re-parsing
    */
-  private parseSplitsFromWorkout(workout: NostrWorkout): Map<number, number> {
+  private parseSplitsFromWorkout(workout: NostrWorkout | any): Map<number, number> {
+    // Check for pre-parsed splits (from StoredWorkout or WorkoutEventStore)
+    // This avoids re-parsing when workouts come from the unified cache
+    if (workout.splits && workout.splits instanceof Map && workout.splits.size > 0) {
+      return workout.splits;
+    }
+
     const splits = new Map<number, number>();
 
-    // Try to get tags from raw Nostr event
+    // Fall back to parsing from raw Nostr event tags
     const tags = workout.rawNostrEvent?.tags || [];
 
     for (const tag of tags) {

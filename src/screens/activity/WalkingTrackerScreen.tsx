@@ -63,7 +63,6 @@ export const WalkingTrackerScreen: React.FC = () => {
   const [metrics, setMetrics] = useState({
     distance: '0.00 km',
     duration: '0:00',
-    steps: '0',
     elevation: '0 m',
     calories: '0',
   });
@@ -117,11 +116,9 @@ export const WalkingTrackerScreen: React.FC = () => {
   const [postingState, setPostingState] = useState<PostingState>('idle');
   const stepUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Live pedometer step tracking (real steps during active walking)
+  // Live pedometer step tracking (for summary modal after walk)
   const liveStepsRef = useRef<number>(0);
   const unsubscribeLiveStepsRef = useRef<(() => void) | null>(null);
-  // Starting step count for Android (captured when walk begins)
-  const startingStepsRef = useRef<number>(0);
 
   const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO' | null>(null);
   const [showBackgroundBanner, setShowBackgroundBanner] = useState(false);
@@ -333,16 +330,11 @@ export const WalkingTrackerScreen: React.FC = () => {
           );
 
           const distance = session.distance || 0;
-          // Use real pedometer steps, fall back to GPS estimate if pedometer unavailable
-          const steps = liveStepsRef.current > 0
-            ? liveStepsRef.current
-            : activityMetricsService.estimateSteps(distance);
           const calories = activityMetricsService.estimateCalories('walking', distance, currentElapsed);
 
           setMetrics({
             distance: activityMetricsService.formatDistance(distance),
             duration: activityMetricsService.formatDuration(currentElapsed),
-            steps: activityMetricsService.formatSteps(steps),
             elevation: activityMetricsService.formatElevation(
               session.elevationGain || 0
             ),
@@ -354,7 +346,7 @@ export const WalkingTrackerScreen: React.FC = () => {
             `[WalkingTrackerScreen] ✅ Synced: ${(
               distance / 1000
             ).toFixed(2)} km, ` +
-              `${currentElapsed}s, ${steps} steps (live: ${liveStepsRef.current}), tracking continued in background`
+              `${currentElapsed}s, tracking continued in background`
           );
         }
       }
@@ -452,29 +444,19 @@ export const WalkingTrackerScreen: React.FC = () => {
     pauseStartTimeRef.current = 0;
     totalPausedTimeRef.current = 0;
 
-    // Reset live step counter for new session
+    // Reset live step counter for summary modal
     liveStepsRef.current = 0;
-    startingStepsRef.current = 0;
 
-    // Platform-specific live step tracking
-    if (Platform.OS === 'android') {
-      // Android: Capture starting step count from Health Connect
-      // We'll calculate steps walked as (current - starting)
-      dailyStepCounterService.clearCache();
-      const stepData = await dailyStepCounterService.getTodaySteps();
-      startingStepsRef.current = stepData?.steps || 0;
-      console.log(`[WalkingTracker] Starting steps: ${startingStepsRef.current}`);
-    } else {
-      // iOS: Use Pedometer.watchStepCount() subscription for real-time updates
+    // iOS: Subscribe to pedometer for step count in summary modal
+    if (Platform.OS === 'ios') {
       unsubscribeLiveStepsRef.current = dailyStepCounterService.subscribeLiveSteps(
         (incrementalSteps: number) => {
           liveStepsRef.current = incrementalSteps;
-          console.log(`[WalkingTrackerScreen] Live steps: ${incrementalSteps}`);
         }
       );
-      console.log('[WalkingTrackerScreen] iOS pedometer subscription started');
     }
 
+    // Timer updates every second
     timerRef.current = setInterval(() => {
       if (!isPausedRef.current) {
         const now = Date.now();
@@ -485,51 +467,26 @@ export const WalkingTrackerScreen: React.FC = () => {
       }
     }, 1000);
 
-    metricsUpdateRef.current = setInterval(updateMetrics, 5000); // Poll every 5 seconds for step updates
+    // GPS metrics (distance, elevation, calories) update every 5 seconds
+    // NO step polling during active tracking - steps only shown in Tracked Steps card
+    metricsUpdateRef.current = setInterval(updateMetrics, 5000);
   };
 
+  // Updates distance, elevation, calories from GPS session
+  // NO step tracking during active walk - steps only shown in Tracked Steps card
   const updateMetrics = async () => {
     const session = simpleRunTracker.getCurrentSession();
     if (session) {
       const distance = session.distance || 0;
-
-      // Get current step count based on platform
-      let steps = 0;
-      if (Platform.OS === 'android') {
-        // Android: Query Health Connect for current steps, calculate delta from start
-        try {
-          dailyStepCounterService.clearCache(); // Force fresh data
-          const stepData = await dailyStepCounterService.getTodaySteps();
-          const currentSteps = stepData?.steps || 0;
-          steps = Math.max(0, currentSteps - startingStepsRef.current);
-          if (steps > liveStepsRef.current) {
-            console.log(`[WalkingTracker] Steps: ${currentSteps} - ${startingStepsRef.current} = ${steps}`);
-          }
-        } catch (e) {
-          console.log('[WalkingTracker] Error getting steps from Health Connect');
-        }
-      } else {
-        // iOS: Use real-time subscription (liveStepsRef updated by callback)
-        steps = liveStepsRef.current;
-      }
-
-      // Fallback to GPS estimate if no steps detected but walking
-      if (steps === 0 && distance > 0) {
-        steps = activityMetricsService.estimateSteps(distance);
-      }
-
-      liveStepsRef.current = steps;
       const calories = activityMetricsService.estimateCalories('walking', distance, elapsedTime);
 
-      setMetrics({
+      setMetrics(prev => ({
+        ...prev,
         distance: activityMetricsService.formatDistance(distance),
         duration: activityMetricsService.formatDuration(elapsedTime),
-        steps: activityMetricsService.formatSteps(steps),
-        elevation: activityMetricsService.formatElevation(
-          session.elevationGain || 0
-        ),
+        elevation: activityMetricsService.formatElevation(session.elevationGain || 0),
         calories: calories.toString(),
-      });
+      }));
     }
   };
 
@@ -682,7 +639,6 @@ export const WalkingTrackerScreen: React.FC = () => {
     setMetrics({
       distance: '0.00 km',
       duration: '0:00',
-      steps: '0',
       elevation: '0 m',
       calories: '0',
     });
@@ -871,19 +827,8 @@ export const WalkingTrackerScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (isTracking && !isPaused) {
-      updateMetrics();
-    }
-  }, [elapsedTime]);
-
-  // Secondary metrics for active tracking (duration already shows in HeroMetric)
+  // Secondary metrics for active tracking (distance + duration in HeroMetric)
   const secondaryMetrics: SecondaryMetric[] = [
-    {
-      value: metrics.distance,
-      label: 'Distance',
-      icon: 'navigate-outline',
-    },
     {
       value: metrics.elevation,
       label: 'Elevation',
@@ -916,11 +861,11 @@ export const WalkingTrackerScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Hero Metric - Steps (large, centered) */}
+          {/* Hero Metric - Distance + Duration (like running tracker) */}
           <View style={styles.heroSection}>
             <HeroMetric
-              primaryValue={metrics.steps}
-              primaryUnit="steps"
+              primaryValue={metrics.distance.replace(' km', '')}
+              primaryUnit="km"
               secondaryValue={activityMetricsService.formatDuration(elapsedTime)}
             />
           </View>

@@ -15,6 +15,7 @@ import {
   Switch,
   RefreshControl,
   Modal,
+  Platform,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { theme } from '../styles/theme';
@@ -35,6 +36,7 @@ import { dailyStepCounterService } from '../services/activity/DailyStepCounterSe
 import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
 import { ModelManager } from '../services/ai/ModelManager';
+import { GPSPermissionsDiagnostics } from '../components/permissions/GPSPermissionsDiagnostics';
 
 interface SettingsScreenProps {
   onCaptainDashboard?: () => void;
@@ -588,6 +590,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 subtitle="Set weight, height, age for better analytics (optional)"
                 onPress={() => (navigation as any).navigate('HealthProfile')}
               />
+
+              {/* GPS Permissions Diagnostics (Android only) */}
+              {Platform.OS === 'android' && <GPSPermissionsDiagnostics />}
             </Card>
           </SettingsAccordion>
         </View>
@@ -889,7 +894,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
         {/* App Version Info */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Version 1.2.1 (Build 121)</Text>
+          <Text style={styles.versionText}>Version 1.2.2 (Build 122)</Text>
         </View>
       </ScrollView>
 

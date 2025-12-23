@@ -26,7 +26,7 @@ import { SatlantisEventJoinService } from '../../services/satlantis/SatlantisEve
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatEventDateTime } from '../../types/satlantis';
-import { CacheInvalidator } from '../../services/cache/CacheInvalidator';
+// CacheInvalidator removed - Option A: pull-to-refresh only updates workouts
 import { nip19 } from 'nostr-tools';
 
 interface SatlantisEventDetailScreenProps {
@@ -196,13 +196,20 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
     addLocalParticipant,
   } = useSatlantisEventDetail(eventPubkey, eventId);
 
-  // Handle pull-to-refresh with proper cache invalidation
+  // Separate state for pull-to-refresh spinner (prevents full-screen "Loading event..." blocker)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Handle pull-to-refresh (Option A: workouts only, RSVPs stay cached)
   const handleRefresh = useCallback(async () => {
     console.log(`[SatlantisEventDetail] 🔄 Pull-to-refresh triggered for event ${eventId}`);
-    // Invalidate this specific event's caches before refreshing
-    CacheInvalidator.onSatlantisEventRefresh(eventId);
-    // Then refresh with forceRefresh=true
-    await refresh();
+    setIsRefreshing(true);
+    try {
+      // Option A: Only refresh workouts - event/RSVPs stay cached
+      // Background RSVP check in hook will update if count changes
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [eventId, refresh]);
 
   // Get user's hex pubkey for optimistic UI
@@ -258,8 +265,9 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
     }
   };
 
-  // Loading state
-  if (isLoading) {
+  // Loading state - ONLY show full-screen spinner on INITIAL load (no cached event)
+  // During pull-to-refresh, event is already loaded so we show inline spinner instead
+  if (isLoading && !event) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -312,7 +320,7 @@ export const SatlantisEventDetailScreen: React.FC<SatlantisEventDetailScreenProp
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
+            refreshing={isRefreshing}
             onRefresh={handleRefresh}
             tintColor={theme.colors.accent}
             colors={[theme.colors.accent]}

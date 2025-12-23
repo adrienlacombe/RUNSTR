@@ -32,6 +32,7 @@ import { ToggleButtons } from '../../components/ui/ToggleButtons';
 import { EventsContent, LeaderboardsContent } from '../../components/compete';
 import { RunstrEventCreationModal } from '../../components/events/RunstrEventCreationModal';
 import { useSeason2Leaderboard, useSeason2Registration } from '../../hooks/useSeason2';
+import { useWorkoutEventStore } from '../../hooks/useWorkoutEventStore';
 import { Season2PayoutService } from '../../services/season/Season2PayoutService';
 import { getSeason2Status } from '../../constants/season2';
 import type { Season2ActivityType } from '../../types/season2';
@@ -71,8 +72,12 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
   const [eventsLoaded, setEventsLoaded] = useState(false);
   const [leaderboardsLoaded, setLeaderboardsLoaded] = useState(false);
 
+  // Refresh trigger for LeaderboardsContent
+  const [leaderboardRefreshTrigger, setLeaderboardRefreshTrigger] = useState(0);
+
   const { leaderboard, isLoading, refresh } = useSeason2Leaderboard(activeTab);
   const { isRegistered } = useSeason2Registration();
+  const { refresh: refreshWorkoutStore } = useWorkoutEventStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Trigger automatic payouts when season ends
@@ -105,11 +110,34 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
     }
   }, [activeCompeteTab, eventsLoaded, leaderboardsLoaded]);
 
+  // Tab-aware refresh handler
   const handleRefresh = useCallback(async () => {
+    console.log('[Season2Screen] 🔄 handleRefresh called');
+    console.log(`[Season2Screen] activeCompeteTab: ${activeCompeteTab}`);
     setIsRefreshing(true);
-    await refresh();
+
+    // ALWAYS refresh the central workout store first - this is the SINGLE SOURCE OF TRUTH
+    // All tabs read from this store with different filters
+    console.log('[Season2Screen] Refreshing central WorkoutEventStore...');
+    await refreshWorkoutStore();
+    console.log('[Season2Screen] WorkoutEventStore refresh completed');
+
+    // Tab-specific additional actions
+    if (activeCompeteTab === 'season2') {
+      // Refresh Season II leaderboard data (uses its own query for participant list)
+      console.log('[Season2Screen] Calling Season II refresh()...');
+      await refresh();
+      console.log('[Season2Screen] Season II refresh() completed');
+    } else if (activeCompeteTab === 'leaderboards') {
+      // Trigger LeaderboardsContent to re-render with updated store data
+      console.log('[Season2Screen] Triggering Leaderboards re-render...');
+      setLeaderboardRefreshTrigger(prev => prev + 1);
+    }
+    // Events tab uses FlatList with its own RefreshControl
+
     setIsRefreshing(false);
-  }, [refresh]);
+    console.log('[Season2Screen] handleRefresh complete');
+  }, [activeCompeteTab, refresh, refreshWorkoutStore]);
 
   const handleTabChange = (tab: Season2ActivityType) => {
     setActiveTab(tab);
@@ -217,7 +245,7 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
 
         {/* Leaderboards Tab Content */}
         {activeCompeteTab === 'leaderboards' && leaderboardsLoaded && (
-          <LeaderboardsContent />
+          <LeaderboardsContent refreshTrigger={leaderboardRefreshTrigger} />
         )}
       </ScrollView>
 

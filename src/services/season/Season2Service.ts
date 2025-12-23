@@ -33,6 +33,9 @@ import { CHARITIES, getCharityById } from '../../constants/charities';
 // Default charity when none specified
 const DEFAULT_CHARITY_ID = 'opensats';
 
+// Permanent storage key for official participants (persists forever during season)
+const OFFICIAL_PARTICIPANTS_STORAGE_KEY = '@runstr:season2_official_participants';
+
 class Season2ServiceClass {
   private static instance: Season2ServiceClass;
 
@@ -49,24 +52,18 @@ class Season2ServiceClass {
 
   /**
    * Get all participants (local joins + official list)
-   * Local joins are only visible to the user who joined
+   * INSTANT: Reads from AsyncStorage, no network calls on normal load
    * @param currentUserPubkey - Current user's pubkey for local join visibility
-   * @param forceRefresh - Skip cache and fetch fresh from Nostr
+   * @param forceRefresh - Fetch fresh from Nostr and MERGE new participants
    */
   async getParticipants(currentUserPubkey?: string, forceRefresh = false): Promise<string[]> {
-    const cacheKey = 'season2:participants';
-
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cached = await UnifiedCacheService.get<string[]>(cacheKey);
-      if (cached && !currentUserPubkey) {
-        console.log(`[Season2] Cache hit: ${cached.length} participants`);
-        return cached;
-      }
+    // If force refresh, fetch from Nostr and merge new participants
+    if (forceRefresh) {
+      await this.refreshOfficialParticipants();
     }
 
-    // Fetch official list from Nostr
-    const officialParticipants = await this.fetchOfficialParticipants();
+    // Always return from local storage (instant, no network)
+    const officialParticipants = await this.getStoredOfficialParticipants();
 
     // Get local joins
     const localJoins = await this.getLocalJoins();
@@ -86,25 +83,68 @@ class Season2ServiceClass {
 
     const participantArray = Array.from(allParticipants);
 
-    // Cache official participants only (5 min TTL)
-    if (officialParticipants.length > 0) {
-      await UnifiedCacheService.setWithCustomTTL(
-        cacheKey,
-        officialParticipants,
-        SEASON_2_CACHE_TTL.PARTICIPANTS
-      );
-    }
-
     console.log(
-      `[Season2] Loaded ${participantArray.length} participants (${officialParticipants.length} official, ${localJoins.length} local)`
+      `[Season2] Loaded ${participantArray.length} participants (${officialParticipants.length} official, ${localJoins.length} local joins)`
     );
     return participantArray;
   }
 
   /**
-   * Fetch official participants from kind 30000 list
+   * Get stored official participants from AsyncStorage (INSTANT, no network)
+   * Participants are stored permanently - they never leave once added
    */
-  private async fetchOfficialParticipants(): Promise<string[]> {
+  async getStoredOfficialParticipants(): Promise<string[]> {
+    try {
+      const stored = await AsyncStorage.getItem(OFFICIAL_PARTICIPANTS_STORAGE_KEY);
+      if (!stored) return [];
+      return JSON.parse(stored);
+    } catch (error) {
+      console.error('[Season2] Error reading stored participants:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch fresh participants from Nostr and MERGE with local storage
+   * Only ADDS new participants, never removes (participants never leave competition)
+   * Called on pull-to-refresh
+   */
+  async refreshOfficialParticipants(): Promise<string[]> {
+    // Get existing stored participants
+    const existingParticipants = await this.getStoredOfficialParticipants();
+    const existingSet = new Set(existingParticipants);
+    const existingCount = existingParticipants.length;
+
+    // Fetch fresh from Nostr
+    const freshParticipants = await this._fetchFromNostr();
+
+    // MERGE: Add new participants to existing set (never remove)
+    for (const p of freshParticipants) {
+      existingSet.add(p);
+    }
+
+    // Save merged list back to storage
+    const mergedList = Array.from(existingSet);
+    await AsyncStorage.setItem(
+      OFFICIAL_PARTICIPANTS_STORAGE_KEY,
+      JSON.stringify(mergedList)
+    );
+
+    const newCount = mergedList.length - existingCount;
+    if (newCount > 0) {
+      console.log(`[Season2] ✅ Participants: ${existingCount} → ${mergedList.length} (added ${newCount} new)`);
+    } else {
+      console.log(`[Season2] Participants: ${mergedList.length} (no new participants)`);
+    }
+
+    return mergedList;
+  }
+
+  /**
+   * Internal: Fetch official participants from kind 30000 list (network call)
+   * Used only by refreshOfficialParticipants()
+   */
+  private async _fetchFromNostr(): Promise<string[]> {
     try {
       const connected = await GlobalNDKService.waitForMinimumConnection(2, 4000);
       if (!connected) {
@@ -120,7 +160,7 @@ class Season2ServiceClass {
         limit: 1,
       };
 
-      console.log('[Season2] Fetching official participant list...');
+      console.log('[Season2] 🔄 Fetching official participant list from Nostr...');
 
       const events = await Promise.race([
         ndk.fetchEvents(filter),
@@ -130,7 +170,7 @@ class Season2ServiceClass {
       ]);
 
       if (events.size === 0) {
-        console.log('[Season2] No official participant list found');
+        console.log('[Season2] No official participant list found on Nostr');
         return [];
       }
 
@@ -145,15 +185,13 @@ class Season2ServiceClass {
         .filter((t) => t[0] === 'p')
         .map((t) => t[1]);
 
-      console.log('[Season2] Official participants:', {
+      console.log('[Season2] Official participants from Nostr:', {
         count: participants.length,
         sample: participants.slice(0, 3).map(p => p.slice(0, 16) + '...'),
-        adminPubkey: SEASON_2_CONFIG.adminPubkey.slice(0, 16) + '...',
-        dTag: SEASON_2_CONFIG.participantListDTag,
       });
       return participants;
     } catch (error) {
-      console.error('[Season2] Error fetching official participants:', error);
+      console.error('[Season2] Error fetching from Nostr:', error);
       return [];
     }
   }
@@ -205,15 +243,17 @@ class Season2ServiceClass {
 
   /**
    * Check if user is registered (local or official)
+   * INSTANT: Uses stored data, no network calls
    */
   async isUserRegistered(pubkey: string): Promise<{
     isRegistered: boolean;
     isOfficial: boolean;
     isLocalOnly: boolean;
   }> {
+    // Use stored data (instant, no network call)
     const [localJoins, officialParticipants] = await Promise.all([
       this.getLocalJoins(),
-      this.fetchOfficialParticipants(),
+      this.getStoredOfficialParticipants(),
     ]);
 
     const isLocal = localJoins.some((j) => j.pubkey === pubkey);
@@ -224,6 +264,14 @@ class Season2ServiceClass {
       isOfficial,
       isLocalOnly: isLocal && !isOfficial,
     };
+  }
+
+  /**
+   * Quick check if user has a local join (for instant UI)
+   */
+  async hasLocalJoin(pubkey: string): Promise<boolean> {
+    const localJoins = await this.getLocalJoins();
+    return localJoins.some((j) => j.pubkey === pubkey);
   }
 
   // ============================================================================
@@ -262,7 +310,8 @@ class Season2ServiceClass {
 
     // Get local joins for marking local-only users
     const localJoins = await this.getLocalJoins();
-    const officialParticipants = await this.fetchOfficialParticipants();
+    // Use stored participants (instant, already fetched by getParticipants above)
+    const officialParticipants = await this.getStoredOfficialParticipants();
 
     // Fetch workouts
     const workouts = await this.fetchWorkouts(participants, activityType);

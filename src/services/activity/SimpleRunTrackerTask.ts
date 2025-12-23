@@ -31,10 +31,13 @@ const ACTIVITY_THRESHOLDS = {
     minDistance: 0.5, // meters - match October's jitter filter
   },
   walking: {
-    maxAccuracy: Platform.OS === 'android' ? 100 : 50, // Trust GPS hardware more
-    maxSpeed: 8, // m/s (~29 km/h) - allow brisk walking
-    maxTeleport: Platform.OS === 'android' ? 100 : 60, // Only reject extreme jumps
-    minDistance: 0.5, // meters
+    // RESTORED v0.7.0 philosophy: stricter accuracy + looser speed = better results
+    // Stricter accuracy = fewer but higher quality points
+    // Looser speed = won't reject valid points due to GPS noise
+    maxAccuracy: Platform.OS === 'android' ? 35 : 30, // STRICTER - only good GPS
+    maxSpeed: 12, // m/s (~43 km/h) - allow GPS variance without false rejections
+    maxTeleport: Platform.OS === 'android' ? 60 : 50, // STRICTER - fewer jumps
+    minDistance: 1.0, // meters - better jitter filter
   },
   cycling: {
     maxAccuracy: Platform.OS === 'android' ? 100 : 50, // Trust GPS hardware more

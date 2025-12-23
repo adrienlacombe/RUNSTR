@@ -375,7 +375,7 @@ export const EnhancedSocialShareModal: React.FC<
                     },
                   ]}
                 >
-                  <View style={{ transform: [{ scale: dynamicScale }], transformOrigin: 'top left' }}>
+                  <View style={{ transform: [{ scale: dynamicScale }] }}>
                     <WorkoutCardRenderer
                       ref={cardRef}
                       svgContent={cardSvg}
@@ -521,7 +521,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardWrapper: {
-    transformOrigin: 'top left',
     overflow: 'hidden',
     borderRadius: 12,
     borderWidth: 1,
