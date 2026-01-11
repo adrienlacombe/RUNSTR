@@ -23,10 +23,10 @@ import { ExternalZapModal } from '../nutzap/ExternalZapModal';
 import { NWCWalletService } from '../../services/wallet/NWCWalletService';
 import { RewardSenderWallet } from '../../services/rewards/RewardSenderWallet';
 import { DonationTrackingService } from '../../services/donation/DonationTrackingService';
+import { ImpactLevelService } from '../../services/impact/ImpactLevelService';
 import { useNWCZap } from '../../hooks/useNWCZap';
 import { useAuth } from '../../contexts/AuthContext';
 import { getInvoiceFromLightningAddress } from '../../utils/lnurl';
-import { getUserNostrIdentifiers } from '../../utils/nostr';
 
 const DEFAULT_ZAP_AMOUNT = 21; // Standard quick zap amount
 
@@ -218,15 +218,12 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
       console.log('[CharitySection] Recording and forwarding donation...');
       const donorName = currentUser?.name || currentUser?.displayName;
 
-      // Get hex pubkey for tracking
-      let donorPubkey = 'anonymous';
-      try {
-        const identifiers = await getUserNostrIdentifiers();
-        if (identifiers?.hexPubkey) {
-          donorPubkey = identifiers.hexPubkey;
-        }
-      } catch (e) {
-        console.warn('[CharitySection] Could not get hex pubkey');
+      // Get hex pubkey from cached storage (reliable source set at login)
+      const storedPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+      const donorPubkey = storedPubkey || 'anonymous';
+
+      if (!storedPubkey) {
+        console.warn('[CharitySection] No cached pubkey found, donation will be anonymous');
       }
 
       await DonationTrackingService.recordAndForward({
@@ -236,6 +233,12 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
         charityId: charity.id,
         charityLightningAddress: charity.lightningAddress,
       });
+
+      // Clear Impact Level cache so it recalculates immediately with new donation
+      if (donorPubkey !== 'anonymous') {
+        await ImpactLevelService.clearCache(donorPubkey);
+        console.log('[CharitySection] Impact Level cache cleared for immediate update');
+      }
 
       await markAsZapped();
       await refreshBalance();

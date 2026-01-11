@@ -234,9 +234,9 @@ export class SimpleRunTracker {
   private watchdogInterval: NodeJS.Timeout | null = null;
   private gpsRestartAttempts = 0;
   private readonly MAX_GPS_RESTARTS = 100; // Increased from 5 - resets on successful GPS
-  // Samsung/GrapheneOS have GPS hiccups of 10-20s due to battery management
-  // Use 30s on Android to avoid unnecessary recovery attempts, 15s on iOS
-  private readonly GPS_TIMEOUT_MS = Platform.OS === 'android' ? 30000 : 15000;
+  // REVERTED to v1.2.5 value: 15s timeout for faster GPS recovery
+  // Previous 30s on Android was missing GPS hiccups, causing 20-30 min death
+  private readonly GPS_TIMEOUT_MS = 15000;
   private readonly WATCHDOG_CHECK_MS = 5000; // Check every 5 seconds
 
   // Silent audio recording - keeps app alive in background (Android insurance)

@@ -38,12 +38,10 @@ interface JanuaryWalkingDetailScreenProps {
 export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProps> = ({
   navigation,
 }) => {
-  // Use hook for baseline + refresh pattern
+  // Use hook for Supabase-based leaderboard
   const {
     leaderboard,
     isLoading,
-    isBaselineOnly,
-    baselineDate,
     refreshAll,
     currentUserPubkey,
   } = useJanuaryWalking();
@@ -287,9 +285,6 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
         <View style={styles.leaderboardSection}>
           <View style={styles.leaderboardTitleRow}>
             <Text style={styles.sectionTitle}>Leaderboard</Text>
-            {isBaselineOnly && (
-              <Text style={styles.baselineDateText}>{baselineDate}</Text>
-            )}
           </View>
           <Text style={styles.sectionSubtitle}>Walking steps only</Text>
 

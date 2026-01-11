@@ -36,7 +36,7 @@ import {
 } from '../../utils/walletDeepLinks';
 import { RewardSenderWallet } from '../../services/rewards/RewardSenderWallet';
 import { DonationTrackingService } from '../../services/donation/DonationTrackingService';
-import { getUserNostrIdentifiers } from '../../utils/nostr';
+import { ImpactLevelService } from '../../services/impact/ImpactLevelService';
 
 // Storage key for default amount
 const DEFAULT_AMOUNT_KEY = '@runstr:default_zap_amount';
@@ -278,14 +278,13 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
 
           // Record donation and forward to charity
           const amount = getEffectiveAmount();
-          let donorPubkey = 'anonymous';
-          try {
-            const identifiers = await getUserNostrIdentifiers();
-            if (identifiers?.hexPubkey) {
-              donorPubkey = identifiers.hexPubkey;
-            }
-          } catch (e) {
-            console.warn('[ExternalZapModal] Could not get donor pubkey');
+
+          // Get donor pubkey from cached storage (reliable source set at login)
+          const storedPubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+          const donorPubkey = storedPubkey || 'anonymous';
+
+          if (!storedPubkey) {
+            console.warn('[ExternalZapModal] No cached pubkey found, donation will be anonymous');
           }
 
           await DonationTrackingService.recordAndForward({
@@ -294,6 +293,12 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
             charityId: charityId!,
             charityLightningAddress: charityLightningAddress!,
           });
+
+          // Clear Impact Level cache so it recalculates immediately with new donation
+          if (donorPubkey !== 'anonymous') {
+            await ImpactLevelService.clearCache(donorPubkey);
+            console.log('[ExternalZapModal] Impact Level cache cleared for immediate update');
+          }
 
           setPaymentVerified(true);
           setIsVerifying(false);

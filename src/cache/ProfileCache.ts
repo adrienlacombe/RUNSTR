@@ -118,10 +118,17 @@ export class ProfileCache {
       pubkeysToFetch.forEach((pk) => fetchingStatus.set(pk, 'fetching'));
 
       try {
-        const events = await ndk.fetchEvents({
+        // PERFORMANCE FIX: Add 5-second timeout to prevent UI freeze
+        const fetchPromise = ndk.fetchEvents({
           kinds: [0],
           authors: pubkeysToFetch,
         });
+
+        const timeoutPromise = new Promise<Set<NDKEvent>>((_, reject) =>
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        );
+
+        const events = await Promise.race([fetchPromise, timeoutPromise]);
 
         const fetchedProfilesMap = new Map<string, CachedProfile>();
 
@@ -154,7 +161,11 @@ export class ProfileCache {
           `[ProfileCache] Cached ${fetchedProfilesMap.size} new profiles`
         );
       } catch (error) {
-        console.error('[ProfileCache] Error fetching profiles:', error);
+        if (error instanceof Error && error.message === 'Profile fetch timeout') {
+          console.warn('[ProfileCache] Profile fetch timed out after 5s - using cached/fallback data');
+        } else {
+          console.error('[ProfileCache] Error fetching profiles:', error);
+        }
         pubkeysToFetch.forEach((pk) => fetchingStatus.set(pk, 'error'));
       }
     }

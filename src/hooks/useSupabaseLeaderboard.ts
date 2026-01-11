@@ -248,44 +248,57 @@ export function useSupabaseLeaderboard(
           SEASON_2_PARTICIPANTS.map((p) => [p.npub, { name: p.name, picture: p.picture }])
         );
 
-        // Convert npubs to hex pubkeys for ProfileCache (requires hex format)
-        const hexPubkeys = result.leaderboard
-          .map((e) => npubToHex(e.npub))
-          .filter((hex) => hex.length === 64); // Only valid hex keys
-
-        // Create npub -> hex mapping for lookups
-        const npubToHexMap = new Map<string, string>();
-        result.leaderboard.forEach((e) => {
-          const hex = npubToHex(e.npub);
-          if (hex.length === 64) {
-            npubToHexMap.set(e.npub, hex);
-          }
-        });
-
-        // Fetch profiles using hex pubkeys
-        const profilesMap = await ProfileCache.fetchProfiles(hexPubkeys);
-
         // For Season II, filter to only include participants from hardcoded list
         // This removes any test/extra entries not in official participant list
         const filteredLeaderboard = isSeason2
           ? result.leaderboard.filter((entry) => hardcodedMap.has(entry.npub))
           : result.leaderboard;
 
-        enrichedLeaderboard = filteredLeaderboard.map((entry) => {
-          const hexKey = npubToHexMap.get(entry.npub);
-          const profile = hexKey ? profilesMap.get(hexKey) : undefined;
-          // Fallback to hardcoded data if Nostr profile not found
-          const hardcoded = hardcodedMap.get(entry.npub);
-          return {
-            ...entry,
-            name: profile?.name || hardcoded?.name || 'Anonymous',
-            picture: profile?.picture || hardcoded?.picture,
-            displayName: profile?.name || hardcoded?.name || 'Anonymous',
-            // Pass through charity data from service
-            charityId: entry.charityId,
-            charityName: entry.charityName,
-          };
-        });
+        // PERFORMANCE FIX: For Season 2, skip Nostr profile fetch entirely
+        // We have hardcoded profile data for all participants - no need to wait for slow relays
+        if (isSeason2) {
+          console.log('[useSupabaseLeaderboard] Using hardcoded profiles for Season 2 (skipping Nostr)');
+          enrichedLeaderboard = filteredLeaderboard.map((entry) => {
+            const hardcoded = hardcodedMap.get(entry.npub);
+            return {
+              ...entry,
+              name: hardcoded?.name || 'Anonymous',
+              picture: hardcoded?.picture,
+              displayName: hardcoded?.name || 'Anonymous',
+              charityId: entry.charityId,
+              charityName: entry.charityName,
+            };
+          });
+        } else {
+          // Non-Season 2: Fetch profiles from Nostr (with potential delay)
+          const hexPubkeys = result.leaderboard
+            .map((e) => npubToHex(e.npub))
+            .filter((hex) => hex.length === 64);
+
+          const npubToHexMap = new Map<string, string>();
+          result.leaderboard.forEach((e) => {
+            const hex = npubToHex(e.npub);
+            if (hex.length === 64) {
+              npubToHexMap.set(e.npub, hex);
+            }
+          });
+
+          const profilesMap = await ProfileCache.fetchProfiles(hexPubkeys);
+
+          enrichedLeaderboard = filteredLeaderboard.map((entry) => {
+            const hexKey = npubToHexMap.get(entry.npub);
+            const profile = hexKey ? profilesMap.get(hexKey) : undefined;
+            const hardcoded = hardcodedMap.get(entry.npub);
+            return {
+              ...entry,
+              name: profile?.name || hardcoded?.name || 'Anonymous',
+              picture: profile?.picture || hardcoded?.picture,
+              displayName: profile?.name || hardcoded?.name || 'Anonymous',
+              charityId: entry.charityId,
+              charityName: entry.charityName,
+            };
+          });
+        }
       }
 
       if (isMounted.current) {

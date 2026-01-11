@@ -294,7 +294,7 @@ export const SEASON_2_PARTICIPANTS: Season2ParticipantData[] = [
     pubkey: 'c6f0f4279f12200f77e1943cd26aaedf6081fda8585695f9a923b4723686da12',
     npub: 'npub1cmc0gfulzgsq7alpjs7dy64wmasgrldgtptft7dfyw68yd5xmgfqaf9e4n',
     name: 'Tumbleweed',
-    picture: 'http://nostr.build/i/9554b4ae5b616d7061d27d9ba681f378ac698e87f8211029639551e63b31a13c.jpg',
+    picture: 'https://nostr.build/i/9554b4ae5b616d7061d27d9ba681f378ac698e87f8211029639551e63b31a13c.jpg',
   },
   {
     pubkey: '661305095522a18a1095b7b86874ef618da9c5d1ba5f4af375688e2129c07317',

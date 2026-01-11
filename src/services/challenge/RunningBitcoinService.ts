@@ -2,10 +2,10 @@
  * RunningBitcoinService - Running Bitcoin Challenge Service
  *
  * A featured charity event honoring Hal Finney (Bitcoin pioneer and ALS patient).
- * Uses Season II participant data and cached workouts for efficiency.
+ * Uses Supabase workout_submissions for verified, anti-cheat validated data.
  *
  * Features:
- * - Reuses Season II participant list and cached workout data
+ * - Queries Supabase for verified workouts (anti-cheat validated)
  * - Allows local joining for non-Season II users
  * - Filters for running + walking activities only
  * - Tracks 21km goal completion (finishers)
@@ -13,7 +13,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UnifiedWorkoutCache, type CachedWorkout } from '../cache/UnifiedWorkoutCache';
+import { type CachedWorkout } from '../cache/UnifiedWorkoutCache';
 import {
   RUNNING_BITCOIN_CONFIG,
   getRunningBitcoinStatus,
@@ -83,11 +83,12 @@ class RunningBitcoinServiceClass {
 
   /**
    * Get the Running Bitcoin Challenge leaderboard
-   * Queries UnifiedWorkoutCache directly with Running Bitcoin date filtering
+   * Queries Supabase workout_submissions for verified workouts
+   * @param forceRefresh - If true, bypasses cache and fetches fresh data
    */
-  async getLeaderboard(): Promise<RunningBitcoinLeaderboard> {
+  async getLeaderboard(forceRefresh: boolean = false): Promise<RunningBitcoinLeaderboard> {
     const startTime = Date.now();
-    console.log(`[RunningBitcoin] ========== getLeaderboard() ==========`);
+    console.log(`[RunningBitcoin] ========== getLeaderboard(forceRefresh=${forceRefresh}) ==========`);
 
     // If event hasn't started yet, return empty leaderboard
     const status = getRunningBitcoinStatus();
@@ -102,16 +103,15 @@ class RunningBitcoinServiceClass {
       const endTs = getRunningBitcoinEndTimestamp();
       console.log(`[RunningBitcoin] Date range: ${new Date(startTs * 1000).toLocaleDateString()} - ${new Date(endTs * 1000).toLocaleDateString()}`);
 
-      // Get workouts from cache, filtered by Running Bitcoin date range
-      const cache = UnifiedWorkoutCache;
-      await cache.ensureLoaded();
+      // Query Supabase for running + walking workouts in date range
+      console.log(`[RunningBitcoin] 🔍 Fetching workouts from Supabase (Jan 10+ date range)`);
+      const workouts = await this.fetchWorkoutsFromSupabase(startTs, endTs);
+      console.log(`[RunningBitcoin] 📊 Total workouts from Supabase: ${workouts.length}`);
 
-      const runningWorkouts = cache.getWorkoutsByActivity('running')
-        .filter(w => w.createdAt >= startTs && w.createdAt <= endTs);
-      const walkingWorkouts = cache.getWorkoutsByActivity('walking')
-        .filter(w => w.createdAt >= startTs && w.createdAt <= endTs);
+      const runningWorkouts = workouts.filter(w => w.activityType === 'running');
+      const walkingWorkouts = workouts.filter(w => w.activityType === 'walking');
 
-      console.log(`[RunningBitcoin] Filtered workouts - Running: ${runningWorkouts.length}, Walking: ${walkingWorkouts.length}`);
+      console.log(`[RunningBitcoin] 🏃 Running: ${runningWorkouts.length}, 🚶 Walking: ${walkingWorkouts.length}`);
 
       // Get eligible participants (Season II + locally joined)
       const localJoins = await this.getLocallyJoinedUsers();
@@ -119,21 +119,34 @@ class RunningBitcoinServiceClass {
         ...SEASON_2_PARTICIPANTS.map(p => p.pubkey),
         ...localJoins,
       ]);
+      console.log(`[RunningBitcoin] 👥 Eligible participants: ${eligiblePubkeys.size} (S2: ${SEASON_2_PARTICIPANTS.length}, local: ${localJoins.length})`);
 
       // Fetch Supabase profiles for non-Season II users (single query)
       const supabaseProfiles = await this.getParticipantProfilesFromSupabase();
 
-      // Aggregate distance per participant
+      // Aggregate distance per participant (convert npub to pubkey for compatibility)
       const stats = new Map<string, { distance: number; workoutCount: number }>();
 
       for (const w of [...runningWorkouts, ...walkingWorkouts]) {
-        if (!eligiblePubkeys.has(w.pubkey)) continue;
+        // Convert npub to pubkey for eligibility check
+        let pubkey = w.pubkey;
+        if (w.npub && !pubkey) {
+          try {
+            const decoded = nip19.decode(w.npub);
+            pubkey = decoded.data as string;
+          } catch {
+            continue; // Skip invalid npub
+          }
+        }
+        if (!pubkey || !eligiblePubkeys.has(pubkey)) continue;
 
-        const existing = stats.get(w.pubkey) || { distance: 0, workoutCount: 0 };
+        const existing = stats.get(pubkey) || { distance: 0, workoutCount: 0 };
         existing.distance += w.distance;
         existing.workoutCount += 1;
-        stats.set(w.pubkey, existing);
+        stats.set(pubkey, existing);
       }
+
+      console.log(`[RunningBitcoin] ✅ Aggregated stats for ${stats.size} participants`);
 
       // Build participant entries with profile data
       const participantEntries: RunningBitcoinParticipant[] = [];
@@ -249,6 +262,78 @@ class RunningBitcoinServiceClass {
       totalDistanceKm: 0,
       lastUpdated: Date.now(),
     };
+  }
+
+  /**
+   * Fetch workouts from Supabase for Running Bitcoin date range
+   * Queries running + walking workouts that have been validated by anti-cheat
+   */
+  private async fetchWorkoutsFromSupabase(
+    startTs: number,
+    endTs: number
+  ): Promise<Array<{ npub: string; pubkey: string; distance: number; activityType: string; createdAt: number }>> {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('[RunningBitcoin] Supabase not configured');
+      return [];
+    }
+
+    try {
+      const startDate = new Date(startTs * 1000).toISOString();
+      const endDate = new Date(endTs * 1000).toISOString();
+
+      // Query running + walking workouts in date range
+      const url = `${supabaseUrl}/rest/v1/workout_submissions?` +
+        `activity_type=in.(running,walking)&` +
+        `created_at=gte.${startDate}&` +
+        `created_at=lte.${endDate}&` +
+        `select=npub,distance_meters,activity_type,created_at`;
+
+      const response = await fetch(url, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error('[RunningBitcoin] Failed to fetch workouts:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      console.log(`[RunningBitcoin] Fetched ${data.length} workouts from Supabase`);
+
+      // Transform to internal format
+      return data.map((row: {
+        npub: string;
+        distance_meters: number | null;
+        activity_type: string;
+        created_at: string;
+      }) => {
+        // Convert npub to pubkey
+        let pubkey = '';
+        try {
+          const decoded = nip19.decode(row.npub);
+          pubkey = decoded.data as string;
+        } catch {
+          // Keep empty if decode fails
+        }
+
+        return {
+          npub: row.npub,
+          pubkey,
+          distance: (row.distance_meters || 0) / 1000, // Convert to km
+          activityType: row.activity_type,
+          createdAt: new Date(row.created_at).getTime() / 1000,
+        };
+      });
+    } catch (error) {
+      console.error('[RunningBitcoin] Error fetching workouts from Supabase:', error);
+      return [];
+    }
   }
 
   /**

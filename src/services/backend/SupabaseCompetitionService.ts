@@ -654,6 +654,20 @@ export class SupabaseCompetitionService {
     }
   }
 
+  /**
+   * Get competition UUID from external_id
+   * Public wrapper for resolveCompetitionId
+   *
+   * @param externalId - The external ID (e.g., 'january-walking', 'einundzwanzig')
+   * @returns The competition UUID or null if not found
+   */
+  static async getCompetitionId(externalId: string): Promise<string | null> {
+    if (!isSupabaseConfigured()) {
+      return null;
+    }
+    return this.resolveCompetitionId(externalId);
+  }
+
   // ============================================================================
   // Private Helper Methods
   // ============================================================================

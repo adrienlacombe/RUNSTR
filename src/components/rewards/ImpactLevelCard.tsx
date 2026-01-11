@@ -9,7 +9,7 @@
  * - XP progress to next level
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -37,6 +38,15 @@ export const ImpactLevelCard: React.FC<ImpactLevelCardProps> = ({ pubkey }) => {
   useEffect(() => {
     loadImpactStats();
   }, [pubkey]);
+
+  // Reload stats when screen regains focus (e.g., after donating)
+  useFocusEffect(
+    useCallback(() => {
+      if (pubkey) {
+        loadImpactStats();
+      }
+    }, [pubkey])
+  );
 
   const loadImpactStats = async () => {
     try {

@@ -24,7 +24,6 @@ import { CharitySelectionService } from '../charity/CharitySelectionService';
 import { CHARITIES, getCharityById, type Charity } from '../../constants/charities';
 import { SatlantisEventJoinService } from '../satlantis/SatlantisEventJoinService';
 import { withTimeout, fireAndForget, NOSTR_TIMEOUTS } from '../../utils/nostrTimeout';
-import { SupabaseCompetitionService } from '../backend/SupabaseCompetitionService';
 import { RunningBitcoinService } from '../challenge/RunningBitcoinService';
 import { isRunningBitcoinActive, isEligibleActivityType } from '../../constants/runningBitcoin';
 import { nip19 } from 'nostr-tools';
@@ -222,26 +221,35 @@ export class WorkoutPublishingService {
         signTimeout,
         'Event signing'
       );
+
+      // ============================================================================
+      // NOSTR PUBLISH: Publish to Nostr relays
+      // Supabase sync is now handled by a scheduled edge function (sync-nostr-workouts)
+      // that queries Nostr every 2 minutes - this is more reliable than client-side
+      // submissions which were silently failing
+      // ============================================================================
+      const exerciseType = this.getExerciseVerb(workout.type);
+      const npub = nip19.npubEncode(pubkey);
+
       await withTimeout(
         ndkEvent.publish(),
         NOSTR_TIMEOUTS.PUBLISH,
         'Event publishing'
       );
 
-      console.log(`✅ Workout saved to Nostr (runstr format): ${ndkEvent.id}`);
+      console.log(`✅ Workout saved to Nostr: ${ndkEvent.id}`);
 
       // ============================================================================
       // FIRE-AND-FORGET: Non-critical operations that should NEVER block UI
       // ============================================================================
 
-      // Cache invalidation (non-blocking) - user will see workout on next refresh
+      // Cache invalidation (non-blocking)
       fireAndForget(
         CacheInvalidationService.invalidateWorkout(pubkey),
         'cacheInvalidation'
       );
 
-      // 🎁 Reward check (non-blocking) - don't block publish for rewards
-      // Rewards are processed in background, user sees notification if successful
+      // 🎁 Reward check (non-blocking)
       if (FEATURES.ENABLE_DAILY_REWARDS) {
         fireAndForget(
           DailyRewardService.sendReward(pubkey).then((result) => {
@@ -253,60 +261,28 @@ export class WorkoutPublishingService {
         );
       }
 
-      // ============================================================================
-      // SUPABASE SUBMISSION: Submit workout to Supabase for competition tracking
-      // ============================================================================
-      const exerciseType = this.getExerciseVerb(workout.type);
-      const npub = nip19.npubEncode(pubkey);
-
-      fireAndForget(
-        (async () => {
-          try {
-            // Submit workout to Supabase Edge Function (anti-cheat validation)
-            // Pass tags for daily leaderboard split/step parsing
-            const supabaseResult = await SupabaseCompetitionService.submitWorkoutSimple({
-              eventId: ndkEvent.id || '',
-              npub,
-              type: exerciseType,
-              distance: workout.distance,
-              duration: workout.duration,
-              calories: workout.calories,
-              startTime: workout.startTime,
-              // Daily leaderboard: Pass Nostr tags for split/step extraction
-              tags: ndkEvent.tags as string[][],
-            });
-
-            if (supabaseResult.success && !supabaseResult.flagged) {
-              console.log(`✅ Workout submitted to Supabase: ${ndkEvent.id}`);
-
-              // Check Running Bitcoin auto-pay for eligible activity types
-              if (isRunningBitcoinActive() && isEligibleActivityType(exerciseType)) {
-                console.log('[WorkoutPublishing] Checking Running Bitcoin auto-pay...');
-                try {
-                  const autoPayResult = await RunningBitcoinService.checkAndAutoPayReward(npub);
-                  if (autoPayResult.paid) {
-                    console.log('🏃⚡ Running Bitcoin: Auto-paid 1000 sats for 21km completion!');
-                  }
-                } catch (rbError) {
-                  // Non-fatal - don't let Running Bitcoin failures crash workout posting
-                  console.error('[WorkoutPublishing] Running Bitcoin auto-pay failed:', rbError);
-                }
+      // 🏃 Running Bitcoin auto-pay check (non-blocking)
+      if (isRunningBitcoinActive() && isEligibleActivityType(exerciseType)) {
+        fireAndForget(
+          (async () => {
+            console.log('[WorkoutPublishing] Checking Running Bitcoin auto-pay...');
+            try {
+              const autoPayResult = await RunningBitcoinService.checkAndAutoPayReward(npub);
+              if (autoPayResult.paid) {
+                console.log('🏃⚡ Running Bitcoin: Auto-paid 1000 sats for 21km completion!');
               }
-            } else if (supabaseResult.flagged) {
-              console.warn(`⚠️ Workout flagged by anti-cheat: ${supabaseResult.error}`);
+            } catch (rbError) {
+              console.error('[WorkoutPublishing] Running Bitcoin auto-pay failed:', rbError);
             }
-          } catch (error) {
-            console.warn('⚠️ Supabase submission failed (non-blocking):', error);
-          }
-        })(),
-        'supabaseSubmission'
-      );
+          })(),
+          'runningBitcoinAutoPay'
+        );
+      }
 
-      // Return immediately - don't wait for non-critical operations
       return {
         success: true,
         eventId: ndkEvent.id,
-        rewardEarned: false, // Will be updated via notification if successful
+        rewardEarned: false,
         rewardAmount: undefined,
       };
     } catch (error) {

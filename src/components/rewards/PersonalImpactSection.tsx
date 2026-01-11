@@ -9,7 +9,7 @@
  * - Breakdown by charity
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { ImpactLevelService } from '../../services/impact/ImpactLevelService';
@@ -46,6 +47,15 @@ export const PersonalImpactSection: React.FC<PersonalImpactSectionProps> = ({
   useEffect(() => {
     loadData();
   }, [pubkey]);
+
+  // Reload data when screen regains focus (e.g., after donating)
+  useFocusEffect(
+    useCallback(() => {
+      if (pubkey) {
+        loadData();
+      }
+    }, [pubkey])
+  );
 
   const loadData = async () => {
     try {

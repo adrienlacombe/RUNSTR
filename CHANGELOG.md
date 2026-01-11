@@ -2,6 +2,35 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.4.9] - 2026-01-11 - Stability & Bug Fixes
+
+### Activity Tracker
+- Fixed GPS death after 20-30 minutes on Android
+- Reverted GPS timeout to 15s for faster recovery (was 30s)
+- Improved watchdog detection of GPS hiccups
+
+### Daily Rewards
+- Fixed reward streak tracking bug
+- Step rewards now pay 100% to user (simplified donation flow)
+- Fixed foreground step catch-up calculation
+
+### Leaderboards
+- Improved leaderboard data fetching and caching
+- Fixed profile display issues in Season 2 leaderboards
+- Better handling of workout sync errors
+
+### Impact Level System
+- Fixed Impact Level XP calculation display
+- Improved charity section layout
+- Better handling of donation tracking
+
+### Competition Services
+- Improved January Walking Contest sync
+- Better Running Bitcoin challenge tracking
+- Enhanced Supabase competition service reliability
+
+---
+
 ## [1.4.8] - 2026-01-11 - Activity Tracker Stability
 
 ### Activity Tracker Fixes
