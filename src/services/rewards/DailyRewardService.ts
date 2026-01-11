@@ -167,11 +167,11 @@ class DailyRewardServiceClass {
       return { success: false, reason: 'source_not_eligible' };
     }
 
-    // Step 2: Atomic streak check - only first workout of the day
+    // Step 2: Atomic streak check - only first workout of the day PER USER
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const streakKey = `@runstr:streak_incremented_today:${today}`;
+    const streakKey = `@runstr:streak_incremented_today:${today}:${userPubkey}`;
 
-    // Rate limit: Only one reward per day
+    // Rate limit: Only one reward per day per user
     const alreadyIncremented = await AsyncStorage.getItem(streakKey);
     if (alreadyIncremented) {
       console.log('[Reward] Streak already incremented today, skipping reward');

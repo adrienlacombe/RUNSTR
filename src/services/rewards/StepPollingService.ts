@@ -70,9 +70,11 @@ class StepPollingServiceClass {
    */
   private handleAppStateChange = (nextAppState: AppStateStatus): void => {
     if (this.lastAppState !== 'active' && nextAppState === 'active') {
-      // App came to foreground
-      console.log('[StepPolling] App came to foreground, starting polling');
+      // App came to foreground - IMMEDIATELY check for missed milestones
+      console.log('[StepPolling] App came to foreground, checking milestones immediately');
       this.start();
+      // Force immediate check even if already polling (catch up on missed milestones)
+      this.checkMilestones();
     } else if (this.lastAppState === 'active' && nextAppState !== 'active') {
       // App went to background
       console.log('[StepPolling] App went to background, stopping polling');
