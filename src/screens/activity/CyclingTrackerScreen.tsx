@@ -13,6 +13,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { AppStateManager } from '../../services/core/AppStateManager';
 import { CustomAlert } from '../../components/ui/CustomAlert';
 import { simpleRunTracker } from '../../services/activity/SimpleRunTracker';
@@ -48,6 +49,7 @@ import { HoldToStartButton } from '../../components/activity/HoldToStartButton';
 import { LastActivityCard } from '../../components/activity/LastActivityCard';
 
 export const CyclingTrackerScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [metrics, setMetrics] = useState({
@@ -113,6 +115,46 @@ export const CyclingTrackerScreen: React.FC = () => {
   const totalPausedTimeRef = useRef<number>(0); // Cumulative pause duration in ms
   const isPausedRef = useRef<boolean>(false); // Ref to avoid stale closure in timer
   const isTrackingRef = useRef<boolean>(false); // Track isTracking without re-subscribing
+
+  // CRITICAL: Prevent navigation away from tracker screen during active tracking
+  // This fixes the bug where users were unexpectedly navigated to profile screen mid-workout
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      // Only prevent navigation if actively tracking (not paused, not stopped)
+      if (!isTracking || isPaused) {
+        return; // Allow navigation if not tracking or paused
+      }
+
+      // Prevent the default action (navigating away)
+      e.preventDefault();
+
+      // Show confirmation dialog
+      CustomAlert.show({
+        title: 'Stop Tracking?',
+        message: 'You have an active workout. Do you want to stop and discard it?',
+        buttons: [
+          {
+            text: 'Continue Workout',
+            style: 'cancel',
+          },
+          {
+            text: 'Stop & Discard',
+            style: 'destructive',
+            onPress: async () => {
+              // Stop tracking and discard
+              await simpleRunTracker.stopTracking();
+              setIsTracking(false);
+              isTrackingRef.current = false;
+              // Now allow navigation
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ],
+      });
+    });
+
+    return unsubscribe;
+  }, [navigation, isTracking, isPaused]);
 
   useEffect(() => {
     return () => {

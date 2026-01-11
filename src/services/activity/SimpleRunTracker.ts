@@ -31,6 +31,8 @@ import {
   InterruptionModeIOS,
   InterruptionModeAndroid,
 } from 'expo-av';
+import { gpsHealthMonitor, type GPSHealthStatus } from './GPSHealthMonitor';
+import { workoutRecovery } from './WorkoutRecovery';
 
 // Storage keys
 // MEMORY-ONLY ARCHITECTURE: GPS points are NOT stored, only metrics for crash recovery
@@ -219,6 +221,7 @@ export class SimpleRunTracker {
   private recoveryPointsSkipped = 0;
   private gpsFailureCount = 0;
   private lastGPSError: string | null = null;
+  private lastGPSHealthStatus: GPSHealthStatus | null = null;
 
   // Auto-stop callback (for UI notification when preset distance reached)
   private autoStopCallback: (() => void) | null = null;
@@ -289,6 +292,10 @@ export class SimpleRunTracker {
     // Reset debug state for new session
     this.resetDebugState();
 
+    // Reset GPS health monitor for new session
+    gpsHealthMonitor.reset();
+    this.lastGPSHealthStatus = null;
+
     // CRITICAL: Prevent Android from suspending the app (Doze Mode)
     // Reference implementation uses this exact pattern - required for background GPS
     try {
@@ -333,6 +340,19 @@ export class SimpleRunTracker {
 
     // Start silent audio recording for extra Android background insurance
     this.startSilentAudio();
+
+    // Start WorkoutRecovery checkpointing (saves every 30 seconds for crash recovery)
+    workoutRecovery.startCheckpointing(
+      this.sessionId!,
+      activityType,
+      this.startTime,
+      () => ({
+        distance: this.runningDistance,
+        duration: this.durationTracker.getDuration(),
+        pausedDuration: this.durationTracker.getTotalPausedTime(),
+        gpsPoints: this.cachedGpsPoints,
+      })
+    );
 
     return true;
   }
@@ -504,6 +524,9 @@ export class SimpleRunTracker {
     // Stop watchdog first
     this.stopWatchdog();
 
+    // Stop WorkoutRecovery checkpointing
+    workoutRecovery.stopCheckpointing();
+
     // Stop periodic metrics save
     this.stopMetricsSave();
 
@@ -595,6 +618,9 @@ export class SimpleRunTracker {
     await AsyncStorage.removeItem(SESSION_STATE_KEY);
     await AsyncStorage.removeItem(ACTIVE_METRICS_KEY);
     await AsyncStorage.removeItem(LAST_GPS_POINT_KEY);
+
+    // Clear WorkoutRecovery checkpoint (session ended normally)
+    await workoutRecovery.clearCheckpoint();
 
     console.log(
       `[SimpleRunTracker] ✅ Session completed: ${(distance / 1000).toFixed(
@@ -747,6 +773,16 @@ export class SimpleRunTracker {
 
     // Update GPS health
     this.lastGPSUpdate = now;
+
+    // Assess GPS signal quality using GPSHealthMonitor
+    if (points.length > 0 && points[0].accuracy !== undefined) {
+      this.lastGPSHealthStatus = gpsHealthMonitor.assessSignalQuality(points[0].accuracy);
+
+      // Log warnings for poor/lost signal
+      if (this.lastGPSHealthStatus.message) {
+        console.warn(`[GPSHealthMonitor] ${this.lastGPSHealthStatus.message}`);
+      }
+    }
 
     // MEMORY-ONLY ARCHITECTURE: Calculate incremental distance for each point
     for (const point of points) {
@@ -993,21 +1029,31 @@ export class SimpleRunTracker {
 
   /**
    * Get GPS health status for UI display
+   * Includes data from GPSHealthMonitor for comprehensive signal quality assessment
    */
   getGPSStatus(): {
     isHealthy: boolean;
     lastUpdateSeconds: number;
     errorMessage: string | null;
     isInRecovery: boolean;
+    signalQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
+    accuracy: number | null;
   } {
     const now = Date.now();
     const timeSinceLastGPS = (now - this.lastGPSUpdate) / 1000;
 
+    // Use GPSHealthMonitor data if available
+    const signalQuality = this.lastGPSHealthStatus?.quality ?? 'unknown';
+    const accuracy = this.lastGPSHealthStatus?.accuracy ?? null;
+    const healthMonitorMessage = this.lastGPSHealthStatus?.message ?? null;
+
     return {
-      isHealthy: timeSinceLastGPS < 10 && !this.isInGPSRecovery,
+      isHealthy: timeSinceLastGPS < 10 && !this.isInGPSRecovery && signalQuality !== 'lost',
       lastUpdateSeconds: Math.floor(timeSinceLastGPS),
-      errorMessage: this.lastGPSError,
+      errorMessage: this.lastGPSError || healthMonitorMessage,
       isInRecovery: this.isInGPSRecovery,
+      signalQuality,
+      accuracy,
     };
   }
 

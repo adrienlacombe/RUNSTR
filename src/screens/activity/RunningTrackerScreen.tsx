@@ -165,6 +165,46 @@ export const RunningTrackerScreen: React.FC = () => {
   const lastMetricsUpdateRef = useRef<number>(Date.now());
   // NOTE: Timer refs removed - SimpleRunTracker handles all timing internally via hybrid timer
 
+  // CRITICAL: Prevent navigation away from tracker screen during active tracking
+  // This fixes the bug where users were unexpectedly navigated to profile screen mid-workout
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      // Only prevent navigation if actively tracking (not paused, not stopped)
+      if (!isTracking || isPaused) {
+        return; // Allow navigation if not tracking or paused
+      }
+
+      // Prevent the default action (navigating away)
+      e.preventDefault();
+
+      // Show confirmation dialog
+      CustomAlert.show({
+        title: 'Stop Tracking?',
+        message: 'You have an active workout. Do you want to stop and discard it?',
+        buttons: [
+          {
+            text: 'Continue Workout',
+            style: 'cancel',
+          },
+          {
+            text: 'Stop & Discard',
+            style: 'destructive',
+            onPress: async () => {
+              // Stop tracking and discard
+              await simpleRunTracker.stopTracking();
+              setIsTracking(false);
+              isTrackingRef.current = false;
+              // Now allow navigation
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ],
+      });
+    });
+
+    return unsubscribe;
+  }, [navigation, isTracking, isPaused]);
+
   // Extract metrics update logic to reusable function (defined early for useEffect)
   const updateMetrics = () => {
     // LIVENESS: Mark that updateMetrics actually executed (for zombie detection)
