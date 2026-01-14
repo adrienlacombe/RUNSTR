@@ -44,6 +44,13 @@ export interface GetBalanceResult {
   error?: string;
 }
 
+export interface RegisterDonationResult {
+  success: boolean;
+  donation_id?: string;
+  payment_hash?: string;
+  error?: string;
+}
+
 // ============================================
 // NWC Gateway Service
 // ============================================
@@ -215,6 +222,61 @@ class NWCGatewayServiceClass {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       console.error('[NWCGateway] Get balance exception:', error);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * Register a pending donation for server-side auto-forwarding
+   * Used for: tracking charity donations that need to be forwarded
+   * The process-donations cron will check for settlements and forward to charity
+   */
+  async registerDonation(params: {
+    paymentHash: string;
+    charityId: string;
+    charityLightningAddress: string;
+    amountSats: number;
+    description?: string;
+  }): Promise<RegisterDonationResult> {
+    try {
+      if (!supabase) {
+        console.error('[NWCGateway] Supabase not configured');
+        return { success: false, error: 'Supabase not configured' };
+      }
+
+      console.log(
+        '[NWCGateway] Registering donation:',
+        params.amountSats,
+        'sats to',
+        params.charityId
+      );
+
+      const { data, error } = await supabase.functions.invoke('claim-reward', {
+        body: {
+          operation: 'register_donation',
+          payment_hash: params.paymentHash,
+          charity_id: params.charityId,
+          charity_lightning_address: params.charityLightningAddress,
+          amount_sats: params.amountSats,
+          description: params.description,
+        },
+      });
+
+      if (error) {
+        console.error('[NWCGateway] Register donation error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('[NWCGateway] Donation registered:', data?.success);
+      return {
+        success: data?.success ?? false,
+        donation_id: data?.donation_id,
+        payment_hash: data?.payment_hash,
+        error: data?.error,
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[NWCGateway] Register donation exception:', error);
       return { success: false, error: errorMsg };
     }
   }

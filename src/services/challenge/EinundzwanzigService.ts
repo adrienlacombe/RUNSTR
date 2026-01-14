@@ -243,39 +243,35 @@ class EinundzwanzigServiceClass {
   }
 
   /**
-   * Join the Einundzwanzig Challenge with a selected charity
+   * Join the Einundzwanzig Challenge
+   * Team attribution comes from team tag on kind 1301 workout events
    * Uses local-first pattern with fire-and-forget Supabase registration
    */
-  async joinChallenge(pubkey: string, charityId: string): Promise<boolean> {
+  async joinChallenge(pubkey: string): Promise<boolean> {
     try {
       const joinedUsers = await this.getJoinedUsers();
 
       // Check if already joined
       const existingIndex = joinedUsers.findIndex((u) => u.pubkey === pubkey);
       if (existingIndex >= 0) {
-        // Update charity selection
-        joinedUsers[existingIndex].charityId = charityId;
-        console.log(
-          `[Einundzwanzig] User ${pubkey.slice(0, 8)} updated charity to ${charityId}`
-        );
-      } else {
-        // New join
-        joinedUsers.push({
-          pubkey,
-          charityId,
-          joinedAt: Date.now(),
-        });
-        console.log(
-          `[Einundzwanzig] User ${pubkey.slice(0, 8)} joined with charity ${charityId}`
-        );
+        console.log(`[Einundzwanzig] User ${pubkey.slice(0, 8)} already joined`);
+        return true;
       }
+
+      // New join - team attribution comes from workout events, not join time
+      joinedUsers.push({
+        pubkey,
+        charityId: '', // Team attribution from kind 1301 events
+        joinedAt: Date.now(),
+      });
+      console.log(`[Einundzwanzig] User ${pubkey.slice(0, 8)} joined challenge`);
 
       // Save to local storage (instant UX)
       await AsyncStorage.setItem(JOINED_USERS_KEY, JSON.stringify(joinedUsers));
 
-      // Fire-and-forget: Register in Supabase with profile data
+      // Fire-and-forget: Register in Supabase
       const npub = nip19.npubEncode(pubkey);
-      this.registerInSupabase(npub, charityId).catch((err) => {
+      this.registerInSupabase(npub).catch((err) => {
         console.warn('[Einundzwanzig] Supabase registration failed (non-blocking):', err);
       });
 
@@ -358,7 +354,7 @@ class EinundzwanzigServiceClass {
    * Register user in Supabase competition_participants with profile data
    * Fire-and-forget - doesn't block join flow
    */
-  async registerInSupabase(npub: string, charityId: string): Promise<boolean> {
+  async registerInSupabase(npub: string): Promise<boolean> {
     try {
       // Decode npub to get hex pubkey for profile fetch
       let pubkey: string;

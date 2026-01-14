@@ -556,11 +556,11 @@ export const ManualEntryScreen: React.FC<ManualEntryScreenProps> = ({
             <View style={styles.summaryButtons}>
               <TouchableOpacity style={styles.postButton} onPress={handlePost}>
                 <Ionicons
-                  name="chatbubble-outline"
+                  name="bookmark-outline"
                   size={20}
                   color={theme.colors.background}
                 />
-                <Text style={styles.postButtonText}>Post</Text>
+                <Text style={styles.postButtonText}>Share</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

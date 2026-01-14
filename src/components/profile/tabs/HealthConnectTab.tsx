@@ -378,11 +378,11 @@ const HealthConnectTabContent: React.FC<HealthConnectTabProps> = ({
             ) : (
               <>
                 <Ionicons
-                  name="chatbubble-outline"
+                  name="bookmark-outline"
                   size={16}
                   color={theme.colors.accentText}
                 />
-                <Text style={styles.postButtonText}>Post</Text>
+                <Text style={styles.postButtonText}>Share</Text>
               </>
             )}
           </TouchableOpacity>

@@ -2,6 +2,33 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.5.2] - 2026-01-14 - Social Sharing & Competitions
+
+### Donations
+- Always show split preview when team selected (shows "You: 50 sats" at 0%)
+- Server-side donation forwarding with automatic retry (pending_donations + cron)
+
+### Social Sharing
+- Simplified to 3 templates: Text, Camera, Profile
+- Profile template redesigned: username/quote top, avatar center, stats bottom, team shoutout
+- Strength workouts show reps/sets in Profile template
+- Status bar hidden in full screen preview
+
+### Competitions
+- Opened event leaderboards to all joined users
+- Fixed January step leaderboard (shows actual step counts, not distance)
+- Enrolled Season II participants in Running Bitcoin
+- Simplified Einundzwanzig challenge join flow
+
+### Settings
+- Removed wearables sync section from settings
+
+### Infrastructure
+- Improved leaderboard syncing reliability
+- Added competition diagnostic tools
+
+---
+
 ## [1.5.1] - 2026-01-13 - Security & Anti-Cheat
 
 ### Security & Anti-Cheat

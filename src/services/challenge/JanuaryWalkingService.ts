@@ -14,9 +14,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { nip19 } from 'nostr-tools';
-import { UnifiedWorkoutCache } from '../cache/UnifiedWorkoutCache';
 import {
-  JANUARY_WALKING_JOINED_KEY,
   getJanuaryWalkingStatus,
   getJanuaryWalkingStartTimestamp,
   getJanuaryWalkingEndTimestamp,
@@ -35,19 +33,18 @@ export interface JanuaryWalkingParticipant {
   npub?: string;
   name: string;
   picture?: string;
-  totalDistanceKm: number;
+  totalSteps: number;
   workoutCount: number;
-  isSeasonParticipant: boolean; // Eligible for prize
-  isLocalJoin: boolean; // Joined locally but not Season II
+  isJoined: boolean; // User has joined the contest
   rank: number;
 }
 
 export interface JanuaryWalkingLeaderboard {
-  participants: JanuaryWalkingParticipant[]; // Top 25 (Season II only)
+  participants: JanuaryWalkingParticipant[]; // Top 25 (all joined users)
   currentUserEntry?: JanuaryWalkingParticipant; // If user joined but not in top 25
   currentUserRank?: number;
   totalParticipants: number;
-  totalDistanceKm: number;
+  totalSteps: number;
   lastUpdated: number;
 }
 
@@ -89,16 +86,20 @@ class JanuaryWalkingServiceClass {
 
       console.log(`[JanuaryWalking] Fetched from Supabase: ${walkingWorkouts.length} walking workouts`);
 
-      // Get eligible participants: Season II + locally joined users
-      const season2Pubkeys = new Set(SEASON_2_PARTICIPANTS.map(p => p.pubkey));
+      // Get ALL joined participants from Supabase (source of truth)
+      const joinedParticipants = await this.getAllJoinedParticipantsFromSupabase();
+      const eligiblePubkeys = new Set(joinedParticipants.keys());
+
+      // Also include local joins (for instant UI feedback before Supabase sync)
       const locallyJoined = await this.getJoinedUsers();
-      const eligiblePubkeys = new Set([...season2Pubkeys, ...locallyJoined]);
+      for (const pubkey of locallyJoined) {
+        eligiblePubkeys.add(pubkey);
+      }
 
-      // Fetch Supabase profiles for non-Season II users
-      const supabaseProfiles = await this.getParticipantProfilesFromSupabase();
+      console.log(`[JanuaryWalking] Eligible participants: ${eligiblePubkeys.size} (Supabase: ${joinedParticipants.size}, local: ${locallyJoined.length})`);
 
-      // Aggregate distance per participant (ALL eligible users)
-      const stats = new Map<string, { distance: number; workoutCount: number }>();
+      // Aggregate steps per participant (ALL eligible users)
+      const stats = new Map<string, { steps: number; workoutCount: number }>();
 
       for (const w of walkingWorkouts) {
         // Convert npub to pubkey for eligibility check
@@ -113,34 +114,26 @@ class JanuaryWalkingServiceClass {
         }
         if (!pubkey || !eligiblePubkeys.has(pubkey)) continue;
 
-        const existing = stats.get(pubkey) || { distance: 0, workoutCount: 0 };
-        existing.distance += w.distance;
+        const existing = stats.get(pubkey) || { steps: 0, workoutCount: 0 };
+        existing.steps += w.steps;
         existing.workoutCount += 1;
         stats.set(pubkey, existing);
       }
 
-      // Build participant entries with profile resolution chain
-      // Note: Joined users with 0 workouts will be added after this loop
+      // Build participant entries with profile data from Supabase
       const participantEntries: JanuaryWalkingParticipant[] = [];
       for (const [pubkey, data] of stats) {
-
-        // Profile resolution: Season II → Supabase → fallback
+        // Get profile from Supabase joined participants (or Season II as fallback)
+        const supabaseProfile = joinedParticipants.get(pubkey);
         const season2Profile = SEASON_2_PARTICIPANTS.find(p => p.pubkey === pubkey);
-        const isSeason2 = !!season2Profile;
 
-        let name = season2Profile?.name;
-        let picture = season2Profile?.picture;
-        let npub = season2Profile?.npub;
+        let name = supabaseProfile?.name || season2Profile?.name;
+        let picture = supabaseProfile?.picture || season2Profile?.picture;
+        let npub = supabaseProfile?.npub || season2Profile?.npub;
 
-        // For non-Season II, check Supabase profiles
-        if (!season2Profile) {
+        if (!npub) {
           try {
             npub = nip19.npubEncode(pubkey);
-            const supabaseProfile = supabaseProfiles.get(npub);
-            if (supabaseProfile) {
-              name = supabaseProfile.name;
-              picture = supabaseProfile.picture;
-            }
           } catch {
             // Ignore encoding errors
           }
@@ -151,67 +144,71 @@ class JanuaryWalkingServiceClass {
           npub,
           name: name || 'Anonymous Athlete',
           picture,
-          totalDistanceKm: data.distance,
+          totalSteps: data.steps,
           workoutCount: data.workoutCount,
-          isSeasonParticipant: isSeason2,
-          isLocalJoin: !isSeason2,
+          isJoined: true,
           rank: 0,
         });
       }
 
       // Add joined users who have 0 workouts (so they appear on leaderboard after joining)
       const participantPubkeys = new Set(participantEntries.map(p => p.pubkey));
-      for (const joinedPubkey of locallyJoined) {
-        if (!participantPubkeys.has(joinedPubkey)) {
-          // User joined but has no workouts - add them with 0 distance
-          const season2Profile = SEASON_2_PARTICIPANTS.find(p => p.pubkey === joinedPubkey);
-          let name = season2Profile?.name;
-          let picture = season2Profile?.picture;
-          let npub = season2Profile?.npub;
 
-          if (!season2Profile) {
-            try {
-              npub = nip19.npubEncode(joinedPubkey);
-              const supabaseProfile = supabaseProfiles.get(npub);
-              if (supabaseProfile) {
-                name = supabaseProfile.name;
-                picture = supabaseProfile.picture;
-              }
-            } catch {
-              // Ignore encoding errors
-            }
-          }
-
+      // Add from Supabase joined participants with 0 workouts
+      for (const [pubkey, profile] of joinedParticipants) {
+        if (!participantPubkeys.has(pubkey)) {
           participantEntries.push({
-            pubkey: joinedPubkey,
-            npub,
-            name: name || 'Anonymous Athlete',
-            picture,
-            totalDistanceKm: 0,
+            pubkey,
+            npub: profile.npub,
+            name: profile.name || 'Anonymous Athlete',
+            picture: profile.picture,
+            totalSteps: 0,
             workoutCount: 0,
-            isSeasonParticipant: !!season2Profile,
-            isLocalJoin: !season2Profile,
+            isJoined: true,
             rank: 0,
           });
         }
       }
 
-      // Sort by distance (descending) and assign ranks
-      participantEntries.sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
+      // Add local joins with 0 workouts (for instant UI before Supabase sync)
+      const participantPubkeysAfterSupabase = new Set(participantEntries.map(p => p.pubkey));
+      for (const joinedPubkey of locallyJoined) {
+        if (!participantPubkeysAfterSupabase.has(joinedPubkey)) {
+          let npub: string | undefined;
+          try {
+            npub = nip19.npubEncode(joinedPubkey);
+          } catch {
+            // Ignore encoding errors
+          }
+
+          participantEntries.push({
+            pubkey: joinedPubkey,
+            npub,
+            name: 'Anonymous Athlete',
+            picture: undefined,
+            totalSteps: 0,
+            workoutCount: 0,
+            isJoined: true,
+            rank: 0,
+          });
+        }
+      }
+
+      // Sort by steps (descending) and assign ranks
+      participantEntries.sort((a, b) => b.totalSteps - a.totalSteps);
       participantEntries.forEach((p, index) => {
         p.rank = index + 1;
       });
 
-      // Check if current user should be included privately
+      // Check if current user should be included
       let currentUserEntry: JanuaryWalkingParticipant | undefined;
       let currentUserRank: number | undefined;
 
       if (currentUserPubkey) {
-        // Check if user has joined locally
-        const hasJoined = await this.hasJoined(currentUserPubkey);
-        const isSeasonParticipant = season2Pubkeys.has(currentUserPubkey);
+        // Check if user has joined (either in Supabase or locally)
+        const hasJoined = eligiblePubkeys.has(currentUserPubkey);
 
-        if (hasJoined || isSeasonParticipant) {
+        if (hasJoined) {
           // Check if user is already in the participant list
           const existingEntry = participantEntries.find(p => p.pubkey === currentUserPubkey);
 
@@ -219,17 +216,16 @@ class JanuaryWalkingServiceClass {
             currentUserRank = existingEntry.rank;
           } else {
             // User joined but not in list (shouldn't happen after above logic, but handle it)
-            const profile = SEASON_2_PARTICIPANTS.find(p => p.pubkey === currentUserPubkey);
+            const profile = joinedParticipants.get(currentUserPubkey) || SEASON_2_PARTICIPANTS.find(p => p.pubkey === currentUserPubkey);
             currentUserRank = participantEntries.length + 1;
             currentUserEntry = {
               pubkey: currentUserPubkey,
               npub: profile?.npub,
               name: profile?.name || `User ${currentUserPubkey.slice(0, 8)}`,
               picture: profile?.picture,
-              totalDistanceKm: 0,
+              totalSteps: 0,
               workoutCount: 0,
-              isSeasonParticipant,
-              isLocalJoin: !isSeasonParticipant,
+              isJoined: true,
               rank: currentUserRank,
             };
           }
@@ -237,18 +233,18 @@ class JanuaryWalkingServiceClass {
       }
 
       // Calculate totals
-      const totalDistanceKm = participantEntries.reduce((sum, p) => sum + p.totalDistanceKm, 0);
+      const totalSteps = participantEntries.reduce((sum, p) => sum + p.totalSteps, 0);
 
       console.log(`[JanuaryWalking] Leaderboard built in ${Date.now() - startTime}ms`);
       console.log(`[JanuaryWalking]   - Season II participants with data: ${participantEntries.length}`);
-      console.log(`[JanuaryWalking]   - Total distance: ${totalDistanceKm.toFixed(2)} km`);
+      console.log(`[JanuaryWalking]   - Total steps: ${totalSteps.toLocaleString()}`);
 
       return {
         participants: participantEntries.slice(0, 25), // Top 25
         currentUserEntry,
         currentUserRank,
         totalParticipants: participantEntries.length,
-        totalDistanceKm,
+        totalSteps,
         lastUpdated: Date.now(),
       };
     } catch (error) {
@@ -288,7 +284,7 @@ class JanuaryWalkingServiceClass {
       const profiles = await ProfileCache.fetchProfiles([pubkey]);
       const profile = profiles.get(pubkey);
       const profileData = profile
-        ? { name: profile.name || profile.display_name, picture: profile.picture }
+        ? { name: profile.name, picture: profile.picture }
         : undefined;
 
       const result = await SupabaseCompetitionService.joinCompetition(
@@ -308,22 +304,23 @@ class JanuaryWalkingServiceClass {
   }
 
   /**
-   * Get participant profiles from Supabase
+   * Get ALL joined participants from Supabase (npub, pubkey, name, picture)
+   * This is the source of truth for who is in the competition
    */
-  async getParticipantProfilesFromSupabase(): Promise<Map<string, { name?: string; picture?: string }>> {
-    const profiles = new Map<string, { name?: string; picture?: string }>();
+  async getAllJoinedParticipantsFromSupabase(): Promise<Map<string, { npub: string; pubkey: string; name?: string; picture?: string }>> {
+    const participants = new Map<string, { npub: string; pubkey: string; name?: string; picture?: string }>();
 
     try {
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseKey) {
-        return profiles;
+        return participants;
       }
 
       const competitionId = await SupabaseCompetitionService.getCompetitionId('january-walking');
       if (!competitionId) {
-        return profiles;
+        return participants;
       }
 
       const url = `${supabaseUrl}/rest/v1/competition_participants?competition_id=eq.${competitionId}&select=npub,name,picture`;
@@ -334,21 +331,37 @@ class JanuaryWalkingServiceClass {
         },
       });
 
-      if (!response.ok) return profiles;
+      if (!response.ok) return participants;
 
       const data = await response.json();
       for (const row of data) {
-        if (row.npub && (row.name || row.picture)) {
-          profiles.set(row.npub, { name: row.name, picture: row.picture });
+        if (row.npub) {
+          // Convert npub to pubkey
+          let pubkey = '';
+          try {
+            const decoded = nip19.decode(row.npub);
+            // npub decode returns { type: 'npub', data: string (hex pubkey) }
+            pubkey = typeof decoded.data === 'string' ? decoded.data : '';
+            if (!pubkey) continue;
+          } catch {
+            continue; // Skip invalid npub
+          }
+
+          participants.set(pubkey, {
+            npub: row.npub,
+            pubkey,
+            name: row.name,
+            picture: row.picture,
+          });
         }
       }
 
-      console.log(`[JanuaryWalking] Loaded ${profiles.size} profiles from Supabase`);
+      console.log(`[JanuaryWalking] Loaded ${participants.size} joined participants from Supabase`);
     } catch (error) {
-      console.warn('[JanuaryWalking] Error fetching Supabase profiles:', error);
+      console.warn('[JanuaryWalking] Error fetching Supabase participants:', error);
     }
 
-    return profiles;
+    return participants;
   }
 
   /**
@@ -358,7 +371,7 @@ class JanuaryWalkingServiceClass {
     return {
       participants: [],
       totalParticipants: 0,
-      totalDistanceKm: 0,
+      totalSteps: 0,
       lastUpdated: Date.now(),
     };
   }
@@ -370,7 +383,7 @@ class JanuaryWalkingServiceClass {
   private async fetchWorkoutsFromSupabase(
     startTs: number,
     endTs: number
-  ): Promise<Array<{ npub: string; pubkey: string; distance: number; createdAt: number }>> {
+  ): Promise<Array<{ npub: string; pubkey: string; steps: number; createdAt: number }>> {
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -383,12 +396,12 @@ class JanuaryWalkingServiceClass {
       const startDate = new Date(startTs * 1000).toISOString();
       const endDate = new Date(endTs * 1000).toISOString();
 
-      // Query walking workouts in date range
+      // Query walking workouts in date range - fetch step_count for step-based competition
       const url = `${supabaseUrl}/rest/v1/workout_submissions?` +
         `activity_type=eq.walking&` +
         `created_at=gte.${startDate}&` +
         `created_at=lte.${endDate}&` +
-        `select=npub,distance_meters,created_at`;
+        `select=npub,step_count,created_at`;
 
       const response = await fetch(url, {
         headers: {
@@ -408,7 +421,7 @@ class JanuaryWalkingServiceClass {
       // Transform to internal format
       return data.map((row: {
         npub: string;
-        distance_meters: number | null;
+        step_count: number | null;
         created_at: string;
       }) => {
         // Convert npub to pubkey
@@ -423,7 +436,7 @@ class JanuaryWalkingServiceClass {
         return {
           npub: row.npub,
           pubkey,
-          distance: (row.distance_meters || 0) / 1000, // Convert to km
+          steps: row.step_count || 0,
           createdAt: new Date(row.created_at).getTime() / 1000,
         };
       });
@@ -508,10 +521,12 @@ class JanuaryWalkingServiceClass {
   /**
    * Build leaderboard from baseline data only (instant load)
    * Uses walking totals from Season II baseline
+   * Note: Baseline data has distance, so we estimate steps (~1,300 steps/km)
    */
   buildLeaderboardFromBaseline(currentUserPubkey?: string): JanuaryWalkingLeaderboard {
     console.log('[JanuaryWalking] Building leaderboard from baseline data');
 
+    const STEPS_PER_KM = 1300; // Approximate steps per km for walking
     const participants: JanuaryWalkingParticipant[] = [];
 
     for (const participant of SEASON_2_PARTICIPANTS) {
@@ -526,17 +541,16 @@ class JanuaryWalkingServiceClass {
           npub: participant.npub,
           name: participant.name,
           picture: participant.picture,
-          totalDistanceKm: walkingDistance,
+          totalSteps: Math.round(walkingDistance * STEPS_PER_KM),
           workoutCount: walkingCount,
-          isSeasonParticipant: true,
-          isLocalJoin: false,
+          isJoined: true,
           rank: 0,
         });
       }
     }
 
-    // Sort by distance and assign ranks
-    participants.sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
+    // Sort by steps and assign ranks
+    participants.sort((a, b) => b.totalSteps - a.totalSteps);
     participants.forEach((p, index) => {
       p.rank = index + 1;
     });
@@ -552,16 +566,16 @@ class JanuaryWalkingServiceClass {
       }
     }
 
-    const totalDistanceKm = participants.reduce((sum, p) => sum + p.totalDistanceKm, 0);
+    const totalSteps = participants.reduce((sum, p) => sum + p.totalSteps, 0);
 
-    console.log(`[JanuaryWalking] Baseline: ${participants.length} participants, ${totalDistanceKm.toFixed(2)} km total`);
+    console.log(`[JanuaryWalking] Baseline: ${participants.length} participants, ${totalSteps.toLocaleString()} steps total`);
 
     return {
       participants,
       currentUserEntry,
       currentUserRank,
       totalParticipants: participants.length,
-      totalDistanceKm,
+      totalSteps,
       lastUpdated: Date.now(),
     };
   }
@@ -569,6 +583,7 @@ class JanuaryWalkingServiceClass {
   /**
    * Build leaderboard from baseline + fresh workouts
    * Fresh workouts are added on top of baseline totals
+   * Note: Baseline data has distance, so we estimate steps (~1,300 steps/km)
    */
   buildLeaderboardFromFresh(
     freshWorkouts: CachedWorkout[],
@@ -576,25 +591,27 @@ class JanuaryWalkingServiceClass {
   ): JanuaryWalkingLeaderboard {
     console.log(`[JanuaryWalking] Building leaderboard from baseline + ${freshWorkouts.length} fresh workouts`);
 
-    // Start with baseline data
-    const stats = new Map<string, { distance: number; workoutCount: number }>();
+    const STEPS_PER_KM = 1300; // Approximate steps per km for walking
+
+    // Start with baseline data (converted to estimated steps)
+    const stats = new Map<string, { steps: number; workoutCount: number }>();
 
     for (const participant of SEASON_2_PARTICIPANTS) {
       const baseline = getBaselineTotals(participant.pubkey);
       stats.set(participant.pubkey, {
-        distance: baseline.walking.distance,
+        steps: Math.round(baseline.walking.distance * STEPS_PER_KM),
         workoutCount: baseline.walking.count,
       });
     }
 
-    // Add fresh walking workouts on top
+    // Add fresh walking workouts on top (convert distance to estimated steps)
     for (const workout of freshWorkouts) {
       const activityLower = workout.activityType?.toLowerCase() || '';
       if (!activityLower.includes('walk')) continue;
 
       const existing = stats.get(workout.pubkey);
       if (existing) {
-        existing.distance += workout.distance;
+        existing.steps += Math.round(workout.distance * STEPS_PER_KM);
         existing.workoutCount += 1;
       }
     }
@@ -611,16 +628,15 @@ class JanuaryWalkingServiceClass {
         npub: participant.npub,
         name: participant.name,
         picture: participant.picture,
-        totalDistanceKm: data.distance,
+        totalSteps: data.steps,
         workoutCount: data.workoutCount,
-        isSeasonParticipant: true,
-        isLocalJoin: false,
+        isJoined: true,
         rank: 0,
       });
     }
 
-    // Sort by distance and assign ranks
-    participants.sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
+    // Sort by steps and assign ranks
+    participants.sort((a, b) => b.totalSteps - a.totalSteps);
     participants.forEach((p, index) => {
       p.rank = index + 1;
     });
@@ -636,16 +652,16 @@ class JanuaryWalkingServiceClass {
       }
     }
 
-    const totalDistanceKm = participants.reduce((sum, p) => sum + p.totalDistanceKm, 0);
+    const totalSteps = participants.reduce((sum, p) => sum + p.totalSteps, 0);
 
-    console.log(`[JanuaryWalking] Fresh: ${participants.length} participants, ${totalDistanceKm.toFixed(2)} km total`);
+    console.log(`[JanuaryWalking] Fresh: ${participants.length} participants, ${totalSteps.toLocaleString()} steps total`);
 
     return {
       participants,
       currentUserEntry,
       currentUserRank,
       totalParticipants: participants.length,
-      totalDistanceKm,
+      totalSteps,
       lastUpdated: Date.now(),
     };
   }

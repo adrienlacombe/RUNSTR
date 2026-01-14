@@ -70,6 +70,7 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
     leaderboard: runningLeaderboard,
     charityRankings: runningCharityRankings,
     isLoading: runningLoading,
+    hasRealData: runningHasRealData,
     refresh: refreshRunning,
     currentUserPubkey,
   } = useSupabaseLeaderboard('season2-running');
@@ -78,6 +79,7 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
     leaderboard: walkingLeaderboard,
     charityRankings: walkingCharityRankings,
     isLoading: walkingLoading,
+    hasRealData: walkingHasRealData,
     refresh: refreshWalking,
   } = useSupabaseLeaderboard('season2-walking');
 
@@ -85,6 +87,7 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
     leaderboard: cyclingLeaderboard,
     charityRankings: cyclingCharityRankings,
     isLoading: cyclingLoading,
+    hasRealData: cyclingHasRealData,
     refresh: refreshCycling,
   } = useSupabaseLeaderboard('season2-cycling');
 
@@ -132,6 +135,7 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
   // Get current leaderboard based on active tab
   const currentParticipants = participants[activeTab];
   const isLoading = activeTab === 'running' ? runningLoading : activeTab === 'walking' ? walkingLoading : cyclingLoading;
+  const hasRealData = activeTab === 'running' ? runningHasRealData : activeTab === 'walking' ? walkingHasRealData : cyclingHasRealData;
 
   // REMOVED: "All zeros" detection was causing blink on tab switch
   // The cached data (even with zeros) is better UX than showing loading spinner
@@ -234,7 +238,7 @@ export const Season2Screen: React.FC<Season2ScreenProps> = ({ navigation: propNa
         {/* Leaderboard - Now powered by Supabase */}
         <Season2Leaderboard
           participants={currentParticipants}
-          isLoading={isLoading && currentParticipants.length === 0}
+          isLoading={!hasRealData}
           emptyMessage={`No ${activeTab} workouts yet`}
           currentUserPubkey={currentUserPubkey}
           activityType={activeTab}

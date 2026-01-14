@@ -132,6 +132,7 @@ interface UseSupabaseLeaderboardReturn {
   leaderboard: SupabaseLeaderboardEntry[];
   charityRankings: CharityRanking[];
   isLoading: boolean;
+  hasRealData: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   currentUserRank?: number;
@@ -169,6 +170,7 @@ export function useSupabaseLeaderboard(
   const [leaderboard, setLeaderboard] = useState<SupabaseLeaderboardEntry[]>(initialLeaderboard);
   const [charityRankings, setCharityRankings] = useState<CharityRanking[]>([]);
   const [isLoading, setIsLoading] = useState(!isSeason2); // Don't show loading for Season II (we have initial data)
+  const [hasRealData, setHasRealData] = useState(false); // Track whether real data (cache or fresh) has loaded
   const [error, setError] = useState<string | null>(null);
   const [currentUserPubkey, setCurrentUserPubkey] = useState<string | undefined>();
   const [currentUserRank, setCurrentUserRank] = useState<number | undefined>();
@@ -187,6 +189,7 @@ export function useSupabaseLeaderboard(
         console.log(`[useSupabaseLeaderboard] Loaded ${cached.leaderboard.length} entries from cache for ${competitionId}`);
         setLeaderboard(cached.leaderboard);
         setCharityRankings(cached.charityRankings);
+        setHasRealData(true); // Cache is real data
       } else if (isSeason2 && isMounted.current) {
         // No cache - use initial data with 0 scores
         setLeaderboard(initialLeaderboard);
@@ -327,6 +330,7 @@ export function useSupabaseLeaderboard(
 
         setLeaderboard(finalLeaderboard);
         setCharityRankings(result.charityRankings || []);
+        setHasRealData(true); // Fresh Supabase data loaded
 
         // Save to cache for instant display on next visit
         saveCachedLeaderboard(competitionId, finalLeaderboard, result.charityRankings || []);
@@ -381,6 +385,7 @@ export function useSupabaseLeaderboard(
     leaderboard,
     charityRankings,
     isLoading,
+    hasRealData,
     error,
     refresh,
     currentUserRank,

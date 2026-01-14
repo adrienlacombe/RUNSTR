@@ -93,16 +93,17 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
         </View>
       )}
 
-      {/* Tab Content - All tabs stay mounted to preserve state across switches */}
+      {/* Tab Content - Lazy load tabs (only render when active) */}
+      {/* This ensures loading spinners are visible when switching tabs */}
       <View style={styles.tabContent}>
-        <View style={{ display: activeTab === 'public' ? 'flex' : 'none', flex: 1 }}>
+        {activeTab === 'public' && (
           <PublicWorkoutsTab
             userId={userId}
             pubkey={pubkey}
             onRefresh={onRefresh}
           />
-        </View>
-        <View style={{ display: activeTab === 'private' ? 'flex' : 'none', flex: 1 }}>
+        )}
+        {activeTab === 'private' && (
           <PrivateWorkoutsTab
             userId={userId}
             pubkey={pubkey}
@@ -111,28 +112,28 @@ export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
             onPostToSocial={onPostToSocial}
             onNavigateToAnalytics={onNavigateToAnalytics}
           />
-        </View>
-        <View style={{ display: activeTab === 'apple' ? 'flex' : 'none', flex: 1 }}>
+        )}
+        {activeTab === 'apple' && (
           <AppleHealthTab
             userId={userId}
             onCompete={onCompeteHealthKit}
             onSocialShare={onSocialShareHealthKit}
           />
-        </View>
-        <View style={{ display: activeTab === 'healthconnect' ? 'flex' : 'none', flex: 1 }}>
+        )}
+        {activeTab === 'healthconnect' && (
           <HealthConnectTab
             userId={userId}
             onCompete={onCompeteHealthConnect}
             onSocialShare={onSocialShareHealthConnect}
           />
-        </View>
-        <View style={{ display: activeTab === 'garmin' ? 'flex' : 'none', flex: 1 }}>
+        )}
+        {activeTab === 'garmin' && (
           <GarminHealthTab
             userId={userId}
             onCompete={onCompeteGarmin}
             onSocialShare={onSocialShareGarmin}
           />
-        </View>
+        )}
       </View>
     </View>
   );

@@ -99,7 +99,7 @@ export const JanuaryWalkingEventCard: React.FC<JanuaryWalkingEventCardProps> = (
   };
 
   const activeParticipants = leaderboard?.totalParticipants || 0;
-  const totalDistance = leaderboard?.totalDistanceKm || 0;
+  const totalSteps = leaderboard?.totalSteps || 0;
 
   return (
     <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.7}>
@@ -164,10 +164,10 @@ export const JanuaryWalkingEventCard: React.FC<JanuaryWalkingEventCardProps> = (
           )}
 
           {/* Total Steps */}
-          {totalDistance > 0 && (
+          {totalSteps > 0 && (
             <View style={styles.tag}>
               <Ionicons name="footsteps-outline" size={12} color={theme.colors.accent} />
-              <Text style={styles.tagText}>{(totalDistance / 1000).toFixed(0)}k steps</Text>
+              <Text style={styles.tagText}>{(totalSteps / 1000).toFixed(0)}k steps</Text>
             </View>
           )}
 

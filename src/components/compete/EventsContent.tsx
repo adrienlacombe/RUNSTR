@@ -55,31 +55,31 @@ export const EventsContent: React.FC<EventsContentProps> = ({
         </TouchableOpacity>
       )}
 
-      {/* Season II Card - RUNSTR Season II */}
-      <View style={styles.featuredEvent}>
-        <Season2EventCard onPress={onSeason2Press} />
-      </View>
-
-      {/* January Walking Contest - show when upcoming or active */}
-      {getJanuaryWalkingStatus() !== 'ended' && (
-        <View style={styles.featuredEvent}>
-          <JanuaryWalkingEventCard onPress={onJanuaryWalkingPress} />
-        </View>
-      )}
-
-      {/* Leaderboard Card - Daily Leaderboards */}
-      <View style={styles.featuredEvent}>
-        <LeaderboardEventCard onPress={onLeaderboardPress} />
-      </View>
-
-      {/* Featured Event: Running Bitcoin Challenge - show when upcoming or active */}
+      {/* 1. Running Bitcoin Challenge - show when upcoming or active */}
       {getRunningBitcoinStatus() !== 'ended' && (
         <View style={styles.featuredEvent}>
           <RunningBitcoinEventCard onPress={onRunningBitcoinPress} />
         </View>
       )}
 
-      {/* Featured Event: Einundzwanzig Fitness Challenge - show when upcoming or active */}
+      {/* 2. RUNSTR Season II */}
+      <View style={styles.featuredEvent}>
+        <Season2EventCard onPress={onSeason2Press} />
+      </View>
+
+      {/* 3. Daily Leaderboards */}
+      <View style={styles.featuredEvent}>
+        <LeaderboardEventCard onPress={onLeaderboardPress} />
+      </View>
+
+      {/* 4. January Walking Contest - show when upcoming or active */}
+      {getJanuaryWalkingStatus() !== 'ended' && (
+        <View style={styles.featuredEvent}>
+          <JanuaryWalkingEventCard onPress={onJanuaryWalkingPress} />
+        </View>
+      )}
+
+      {/* 5. Einundzwanzig Fitness Challenge - show when upcoming or active */}
       {getEinundzwanzigStatus() !== 'ended' && (
         <View style={styles.featuredEvent}>
           <EinundzwanzigEventCard onPress={onEinundzwanzigPress} />

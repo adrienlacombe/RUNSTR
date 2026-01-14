@@ -509,11 +509,19 @@ async function createInvoiceViaNWC(
   console.log('[NWC Invoice] Raw result:', JSON.stringify(result))
 
   if (result.success && result.result) {
-    // NIP-47 may return invoice as 'invoice' or 'bolt11'
-    const r = result.result as { invoice?: string; bolt11?: string; payment_hash?: string }
-    const invoice = r.invoice || r.bolt11
-    console.log('[NWC Invoice] Invoice:', invoice?.slice(0, 40), '...')
-    return { success: true, invoice, payment_hash: r.payment_hash }
+    // Try multiple possible field names for the invoice (Coinos compatibility)
+    const r = result.result as Record<string, unknown>
+    const invoice = r.invoice || r.bolt11 || r.pr || r.payment_request
+    const paymentHash = r.payment_hash || r.hash || r.paymentHash
+
+    console.log('[NWC Invoice] Parsed invoice:', invoice ? String(invoice).slice(0, 40) + '...' : 'none')
+    console.log('[NWC Invoice] Parsed payment_hash:', paymentHash || 'none')
+
+    return {
+      success: true,
+      invoice: invoice as string | undefined,
+      payment_hash: paymentHash as string | undefined,
+    }
   }
 
   return { success: false, error: result.error }
@@ -550,9 +558,12 @@ async function getBalanceViaNWC(
   console.log('[NWC Balance] Raw result:', JSON.stringify(result))
 
   if (result.success && result.result) {
-    const r = result.result as { balance?: number }
-    console.log('[NWC Balance] Parsed balance:', r.balance)
-    return { success: true, balance: r.balance }
+    // Try multiple possible field names for balance (Coinos compatibility)
+    const r = result.result as Record<string, unknown>
+    const balance = r.balance ?? r.balance_msat ?? r.balance_sats ?? r.available ?? r.total
+
+    console.log('[NWC Balance] Parsed balance:', balance)
+    return { success: true, balance: balance as number | undefined }
   }
 
   return { success: false, error: result.error }
@@ -563,12 +574,13 @@ async function getBalanceViaNWC(
 // ============================================
 
 type Operation =
-  | 'claim_reward'    // Rate-limited reward claims
-  | 'pay_invoice'     // Pay any invoice
-  | 'create_invoice'  // Create invoice for receiving
-  | 'lookup_invoice'  // Check if invoice is paid
-  | 'get_balance'     // Get wallet balance
-  | 'diagnose'        // Test NWC connection (for debugging)
+  | 'claim_reward'       // Rate-limited reward claims
+  | 'pay_invoice'        // Pay any invoice
+  | 'create_invoice'     // Create invoice for receiving
+  | 'lookup_invoice'     // Check if invoice is paid
+  | 'get_balance'        // Get wallet balance
+  | 'diagnose'           // Test NWC connection (for debugging)
+  | 'register_donation'  // Register pending donation for auto-forwarding
 
 interface RequestBody {
   operation: Operation
@@ -587,6 +599,10 @@ interface RequestBody {
 
   // For lookup_invoice
   payment_hash?: string
+
+  // For register_donation
+  charity_id?: string
+  charity_lightning_address?: string
 }
 
 // ============================================
@@ -707,7 +723,7 @@ serve(async (req) => {
       console.log('[NWC Gateway] Getting balance...')
       const result = await getBalanceViaNWC(nwcUrl)
 
-      // Include balance even if 0 or undefined for debugging
+      // Include balance even if 0 or undefined
       const response = {
         success: result.success,
         balance: result.balance ?? null,
@@ -859,6 +875,79 @@ serve(async (req) => {
     }
 
     // ========================================
+    // Operation: register_donation
+    // ========================================
+    if (operation === 'register_donation') {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      const { payment_hash, charity_id, charity_lightning_address, amount_sats, description } = body
+
+      // Validate required fields
+      if (!payment_hash || !charity_id || !charity_lightning_address || !amount_sats) {
+        return new Response(
+          JSON.stringify({ success: false, reason: 'missing_fields' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      console.log('[NWC Gateway] Registering donation:', {
+        payment_hash: payment_hash.slice(0, 16) + '...',
+        charity_id,
+        amount_sats,
+      })
+
+      try {
+        // Insert pending donation record
+        const { data, error } = await supabase
+          .from('pending_donations')
+          .insert({
+            payment_hash,
+            charity_id,
+            charity_lightning_address,
+            amount_sats,
+            description: description || `Donation to ${charity_id}`,
+            status: 'pending',
+          })
+          .select()
+          .single()
+
+        if (error) {
+          // Handle duplicate payment_hash (already registered)
+          if (error.code === '23505') {
+            console.log('[NWC Gateway] Donation already registered:', payment_hash.slice(0, 16))
+            return new Response(
+              JSON.stringify({ success: true, reason: 'already_registered' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          throw error
+        }
+
+        console.log('[NWC Gateway] Donation registered successfully:', data.id)
+        return new Response(
+          JSON.stringify({
+            success: true,
+            donation_id: data.id,
+            payment_hash,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      } catch (error) {
+        console.error('[NWC Gateway] Error registering donation:', error)
+        return new Response(
+          JSON.stringify({
+            success: false,
+            reason: error instanceof Error ? error.message : 'registration_error',
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
+    // ========================================
     // Operation: claim_reward (default, rate-limited)
     // ========================================
     if (operation === 'claim_reward') {
@@ -923,11 +1012,21 @@ serve(async (req) => {
           )
         }
 
+        // Determine reward amount: use requested amount if valid, otherwise default
+        // Einundzwanzig event participants get 100 sats (double reward)
+        const MIN_WORKOUT_SATS = 50
+        const MAX_WORKOUT_SATS = 100
+        let rewardAmount = amount_sats || WORKOUT_REWARD_SATS
+        if (rewardAmount < MIN_WORKOUT_SATS || rewardAmount > MAX_WORKOUT_SATS) {
+          rewardAmount = WORKOUT_REWARD_SATS // Fall back to default if invalid
+        }
+        console.log(`[claim-reward] Workout reward amount: ${rewardAmount} sats`)
+
         try {
           // Get invoice from user's Lightning address
           const invoice = await getInvoiceFromLightningAddress(
             lightning_address,
-            WORKOUT_REWARD_SATS,
+            rewardAmount,
             'Daily workout reward from RUNSTR!'
           )
 
@@ -957,9 +1056,9 @@ serve(async (req) => {
             })
           }
 
-          console.log('[claim-reward] Workout reward paid successfully')
+          console.log('[claim-reward] Workout reward paid successfully:', rewardAmount, 'sats')
           return new Response(
-            JSON.stringify({ success: true, amount_paid: WORKOUT_REWARD_SATS }),
+            JSON.stringify({ success: true, amount_paid: rewardAmount }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         } catch (payError) {

@@ -192,7 +192,7 @@ class VerificationServiceClass {
    * Get current app version from Expo config
    */
   private getAppVersion(): string {
-    return Constants.expoConfig?.version || '1.5.1';
+    return Constants.expoConfig?.version || '1.5.2';
   }
 
   /**

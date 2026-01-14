@@ -111,8 +111,6 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
     }
   };
 
-  const isSeasonParticipant = userPubkey ? JanuaryWalkingService.isSeasonParticipant(userPubkey) : false;
-
   const renderParticipant = ({ item }: { item: JanuaryWalkingParticipant; index: number }) => {
     const isTop3 = item.rank <= 3;
     const isCurrentUser = userPubkey && item.pubkey === userPubkey;
@@ -133,26 +131,15 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
           style={styles.avatar}
         />
         <View style={styles.participantInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.participantName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            {item.isLocalJoin && (
-              <Ionicons
-                name="lock-closed"
-                size={12}
-                color={theme.colors.textMuted}
-                style={styles.privateIcon}
-              />
-            )}
-          </View>
+          <Text style={styles.participantName} numberOfLines={1}>
+            {item.name}
+          </Text>
           <Text style={styles.participantStats}>
             {item.workoutCount} {item.workoutCount === 1 ? 'walk' : 'walks'}
-            {!item.isSeasonParticipant && ' (not eligible for prize)'}
           </Text>
         </View>
         <Text style={[styles.distanceValue, isTop3 && styles.top3Distance]}>
-          {Math.round(item.totalDistanceKm || 0).toLocaleString()} steps
+          {(item.totalSteps || 0).toLocaleString()} steps
         </Text>
       </View>
     );
@@ -221,7 +208,7 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
               <Text style={styles.statLabel}>participants</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{((leaderboard?.totalDistanceKm || 0) / 1000).toFixed(0)}k</Text>
+              <Text style={styles.statValue}>{((leaderboard?.totalSteps || 0) / 1000).toFixed(0)}k</Text>
               <Text style={styles.statLabel}>total steps</Text>
             </View>
             <View style={styles.statBox}>
@@ -264,18 +251,6 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
               <Ionicons name="checkmark-circle" size={20} color={theme.colors.accent} />
               <Text style={styles.joinedBadgeText}>
                 You're participating!
-                {!isSeasonParticipant && ' (Private)'}
-              </Text>
-            </View>
-          )}
-
-          {/* Non-Season II warning */}
-          {hasJoined && !isSeasonParticipant && (
-            <View style={styles.warningSection}>
-              <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} />
-              <Text style={styles.warningText}>
-                You're not a Season II participant, so you're not eligible for the prize.
-                Your position is only visible to you.
               </Text>
             </View>
           )}
@@ -323,7 +298,7 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
         <View style={styles.noteSection}>
           <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} />
           <Text style={styles.noteText}>
-            Only Season II participants are shown on the public leaderboard and eligible for prizes.
+            Join the contest and submit walking workouts to appear on the leaderboard.
           </Text>
         </View>
       </ScrollView>
@@ -467,21 +442,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.accent,
   },
-  warningSection: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 12,
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: 8,
-    gap: 8,
-    marginBottom: 8,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
   leaderboardSection: {
     padding: 16,
     borderTopWidth: 1,
@@ -563,18 +523,10 @@ const styles = StyleSheet.create({
   participantInfo: {
     flex: 1,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   participantName: {
     fontSize: 15,
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.text,
-  },
-  privateIcon: {
-    marginLeft: 4,
   },
   participantStats: {
     fontSize: 12,

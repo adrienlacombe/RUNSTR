@@ -52,6 +52,7 @@ import WorkoutPublishingService from '../services/nostr/workoutPublishingService
 import type { PublishableWorkout } from '../services/nostr/workoutPublishingService';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import { EnhancedSocialShareModal } from '../components/profile/shared/EnhancedSocialShareModal';
+import { useAuth } from '../contexts/AuthContext';
 
 // Storage keys for donation settings
 // Note: Teams are now charities (rebranded)
@@ -61,6 +62,7 @@ const DONATION_PERCENTAGE_KEY = '@runstr:donation_percentage';
 // ✅ PERFORMANCE: React.memo prevents re-renders when props haven't changed
 const RewardsScreenComponent: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { currentUser } = useAuth();
 
   // NWC Wallet state
   const [hasNWC, setHasNWC] = useState(false);
@@ -291,39 +293,41 @@ const RewardsScreenComponent: React.FC = () => {
 
   /**
    * Create a synthetic walking workout from current step count
+   * Note: distance is set to 0 so card generator shows only steps (not duration/distance)
    */
   const createStepWorkout = async (): Promise<PublishableWorkout | null> => {
     const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
     if (!pubkey) return null;
 
-    // Estimate duration based on steps (average ~100 steps/minute = ~1.67 steps/second)
-    const estimatedDurationSeconds = Math.round(currentSteps / 1.67);
-
-    // Estimate distance based on steps (average stride ~0.762m = 2.5 feet)
-    const estimatedDistanceMeters = Math.round(currentSteps * 0.762);
-
-    // Estimate calories (average ~0.04 kcal per step)
-    const estimatedCalories = Math.round(currentSteps * 0.04);
-
     const now = new Date();
-    const startTime = new Date(now.getTime() - estimatedDurationSeconds * 1000);
 
     return {
       id: `steps_${now.toISOString().split('T')[0]}_${Date.now()}`,
       userId: pubkey,
       type: 'walking',
       source: 'manual',
-      startTime: startTime.toISOString(),
+      startTime: now.toISOString(),
       endTime: now.toISOString(),
-      duration: estimatedDurationSeconds,
-      distance: estimatedDistanceMeters,
-      calories: estimatedCalories,
+      duration: 0, // Step counter post - duration not relevant
+      distance: 0, // Must be 0 for isStepCounterPost() to return true
+      calories: 0, // Step counter post - calories not relevant
       syncedAt: now.toISOString(),
       metadata: {
         steps: currentSteps,
       },
       unitSystem: 'metric',
     };
+  };
+
+  /**
+   * Open social share modal for steps
+   */
+  const handleStepShare = async () => {
+    const stepWorkout = await createStepWorkout();
+    if (stepWorkout) {
+      setStepWorkoutForPost(stepWorkout);
+      setShowStepSocialModal(true);
+    }
   };
 
   /**
@@ -546,7 +550,6 @@ const RewardsScreenComponent: React.FC = () => {
         {prizePoolBalance > 0 && (
           <View style={styles.prizePoolCard}>
             <View style={styles.prizePoolHeader}>
-              <Ionicons name="wallet-outline" size={20} color={theme.colors.accent} />
               <Text style={styles.prizePoolLabel}>Rewards Pool</Text>
             </View>
             <Text style={styles.prizePoolAmount}>{formatBalance(prizePoolBalance)}</Text>
@@ -559,6 +562,7 @@ const RewardsScreenComponent: React.FC = () => {
           weeklyRewardsEarned={weeklyRewardsEarned}
           stepRewardsEarned={stepTodaySats}
           currentSteps={currentSteps}
+          onShare={handleStepShare}
           onCompete={handleStepCompete}
           isPublishing={isPublishingSteps}
         />
@@ -671,13 +675,17 @@ const RewardsScreenComponent: React.FC = () => {
                 </View>
 
                 {/* Reward Split Preview */}
-                {donationPercentage > 0 && selectedTeam && (
+                {selectedTeam && (
                   <View style={styles.rewardSplitPreview}>
                     <Text style={styles.splitTextLabel}>You</Text>
                     <Text style={styles.splitTextValue}>{userReward} sats</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#666" style={styles.splitArrow} />
-                    <Text style={styles.splitTextLabel}>{selectedTeam.displayName}</Text>
-                    <Text style={styles.splitTextValue}>{teamDonation} sats</Text>
+                    {donationPercentage > 0 && (
+                      <>
+                        <Ionicons name="arrow-forward" size={14} color="#666" style={styles.splitArrow} />
+                        <Text style={styles.splitTextLabel}>{selectedTeam.displayName}</Text>
+                        <Text style={styles.splitTextValue}>{teamDonation} sats</Text>
+                      </>
+                    )}
                   </View>
                 )}
               </View>
@@ -819,26 +827,17 @@ const RewardsScreenComponent: React.FC = () => {
         />
       )}
 
-      {/* Step Social Share Modal */}
+      {/* Step Social Share Modal - for screenshot sharing only */}
       {stepWorkoutForPost && (
         <EnhancedSocialShareModal
           visible={showStepSocialModal}
           workout={stepWorkoutForPost}
           userId={stepWorkoutForPost.userId}
+          userAvatar={currentUser?.picture}
+          userName={currentUser?.name}
           onClose={() => {
             setShowStepSocialModal(false);
             setStepWorkoutForPost(null);
-          }}
-          onSuccess={() => {
-            setShowStepSocialModal(false);
-            setStepWorkoutForPost(null);
-            Toast.show({
-              type: 'success',
-              text1: 'Steps Posted!',
-              text2: 'Your steps have been shared',
-              position: 'top',
-              visibilityTime: 3000,
-            });
           }}
         />
       )}

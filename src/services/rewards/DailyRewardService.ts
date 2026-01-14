@@ -29,6 +29,8 @@ import { getCharityById, Charity } from '../../constants/charities';
 import { DonationTrackingService } from '../donation/DonationTrackingService';
 import { PledgeService } from '../pledge/PledgeService';
 import { supabase } from '../../utils/supabase';
+import { EinundzwanzigService } from '../challenge/EinundzwanzigService';
+import { isEinundzwanzigActive } from '../../constants/einundzwanzig';
 
 // Storage keys for donation settings
 // Uses same key as TeamsScreen - teams ARE charities (with lightning addresses)
@@ -639,7 +641,19 @@ class DailyRewardServiceClass {
 
       // Load donation settings and calculate split (charity only - no team payments)
       const { donationPercentage, charity } = await this.getDonationSettings();
-      const totalAmount = REWARD_CONFIG.DAILY_WORKOUT_REWARD;
+
+      // ===== EINUNDZWANZIG DOUBLE REWARDS =====
+      // If user is in Einundzwanzig event and it's active, double the reward
+      let totalAmount: number = REWARD_CONFIG.DAILY_WORKOUT_REWARD; // Default 50 sats
+      if (isEinundzwanzigActive()) {
+        const isInEinundzwanzig = await EinundzwanzigService.hasJoined(userPubkey);
+        if (isInEinundzwanzig) {
+          totalAmount = 100; // Double reward for Einundzwanzig participants
+          console.log('[Reward] Einundzwanzig bonus active: 100 sats');
+        }
+      }
+      // ===== END EINUNDZWANZIG CHECK =====
+
       const split = this.calculateSplit(totalAmount, donationPercentage, charity);
 
       console.log('[Reward] Payment split:', split);
@@ -662,7 +676,8 @@ class DailyRewardServiceClass {
       if (split.userAmount > 0) {
         const result = await this.claimRewardViaSupabase(
           lightningAddress,
-          'workout'
+          'workout',
+          split.userAmount // Pass the actual amount (50 or 100 sats based on event)
         );
 
         if (result.success) {
@@ -685,7 +700,8 @@ class DailyRewardServiceClass {
         try {
           const result = await this.claimRewardViaSupabase(
             charity.lightningAddress,
-            'workout'
+            'workout',
+            split.charityAmount // Pass charity's portion
           );
           charityPaymentSuccess = result.success;
           console.log(`[Reward] Charity (${charity.name}) payment:`, charityPaymentSuccess ? '✅' : '❌');

@@ -887,15 +887,15 @@ export const StrengthTrackerScreen: React.FC<StrengthTrackerScreenProps> = ({
           </View>
         </View>
 
-        {/* Posting Buttons */}
+        {/* Save Button */}
         <TouchableOpacity style={styles.postButton} onPress={handlePostSocial}>
           <Ionicons
-            name="chatbubble-outline"
+            name="bookmark-outline"
             size={20}
             color={theme.colors.background}
             style={{ marginRight: 8 }}
           />
-          <Text style={styles.postButtonText}>Post</Text>
+          <Text style={styles.postButtonText}>Share</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

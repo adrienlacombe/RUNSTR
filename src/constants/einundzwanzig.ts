@@ -31,7 +31,7 @@ export const EINUNDZWANZIG_CONFIG: EinundzwanzigConfig = {
   eligibleActivityTypes: ['running', 'walking'],
   satsPerKm: 1000, // 1 km = 1,000 sats donated
   description:
-    'Run or walk for charity! Every kilometer you cover earns 1,000 sats for your selected charity. Join the Einundzwanzig community in supporting Bitcoin circular economies worldwide.',
+    'Run or walk for charity! Every kilometer you cover earns 1,000 sats for your selected charity. Join the Einundzwanzig community in supporting Bitcoin worldwide.',
   website: 'https://einundzwanzig.space',
   bannerImage: require('../../assets/images/einundzwanzig/banner.png'),
 };
@@ -138,3 +138,18 @@ export function getDaysSinceStart(): number {
 export function calculateSatsFromDistance(distanceKm: number): number {
   return Math.floor(distanceKm * EINUNDZWANZIG_CONFIG.satsPerKm);
 }
+
+// ============================================
+// Payout Configuration
+// ============================================
+
+/**
+ * Storage keys for payout tracking
+ */
+export const EINUNDZWANZIG_PAYOUT_KEY = '@runstr:einundzwanzig_payout_completed';
+export const EINUNDZWANZIG_PAYOUT_RESULTS_KEY = '@runstr:einundzwanzig_payout_results';
+
+/**
+ * Maximum total payout amount (3M sats cap)
+ */
+export const EINUNDZWANZIG_MAX_PAYOUT_SATS = 3_000_000;

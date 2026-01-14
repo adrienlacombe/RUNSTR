@@ -97,7 +97,7 @@ export interface LocalWorkout {
 
   // Card/template storage for sharing
   savedCard?: {
-    templateId: 'achievement' | 'progress' | 'minimal' | 'stats' | 'elegant' | 'custom_photo';
+    templateId: 'achievement' | 'progress' | 'minimal' | 'stats' | 'elegant' | 'custom_photo' | 'vertical';
     customPhotoUri?: string; // Local file path if user took photo
     generatedAt: string; // ISO timestamp
   };
@@ -524,7 +524,7 @@ export class LocalWorkoutStorageService {
   async saveWorkoutCard(
     workoutId: string,
     card: {
-      templateId: 'achievement' | 'progress' | 'minimal' | 'stats' | 'elegant' | 'custom_photo';
+      templateId: 'achievement' | 'progress' | 'minimal' | 'stats' | 'elegant' | 'custom_photo' | 'vertical';
       customPhotoUri?: string;
     }
   ): Promise<void> {

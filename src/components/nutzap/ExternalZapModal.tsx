@@ -389,7 +389,25 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
 
         setInvoice(invoiceResult.invoice);
         setPaymentHash(invoiceResult.payment_hash);
-        console.log('[ExternalZapModal] ✅ RUNSTR invoice created, starting polling');
+        console.log('[ExternalZapModal] ✅ RUNSTR invoice created');
+
+        // Register donation server-side for auto-forwarding (in case app closes)
+        if (charityId && charityLightningAddress) {
+          const registerResult = await NWCGatewayService.registerDonation({
+            paymentHash: invoiceResult.payment_hash,
+            charityId,
+            charityLightningAddress,
+            amountSats: amount,
+            description: memo || `Donation to ${recipientName}`,
+          });
+
+          if (registerResult.success) {
+            console.log('[ExternalZapModal] ✅ Donation registered server-side');
+          } else {
+            console.warn('[ExternalZapModal] Failed to register donation server-side:', registerResult.error);
+            // Continue anyway - polling will still work for app-side forwarding
+          }
+        }
 
         // Start polling for payment verification
         startPaymentPolling(invoiceResult.payment_hash);
@@ -834,7 +852,7 @@ export const ExternalZapModal: React.FC<ExternalZapModalProps> = ({
                     <Ionicons
                       name="checkmark-circle"
                       size={24}
-                      color="#22c55e"
+                      color={theme.colors.accent}
                     />
                     <Text style={styles.verifiedText}>Payment Verified!</Text>
                   </View>
@@ -1326,15 +1344,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     paddingVertical: 16,
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
     borderRadius: theme.borderRadius.medium,
     borderWidth: 1,
-    borderColor: '#22c55e',
+    borderColor: theme.colors.accent,
   },
 
   verifiedText: {
     fontSize: 16,
     fontWeight: theme.typography.weights.bold,
-    color: '#22c55e',
+    color: theme.colors.accent,
   },
 });

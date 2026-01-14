@@ -27,6 +27,7 @@ interface TotalRewardsCardProps {
   stepRewardsEarned?: number;
   currentSteps: number;
   onCompete?: () => void;
+  onShare?: () => void;
   isPublishing?: boolean;
 }
 
@@ -36,6 +37,7 @@ export const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({
   stepRewardsEarned = 0,
   currentSteps,
   onCompete,
+  onShare,
   isPublishing = false,
 }) => {
   const [totalStreak, setTotalStreak] = useState(0);
@@ -136,23 +138,34 @@ export const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({
             {currentSteps.toLocaleString()} steps today
           </Text>
 
-          {onCompete && (
+          {(onShare || onCompete) && (
             <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  isPublishing && styles.actionButtonDisabled,
-                ]}
-                onPress={onCompete}
-                disabled={isPublishing}
-                activeOpacity={0.7}
-              >
-                {isPublishing ? (
-                  <ActivityIndicator size="small" color="#FFB366" />
-                ) : (
-                  <Text style={styles.actionButtonText}>Compete</Text>
-                )}
-              </TouchableOpacity>
+              {onShare && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={onShare}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.actionButtonText}>Share</Text>
+                </TouchableOpacity>
+              )}
+              {onCompete && (
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    isPublishing && styles.actionButtonDisabled,
+                  ]}
+                  onPress={onCompete}
+                  disabled={isPublishing}
+                  activeOpacity={0.7}
+                >
+                  {isPublishing ? (
+                    <ActivityIndicator size="small" color="#FFB366" />
+                  ) : (
+                    <Text style={styles.actionButtonText}>Compete</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>

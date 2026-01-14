@@ -42,8 +42,7 @@ export interface RunningBitcoinParticipant {
   workoutCount: number;
   isFinisher: boolean;
   finisherRank?: number;
-  isSeasonParticipant: boolean; // true if Season II member
-  isLocalJoin: boolean; // true if joined locally (not Season II)
+  isJoined: boolean; // true if user has joined the challenge
 }
 
 export interface RunningBitcoinLeaderboard {
@@ -113,16 +112,17 @@ class RunningBitcoinServiceClass {
 
       console.log(`[RunningBitcoin] 🏃 Running: ${runningWorkouts.length}, 🚶 Walking: ${walkingWorkouts.length}`);
 
-      // Get eligible participants (Season II + locally joined)
-      const localJoins = await this.getLocallyJoinedUsers();
-      const eligiblePubkeys = new Set([
-        ...SEASON_2_PARTICIPANTS.map(p => p.pubkey),
-        ...localJoins,
-      ]);
-      console.log(`[RunningBitcoin] 👥 Eligible participants: ${eligiblePubkeys.size} (S2: ${SEASON_2_PARTICIPANTS.length}, local: ${localJoins.length})`);
+      // Get ALL joined participants from Supabase (source of truth)
+      const joinedParticipants = await this.getAllJoinedParticipantsFromSupabase();
+      const eligiblePubkeys = new Set(joinedParticipants.keys());
 
-      // Fetch Supabase profiles for non-Season II users (single query)
-      const supabaseProfiles = await this.getParticipantProfilesFromSupabase();
+      // Also include local joins (for instant UI feedback before Supabase sync)
+      const localJoins = await this.getLocallyJoinedUsers();
+      for (const pubkey of localJoins) {
+        eligiblePubkeys.add(pubkey);
+      }
+
+      console.log(`[RunningBitcoin] 👥 Eligible participants: ${eligiblePubkeys.size} (Supabase: ${joinedParticipants.size}, local: ${localJoins.length})`)
 
       // Aggregate distance per participant (convert npub to pubkey for compatibility)
       const stats = new Map<string, { distance: number; workoutCount: number }>();
@@ -148,26 +148,20 @@ class RunningBitcoinServiceClass {
 
       console.log(`[RunningBitcoin] ✅ Aggregated stats for ${stats.size} participants`);
 
-      // Build participant entries with profile data
+      // Build participant entries with profile data from Supabase
       const participantEntries: RunningBitcoinParticipant[] = [];
       for (const [pubkey, data] of stats) {
+        // Get profile from Supabase joined participants (or Season II as fallback)
+        const supabaseProfile = joinedParticipants.get(pubkey);
         const season2Profile = SEASON_2_PARTICIPANTS.find(p => p.pubkey === pubkey);
-        const isSeason2 = !!season2Profile;
 
-        // For non-Season II users, check Supabase profiles
-        let name = season2Profile?.name;
-        let picture = season2Profile?.picture;
-        let npub = season2Profile?.npub;
+        let name = supabaseProfile?.name || season2Profile?.name;
+        let picture = supabaseProfile?.picture || season2Profile?.picture;
+        let npub = supabaseProfile?.npub || season2Profile?.npub;
 
-        if (!isSeason2) {
-          // Try to get npub from pubkey
+        if (!npub) {
           try {
             npub = nip19.npubEncode(pubkey);
-            const supabaseProfile = supabaseProfiles.get(npub);
-            if (supabaseProfile) {
-              name = supabaseProfile.name;
-              picture = supabaseProfile.picture;
-            }
           } catch {
             // Ignore encoding errors
           }
@@ -181,9 +175,51 @@ class RunningBitcoinServiceClass {
           totalDistanceKm: data.distance,
           workoutCount: data.workoutCount,
           isFinisher: data.distance >= RUNNING_BITCOIN_CONFIG.goalDistanceKm,
-          isSeasonParticipant: isSeason2,
-          isLocalJoin: !isSeason2,
+          isJoined: true,
         });
+      }
+
+      // Add joined users who have 0 workouts (so they appear on leaderboard after joining)
+      const participantPubkeys = new Set(participantEntries.map(p => p.pubkey));
+
+      // Add from Supabase joined participants with 0 workouts
+      for (const [pubkey, profile] of joinedParticipants) {
+        if (!participantPubkeys.has(pubkey)) {
+          participantEntries.push({
+            pubkey,
+            npub: profile.npub,
+            name: profile.name || `User ${pubkey.slice(0, 8)}`,
+            picture: profile.picture,
+            totalDistanceKm: 0,
+            workoutCount: 0,
+            isFinisher: false,
+            isJoined: true,
+          });
+        }
+      }
+
+      // Add local joins with 0 workouts (for instant UI before Supabase sync)
+      const participantPubkeysAfterSupabase = new Set(participantEntries.map(p => p.pubkey));
+      for (const joinedPubkey of localJoins) {
+        if (!participantPubkeysAfterSupabase.has(joinedPubkey)) {
+          let npub: string | undefined;
+          try {
+            npub = nip19.npubEncode(joinedPubkey);
+          } catch {
+            // Ignore encoding errors
+          }
+
+          participantEntries.push({
+            pubkey: joinedPubkey,
+            npub,
+            name: `User ${joinedPubkey.slice(0, 8)}`,
+            picture: undefined,
+            totalDistanceKm: 0,
+            workoutCount: 0,
+            isFinisher: false,
+            isJoined: true,
+          });
+        }
       }
 
       // Sort by distance (descending)
@@ -588,21 +624,21 @@ class RunningBitcoinServiceClass {
   }
 
   /**
-   * Fetch participant profiles from Supabase
-   * Returns a map of npub -> { name, picture } for leaderboard display
+   * Get ALL joined participants from Supabase (npub, pubkey, name, picture)
+   * This is the source of truth for who is in the competition
    */
-  async getParticipantProfilesFromSupabase(): Promise<Map<string, { name?: string; picture?: string }>> {
-    const profiles = new Map<string, { name?: string; picture?: string }>();
+  async getAllJoinedParticipantsFromSupabase(): Promise<Map<string, { npub: string; pubkey: string; name?: string; picture?: string }>> {
+    const participants = new Map<string, { npub: string; pubkey: string; name?: string; picture?: string }>();
 
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      return profiles;
+      return participants;
     }
 
     try {
-      // Query competition_participants for running-bitcoin, including name and picture
+      // Query competition_participants for running-bitcoin
       const url = `${supabaseUrl}/rest/v1/competitions?external_id=eq.running-bitcoin&select=id`;
 
       const compResponse = await fetch(url, {
@@ -614,12 +650,12 @@ class RunningBitcoinServiceClass {
 
       if (!compResponse.ok) {
         console.warn('[RunningBitcoin] Failed to fetch competition ID');
-        return profiles;
+        return participants;
       }
 
       const competitions = await compResponse.json();
       if (!competitions || competitions.length === 0) {
-        return profiles;
+        return participants;
       }
 
       const competitionId = competitions[0].id;
@@ -636,22 +672,38 @@ class RunningBitcoinServiceClass {
 
       if (!participantsResponse.ok) {
         console.warn('[RunningBitcoin] Failed to fetch participant profiles');
-        return profiles;
+        return participants;
       }
 
-      const participants = await participantsResponse.json();
+      const data = await participantsResponse.json();
 
-      for (const p of participants) {
-        if (p.npub && (p.name || p.picture)) {
-          profiles.set(p.npub, { name: p.name, picture: p.picture });
+      for (const row of data) {
+        if (row.npub) {
+          // Convert npub to pubkey
+          let pubkey = '';
+          try {
+            const decoded = nip19.decode(row.npub);
+            // npub decode returns { type: 'npub', data: string (hex pubkey) }
+            pubkey = typeof decoded.data === 'string' ? decoded.data : '';
+            if (!pubkey) continue;
+          } catch {
+            continue; // Skip invalid npub
+          }
+
+          participants.set(pubkey, {
+            npub: row.npub,
+            pubkey,
+            name: row.name,
+            picture: row.picture,
+          });
         }
       }
 
-      console.log(`[RunningBitcoin] Fetched ${profiles.size} participant profiles from Supabase`);
-      return profiles;
+      console.log(`[RunningBitcoin] Loaded ${participants.size} joined participants from Supabase`);
+      return participants;
     } catch (error) {
-      console.warn('[RunningBitcoin] Error fetching participant profiles:', error);
-      return profiles;
+      console.warn('[RunningBitcoin] Error fetching Supabase participants:', error);
+      return participants;
     }
   }
 
@@ -676,15 +728,15 @@ class RunningBitcoinServiceClass {
     const startTs = getRunningBitcoinStartTimestamp();
     const endTs = getRunningBitcoinEndTimestamp();
 
-    // Get eligible participants (Season II + locally joined)
-    const localJoins = await this.getLocallyJoinedUsers();
-    const eligiblePubkeys = new Set([
-      ...SEASON_2_PARTICIPANTS.map(p => p.pubkey),
-      ...localJoins,
-    ]);
+    // Get ALL joined participants from Supabase (source of truth)
+    const joinedParticipants = await this.getAllJoinedParticipantsFromSupabase();
+    const eligiblePubkeys = new Set(joinedParticipants.keys());
 
-    // Fetch Supabase profiles for non-Season II users (single query)
-    const supabaseProfiles = await this.getParticipantProfilesFromSupabase();
+    // Also include local joins (for instant UI feedback before Supabase sync)
+    const localJoins = await this.getLocallyJoinedUsers();
+    for (const pubkey of localJoins) {
+      eligiblePubkeys.add(pubkey);
+    }
 
     // Filter workouts for Running Bitcoin date range and eligible activities
     const eligibleWorkouts = workouts.filter(w => {
@@ -706,26 +758,20 @@ class RunningBitcoinServiceClass {
       stats.set(w.pubkey, existing);
     }
 
-    // Build participant entries with profile data
+    // Build participant entries with profile data from Supabase
     const participantEntries: RunningBitcoinParticipant[] = [];
     for (const [pubkey, data] of stats) {
+      // Get profile from Supabase joined participants (or Season II as fallback)
+      const supabaseProfile = joinedParticipants.get(pubkey);
       const season2Profile = SEASON_2_PARTICIPANTS.find(p => p.pubkey === pubkey);
-      const isSeason2 = !!season2Profile;
 
-      // For non-Season II users, check Supabase profiles
-      let name = season2Profile?.name;
-      let picture = season2Profile?.picture;
-      let npub = season2Profile?.npub;
+      let name = supabaseProfile?.name || season2Profile?.name;
+      let picture = supabaseProfile?.picture || season2Profile?.picture;
+      let npub = supabaseProfile?.npub || season2Profile?.npub;
 
-      if (!isSeason2) {
-        // Try to get npub from pubkey
+      if (!npub) {
         try {
           npub = nip19.npubEncode(pubkey);
-          const supabaseProfile = supabaseProfiles.get(npub);
-          if (supabaseProfile) {
-            name = supabaseProfile.name;
-            picture = supabaseProfile.picture;
-          }
         } catch {
           // Ignore encoding errors
         }
@@ -739,8 +785,7 @@ class RunningBitcoinServiceClass {
         totalDistanceKm: data.distance,
         workoutCount: data.workoutCount,
         isFinisher: data.distance >= RUNNING_BITCOIN_CONFIG.goalDistanceKm,
-        isSeasonParticipant: isSeason2,
-        isLocalJoin: !isSeason2,
+        isJoined: true,
       });
     }
 

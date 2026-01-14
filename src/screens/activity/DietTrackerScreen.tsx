@@ -904,12 +904,12 @@ export const DietTrackerScreen: React.FC<DietTrackerScreenProps> = ({
             <View style={styles.summaryButtons}>
               <TouchableOpacity style={styles.postButton} onPress={handlePost}>
                 <Ionicons
-                  name="chatbubble-outline"
+                  name="bookmark-outline"
                   size={20}
                   color={theme.colors.background}
                   style={styles.buttonIcon}
                 />
-                <Text style={styles.postButtonText}>Post</Text>
+                <Text style={styles.postButtonText}>Share</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

@@ -41,8 +41,6 @@ import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
 import { ModelManager } from '../services/ai/ModelManager';
 import { GPSPermissionsDiagnostics } from '../components/permissions/GPSPermissionsDiagnostics';
-import { WearableConnectionModal } from '../components/settings/WearableConnectionModal';
-import { WatchSyncSection } from '../components/profile/WatchSyncSection';
 import { AntiCheatRequestModal } from '../components/settings/AntiCheatRequestModal';
 import Nostr1301ImportService from '../services/fitness/Nostr1301ImportService';
 import { CustomAlertManager } from '../components/ui/CustomAlert';
@@ -116,7 +114,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [selectedAIModel, setSelectedAIModel] =
     useState<string>('claude-haiku-4.5');
   const [showModelPicker, setShowModelPicker] = useState(false);
-  const [wearableModalVisible, setWearableModalVisible] = useState(false);
   const [showAntiCheatModal, setShowAntiCheatModal] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -827,22 +824,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </SettingsAccordion>
         </View>
 
-        {/* Wearables Accordion */}
-        <View style={styles.section}>
-          <SettingsAccordion title="WEARABLES" defaultExpanded={false}>
-            <Card style={styles.accordionCard}>
-              <SettingItem
-                title="Connect Wearable"
-                subtitle="Sync workouts from your watch or fitness tracker"
-                onPress={() => setWearableModalVisible(true)}
-              />
-
-              {/* Apple Watch Identity Sync */}
-              <WatchSyncSection />
-            </Card>
-          </SettingsAccordion>
-        </View>
-
         {/* Advanced Features Accordion */}
         <View style={styles.section}>
           <SettingsAccordion title="ADVANCED FEATURES" defaultExpanded={false}>
@@ -1017,7 +998,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
         {/* App Version Info */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Version 1.5.1 (Build 151)</Text>
+          <Text style={styles.versionText}>Version 1.5.2 (Build 152)</Text>
         </View>
       </ScrollView>
 
@@ -1091,15 +1072,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </View>
         </View>
       </Modal>
-
-      {/* Wearable Connection Modal */}
-      <WearableConnectionModal
-        visible={wearableModalVisible}
-        onClose={() => setWearableModalVisible(false)}
-        onConnectionSuccess={() => {
-          setWearableModalVisible(false);
-        }}
-      />
 
       {/* Anti-Cheat Request Modal */}
       <AntiCheatRequestModal

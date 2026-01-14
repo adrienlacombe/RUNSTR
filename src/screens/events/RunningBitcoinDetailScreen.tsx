@@ -235,16 +235,6 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
           <Text style={styles.participantStats}>
             {item.totalDistanceKm.toFixed(1)} / {RUNNING_BITCOIN_CONFIG.goalDistanceKm} km • {item.workoutCount} workouts
           </Text>
-          {item.isLocalJoin && (
-            <View style={styles.privateIndicator}>
-              <Ionicons
-                name="lock-closed"
-                size={12}
-                color={theme.colors.textMuted}
-              />
-              <Text style={styles.privateText}>Competing privately</Text>
-            </View>
-          )}
         </View>
         <Text style={styles.distanceValue}>
           {item.totalDistanceKm.toFixed(1)} km
@@ -414,7 +404,7 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
         <View style={styles.noteSection}>
           <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} />
           <Text style={styles.noteText}>
-            Running and walking workouts from Season II participants count toward this challenge.
+            Join the challenge and submit running or walking workouts to appear on the leaderboard.
           </Text>
         </View>
       </ScrollView>
@@ -716,17 +706,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textMuted,
     lineHeight: 18,
-  },
-  privateIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: 4,
-  },
-  privateText: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
-    fontStyle: 'italic',
   },
 });
 

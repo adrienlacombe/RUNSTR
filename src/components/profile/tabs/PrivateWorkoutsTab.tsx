@@ -232,11 +232,11 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
               disabled={isPosting && postingType === 'social'}
             >
               {isPosting && postingType === 'social' ? (
-                <Text style={styles.postButtonText}>Posting...</Text>
+                <Text style={styles.postButtonText}>Saving...</Text>
               ) : (
                 <>
-                  <Ionicons name="chatbubble-outline" size={16} color="#000" />
-                  <Text style={styles.postButtonText}>Post</Text>
+                  <Ionicons name="bookmark-outline" size={16} color="#000" />
+                  <Text style={styles.postButtonText}>Share</Text>
                 </>
               )}
             </TouchableOpacity>

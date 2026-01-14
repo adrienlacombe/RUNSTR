@@ -58,7 +58,7 @@ export function useJanuaryWalking(): UseJanuaryWalkingResult {
           setLeaderboard(data);
           console.log(
             `[useJanuaryWalking] ✅ Loaded in ${Date.now() - t0}ms: ` +
-            `${data.participants.length} participants, ${data.totalDistanceKm.toFixed(2)} km total`
+            `${data.participants.length} participants, ${data.totalSteps.toLocaleString()} steps total`
           );
         }
       } catch (err) {

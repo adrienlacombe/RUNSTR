@@ -1,8 +1,8 @@
 /**
  * EinundzwanzigDetailScreen - Einundzwanzig Fitness Challenge detail screen
  *
- * Shows event info, charity selection, and team-based leaderboard
- * where charities are ranked by total participant distance.
+ * Shows event info and team-based leaderboard where teams are ranked
+ * by total participant distance. Team selection happens on the Teams screen.
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -17,7 +17,6 @@ import {
   RefreshControl,
   FlatList,
   Linking,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,7 +33,8 @@ import {
   EinundzwanzigLeaderboard,
   CharityTeam,
 } from '../../services/challenge/EinundzwanzigService';
-import { CHARITIES, getCharityById } from '../../constants/charities';
+import { EinundzwanzigPayoutService } from '../../services/challenge/EinundzwanzigPayoutService';
+import { getCharityById } from '../../constants/charities';
 import { Avatar } from '../../components/ui/Avatar';
 
 interface EinundzwanzigDetailScreenProps {
@@ -48,10 +48,8 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [userCharity, setUserCharity] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [userPubkey, setUserPubkey] = useState<string | null>(null);
-  const [showCharityPicker, setShowCharityPicker] = useState(false);
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
 
   const loadData = useCallback(async () => {
@@ -62,11 +60,6 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
       if (pubkey) {
         const joined = await EinundzwanzigService.hasJoined(pubkey);
         setHasJoined(joined);
-
-        if (joined) {
-          const charity = await EinundzwanzigService.getUserCharity(pubkey);
-          setUserCharity(charity);
-        }
       }
 
       const data = await EinundzwanzigService.getLeaderboard();
@@ -83,17 +76,35 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
     loadData();
   }, [loadData]);
 
-  const handleJoinWithCharity = async (charityId: string) => {
+  // Trigger automatic charity payouts when event ends
+  useEffect(() => {
+    const checkAndExecutePayouts = async () => {
+      const status = getEinundzwanzigStatus();
+      if (status === 'ended') {
+        console.log('[EinundzwanzigDetail] Event ended, checking payouts...');
+        const results = await EinundzwanzigPayoutService.executePayouts();
+        if (results) {
+          console.log('[EinundzwanzigDetail] Payout results:', {
+            totalSatsPaid: results.totalSatsPaid,
+            successCount: results.charityPayouts.filter((p) => p.success).length,
+            totalSuccess: results.totalSuccess,
+          });
+        }
+      }
+    };
+    checkAndExecutePayouts();
+  }, []);
+
+  const handleJoin = async () => {
     if (!userPubkey || isJoining) return;
 
     setIsJoining(true);
-    setShowCharityPicker(false);
 
     try {
-      const success = await EinundzwanzigService.joinChallenge(userPubkey, charityId);
+      // Join the competition - team attribution comes from team tag on workout events
+      const success = await EinundzwanzigService.joinChallenge(userPubkey);
       if (success) {
         setHasJoined(true);
-        setUserCharity(charityId);
         await loadData();
       }
     } catch (error) {
@@ -150,8 +161,6 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
         return 'Challenge ended';
     }
   };
-
-  const userCharityName = userCharity ? getCharityById(userCharity)?.name : null;
 
   const renderCharityTeam = ({ item, index }: { item: CharityTeam; index: number }) => {
     const isExpanded = expandedTeams.has(item.charityId);
@@ -217,29 +226,6 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
     );
   };
 
-  const renderCharityOption = (charity: typeof CHARITIES[0]) => (
-    <TouchableOpacity
-      key={charity.id}
-      style={styles.charityOption}
-      onPress={() => handleJoinWithCharity(charity.id)}
-    >
-      {charity.image ? (
-        <Image source={charity.image} style={styles.charityOptionImage} />
-      ) : (
-        <View style={styles.charityOptionImagePlaceholder}>
-          <Ionicons name="heart" size={24} color={theme.colors.textMuted} />
-        </View>
-      )}
-      <View style={styles.charityOptionInfo}>
-        <Text style={styles.charityOptionName}>{charity.name}</Text>
-        <Text style={styles.charityOptionDescription} numberOfLines={2}>
-          {charity.description}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -303,7 +289,7 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statValue}>{leaderboard?.charityTeams.length || 0}</Text>
-              <Text style={styles.statLabel}>charities</Text>
+              <Text style={styles.statLabel}>teams</Text>
             </View>
           </View>
 
@@ -312,7 +298,7 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
             <Ionicons name="flash" size={20} color={theme.colors.accent} />
             <Text style={styles.prizeText}>
               Every kilometer = {EINUNDZWANZIG_CONFIG.satsPerKm.toLocaleString()} sats donated
-              to your chosen charity
+              to your chosen team
             </Text>
           </View>
 
@@ -320,15 +306,15 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
           {userPubkey && !hasJoined && status !== 'ended' && (
             <TouchableOpacity
               style={styles.joinButton}
-              onPress={() => setShowCharityPicker(true)}
+              onPress={handleJoin}
               disabled={isJoining}
             >
               {isJoining ? (
                 <ActivityIndicator size="small" color={theme.colors.text} />
               ) : (
                 <>
-                  <Ionicons name="heart" size={20} color={theme.colors.text} />
-                  <Text style={styles.joinButtonText}>Join & Pick Your Charity</Text>
+                  <Ionicons name="fitness" size={20} color={theme.colors.text} />
+                  <Text style={styles.joinButtonText}>Join Challenge</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -338,9 +324,7 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
           {hasJoined && (
             <View style={styles.joinedBadge}>
               <Ionicons name="checkmark-circle" size={20} color={theme.colors.accent} />
-              <Text style={styles.joinedBadgeText}>
-                You're supporting {userCharityName || 'a charity'}!
-              </Text>
+              <Text style={styles.joinedBadgeText}>Joined!</Text>
             </View>
           )}
 
@@ -351,12 +335,9 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
           </TouchableOpacity>
         </View>
 
-        {/* Charity Leaderboard */}
+        {/* Leaderboard */}
         <View style={styles.leaderboardSection}>
-          <Text style={styles.sectionTitle}>Charity Leaderboard</Text>
-          <Text style={styles.sectionSubtitle}>
-            Charities ranked by total distance from participants
-          </Text>
+          <Text style={styles.sectionTitle}>Leaderboard</Text>
 
           {isLoading ? (
             <View style={styles.loadingContainer}>
@@ -365,10 +346,10 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
             </View>
           ) : leaderboard?.charityTeams.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="heart-outline" size={48} color={theme.colors.textMuted} />
-              <Text style={styles.emptyText}>No charities yet</Text>
+              <Ionicons name="time-outline" size={48} color={theme.colors.textMuted} />
+              <Text style={styles.emptyText}>Coming Soon</Text>
               <Text style={styles.emptySubtext}>
-                Be the first to join and support your favorite charity!
+                The leaderboard will populate once competition begins.
               </Text>
             </View>
           ) : (
@@ -385,36 +366,75 @@ export const EinundzwanzigDetailScreen: React.FC<EinundzwanzigDetailScreenProps>
         <View style={styles.noteSection}>
           <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} />
           <Text style={styles.noteText}>
-            Running and walking workouts during the event period count toward your charity's
-            total. Tap a charity to see individual participants.
+            Running and walking workouts during the event period count toward your team's
+            total. Tap a team to see individual participants.
           </Text>
         </View>
+
+        {/* Featured Teams: ALS Network + 2 TBD */}
+        {(() => {
+          const alsTeam = leaderboard?.charityTeams.find(t => t.charityId === 'als-foundation');
+          const alsCharity = getCharityById('als-foundation');
+          return (
+            <View style={styles.featuredTeamsSection}>
+              <Text style={styles.featuredTeamsTitle}>FEATURED TEAMS</Text>
+
+              {/* ALS Network - Confirmed */}
+              <View style={styles.featuredTeamCard}>
+                <View style={styles.featuredTeamRank}>
+                  <Text style={styles.featuredTeamRankText}>1</Text>
+                </View>
+                {alsCharity?.image ? (
+                  <Image source={alsCharity.image} style={styles.featuredTeamImage} />
+                ) : (
+                  <View style={styles.featuredTeamImagePlaceholder}>
+                    <Ionicons name="heart" size={20} color={theme.colors.textMuted} />
+                  </View>
+                )}
+                <View style={styles.featuredTeamInfo}>
+                  <Text style={styles.featuredTeamName}>The ALS Network</Text>
+                  <Text style={styles.featuredTeamMeta}>
+                    {isLoading ? '-' : alsTeam?.participantCount || 0} participant
+                    {(alsTeam?.participantCount || 0) !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <Text style={styles.featuredTeamDistance}>
+                  {isLoading ? '-' : (alsTeam?.totalDistanceKm || 0).toFixed(1)} km
+                </Text>
+              </View>
+
+              {/* TBD Team #2 */}
+              <View style={styles.tbdTeamCard}>
+                <View style={styles.tbdTeamRank}>
+                  <Text style={styles.tbdTeamRankText}>2</Text>
+                </View>
+                <View style={styles.tbdTeamImagePlaceholder}>
+                  <Ionicons name="help-outline" size={20} color={theme.colors.textMuted} />
+                </View>
+                <View style={styles.featuredTeamInfo}>
+                  <Text style={styles.tbdTeamName}>Team #2</Text>
+                  <Text style={styles.tbdTeamMeta}>To be announced</Text>
+                </View>
+              </View>
+
+              {/* TBD Team #3 */}
+              <View style={styles.tbdTeamCard}>
+                <View style={styles.tbdTeamRank}>
+                  <Text style={styles.tbdTeamRankText}>3</Text>
+                </View>
+                <View style={styles.tbdTeamImagePlaceholder}>
+                  <Ionicons name="help-outline" size={20} color={theme.colors.textMuted} />
+                </View>
+                <View style={styles.featuredTeamInfo}>
+                  <Text style={styles.tbdTeamName}>Team #3</Text>
+                  <Text style={styles.tbdTeamMeta}>To be announced</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })()}
       </ScrollView>
 
-      {/* Charity Picker Modal */}
-      <Modal
-        visible={showCharityPicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCharityPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Your Charity</Text>
-              <TouchableOpacity onPress={() => setShowCharityPicker(false)}>
-                <Ionicons name="close" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalSubtitle}>
-              Your distance will contribute to this charity's total
-            </Text>
-            <ScrollView style={styles.charityList}>
-              {CHARITIES.map(renderCharityOption)}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -713,75 +733,125 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     lineHeight: 18,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
+  // Featured Teams Styles (Season II pattern)
+  featuredTeamsSection: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
-  modalContent: {
-    backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.text,
-  },
-  modalSubtitle: {
-    fontSize: 14,
+  featuredTeamsTitle: {
     color: theme.colors.textMuted,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    fontSize: 12,
+    fontWeight: theme.typography.weights.semiBold,
+    letterSpacing: 1,
+    padding: 16,
+    paddingBottom: 0,
   },
-  charityList: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
-  charityOption: {
+  featuredTeamCard: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    marginTop: 12,
   },
-  charityOptionImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  charityOptionImagePlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.colors.cardBackground,
+  featuredTeamRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.orangeBright,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  charityOptionInfo: {
+  featuredTeamRankText: {
+    color: theme.colors.background,
+    fontSize: 11,
+    fontWeight: theme.typography.weights.semiBold,
+  },
+  featuredTeamImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  featuredTeamImagePlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  featuredTeamInfo: {
     flex: 1,
   },
-  charityOptionName: {
-    fontSize: 15,
-    fontWeight: theme.typography.weights.semiBold,
+  featuredTeamName: {
     color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
   },
-  charityOptionDescription: {
-    fontSize: 13,
+  featuredTeamMeta: {
     color: theme.colors.textMuted,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  featuredTeamDistance: {
+    color: theme.colors.orangeBright,
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+  },
+  // TBD Team Card Styles
+  tbdTeamCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  tbdTeamRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  tbdTeamRankText: {
+    color: theme.colors.text,
+    fontSize: 11,
+    fontWeight: theme.typography.weights.semiBold,
+  },
+  tbdTeamImagePlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+  },
+  tbdTeamName: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+  },
+  tbdTeamMeta: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    marginTop: 1,
+    fontStyle: 'italic',
   },
 });
 

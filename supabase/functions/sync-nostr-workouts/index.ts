@@ -32,10 +32,14 @@ const RELAYS = [
   'wss://relay.primal.net',
   'wss://nos.lol',
   'wss://relay.nostr.band',
+  'wss://relay.snort.social',
+  'wss://nostr.wine',
+  'wss://e.nos.lol',
 ]
 
-// Query events from last 10 minutes (overlapping window for reliability)
-const SYNC_WINDOW_SECONDS = 600
+// Query events from last 24 hours - matches manual sync pattern for reliability
+// Deduplication handles overlap efficiently (existing events skip instantly)
+const SYNC_WINDOW_SECONDS = 86400
 
 // Season II start (Jan 1, 2026)
 const SEASON_2_START = new Date('2026-01-01T00:00:00Z').getTime() / 1000
@@ -142,7 +146,7 @@ interface NostrFilter {
 async function queryRelay(
   relayUrl: string,
   filter: NostrFilter,
-  timeoutMs: number = 8000
+  timeoutMs: number = 15000  // 15 seconds for better relay coverage
 ): Promise<NostrEvent[]> {
   return new Promise((resolve) => {
     const events: NostrEvent[] = []
