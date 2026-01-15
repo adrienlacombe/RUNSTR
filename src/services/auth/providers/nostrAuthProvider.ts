@@ -18,6 +18,7 @@ import {
 } from '../../user/directNostrProfileService';
 // import nutzapService from '../../nutzap/nutzapService';
 import { NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
+import { UnifiedSigningService } from '../UnifiedSigningService';
 
 export class NostrAuthProvider {
   /**
@@ -29,6 +30,11 @@ export class NostrAuthProvider {
       console.log(
         '🔐 NostrAuthProvider: Starting pure Nostr authentication...'
       );
+
+      // CRITICAL: Clear any cached signer state before login
+      // This ensures fresh signer creation after re-login
+      UnifiedSigningService.getInstance().clearCache();
+      console.log('🔐 NostrAuthProvider: Cleared signer cache for fresh login');
 
       // Validate and normalize nsec input
       const nsec = normalizeNsecInput(nsecInput);
@@ -222,6 +228,11 @@ export class NostrAuthProvider {
       console.log(
         '🔐 NostrAuthProvider: Starting Nostr signup (generating new identity)...'
       );
+
+      // CRITICAL: Clear any cached signer state before signup
+      // This ensures fresh signer creation for new identity
+      UnifiedSigningService.getInstance().clearCache();
+      console.log('🔐 NostrAuthProvider: Cleared signer cache for fresh signup');
 
       // Generate new Nostr keypair using NDK (per CLAUDE.md requirements)
       console.log('🔑 Generating new Nostr keypair with NDK...');

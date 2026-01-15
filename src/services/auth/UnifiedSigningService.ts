@@ -318,6 +318,16 @@ export class UnifiedSigningService {
   clearCache(): void {
     this.cachedSigner = null;
     this.cachedAuthMethod = null;
+
+    // Also clear signer from GlobalNDK to ensure fresh state
+    // This is async but we don't need to wait - next getSigner() will set it
+    GlobalNDKService.getInstance().then(ndk => {
+      ndk.signer = undefined;
+      console.log('🗑️ UnifiedSigningService: GlobalNDK signer cleared');
+    }).catch(() => {
+      // Ignore errors - NDK might not be initialized yet
+    });
+
     console.log('🗑️ UnifiedSigningService: Cache cleared');
   }
 
