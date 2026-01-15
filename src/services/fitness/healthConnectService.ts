@@ -113,6 +113,39 @@ export interface HealthConnectSyncResult {
   error?: string;
 }
 
+// Debug info interface for troubleshooting
+export interface HealthConnectDebugInfo {
+  // Connection status
+  provider: string | null;
+  sdkStatus: number;
+  sdkStatusText: string;
+
+  // Permissions
+  permissions: {
+    exerciseSession: boolean;
+    steps: boolean;
+    heartRate: boolean;
+    distance: boolean;
+    calories: boolean;
+  };
+
+  // Query results
+  exerciseSessionsFound: number;
+  exerciseTypesFound: number[]; // Raw IDs for debugging unmapped types
+  dateRangeQueried: { start: string; end: string } | null;
+
+  // Errors
+  lastError: string | null;
+
+  // Metadata
+  timestamp: string;
+  appVersion: string;
+}
+
+// Health Connect provider package names
+const HC_PROVIDER_BUILTIN = 'com.android.healthconnect'; // Android 14+ built-in (also GrapheneOS)
+const HC_PROVIDER_GOOGLE = 'com.google.android.apps.healthdata'; // Google's app for older devices
+
 export class HealthConnectService {
   private static instance: HealthConnectService;
   private isAuthorized = false;
@@ -123,6 +156,14 @@ export class HealthConnectService {
   private isModuleAvailable: boolean = false;
   private sdkAvailable: boolean | null = null;
   private clientInitialized: boolean = false;
+  private detectedProvider: string | null = null; // Track which provider was detected
+
+  // Debug tracking properties
+  private lastSdkStatus: number = 0;
+  private lastError: string | null = null;
+  private exerciseTypesFound: number[] = [];
+  private lastDateRangeQueried: { start: string; end: string } | null = null;
+  private lastExerciseSessionsFound: number = 0;
 
   private constructor() {
     this.initializeModule();
@@ -188,6 +229,7 @@ export class HealthConnectService {
   /**
    * Ensure the Health Connect client is initialized before any API calls
    * This is idempotent - safe to call multiple times
+   * Uses the provider detected in checkSdkAvailability()
    */
   private async ensureClientInitialized(): Promise<boolean> {
     if (this.clientInitialized) {
@@ -199,9 +241,11 @@ export class HealthConnectService {
     }
 
     try {
-      const initialized = await HealthConnect.initialize();
+      // Use detected provider, or default to built-in (Android 14+)
+      const provider = this.detectedProvider || HC_PROVIDER_BUILTIN;
+      const initialized = await HealthConnect.initialize(provider);
       this.clientInitialized = true;
-      debugLog('Health Connect: Client initialized:', initialized);
+      debugLog(`Health Connect: Client initialized with provider ${provider}:`, initialized);
       return true;
     } catch (error) {
       errorLog('Health Connect: Failed to initialize client:', error);
@@ -211,6 +255,8 @@ export class HealthConnectService {
 
   /**
    * Check if Health Connect SDK is available (Android 14+ or Health Connect app installed)
+   * Tries built-in Android 14+ provider first (com.android.healthconnect), then falls back
+   * to Google's app (com.google.android.apps.healthdata) for older devices.
    */
   async checkSdkAvailability(): Promise<boolean> {
     if (!this.isAvailable()) {
@@ -222,14 +268,33 @@ export class HealthConnectService {
     }
 
     try {
-      const status = await HealthConnect.getSdkStatus();
       // SDK_AVAILABLE = 3, SDK_UNAVAILABLE = 1, SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED = 2
+
+      // Try Android 14+ built-in Health Connect first (works on GrapheneOS, stock Android 14+)
+      let status = await HealthConnect.getSdkStatus(HC_PROVIDER_BUILTIN);
+      debugLog(`Health Connect SDK status (built-in): ${status}`);
+
+      if (status === 3) {
+        this.detectedProvider = HC_PROVIDER_BUILTIN;
+      } else {
+        // If not available, try Google's Health Connect app (for older devices with Play Store)
+        const googleStatus = await HealthConnect.getSdkStatus(HC_PROVIDER_GOOGLE);
+        debugLog(`Health Connect SDK status (Google): ${googleStatus}`);
+        if (googleStatus === 3) {
+          status = googleStatus;
+          this.detectedProvider = HC_PROVIDER_GOOGLE;
+        }
+      }
+
       this.sdkAvailable = status === 3;
-      debugLog(`Health Connect SDK status: ${status}, available: ${this.sdkAvailable}`);
+      this.lastSdkStatus = status;
+      debugLog(`Health Connect SDK available: ${this.sdkAvailable}, provider: ${this.detectedProvider}`);
       return this.sdkAvailable;
-    } catch (error) {
+    } catch (error: any) {
       errorLog('Health Connect: Error checking SDK availability:', error);
       this.sdkAvailable = false;
+      this.lastSdkStatus = 0;
+      this.lastError = `SDK check failed: ${error?.message || 'Unknown error'}`;
       return false;
     }
   }
@@ -374,6 +439,9 @@ export class HealthConnectService {
       const endTime = new Date().toISOString();
       const startTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
+      // Track date range for debug info
+      this.lastDateRangeQueried = { start: startTime, end: endTime };
+
       debugLog(`Health Connect: Fetching workouts from ${startTime} to ${endTime}`);
 
       // Read exercise sessions
@@ -385,11 +453,17 @@ export class HealthConnectService {
         },
       });
 
-      debugLog(`Health Connect: Fetched ${exerciseSessions?.records?.length || 0} exercise sessions`);
+      // Track raw session count and exercise types for debug info
+      const rawRecords = exerciseSessions?.records || [];
+      this.lastExerciseSessionsFound = rawRecords.length;
+      this.exerciseTypesFound = [...new Set(rawRecords.map((s: any) => s.exerciseType || 0))] as number[];
+
+      debugLog(`Health Connect: Fetched ${rawRecords.length} exercise sessions`);
+      debugLog(`Health Connect: Exercise types found: [${this.exerciseTypesFound.join(', ')}]`);
 
       const workouts: HealthConnectWorkout[] = [];
 
-      for (const session of exerciseSessions?.records || []) {
+      for (const session of rawRecords) {
         const workout = await this.transformExerciseSession(session);
         if (workout) {
           workouts.push(workout);
@@ -404,10 +478,14 @@ export class HealthConnectService {
       // Cache the results
       await this.cacheWorkouts(workouts);
 
+      // Clear last error on success
+      this.lastError = null;
+
       debugLog(`Health Connect: Returning ${workouts.length} valid workouts`);
       return workouts;
     } catch (error: any) {
       errorLog('Health Connect: Error fetching workouts:', error);
+      this.lastError = `Fetch failed: ${error?.message || 'Unknown error'}`;
       throw error;
     } finally {
       this.syncInProgress = false;
@@ -603,6 +681,57 @@ export class HealthConnectService {
       syncInProgress: this.syncInProgress,
       lastSyncAt: this.lastSyncAt?.toISOString(),
       sdkAvailable,
+    };
+  }
+
+  /**
+   * Get debug information for troubleshooting
+   * Returns detailed status info that users can share when reporting issues
+   */
+  async getDebugInfo(): Promise<HealthConnectDebugInfo> {
+    // Get SDK status text
+    const sdkStatusText = this.lastSdkStatus === 3 ? 'Available' :
+                          this.lastSdkStatus === 2 ? 'Provider update required' :
+                          this.lastSdkStatus === 1 ? 'Unavailable' : 'Unknown';
+
+    // Check permissions
+    let permissions = {
+      exerciseSession: false,
+      steps: false,
+      heartRate: false,
+      distance: false,
+      calories: false,
+    };
+
+    if (this.sdkAvailable && this.isAvailable()) {
+      try {
+        const clientReady = await this.ensureClientInitialized();
+        if (clientReady) {
+          const grantedPermissions = await HealthConnect.getGrantedPermissions();
+          permissions = {
+            exerciseSession: grantedPermissions.some((p: any) => p.recordType === 'ExerciseSession' && p.accessType === 'read'),
+            steps: grantedPermissions.some((p: any) => p.recordType === 'Steps' && p.accessType === 'read'),
+            heartRate: grantedPermissions.some((p: any) => p.recordType === 'HeartRate' && p.accessType === 'read'),
+            distance: grantedPermissions.some((p: any) => p.recordType === 'Distance' && p.accessType === 'read'),
+            calories: grantedPermissions.some((p: any) => p.recordType === 'ActiveCaloriesBurned' && p.accessType === 'read'),
+          };
+        }
+      } catch (e) {
+        debugLog('Health Connect: Error getting permissions for debug info:', e);
+      }
+    }
+
+    return {
+      provider: this.detectedProvider,
+      sdkStatus: this.lastSdkStatus,
+      sdkStatusText,
+      permissions,
+      exerciseSessionsFound: this.lastExerciseSessionsFound,
+      exerciseTypesFound: this.exerciseTypesFound,
+      dateRangeQueried: this.lastDateRangeQueried,
+      lastError: this.lastError,
+      timestamp: new Date().toISOString(),
+      appVersion: '1.5.3-debug', // TODO: Get from app config
     };
   }
 

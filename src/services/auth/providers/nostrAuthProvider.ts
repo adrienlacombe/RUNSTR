@@ -69,9 +69,22 @@ export class NostrAuthProvider {
       console.log('✅ NostrAuthProvider: Authentication stored and verified');
 
       // Import AsyncStorage and store current user pubkey for wallet verification
+      // Also explicitly set auth method to prevent Amber fallback bug
       const AsyncStorage = (
         await import('@react-native-async-storage/async-storage')
       ).default;
+
+      // CRITICAL: Explicitly set auth method to prevent Amber fallback
+      // Without this, if SecureNsecStorage.hasNsec() fails, the app falls back to
+      // checking amber_pubkey and incorrectly uses AmberNDKSigner
+      await AsyncStorage.setItem('@runstr:auth_method', 'nostr');
+
+      // CRITICAL: Clear any leftover Amber data to prevent cross-contamination
+      // This ensures users who previously tried Amber don't get NIP-55 signer dialogs
+      await AsyncStorage.removeItem('@runstr:amber_pubkey');
+      console.log('✅ NostrAuthProvider: Set auth_method=nostr, cleared amber_pubkey');
+
+      // Store current user pubkey for wallet verification
       const { npubToHex } = await import('../../../utils/ndkConversion');
       const hexPubkey = npubToHex(npub);
 
@@ -368,10 +381,22 @@ export class NostrAuthProvider {
         '✅ NostrAuthProvider: Generated identity stored and verified'
       );
 
-      // Import AsyncStorage and store current user pubkey for wallet verification
+      // Import AsyncStorage for auth method and pubkey storage
       const AsyncStorage = (
         await import('@react-native-async-storage/async-storage')
       ).default;
+
+      // CRITICAL: Explicitly set auth method to prevent Amber fallback
+      // Without this, if SecureNsecStorage.hasNsec() fails, the app falls back to
+      // checking amber_pubkey and incorrectly uses AmberNDKSigner
+      await AsyncStorage.setItem('@runstr:auth_method', 'nostr');
+
+      // CRITICAL: Clear any leftover Amber data to prevent cross-contamination
+      // This ensures users who previously tried Amber don't get NIP-55 signer dialogs
+      await AsyncStorage.removeItem('@runstr:amber_pubkey');
+      console.log('✅ NostrAuthProvider: Set auth_method=nostr, cleared amber_pubkey');
+
+      // Store current user pubkey for wallet verification
       await AsyncStorage.setItem('@runstr:hex_pubkey', hexPubkey);
       console.log(
         '✅ NostrAuthProvider: Current user pubkey stored for wallet verification'

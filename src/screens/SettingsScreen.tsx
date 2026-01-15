@@ -45,6 +45,7 @@ import { AntiCheatRequestModal } from '../components/settings/AntiCheatRequestMo
 import Nostr1301ImportService from '../services/fitness/Nostr1301ImportService';
 import { CustomAlertManager } from '../components/ui/CustomAlert';
 import { useSeason2Registration } from '../hooks/useSeason2';
+import { UnifiedSigningService, type AuthDebugInfo } from '../services/auth/UnifiedSigningService';
 // useAuth removed - using direct AsyncStorage.clear() + CommonActions.reset()
 
 interface SettingsScreenProps {
@@ -119,6 +120,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Debug info for troubleshooting auth issues
+  const [debugInfo, setDebugInfo] = useState<AuthDebugInfo | null>(null);
+
   // Alert state for CustomAlert
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
@@ -187,6 +191,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Load selected AI model
       const model = await ModelManager.getSelectedModel();
       setSelectedAIModel(model);
+
+      // Load debug info for troubleshooting
+      const authDebugInfo = await UnifiedSigningService.getInstance().getDebugInfo();
+      setDebugInfo(authDebugInfo);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -996,6 +1004,60 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </TouchableOpacity>
         </View>
 
+        {/* Debug Info Section - For troubleshooting auth issues */}
+        {debugInfo && (
+          <View style={styles.section}>
+            <SettingsAccordion title="DEBUG INFO" defaultExpanded={false}>
+              <View style={styles.debugContainer}>
+                <Text style={styles.debugLabel}>Auth Method:</Text>
+                <Text style={styles.debugValue}>{debugInfo.authMethod}</Text>
+
+                <Text style={styles.debugLabel}>Has nsec (SecureStore):</Text>
+                <Text style={styles.debugValue}>{debugInfo.hasNsec ? '✓ Yes' : '✗ No'}</Text>
+
+                <Text style={styles.debugLabel}>Has amber_pubkey:</Text>
+                <Text style={styles.debugValue}>{debugInfo.hasAmberPubkey ? '✓ Yes' : '✗ No'}</Text>
+
+                <Text style={styles.debugLabel}>Stored @runstr:auth_method:</Text>
+                <Text style={styles.debugValue}>{debugInfo.storedAuthMethod || 'null'}</Text>
+
+                <Text style={styles.debugLabel}>Cached auth method:</Text>
+                <Text style={styles.debugValue}>{debugInfo.cachedAuthMethod || 'null'}</Text>
+
+                <View style={styles.debugDivider} />
+
+                <Text style={styles.debugLabel}>Device:</Text>
+                <Text style={styles.debugValue}>
+                  {debugInfo.deviceInfo.model} ({debugInfo.deviceInfo.platform} {debugInfo.deviceInfo.osVersion})
+                </Text>
+
+                <Text style={styles.debugLabel}>App Version:</Text>
+                <Text style={styles.debugValue}>{debugInfo.appVersion}</Text>
+
+                <TouchableOpacity
+                  style={styles.debugCopyButton}
+                  onPress={async () => {
+                    const debugText = `RUNSTR Debug Info
+Auth Method: ${debugInfo.authMethod}
+Has nsec: ${debugInfo.hasNsec ? 'Yes' : 'No'}
+Has amber_pubkey: ${debugInfo.hasAmberPubkey ? 'Yes' : 'No'}
+Stored auth_method: ${debugInfo.storedAuthMethod || 'null'}
+Cached auth_method: ${debugInfo.cachedAuthMethod || 'null'}
+Device: ${debugInfo.deviceInfo.model}
+Platform: ${debugInfo.deviceInfo.platform} ${debugInfo.deviceInfo.osVersion}
+App Version: ${debugInfo.appVersion}`;
+                    await Clipboard.setStringAsync(debugText);
+                    CustomAlertManager.alert('Copied', 'Debug info copied to clipboard');
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color={theme.colors.text} />
+                  <Text style={styles.debugCopyText}>Copy to Clipboard</Text>
+                </TouchableOpacity>
+              </View>
+            </SettingsAccordion>
+          </View>
+        )}
+
         {/* App Version Info */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Version 1.5.3 (Build 153)</Text>
@@ -1598,5 +1660,48 @@ const styles = StyleSheet.create({
   modelNameSelected: {
     fontWeight: theme.typography.weights.semiBold,
     color: '#FF9D42',
+  },
+
+  // Debug Info Styles
+  debugContainer: {
+    paddingVertical: 8,
+  },
+
+  debugLabel: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginTop: 8,
+  },
+
+  debugValue: {
+    fontSize: 13,
+    color: theme.colors.text,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: 4,
+  },
+
+  debugDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 12,
+  },
+
+  debugCopyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: 16,
+  },
+
+  debugCopyText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: 8,
   },
 });

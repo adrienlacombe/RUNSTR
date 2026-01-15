@@ -16,7 +16,7 @@ export const NOSTR_TIMEOUTS = {
   /** Cryptographic signing operations (nsec) */
   SIGN: 5000,
   /** External signer signing operations (Amber) - needs user approval */
-  SIGN_AMBER: 15000,
+  SIGN_AMBER: 30000,
   /** Relay connection wait */
   RELAY_CONNECT: 3000,
   /** Quick operations (cache checks, local lookups) */

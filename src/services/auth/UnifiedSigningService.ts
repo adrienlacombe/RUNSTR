@@ -12,6 +12,8 @@ import { getAuthenticationData } from '../../utils/nostrAuth';
 import type { NostrEvent } from '@nostr-dev-kit/ndk';
 import { GlobalNDKService } from '../nostr/GlobalNDKService';
 import { SecureNsecStorage } from './SecureNsecStorage';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 export type AuthMethod = 'nostr' | 'amber' | null;
 
@@ -19,6 +21,20 @@ export interface SigningResult {
   success: boolean;
   signature?: string;
   error?: string;
+}
+
+export interface AuthDebugInfo {
+  authMethod: 'nostr' | 'amber' | 'none';
+  hasNsec: boolean;
+  hasAmberPubkey: boolean;
+  storedAuthMethod: string | null;
+  cachedAuthMethod: string | null;
+  deviceInfo: {
+    platform: string;
+    osVersion: string;
+    model: string;
+  };
+  appVersion: string;
 }
 
 export class UnifiedSigningService {
@@ -65,9 +81,14 @@ export class UnifiedSigningService {
       if (hasNsec) {
         // Auto-upgrade: set auth method for old users
         await AsyncStorage.setItem('@runstr:auth_method', 'nostr');
+
+        // CRITICAL: Clear any leftover Amber data to prevent cross-contamination
+        // This ensures existing nsec users don't accidentally fall back to Amber
+        await AsyncStorage.removeItem('@runstr:amber_pubkey');
+
         this.cachedAuthMethod = 'nostr';
         console.log(
-          '✅ UnifiedSigningService: Auto-detected nostr auth method (SecureStore)'
+          '✅ UnifiedSigningService: Auto-detected nostr auth method (SecureStore), cleared amber_pubkey'
         );
         return 'nostr';
       }
@@ -330,6 +351,51 @@ export class UnifiedSigningService {
         error
       );
       return null;
+    }
+  }
+
+  /**
+   * Get debug information for troubleshooting auth issues
+   * Returns all auth state info for display in debug UI
+   */
+  async getDebugInfo(): Promise<AuthDebugInfo> {
+    try {
+      // Get raw stored values (don't use cached)
+      const storedAuthMethod = await AsyncStorage.getItem('@runstr:auth_method');
+      const amberPubkey = await AsyncStorage.getItem('@runstr:amber_pubkey');
+      const hasNsec = await SecureNsecStorage.hasNsec();
+
+      // Get current auth method (may trigger auto-upgrade)
+      const authMethod = await this.getAuthMethod();
+
+      return {
+        authMethod: authMethod || 'none',
+        hasNsec,
+        hasAmberPubkey: !!amberPubkey,
+        storedAuthMethod,
+        cachedAuthMethod: this.cachedAuthMethod,
+        deviceInfo: {
+          platform: Platform.OS,
+          osVersion: Platform.Version?.toString() || 'unknown',
+          model: Constants.deviceName || 'unknown',
+        },
+        appVersion: Constants.expoConfig?.version || 'unknown',
+      };
+    } catch (error) {
+      console.error('UnifiedSigningService: Error getting debug info:', error);
+      return {
+        authMethod: 'none',
+        hasNsec: false,
+        hasAmberPubkey: false,
+        storedAuthMethod: null,
+        cachedAuthMethod: null,
+        deviceInfo: {
+          platform: Platform.OS,
+          osVersion: 'error',
+          model: 'error',
+        },
+        appVersion: 'error',
+      };
     }
   }
 }

@@ -2,6 +2,40 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.5.4-debug] - 2026-01-15 - Debug UI & Bug Fixes
+
+### Debug UI (New)
+- **Auth State Banner (Profile Screen)**: Shows auth method, nsec status, amber_pubkey status, platform, and version
+- **Debug Info Section (Settings Screen)**: Expandable accordion with auth state, device info, and "Copy to Clipboard" button
+- **Health Connect Debug Footer**: Shows provider, SDK status, sessions found, exercise types, and permissions
+
+### NIP-55 Signer Dialog Bug Fix
+- Fixed issue where some Android nsec users saw permission dialog from NIP-55 signer app
+- Root cause: NostrAuthProvider didn't explicitly set `@runstr:auth_method = 'nostr'` during login
+- Added explicit auth_method setting after successful nsec login/signup
+- Added amber_pubkey cleanup to prevent cross-contamination
+- Added amber_pubkey cleanup to auto-upgrade path for existing users
+
+### Amber Signing Timeout Fix
+- Increased SIGN_AMBER timeout from 15s to 30s for slower devices (Moto G52 reported)
+
+### GrapheneOS Health Connect Fix
+- Added dual provider detection (built-in `com.android.healthconnect` + Google's `com.google.android.apps.healthdata`)
+- GrapheneOS users were seeing false "Update Required" errors
+- Changed error message to accurate "Health Connect Unavailable" with settings link
+
+### Files Modified
+- src/services/auth/UnifiedSigningService.ts - Added getDebugInfo() and amber_pubkey cleanup
+- src/components/profile/DebugAuthBanner.tsx - New component
+- src/screens/SettingsScreen.tsx - Added Debug Info section
+- src/screens/ProfileScreen.tsx - Added DebugAuthBanner
+- src/services/auth/providers/nostrAuthProvider.ts - Explicit auth_method + amber cleanup
+- src/utils/nostrTimeout.ts - SIGN_AMBER 15s → 30s
+- src/services/fitness/healthConnectService.ts - Dual provider detection
+- src/components/profile/tabs/HealthConnectTab.tsx - Better error messaging
+
+---
+
 ## [1.5.3] - 2026-01-14 - Bug Fixes & Performance
 
 ### Charity Donations

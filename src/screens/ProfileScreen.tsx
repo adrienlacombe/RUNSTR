@@ -52,6 +52,7 @@ import { GlobalNDKService } from '../services/nostr/GlobalNDKService';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
 import { Alert } from 'react-native';
 import { NostrFetchLogger } from '../utils/NostrFetchLogger';
+import { DebugAuthBanner } from '../components/profile/DebugAuthBanner';
 
 interface ProfileScreenProps {
   data: ProfileScreenData;
@@ -352,6 +353,9 @@ const ProfileScreenComponent: React.FC<ProfileScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Debug Auth Banner - Shows auth state for debugging */}
+      <DebugAuthBanner onPress={handleSettingsPress} />
+
       {/* Header - Settings Button only (no title) */}
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
