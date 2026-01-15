@@ -39,7 +39,8 @@ export interface AuthDebugInfo {
 
 export class UnifiedSigningService {
   private static instance: UnifiedSigningService;
-  private cachedSigner: NDKSigner | null = null;
+  // Note: Signer is NOT cached - always created fresh from SecureStore
+  // This prevents stale signer issues after logout/login cycles
   private cachedAuthMethod: AuthMethod = null;
 
   private constructor() {}
@@ -113,18 +114,17 @@ export class UnifiedSigningService {
   /**
    * Get the appropriate signer based on authentication method
    * Returns NDKPrivateKeySigner for nsec or AmberNDKSigner for Amber
+   *
+   * NOTE: Always creates a FRESH signer from SecureStore - no caching.
+   * This prevents stale signer issues after logout/login cycles.
    */
   async getSigner(): Promise<NDKSigner | null> {
     try {
-      // Return cached signer if available
-      if (this.cachedSigner) {
-        return this.cachedSigner;
-      }
-
       const authMethod = await this.getAuthMethod();
 
       if (authMethod === 'nostr') {
-        // Create NDKPrivateKeySigner from SecureStore nsec
+        // Always create FRESH signer from SecureStore nsec
+        // No caching - prevents stale signer after logout/login
         const authData = await getAuthenticationData();
         if (!authData?.nsec) {
           throw new Error('No nsec found for nostr authentication');
@@ -133,36 +133,32 @@ export class UnifiedSigningService {
         // Convert nsec to hex private key
         const hexPrivateKey = nsecToPrivateKey(authData.nsec);
 
-        // Create NDKPrivateKeySigner from hex key
+        // Create fresh NDKPrivateKeySigner from hex key
         const signer = new NDKPrivateKeySigner(hexPrivateKey);
-
-        this.cachedSigner = signer;
 
         // Set signer on GlobalNDK instance for all Nostr operations
         const ndk = await GlobalNDKService.getInstance();
         ndk.signer = signer;
 
         console.log(
-          '✅ UnifiedSigningService: Created NDKPrivateKeySigner from SecureStore nsec'
+          '✅ UnifiedSigningService: Fresh signer created from SecureStore nsec'
         );
         return signer;
       }
 
       if (authMethod === 'amber') {
-        // Create AmberNDKSigner instance
+        // Create fresh AmberNDKSigner instance
         const signer = new AmberNDKSigner();
 
         // Initialize signer
         await signer.blockUntilReady();
-
-        this.cachedSigner = signer;
 
         // Set signer on GlobalNDK instance for all Nostr operations
         const ndk = await GlobalNDKService.getInstance();
         ndk.signer = signer;
 
         console.log(
-          '✅ UnifiedSigningService: Created AmberNDKSigner and set on GlobalNDK'
+          '✅ UnifiedSigningService: Fresh AmberNDKSigner created'
         );
         return signer;
       }
@@ -313,22 +309,12 @@ export class UnifiedSigningService {
   }
 
   /**
-   * Clear cached signer (call on logout or auth method change)
+   * Clear cached auth method (call on logout or auth method change)
+   * Note: Signer is no longer cached - always created fresh from SecureStore
    */
   clearCache(): void {
-    this.cachedSigner = null;
     this.cachedAuthMethod = null;
-
-    // Also clear signer from GlobalNDK to ensure fresh state
-    // This is async but we don't need to wait - next getSigner() will set it
-    GlobalNDKService.getInstance().then(ndk => {
-      ndk.signer = undefined;
-      console.log('🗑️ UnifiedSigningService: GlobalNDK signer cleared');
-    }).catch(() => {
-      // Ignore errors - NDK might not be initialized yet
-    });
-
-    console.log('🗑️ UnifiedSigningService: Cache cleared');
+    console.log('🗑️ UnifiedSigningService: Auth method cache cleared');
   }
 
   /**

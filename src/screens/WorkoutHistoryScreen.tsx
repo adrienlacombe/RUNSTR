@@ -196,10 +196,8 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       }
     } catch (error) {
       console.error('[WorkoutHistory] ❌ Competition entry failed:', error);
-      CustomAlertManager.alert(
-        'Error',
-        'Failed to enter workout into competition. Please try again.'
-      );
+      // Re-throw so parent tab knows the operation failed
+      throw error;
     }
   };
 
@@ -289,10 +287,8 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         '[WorkoutHistory] ❌ Health Connect competition entry failed:',
         error
       );
-      CustomAlertManager.alert(
-        'Error',
-        'Failed to enter workout into competition. Please try again.'
-      );
+      // Re-throw so parent tab knows the operation failed
+      throw error;
     }
   };
 
@@ -379,10 +375,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       }
     } catch (error) {
       console.error('[WorkoutHistory] ❌ Post to Nostr (1301) failed:', error);
-      CustomAlertManager.alert(
-        'Error',
-        'Failed to post workout to Nostr. Please try again.'
-      );
+      // Re-throw so PrivateWorkoutsTab knows the operation failed
+      // (it shows its own error alert via catch block)
+      throw error;
     }
   };
 

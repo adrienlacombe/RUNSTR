@@ -2,6 +2,26 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.5.5-debug] - 2026-01-15 - Fix Kind 1301 Publishing After Re-login
+
+### Critical Bug Fix
+- **Fixed workout publishing failure after logout/login cycle**
+- Root cause: Signer was cached in memory, becoming stale after re-login
+- Fix: Signer is now created fresh from SecureStore every time it's needed
+- No more stale signer state = no more publishing failures
+
+### Technical Details
+- Removed `cachedSigner` from UnifiedSigningService
+- `getSigner()` now always reads nsec from SecureStore and creates fresh signer
+- Simplified `clearCache()` since signer is no longer cached
+- Previous fixes (fresh signer at publish time, error re-throwing) retained
+
+### Files Modified
+- src/services/auth/UnifiedSigningService.ts - Removed signer caching
+- src/screens/WorkoutHistoryScreen.tsx - Error propagation fix (from 1.5.4)
+
+---
+
 ## [1.5.4-debug] - 2026-01-15 - Debug UI & Bug Fixes
 
 ### Debug UI (New)

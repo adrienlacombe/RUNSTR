@@ -2,7 +2,7 @@
   "expo": {
     "name": "RUNSTR",
     "slug": "runstr.project",
-    "version": "1.5.4-debug",
+    "version": "1.5.5-debug",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "runstr",
