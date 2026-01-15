@@ -425,12 +425,14 @@ class DailyRewardServiceClass {
    * @param lightningAddress - Recipient's Lightning address
    * @param rewardType - 'workout' or 'steps'
    * @param amountSats - For steps, amount being claimed (default: 5)
+   * @param isCharityDonation - If true, skips rate-limiting (for charity payments)
    * @returns Result with success status and amount paid
    */
   private async claimRewardViaSupabase(
     lightningAddress: string,
     rewardType: 'workout' | 'steps',
-    amountSats?: number
+    amountSats?: number,
+    isCharityDonation?: boolean
   ): Promise<{
     success: boolean;
     amount_paid?: number;
@@ -443,13 +445,14 @@ class DailyRewardServiceClass {
         return { success: false, reason: 'supabase_not_configured' };
       }
 
-      console.log(`[Reward] Calling claim-reward: ${rewardType} to ${lightningAddress}`);
+      console.log(`[Reward] Calling claim-reward: ${rewardType} to ${lightningAddress}${isCharityDonation ? ' (charity)' : ''}`);
 
       const { data, error } = await supabase.functions.invoke('claim-reward', {
         body: {
           lightning_address: lightningAddress,
           reward_type: rewardType,
           amount_sats: amountSats,
+          is_charity_donation: isCharityDonation,
         },
       });
 
@@ -701,7 +704,8 @@ class DailyRewardServiceClass {
           const result = await this.claimRewardViaSupabase(
             charity.lightningAddress,
             'workout',
-            split.charityAmount // Pass charity's portion
+            split.charityAmount, // Pass charity's portion
+            true // isCharityDonation - skip rate-limiting
           );
           charityPaymentSuccess = result.success;
           console.log(`[Reward] Charity (${charity.name}) payment:`, charityPaymentSuccess ? '✅' : '❌');

@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#FF6B6B',
+    color: theme.colors.accent,
     textAlign: 'center',
     marginBottom: 12,
   },

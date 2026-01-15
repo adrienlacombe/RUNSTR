@@ -149,7 +149,7 @@ class PerWorkoutVerificationServiceClass {
    * Get current app version from Expo config
    */
   private getAppVersion(): string {
-    return Constants.expoConfig?.version || '1.5.2';
+    return Constants.expoConfig?.version || '1.5.3';
   }
 
   /**

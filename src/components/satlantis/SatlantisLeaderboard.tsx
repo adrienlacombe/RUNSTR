@@ -5,10 +5,13 @@
  * Privacy model:
  * - Season II participants (public): visible to all users
  * - Non-Season II participants (private): visible only to themselves, marked with 🔒 icon
+ *
+ * PERFORMANCE: Uses batch-based rendering (21 at a time) with "See More" button
+ * and React.memo for efficient row rendering.
  */
 
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { memo, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { ZappableUserRow } from '../ui/ZappableUserRow';
@@ -17,7 +20,64 @@ import type {
   SatlantisEventStatus,
 } from '../../types/satlantis';
 
-const MAX_DISPLAY = 25;
+const BATCH_SIZE = 21; // Show 21 participants at a time
+
+/**
+ * Memoized leaderboard entry row component
+ * Only re-renders when entry data actually changes
+ */
+interface LeaderboardEntryRowProps {
+  entry: SatlantisLeaderboardEntry;
+  currentUserNpub?: string;
+}
+
+const LeaderboardEntryRow = memo(
+  ({ entry, currentUserNpub }: LeaderboardEntryRowProps) => {
+    return (
+      <View style={[styles.entryRow, entry.isPrivate && styles.privateEntry]}>
+        {/* Rank */}
+        <View style={styles.rankSection}>
+          {entry.isPrivate && (
+            <Ionicons
+              name="lock-closed"
+              size={12}
+              color={theme.colors.textMuted}
+              style={styles.lockIcon}
+            />
+          )}
+          <Text style={[styles.rankText, entry.rank <= 3 && styles.topRank]}>
+            {entry.rank}
+          </Text>
+        </View>
+
+        {/* User with zap button */}
+        <View style={styles.userSection}>
+          <ZappableUserRow
+            npub={entry.npub}
+            showQuickZap={entry.npub !== currentUserNpub}
+            hideActionsForCurrentUser={entry.npub === currentUserNpub}
+            additionalContent={
+              <View style={styles.scoreSection}>
+                <Text style={styles.scoreText}>{entry.formattedScore}</Text>
+              </View>
+            }
+            style={styles.userRow}
+          />
+        </View>
+      </View>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison: only re-render if these specific values changed
+    return (
+      prevProps.entry.npub === nextProps.entry.npub &&
+      prevProps.entry.rank === nextProps.entry.rank &&
+      prevProps.entry.formattedScore === nextProps.entry.formattedScore &&
+      prevProps.entry.isPrivate === nextProps.entry.isPrivate &&
+      prevProps.currentUserNpub === nextProps.currentUserNpub
+    );
+  }
+);
 
 interface SatlantisLeaderboardProps {
   entries: SatlantisLeaderboardEntry[];
@@ -32,30 +92,27 @@ export const SatlantisLeaderboard: React.FC<SatlantisLeaderboardProps> = ({
   eventStatus,
   currentUserNpub,
 }) => {
-  // Calculate top 25 + user position if outside top 25
-  const { topEntries, userEntryOutsideTop, userRank } = useMemo(() => {
-    const top = entries.slice(0, MAX_DISPLAY);
+  // Batch-based rendering state
+  const [visibleBatches, setVisibleBatches] = useState(1);
 
-    if (!currentUserNpub) {
-      return { topEntries: top, userEntryOutsideTop: null, userRank: -1 };
-    }
+  // Reset to first batch when entries change significantly
+  useEffect(() => {
+    setVisibleBatches(1);
+  }, [entries.length]);
 
-    // Find user's rank in full list
-    const userIndex = entries.findIndex(e => e.npub === currentUserNpub);
-    const userRankValue = userIndex >= 0 ? userIndex + 1 : -1;
+  // Calculate visible entries and user position
+  const visibleCount = visibleBatches * BATCH_SIZE;
+  const visibleEntries = entries.slice(0, visibleCount);
+  const hasMore = visibleCount < entries.length;
+  const remainingCount = entries.length - visibleCount;
 
-    // If user is in top 25 or not found, just return top 25
-    if (userIndex < 0 || userIndex < MAX_DISPLAY) {
-      return { topEntries: top, userEntryOutsideTop: null, userRank: userRankValue };
-    }
-
-    // User is outside top 25, include their entry
-    return {
-      topEntries: top,
-      userEntryOutsideTop: entries[userIndex],
-      userRank: userRankValue,
-    };
-  }, [entries, currentUserNpub]);
+  // Find user's position if outside visible entries
+  const userIndex = currentUserNpub
+    ? entries.findIndex(e => e.npub === currentUserNpub)
+    : -1;
+  const userRank = userIndex >= 0 ? userIndex + 1 : -1;
+  const userEntryOutsideVisible =
+    userIndex >= visibleCount ? entries[userIndex] : null;
   // Upcoming events - show placeholder
   if (eventStatus === 'upcoming') {
     return (
@@ -105,43 +162,31 @@ export const SatlantisLeaderboard: React.FC<SatlantisLeaderboardProps> = ({
         Leaderboard {eventStatus === 'live' ? '(Live)' : '(Final)'}
       </Text>
 
-      {/* Top 25 entries */}
-      {topEntries.map((entry) => (
-        <View key={entry.npub} style={[styles.entryRow, entry.isPrivate && styles.privateEntry]}>
-          {/* Rank */}
-          <View style={styles.rankSection}>
-            {entry.isPrivate && (
-              <Ionicons
-                name="lock-closed"
-                size={12}
-                color={theme.colors.textMuted}
-                style={styles.lockIcon}
-              />
-            )}
-            <Text style={[styles.rankText, entry.rank <= 3 && styles.topRank]}>
-              {entry.rank}
-            </Text>
-          </View>
-
-          {/* User with zap button */}
-          <View style={styles.userSection}>
-            <ZappableUserRow
-              npub={entry.npub}
-              showQuickZap={entry.npub !== currentUserNpub}
-              hideActionsForCurrentUser={entry.npub === currentUserNpub}
-              additionalContent={
-                <View style={styles.scoreSection}>
-                  <Text style={styles.scoreText}>{entry.formattedScore}</Text>
-                </View>
-              }
-              style={styles.userRow}
-            />
-          </View>
-        </View>
+      {/* Visible entries using memoized component */}
+      {visibleEntries.map((entry) => (
+        <LeaderboardEntryRow
+          key={entry.npub}
+          entry={entry}
+          currentUserNpub={currentUserNpub}
+        />
       ))}
 
-      {/* User position section (if outside top 25) */}
-      {userEntryOutsideTop && userRank > 0 && (
+      {/* See More button */}
+      {hasMore && (
+        <TouchableOpacity
+          style={styles.seeMoreButton}
+          onPress={() => setVisibleBatches(b => b + 1)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.seeMoreText}>
+            See More ({remainingCount} remaining)
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={theme.colors.accent} />
+        </TouchableOpacity>
+      )}
+
+      {/* User position section (if outside visible entries) */}
+      {userEntryOutsideVisible && userRank > 0 && (
         <>
           {/* Separator */}
           <View style={styles.userPositionSeparator}>
@@ -151,9 +196,9 @@ export const SatlantisLeaderboard: React.FC<SatlantisLeaderboardProps> = ({
           </View>
 
           {/* User's entry */}
-          <View style={[styles.entryRow, styles.userPositionRow, userEntryOutsideTop.isPrivate && styles.privateEntry]}>
+          <View style={[styles.entryRow, styles.userPositionRow, userEntryOutsideVisible.isPrivate && styles.privateEntry]}>
             <View style={styles.rankSection}>
-              {userEntryOutsideTop.isPrivate && (
+              {userEntryOutsideVisible.isPrivate && (
                 <Ionicons
                   name="lock-closed"
                   size={12}
@@ -165,12 +210,12 @@ export const SatlantisLeaderboard: React.FC<SatlantisLeaderboardProps> = ({
             </View>
             <View style={styles.userSection}>
               <ZappableUserRow
-                npub={userEntryOutsideTop.npub}
+                npub={userEntryOutsideVisible.npub}
                 showQuickZap={false}
                 hideActionsForCurrentUser={true}
                 additionalContent={
                   <View style={styles.scoreSection}>
-                    <Text style={styles.scoreText}>{userEntryOutsideTop.formattedScore}</Text>
+                    <Text style={styles.scoreText}>{userEntryOutsideVisible.formattedScore}</Text>
                   </View>
                 }
                 style={styles.userRow}
@@ -301,6 +346,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(255, 140, 0, 0.1)',
     paddingHorizontal: 8,
+  },
+  seeMoreButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  seeMoreText: {
+    color: theme.colors.accent,
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
   },
 });
 

@@ -23,13 +23,14 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import * as Device from 'expo-device';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../styles/theme';
 import { simpleRunTracker } from '../../services/activity/SimpleRunTracker';
 
-// Status indicator colors
+// Status indicator colors - using orange theme variants
 const STATUS_COLORS = {
-  good: '#22c55e', // Green
-  warning: '#eab308', // Yellow
-  bad: '#ef4444', // Red
+  good: theme.colors.success, // Orange (#FF9D42)
+  warning: theme.colors.accent, // Deep orange (#FF7B1C)
+  bad: '#FF5500', // Dark orange for errors
   neutral: '#6b7280', // Gray
 };
 

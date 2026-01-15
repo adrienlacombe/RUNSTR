@@ -128,7 +128,7 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
           />
         );
       case 'error':
-        return <Ionicons name="close-circle" size={24} color="#ff4444" />;
+        return <Ionicons name="close-circle" size={24} color={theme.colors.accent} />;
       case 'requesting':
         return (
           <ActivityIndicator size="small" color={theme.colors.orangeBright} />
@@ -203,7 +203,7 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
           {/* Error Message */}
           {errorMessage ? (
             <View style={styles.errorContainer}>
-              <Ionicons name="warning" size={20} color="#ff4444" />
+              <Ionicons name="warning" size={20} color={theme.colors.accent} />
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
@@ -361,16 +361,16 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    backgroundColor: 'rgba(255, 123, 28, 0.1)',
     borderWidth: 1,
-    borderColor: '#ff4444',
+    borderColor: theme.colors.accent,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
   },
   errorText: {
     fontSize: 13,
-    color: '#ff4444',
+    color: theme.colors.accent,
     marginLeft: 8,
     flex: 1,
     lineHeight: 18,

@@ -325,7 +325,7 @@ export const CharitySection: React.FC<CharitySectionProps> = ({
             <Ionicons
               name="flash"
               size={20}
-              color={isZapped ? '#FFD700' : '#000000'}
+              color={isZapped ? theme.colors.accent : '#000000'}
             />
             <Text
               style={[
@@ -438,9 +438,9 @@ const styles = StyleSheet.create({
   },
 
   zappedButton: {
-    backgroundColor: '#FFE4B5', // Light gold when zapped
+    backgroundColor: 'rgba(255, 123, 28, 0.2)', // Light orange when zapped
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: theme.colors.accent,
   },
 
   zappingButton: {

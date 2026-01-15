@@ -12,6 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../styles/theme';
 import {
   isWatchConnectivityAvailable,
   getWatchState,
@@ -68,7 +69,7 @@ export function WatchSyncSection() {
         <Ionicons
           name="watch"
           size={20}
-          color={watchState.isPaired ? '#4ade80' : '#6b7280'}
+          color={watchState.isPaired ? theme.colors.accent : '#6b7280'}
         />
         <Text style={styles.statusText}>
           {!watchState.isPaired
@@ -111,14 +112,14 @@ export function WatchSyncSection() {
       {/* Status Messages */}
       {syncStatus === 'success' && (
         <View style={styles.successMessage}>
-          <Ionicons name="checkmark-circle" size={16} color="#4ade80" />
+          <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
           <Text style={styles.successText}>Identity sent to watch</Text>
         </View>
       )}
 
       {syncStatus === 'error' && errorMessage && (
         <View style={styles.errorMessage}>
-          <Ionicons name="alert-circle" size={16} color="#ef4444" />
+          <Ionicons name="alert-circle" size={16} color={theme.colors.accent} />
           <Text style={styles.errorText}>{errorMessage}</Text>
         </View>
       )}
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fbbf24',
+    backgroundColor: theme.colors.accent,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   successText: {
-    color: '#4ade80',
+    color: theme.colors.success,
     fontSize: 13,
   },
   errorMessage: {
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorText: {
-    color: '#ef4444',
+    color: theme.colors.accent,
     fontSize: 13,
   },
   helpText: {

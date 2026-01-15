@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../styles/theme';
 
 interface ToastProps {
   text1?: string;
@@ -50,10 +51,10 @@ export const toastConfig = {
     </View>
   ),
 
-  // Error notification - Red theme
+  // Error notification - Orange theme matching app style
   error: ({ text1, text2 }: ToastProps) => (
     <View style={styles.errorToast}>
-      <Ionicons name="alert-circle" size={24} color="#ef4444" />
+      <Ionicons name="alert-circle" size={24} color={theme.colors.accent} />
       <View style={styles.textContainer}>
         <Text style={styles.title}>{text1}</Text>
         {text2 && <Text style={styles.subtitle}>{text2}</Text>}
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   errorToast: {
     ...baseToastStyle,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: theme.colors.accent,
   },
   stepRewardToast: {
     ...baseToastStyle,

@@ -352,7 +352,7 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
                 <>
                   <Ionicons name="trophy" size={20} color="#000" />
                   <Text style={styles.shareCompletionButtonText}>
-                    Share & Claim 1,000 Sats
+                    Claim Reward
                   </Text>
                 </>
               )}
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFD700', // Gold for celebration
+    backgroundColor: theme.colors.accent,
     borderRadius: 12,
     paddingVertical: 14,
     marginBottom: 12,
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.15)', // Green tint
+    backgroundColor: 'rgba(255, 123, 28, 0.15)', // Orange tint matching theme
     borderRadius: 12,
     paddingVertical: 14,
     marginBottom: 12,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   sharedBadgeText: {
     fontSize: 16,
     fontWeight: theme.typography.weights.medium,
-    color: '#4CAF50', // Green
+    color: theme.colors.success, // Orange (theme.colors.success is #FF9D42)
   },
   donateButton: {
     flexDirection: 'row',

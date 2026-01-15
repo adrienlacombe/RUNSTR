@@ -589,6 +589,7 @@ interface RequestBody {
   lightning_address?: string
   reward_type?: 'workout' | 'steps'
   amount_sats?: number
+  is_charity_donation?: boolean // Skip rate-limiting for charity donations
 
   // For pay_invoice
   invoice?: string
@@ -956,7 +957,7 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
-      const { lightning_address, reward_type, amount_sats } = body
+      const { lightning_address, reward_type, amount_sats, is_charity_donation } = body
 
       // Validate required fields
       if (!lightning_address || !reward_type) {
@@ -1003,13 +1004,17 @@ serve(async (req) => {
 
       // Handle based on reward type
       if (reward_type === 'workout') {
-        // Check if workout already claimed
-        if (existingClaim?.workout_claimed) {
+        // Check if workout already claimed (SKIP for charity donations - they don't rate-limit)
+        if (existingClaim?.workout_claimed && !is_charity_donation) {
           console.log('[claim-reward] Workout already claimed today')
           return new Response(
             JSON.stringify({ success: false, reason: 'already_claimed' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
+        }
+
+        if (is_charity_donation) {
+          console.log('[claim-reward] Charity donation - skipping rate limit check')
         }
 
         // Determine reward amount: use requested amount if valid, otherwise default
@@ -1041,19 +1046,21 @@ serve(async (req) => {
             )
           }
 
-          // Record the claim
-          if (existingClaim) {
-            await supabase
-              .from('daily_reward_claims')
-              .update({ workout_claimed: true, updated_at: new Date().toISOString() })
-              .eq('id', existingClaim.id)
-          } else {
-            await supabase.from('daily_reward_claims').insert({
-              lightning_address_hash: addressHash,
-              reward_date: today,
-              workout_claimed: true,
-              step_sats_claimed: 0,
-            })
+          // Record the claim (SKIP for charity donations - don't rate-limit charities)
+          if (!is_charity_donation) {
+            if (existingClaim) {
+              await supabase
+                .from('daily_reward_claims')
+                .update({ workout_claimed: true, updated_at: new Date().toISOString() })
+                .eq('id', existingClaim.id)
+            } else {
+              await supabase.from('daily_reward_claims').insert({
+                lightning_address_hash: addressHash,
+                reward_date: today,
+                workout_claimed: true,
+                step_sats_claimed: 0,
+              })
+            }
           }
 
           console.log('[claim-reward] Workout reward paid successfully:', rewardAmount, 'sats')

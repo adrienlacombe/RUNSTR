@@ -2,6 +2,31 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.5.3] - 2026-01-14 - Bug Fixes & Performance
+
+### Charity Donations
+- Fixed 100% charity donation bug where only first user per day could donate to a charity
+- Charity payments now bypass per-address rate-limiting (server-side fix deployed)
+
+### Performance
+- Run for Bitcoin leaderboard now uses batch pagination (21 entries at a time)
+- Added React.memo optimization to leaderboard rows for smoother scrolling
+- "See More" button loads additional entries on demand
+
+### UI/UX
+- Changed "Share & Claim 1,000 Sats" button to "Claim Reward"
+- Fixed theme color violations across 7 components
+- Replaced yellow/green/red colors with theme orange throughout app
+
+### Files Updated
+- SatlantisLeaderboard.tsx - batch pagination + memoization
+- RunningBitcoinDetailScreen.tsx - button text + colors
+- CharitySection.tsx, WatchSyncSection.tsx, toastConfig.tsx
+- PermissionRequestModal.tsx, WearableConnectionModal.tsx
+- ActivityDebugOverlay.tsx - debug status colors
+
+---
+
 ## [1.5.2] - 2026-01-14 - Social Sharing & Competitions
 
 ### Donations
