@@ -17,7 +17,6 @@ import { WorkoutPublishingService } from '../services/nostr/workoutPublishingSer
 import localWorkoutStorage from '../services/fitness/LocalWorkoutStorageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
-import type { NDKSigner } from '@nostr-dev-kit/ndk';
 import { nostrProfileService } from '../services/nostr/NostrProfileService';
 import type { NostrProfile } from '../services/nostr/NostrProfileService';
 
@@ -54,7 +53,8 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
   const [activeWorkoutTab, setActiveWorkoutTab] = useState<WorkoutTabType>('private');
   const [pubkey, setPubkey] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
-  const [signer, setSigner] = useState<NDKSigner | null>(null);
+  // Note: signer is no longer cached in state - we get a fresh signer at publish time
+  // to ensure we're using current auth after sign out/sign in
   const [isInitializing, setIsInitializing] = useState(true);
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
@@ -96,16 +96,9 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       setPubkey(activePubkey);
       setUserId(activeUserId);
 
-      // Load signer for posting
-      const userSigner = await UnifiedSigningService.getInstance().getSigner();
-      if (userSigner) {
-        setSigner(userSigner);
-        console.log('[WorkoutHistory] ✅ User signer loaded');
-      } else {
-        console.warn(
-          '[WorkoutHistory] No signer available - posting will not work'
-        );
-      }
+      // Note: Signer is now loaded fresh at publish time (not cached here)
+      // This ensures we always use current auth state after sign out/sign in
+      console.log('[WorkoutHistory] ✅ User data loaded (signer loaded at publish time)');
     } catch (error) {
       console.error('[WorkoutHistory] ❌ Failed to load user data:', error);
     } finally {
@@ -141,10 +134,12 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         `[WorkoutHistory] Entering HealthKit workout ${workout.id} into competition...`
       );
 
-      if (!signer) {
+      // Get fresh signer to ensure we're using current auth (not stale cached state)
+      const freshSigner = await UnifiedSigningService.getInstance().getSigner();
+      if (!freshSigner) {
         CustomAlertManager.alert(
           'Error',
-          'No signer available. Please log in again.'
+          'Not authenticated. Please sign in again.'
         );
         return;
       }
@@ -175,7 +170,7 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       // Publish to Nostr as kind 1301 competition entry
       const result = await publishingService.saveWorkoutToNostr(
         publishableWorkout,
-        signer,
+        freshSigner,
         userId
       );
 
@@ -229,10 +224,12 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         `[WorkoutHistory] Entering Health Connect workout ${workout.id} into competition...`
       );
 
-      if (!signer) {
+      // Get fresh signer to ensure we're using current auth (not stale cached state)
+      const freshSigner = await UnifiedSigningService.getInstance().getSigner();
+      if (!freshSigner) {
         CustomAlertManager.alert(
           'Error',
-          'No signer available. Please log in again.'
+          'Not authenticated. Please sign in again.'
         );
         return;
       }
@@ -263,7 +260,7 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       // Publish to Nostr as kind 1301 competition entry
       const result = await publishingService.saveWorkoutToNostr(
         publishableWorkout,
-        signer,
+        freshSigner,
         userId
       );
 
@@ -333,10 +330,12 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         `[WorkoutHistory] Posting workout ${workout.id} as kind 1301...`
       );
 
-      if (!signer) {
+      // Get fresh signer to ensure we're using current auth (not stale cached state)
+      const freshSigner = await UnifiedSigningService.getInstance().getSigner();
+      if (!freshSigner) {
         CustomAlertManager.alert(
           'Error',
-          'No signer available. Please log in again.'
+          'Not authenticated. Please sign in again.'
         );
         return;
       }
@@ -361,7 +360,7 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
       // Publish to Nostr as kind 1301 workout event
       const result = await publishingService.saveWorkoutToNostr(
         publishableWorkout,
-        signer,
+        freshSigner,
         userId
       );
 
