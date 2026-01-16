@@ -14,16 +14,16 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { CustomAlertManager } from '../../ui/CustomAlert';
 import { theme } from '../../../styles/theme';
 import { Card } from '../../ui/Card';
 import { LoadingOverlay } from '../../ui/LoadingStates';
 import { WorkoutCard } from '../shared/WorkoutCard';
-import healthConnectService, { type HealthConnectDebugInfo } from '../../../services/fitness/healthConnectService';
+import healthConnectService from '../../../services/fitness/healthConnectService';
 import type { Workout } from '../../../types/workout';
 import { inferActivityTypeSimple } from '../../../utils/activityInference';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 interface HealthConnectTabProps {
   userId: string;
@@ -47,15 +47,9 @@ const HealthConnectTabContent: React.FC<HealthConnectTabProps> = ({
   const [postingWorkoutId, setPostingWorkoutId] = useState<string | null>(null);
   const [postingType, setPostingType] = useState<'post' | 'compete' | null>(null);
 
-  // Debug state
-  const [debugInfo, setDebugInfo] = useState<HealthConnectDebugInfo | null>(null);
-  const [debugExpanded, setDebugExpanded] = useState(false);
-
   useEffect(() => {
     // Only check status on mount, don't auto-request permissions
     checkPermissionStatus();
-    // Fetch debug info
-    fetchDebugInfo();
   }, []);
 
   const checkPermissionStatus = async () => {
@@ -135,34 +129,6 @@ const HealthConnectTabContent: React.FC<HealthConnectTabProps> = ({
       setHasPermission(false);
       setIsLoading(false);
     }
-  };
-
-  const fetchDebugInfo = async () => {
-    try {
-      const info = await healthConnectService.getDebugInfo();
-      setDebugInfo(info);
-    } catch (error) {
-      console.error('Error fetching debug info:', error);
-    }
-  };
-
-  const copyDebugInfo = async () => {
-    if (!debugInfo) return;
-
-    const text = `RUNSTR Health Connect Debug
-========================
-Provider: ${debugInfo.provider || 'Not detected'}
-SDK Status: ${debugInfo.sdkStatus} (${debugInfo.sdkStatusText})
-Sessions Found: ${debugInfo.exerciseSessionsFound}
-Exercise Types: [${debugInfo.exerciseTypesFound.join(', ') || 'None'}]
-Date Range: ${debugInfo.dateRangeQueried ? `${debugInfo.dateRangeQueried.start} to ${debugInfo.dateRangeQueried.end}` : 'Not queried'}
-Permissions: ExerciseSession=${debugInfo.permissions.exerciseSession}, Steps=${debugInfo.permissions.steps}, HR=${debugInfo.permissions.heartRate}, Dist=${debugInfo.permissions.distance}, Cal=${debugInfo.permissions.calories}
-Error: ${debugInfo.lastError || 'None'}
-Time: ${debugInfo.timestamp}
-Version: ${debugInfo.appVersion}`;
-
-    await Clipboard.setStringAsync(text);
-    CustomAlertManager.alert('Copied', 'Debug info copied to clipboard');
   };
 
   const handleConnectHealthConnect = async () => {
@@ -307,8 +273,6 @@ Version: ${debugInfo.appVersion}`;
       if (showLoading) {
         setIsLoading(false);
       }
-      // Refresh debug info after loading attempt
-      fetchDebugInfo();
     }
   };
 
@@ -341,7 +305,11 @@ Version: ${debugInfo.appVersion}`;
     setPostingType('compete');
     try {
       await onCompete(workout);
-      CustomAlertManager.alert('Success', 'Workout entered into competition!');
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Workout submitted!',
+      });
     } catch (error) {
       console.error('Competition entry failed:', error);
       CustomAlertManager.alert(
@@ -537,54 +505,6 @@ Version: ${debugInfo.appVersion}`;
     );
   }
 
-  // Debug section component
-  const renderDebugSection = () => {
-    if (!debugInfo) return null;
-
-    return (
-      <Card style={styles.debugCard}>
-        <TouchableOpacity
-          style={styles.debugHeader}
-          onPress={() => setDebugExpanded(!debugExpanded)}
-          onLongPress={copyDebugInfo}
-        >
-          <Text style={styles.debugTitle}>
-            Debug Info {debugExpanded ? '▼' : '▶'}
-          </Text>
-          <Text style={styles.debugHint}>(long-press to copy)</Text>
-        </TouchableOpacity>
-
-        {debugExpanded && (
-          <View style={styles.debugContent}>
-            <Text style={styles.debugText} selectable>
-              Provider: {debugInfo.provider || 'Not detected'}
-            </Text>
-            <Text style={styles.debugText} selectable>
-              SDK Status: {debugInfo.sdkStatus} ({debugInfo.sdkStatusText})
-            </Text>
-            <Text style={styles.debugText} selectable>
-              Sessions Found: {debugInfo.exerciseSessionsFound}
-            </Text>
-            <Text style={styles.debugText} selectable>
-              Exercise Types: [{debugInfo.exerciseTypesFound.join(', ') || 'None'}]
-            </Text>
-            <Text style={styles.debugText} selectable>
-              Permissions: ES={debugInfo.permissions.exerciseSession ? '✓' : '✗'} Steps={debugInfo.permissions.steps ? '✓' : '✗'} HR={debugInfo.permissions.heartRate ? '✓' : '✗'}
-            </Text>
-            {debugInfo.lastError && (
-              <Text style={[styles.debugText, styles.debugError]} selectable>
-                Error: {debugInfo.lastError}
-              </Text>
-            )}
-            <TouchableOpacity style={styles.copyButton} onPress={copyDebugInfo}>
-              <Text style={styles.copyButtonText}>Copy Debug Info</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Card>
-    );
-  };
-
   return (
     <FlatList
       data={workouts}
@@ -604,19 +524,6 @@ Version: ${debugInfo.appVersion}`;
           <Text style={styles.emptyStateText}>
             No workouts found in Health Connect for the last 30 days. Record a workout in your fitness apps (Samsung Health, Google Fit, Strava, etc.) and pull to refresh.
           </Text>
-          {debugInfo && (
-            <View style={styles.emptyDebugSummary}>
-              <Text style={styles.debugSummaryText}>
-                Provider: {debugInfo.provider || 'Not detected'} | Sessions: {debugInfo.exerciseSessionsFound}
-              </Text>
-              {debugInfo.lastError && (
-                <Text style={styles.debugSummaryError}>Error: {debugInfo.lastError}</Text>
-              )}
-            </View>
-          )}
-          <TouchableOpacity style={styles.copyButton} onPress={copyDebugInfo}>
-            <Text style={styles.copyButtonText}>Copy Debug Info</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingsLink}
             onPress={handleOpenSettings}
@@ -627,7 +534,6 @@ Version: ${debugInfo.appVersion}`;
           </TouchableOpacity>
         </Card>
       }
-      ListFooterComponent={renderDebugSection}
     />
   );
 };
@@ -744,74 +650,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-  },
-  // Debug styles
-  debugCard: {
-    padding: 16,
-    marginTop: 16,
-    marginHorizontal: 0,
-  },
-  debugHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  debugTitle: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  debugHint: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-  },
-  debugContent: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-  },
-  debugText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginBottom: 4,
-  },
-  debugError: {
-    color: '#ff6b6b',
-  },
-  emptyDebugSummary: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 8,
-    width: '100%',
-  },
-  debugSummaryText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'center',
-  },
-  debugSummaryError: {
-    color: '#ff6b6b',
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  copyButton: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 6,
-    alignSelf: 'center',
-  },
-  copyButtonText: {
-    color: theme.colors.accent,
-    fontSize: 12,
-    fontWeight: '600',
   },
 });
 

@@ -12,9 +12,9 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { theme } from '../../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -133,13 +133,21 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
 
   const handleCopyInvoice = async () => {
     await Clipboard.setStringAsync(invoice);
-    Alert.alert('Copied!', 'Lightning invoice copied to clipboard');
+    Toast.show({
+      type: 'success',
+      text1: 'Copied!',
+      text2: 'Lightning invoice copied to clipboard',
+    });
   };
 
   const handleCopyNpub = async () => {
     if (userNpub) {
       await Clipboard.setStringAsync(userNpub);
-      Alert.alert('Copied!', 'Your npub has been copied to clipboard');
+      Toast.show({
+        type: 'success',
+        text1: 'Copied!',
+        text2: 'Your npub has been copied to clipboard',
+      });
     }
   };
 

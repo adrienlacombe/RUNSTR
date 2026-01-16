@@ -262,7 +262,7 @@ export const CoachRunstrCard: React.FC<CoachRunstrCardProps> = ({
     if (loading) {
       return (
         <View style={styles.resultContainer}>
-          <ActivityIndicator size="small" color="#FF9D42" />
+          <ActivityIndicator size="small" color={theme.colors.accent} />
           <Text style={styles.loadingText}>Analyzing your data...</Text>
         </View>
       );

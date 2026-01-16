@@ -360,7 +360,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = () => {
                       >
                         {isLoading ? (
                           <View style={styles.amberLoadingContainer}>
-                            <ActivityIndicator size="small" color="#FFFFFF" />
+                            <ActivityIndicator size="small" color={theme.colors.text} />
                             {amberStage && (
                               <Text style={styles.amberStageText}>
                                 {amberStage}

@@ -347,7 +347,7 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
               disabled={isSharing}
             >
               {isSharing ? (
-                <ActivityIndicator size="small" color="#000" />
+                <ActivityIndicator size="small" color={theme.colors.accentText} />
               ) : (
                 <>
                   <Ionicons name="trophy" size={20} color="#000" />

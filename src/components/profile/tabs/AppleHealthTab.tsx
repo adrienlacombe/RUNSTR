@@ -22,6 +22,7 @@ import { HealthKitErrorBoundary } from '../../fitness/HealthKitErrorBoundary';
 import healthKitService from '../../../services/fitness/healthKitService';
 import type { Workout } from '../../../types/workout';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 interface AppleHealthTabProps {
   userId: string;
@@ -300,7 +301,11 @@ const AppleHealthTabContent: React.FC<AppleHealthTabProps> = ({
     setPostingType('compete');
     try {
       await onCompete(workout);
-      CustomAlertManager.alert('Success', 'Workout entered into competition!');
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Workout submitted!',
+      });
     } catch (error) {
       console.error('Competition entry failed:', error);
       CustomAlertManager.alert(

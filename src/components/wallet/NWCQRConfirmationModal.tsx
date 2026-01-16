@@ -120,7 +120,7 @@ export const NWCQRConfirmationModal: React.FC<NWCQRConfirmationModalProps> = ({
               disabled={isConnecting}
             >
               {isConnecting ? (
-                <ActivityIndicator size="small" color="#000" />
+                <ActivityIndicator size="small" color={theme.colors.accentText} />
               ) : (
                 <Text style={styles.connectButtonText}>Connect Wallet</Text>
               )}

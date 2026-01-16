@@ -739,7 +739,7 @@ const RewardsScreenComponent: React.FC = () => {
                     disabled={!isValidLightningAddress || isSavingLightningAddress}
                   >
                     {isSavingLightningAddress ? (
-                      <ActivityIndicator size="small" color="#000" />
+                      <ActivityIndicator size="small" color={theme.colors.accentText} />
                     ) : (
                       <Ionicons
                         name={isValidLightningAddress ? 'checkmark' : 'save-outline'}

@@ -27,6 +27,7 @@ import type { LocalWorkout } from '../../../services/fitness/LocalWorkoutStorage
 import type { UnifiedWorkout } from '../../../services/fitness/workoutMergeService';
 import type { Workout } from '../../../types/workout';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 interface PrivateWorkoutsTabProps {
   userId: string;
@@ -116,12 +117,11 @@ export const PrivateWorkoutsTab: React.FC<PrivateWorkoutsTabProps> = ({
       await onPostToNostr(workout);
       // Refresh local workout list
       await loadPrivateWorkouts();
-      setAlertConfig({
-        title: 'Success',
-        message: 'Workout posted as kind 1301 event',
-        buttons: [{ text: 'OK', style: 'default' }],
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Workout submitted!',
       });
-      setAlertVisible(true);
     } catch (error) {
       console.error('Failed to post workout to Nostr:', error);
       setAlertConfig({

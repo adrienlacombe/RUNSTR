@@ -168,7 +168,7 @@ export const WearableConnectionModal: React.FC<WearableConnectionModalProps> = (
               disabled={isConnecting}
             >
               {isConnecting ? (
-                <ActivityIndicator color="#000000" />
+                <ActivityIndicator color={theme.colors.accentText} />
               ) : (
                 <Text style={styles.connectButtonText}>
                   Connect {content.serviceName}

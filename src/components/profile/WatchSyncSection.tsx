@@ -89,7 +89,7 @@ export function WatchSyncSection() {
         disabled={!canSync}
       >
         {isSyncing ? (
-          <ActivityIndicator color="#000" size="small" />
+          <ActivityIndicator color={theme.colors.accentText} size="small" />
         ) : (
           <>
             <Ionicons

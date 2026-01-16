@@ -2,6 +2,29 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.6.0] - 2026-01-15 - UI Improvements & Bug Fixes
+
+### UI/UX Improvements
+- Replaced blocking modal alerts with non-blocking toast notifications for:
+  - Compete button success messages ("Workout submitted!")
+  - Clipboard copy confirmations
+  - "Coming Soon" notifications
+  - "Mark all read" confirmations
+- Standardized loading indicator colors across 15 components to use theme colors
+- Removed "kind 1301" technical jargon from user-facing messages
+
+### Bug Fixes
+- Fixed workout publishing failure after logout/login cycle (signer caching issue)
+- Fixed NIP-55 signer dialog appearing for nsec users on Android
+- Increased Amber signing timeout from 15s to 30s for slower devices
+- Fixed GrapheneOS Health Connect false "Update Required" errors
+
+### Technical
+- Loading indicators now use consistent theme.colors.accent/accentText/error
+- Toast notifications use existing toastConfig.tsx theming
+
+---
+
 ## [1.5.5-debug] - 2026-01-15 - Fix Kind 1301 Publishing After Re-login
 
 ### Critical Bug Fix

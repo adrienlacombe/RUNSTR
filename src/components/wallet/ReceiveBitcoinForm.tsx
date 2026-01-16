@@ -10,8 +10,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { theme } from '../../styles/theme';
 
 interface ReceiveBitcoinFormProps {
@@ -100,7 +100,11 @@ export const ReceiveBitcoinForm: React.FC<ReceiveBitcoinFormProps> = ({
 
   const handleCopyInvoice = () => {
     // In production, this would copy to clipboard
-    Alert.alert('Copied', 'Invoice copied to clipboard');
+    Toast.show({
+      type: 'success',
+      text1: 'Copied',
+      text2: 'Invoice copied to clipboard',
+    });
   };
 
   const handleShareQR = () => {

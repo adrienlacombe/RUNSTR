@@ -1111,7 +1111,7 @@ const AppContent: React.FC<AppContentProps> = ({ onPermissionComplete }) => {
           if (isAuthenticated && !currentUser) {
             return (
               <View style={errorStyles.container}>
-                <ActivityIndicator size="large" color="#ffffff" />
+                <ActivityIndicator size="large" color={theme.colors.accent} />
                 <Text style={errorStyles.instruction}>
                   Loading your profile...
                 </Text>

@@ -23,6 +23,7 @@ import garminAuthService from '../../../services/fitness/garminAuthService';
 import garminActivityService from '../../../services/fitness/garminActivityService';
 import type { Workout } from '../../../types/workout';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 interface GarminHealthTabProps {
   userId: string;
@@ -226,7 +227,11 @@ export const GarminHealthTab: React.FC<GarminHealthTabProps> = ({
     setPostingType('compete');
     try {
       await onCompete(workout);
-      CustomAlertManager.alert('Success', 'Workout entered into competition!');
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Workout submitted!',
+      });
     } catch (error) {
       console.error('Competition entry failed:', error);
       CustomAlertManager.alert(
@@ -255,7 +260,11 @@ export const GarminHealthTab: React.FC<GarminHealthTabProps> = ({
     setPostingType('post');
     try {
       await onSocialShare(workout);
-      CustomAlertManager.alert('Success', 'Workout shared to social feeds!');
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Workout shared to social feeds!',
+      });
     } catch (error) {
       console.error('Social share failed:', error);
       CustomAlertManager.alert('Error', 'Failed to share workout');

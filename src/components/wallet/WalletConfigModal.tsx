@@ -272,7 +272,7 @@ export const WalletConfigModal: React.FC<WalletConfigModalProps> = ({
                 >
                   {isValidating ? (
                     <>
-                      <ActivityIndicator color="#000000" size="small" />
+                      <ActivityIndicator color={theme.colors.accentText} size="small" />
                       <Text style={styles.connectButtonText}>
                         Saving...
                       </Text>

@@ -16,7 +16,7 @@ const RELAYS = [
   'wss://relay.nostr.band',
 ];
 
-const USER_NPUB = 'npub1fr6d0wr727nc74d0809yplrwlj66x6y0dns5xaahklwanxyu5jxqy0a73f';
+const USER_NPUB = 'npub1t4q9w5kpknwaqu2t4u7wg9wm2tj4qcpk7dzl7467u9hzkn833xlskuf4sn';
 
 async function main() {
   console.log('🔍 Querying Recent Workouts (No Team Filter)\n');

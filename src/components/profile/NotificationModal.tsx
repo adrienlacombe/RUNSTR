@@ -13,8 +13,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { unifiedNotificationStore } from '../../services/notifications/UnifiedNotificationStore';
@@ -174,7 +174,11 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   const handleMarkAllAsRead = async () => {
     await unifiedNotificationStore.markAllAsRead();
-    Alert.alert('Done', 'All notifications marked as read');
+    Toast.show({
+      type: 'success',
+      text1: 'Done',
+      text2: 'All notifications marked as read',
+    });
   };
 
   const renderSection = (

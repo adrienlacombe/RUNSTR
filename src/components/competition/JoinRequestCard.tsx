@@ -108,7 +108,7 @@ export const JoinRequestCard: React.FC<JoinRequestCardProps> = ({
           disabled={isLoading}
         >
           {isApproving ? (
-            <ActivityIndicator size="small" color="#000" />
+            <ActivityIndicator size="small" color={theme.colors.accentText} />
           ) : (
             <Text style={styles.approveButtonText}>Approve</Text>
           )}

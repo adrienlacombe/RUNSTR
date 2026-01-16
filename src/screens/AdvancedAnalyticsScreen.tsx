@@ -241,7 +241,7 @@ export const AdvancedAnalyticsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF9D42" />
+          <ActivityIndicator size="large" color={theme.colors.accent} />
           <Text style={styles.loadingText}>Calculating analytics...</Text>
         </View>
       </SafeAreaView>

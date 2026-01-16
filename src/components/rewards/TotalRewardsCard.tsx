@@ -160,7 +160,7 @@ export const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({
                   activeOpacity={0.7}
                 >
                   {isPublishing ? (
-                    <ActivityIndicator size="small" color="#FFB366" />
+                    <ActivityIndicator size="small" color={theme.colors.accent} />
                   ) : (
                     <Text style={styles.actionButtonText}>Compete</Text>
                   )}

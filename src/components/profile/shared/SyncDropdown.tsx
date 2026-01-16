@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { theme } from '../../../styles/theme';
 import healthKitService from '../../../services/fitness/healthKitService';
 
@@ -45,7 +46,11 @@ export const SyncDropdown: React.FC<SyncDropdownProps> = ({
 
   const handleSync = async (source: SyncSource) => {
     if (!source.available) {
-      Alert.alert('Coming Soon', `${source.name} integration is coming soon!`);
+      Toast.show({
+        type: 'success',
+        text1: 'Coming Soon',
+        text2: `${source.name} integration is coming soon!`,
+      });
       return;
     }
 

@@ -137,7 +137,7 @@ export const LevelCard: React.FC = () => {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               {wotLoading ? (
-                <ActivityIndicator size="small" color="#FF9D42" />
+                <ActivityIndicator size="small" color={theme.colors.accent} />
               ) : (
                 <Ionicons name="refresh" size={16} color="#FF9D42" />
               )}
