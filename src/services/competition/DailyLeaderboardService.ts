@@ -98,9 +98,11 @@ class DailyLeaderboardServiceClass {
     }
 
     try {
-      // Fetch today's workouts with leaderboard fields
+      // Fetch today's verified workouts with leaderboard fields
+      // verified=eq.true filter excludes flagged/impossible workouts
       const url = `${supabaseUrl}/rest/v1/workout_submissions?` +
         `leaderboard_date=eq.${todayDate}&` +
+        `verified=eq.true&` +
         `select=npub,time_5k_seconds,time_10k_seconds,time_half_seconds,time_marathon_seconds,step_count,profile_name,profile_picture,activity_type`;
 
       const response = await fetch(url, {

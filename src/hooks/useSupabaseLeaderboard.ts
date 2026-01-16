@@ -19,6 +19,7 @@ import { SupabaseCompetitionService } from '../services/backend/SupabaseCompetit
 import { isSupabaseConfigured, CharityRanking } from '../utils/supabase';
 import { ProfileCache } from '../cache/ProfileCache';
 import { SEASON_2_PARTICIPANTS } from '../constants/season2';
+import LocalWorkoutStorageService, { LocalWorkout } from '../services/fitness/LocalWorkoutStorageService';
 
 // Cache keys and TTL
 const LEADERBOARD_CACHE_PREFIX = '@runstr:leaderboard:';
@@ -210,6 +211,65 @@ export function useSupabaseLeaderboard(
     fetchUserPubkey();
   }, []);
 
+  // LOCAL-FIRST: Track recently competed workouts for instant leaderboard appearance
+  const [localCompetedWorkouts, setLocalCompetedWorkouts] = useState<LocalWorkout[]>([]);
+
+  // Helper: Get activity type from competition ID
+  const getActivityType = useCallback((id: string): string => {
+    // Use explicit mapping to avoid substring collision issues
+    if (id.startsWith('season2-walking') || id === 'january-walking') return 'walking';
+    if (id.startsWith('season2-cycling')) return 'cycling';
+    return 'running'; // Default for running-bitcoin, season2-running, etc.
+  }, []);
+
+  // Load local workouts that were recently competed (last 10 minutes)
+  // This allows users to see themselves on the leaderboard immediately after hitting "Compete" or auto-compete
+  // Extracted to reusable callback so it can be called on focus
+  const loadLocalWorkouts = useCallback(async () => {
+    if (!currentUserPubkey) return;
+
+    try {
+      // Get all local workouts
+      const allLocal = await LocalWorkoutStorageService.getAllWorkouts();
+
+      // Determine activity type from competition ID
+      const activityType = getActivityType(competitionId);
+
+      // Filter: competed (syncedToNostr), matching activity type, recent (last 10 min)
+      // Increased from 5 to 10 minutes to handle network delays and multiple quick workouts
+      const tenMinAgo = Date.now() - 10 * 60 * 1000;
+      const competed = allLocal.filter(w => {
+        // Must be synced to Nostr and match activity type
+        if (w.syncedToNostr !== true || w.type !== activityType) return false;
+
+        // Must have valid distance > 0 (filter out zero-distance workouts)
+        if (!w.distance || w.distance <= 0) return false;
+
+        // Validate syncedAt timestamp with error handling
+        try {
+          const syncTime = w.syncedAt ? new Date(w.syncedAt).getTime() : 0;
+          return !isNaN(syncTime) && syncTime > tenMinAgo;
+        } catch {
+          // Invalid date format - skip this workout
+          return false;
+        }
+      });
+
+      if (competed.length > 0) {
+        console.log(`[useSupabaseLeaderboard] Found ${competed.length} recent local ${activityType} workouts for instant display`);
+      }
+
+      setLocalCompetedWorkouts(competed);
+    } catch (e) {
+      console.warn('[useSupabaseLeaderboard] Failed to load local workouts:', e);
+    }
+  }, [competitionId, currentUserPubkey, getActivityType]);
+
+  // Initial load of local workouts
+  useEffect(() => {
+    loadLocalWorkouts();
+  }, [loadLocalWorkouts]);
+
   // Fetch leaderboard data
   const fetchLeaderboard = useCallback(async (force: boolean = false) => {
     if (!isSupabaseAvailable) {
@@ -237,8 +297,14 @@ export function useSupabaseLeaderboard(
 
       if (result.error) {
         setError(result.error);
-        setLeaderboard([]);
-        setCharityRankings([]);
+        // For Season II: Keep hardcoded participants, don't clear on error
+        if (isSeason2) {
+          console.log(`[useSupabaseLeaderboard] Supabase error for Season 2, keeping hardcoded participants: ${result.error}`);
+          setHasRealData(true); // Show hardcoded data instead of spinner
+        } else {
+          setLeaderboard([]);
+          setCharityRankings([]);
+        }
         return;
       }
 
@@ -263,13 +329,16 @@ export function useSupabaseLeaderboard(
           console.log('[useSupabaseLeaderboard] Using hardcoded profiles for Season 2 (skipping Nostr)');
           enrichedLeaderboard = filteredLeaderboard.map((entry) => {
             const hardcoded = hardcodedMap.get(entry.npub);
+            // Hide OpenSats charity info (no longer supported) but keep the user
+            const isOpenSats = entry.charityId?.toLowerCase() === 'opensats' ||
+                               entry.charityName?.toLowerCase().includes('opensats');
             return {
               ...entry,
               name: hardcoded?.name || 'Anonymous',
               picture: hardcoded?.picture,
               displayName: hardcoded?.name || 'Anonymous',
-              charityId: entry.charityId,
-              charityName: entry.charityName,
+              charityId: isOpenSats ? undefined : entry.charityId,
+              charityName: isOpenSats ? undefined : entry.charityName,
             };
           });
         } else {
@@ -329,11 +398,17 @@ export function useSupabaseLeaderboard(
         }
 
         setLeaderboard(finalLeaderboard);
-        setCharityRankings(result.charityRankings || []);
+
+        // Filter out OpenSats from charity rankings (no longer supported)
+        const filteredCharityRankings = (result.charityRankings || []).filter(
+          (charity) => charity.charityId?.toLowerCase() !== 'opensats' &&
+                       !charity.charityName?.toLowerCase().includes('opensats')
+        );
+        setCharityRankings(filteredCharityRankings);
         setHasRealData(true); // Fresh Supabase data loaded
 
         // Save to cache for instant display on next visit
-        saveCachedLeaderboard(competitionId, finalLeaderboard, result.charityRankings || []);
+        saveCachedLeaderboard(competitionId, finalLeaderboard, filteredCharityRankings);
 
         // Find current user's rank
         if (currentUserPubkey) {
@@ -365,15 +440,21 @@ export function useSupabaseLeaderboard(
     };
   }, [fetchLeaderboard]);
 
-  // Auto-refresh when screen gains focus (e.g., after submitting a workout)
+  // Auto-refresh when screen gains focus (e.g., after submitting a workout via auto-compete)
   // This ensures users see their newly submitted workouts immediately
+  // CRITICAL: Must re-load BOTH local workouts AND Supabase data on focus
+  // - Local workouts may have been marked as synced via auto-compete while modal was open
+  // - Supabase data may have been updated by the 2-minute sync cron job
   useFocusEffect(
     useCallback(() => {
-      // Only refresh if data has been fetched before (avoid double-fetch on mount)
+      // Re-load local workouts to catch auto-competed workouts
+      loadLocalWorkouts();
+
+      // Only refresh Supabase data if initial fetch has been done (avoid double-fetch on mount)
       if (!isLoading) {
         fetchLeaderboard();
       }
-    }, [fetchLeaderboard, isLoading])
+    }, [loadLocalWorkouts, fetchLeaderboard, isLoading])
   );
 
   // Refresh function (forced - bypasses throttle)
@@ -381,8 +462,66 @@ export function useSupabaseLeaderboard(
     await fetchLeaderboard(true);
   }, [fetchLeaderboard]);
 
+  // LOCAL-FIRST: Merge local competed workouts into leaderboard for instant user appearance
+  // This allows users to see themselves immediately after hitting "Compete" without waiting for Supabase sync (2 min)
+  const mergedLeaderboard = useMemo(() => {
+    // No local workouts or no user - return original leaderboard
+    if (localCompetedWorkouts.length === 0 || !currentUserPubkey) {
+      return leaderboard;
+    }
+
+    // Calculate local contribution (distance in meters → km for score)
+    const localDistanceKm = localCompetedWorkouts.reduce(
+      (sum, w) => sum + ((w.distance || 0) / 1000), 0
+    );
+    const localCount = localCompetedWorkouts.length;
+
+    // Check if workouts are already counted in Supabase data
+    const userEntry = leaderboard.find(e => e.npub === currentUserPubkey);
+
+    // If user already on leaderboard with same or more workouts, no merge needed
+    // (Supabase has caught up to local state)
+    if (userEntry && (userEntry.workout_count || 0) >= localCount) {
+      return leaderboard;
+    }
+
+    if (userEntry) {
+      // User exists but may be missing recent workouts - augment their score
+      const updated = leaderboard.map(e => {
+        if (e.npub === currentUserPubkey) {
+          // Add local distance to existing score
+          return {
+            ...e,
+            score: e.score + localDistanceKm,
+            workout_count: Math.max(e.workout_count || 0, localCount),
+          };
+        }
+        return e;
+      });
+      // Re-sort by score (descending)
+      updated.sort((a, b) => b.score - a.score);
+      // Re-assign ranks
+      return updated.map((e, i) => ({ ...e, rank: i + 1 }));
+    } else {
+      // User not on leaderboard yet - add them with local data
+      console.log(`[useSupabaseLeaderboard] Adding user to leaderboard with local data: ${localDistanceKm.toFixed(2)}km from ${localCount} workouts`);
+      const newEntry: SupabaseLeaderboardEntry = {
+        npub: currentUserPubkey,
+        score: localDistanceKm,
+        rank: 0, // Will be calculated
+        workout_count: localCount,
+        displayName: 'You',
+      };
+      const updated = [...leaderboard, newEntry];
+      // Sort by score (descending)
+      updated.sort((a, b) => b.score - a.score);
+      // Assign ranks
+      return updated.map((e, i) => ({ ...e, rank: i + 1 }));
+    }
+  }, [leaderboard, localCompetedWorkouts, currentUserPubkey]);
+
   return {
-    leaderboard,
+    leaderboard: mergedLeaderboard, // Return merged leaderboard for instant user appearance
     charityRankings,
     isLoading,
     hasRealData,

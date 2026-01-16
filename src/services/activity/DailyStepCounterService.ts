@@ -228,11 +228,15 @@ export class DailyStepCounterService {
     startTime.setHours(0, 0, 0, 0); // Midnight today
     const endTime = new Date(); // Now
 
-    // 1. Try native step counter for stock Android (highest priority)
-    const shouldUseNative = await nativeStepCounterService.shouldUseNativeSteps();
-    if (shouldUseNative) {
+    // 1. First check if native service is already running (user enabled background tracking)
+    // If running, bypass privacy ROM check - the service IS working (proven by notification)
+    // This fixes the bug where UI shows 0 steps while notification shows correct count
+    const isServiceRunning = nativeStepCounterService.isServiceRunning();
+    const shouldTryNative = isServiceRunning || await nativeStepCounterService.shouldUseNativeSteps();
+
+    if (shouldTryNative) {
       try {
-        console.log('[DailyStepCounterService] Android: Trying native step sensor...');
+        console.log(`[DailyStepCounterService] Android: Trying native step sensor (serviceRunning=${isServiceRunning})...`);
         const nativeSteps = await nativeStepCounterService.getTodaySteps();
 
         if (nativeSteps > 0) {

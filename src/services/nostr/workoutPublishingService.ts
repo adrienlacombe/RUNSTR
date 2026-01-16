@@ -26,9 +26,11 @@ import { SatlantisEventJoinService } from '../satlantis/SatlantisEventJoinServic
 import { withTimeout, fireAndForget, NOSTR_TIMEOUTS } from '../../utils/nostrTimeout';
 import { RunningBitcoinService } from '../challenge/RunningBitcoinService';
 import { isRunningBitcoinActive, isEligibleActivityType } from '../../constants/runningBitcoin';
+import Toast from 'react-native-toast-message';
 import { nip19 } from 'nostr-tools';
 import Constants from 'expo-constants';
 import PerWorkoutVerificationService from '../verification/PerWorkoutVerificationService';
+import { SupabaseCompetitionService } from '../backend/SupabaseCompetitionService';
 
 // Import split type for race replay data
 import type { Split } from '../activity/SplitTrackingService';
@@ -242,6 +244,38 @@ export class WorkoutPublishingService {
       console.log(`✅ Workout saved to Nostr: ${ndkEvent.id}`);
 
       // ============================================================================
+      // DIRECT SUPABASE SUBMISSION: Submit workout for verification & anti-cheat
+      // This ensures workouts get source='app' and proper verification status
+      // Background sync (nostr_scan) serves as fallback only
+      // ============================================================================
+      fireAndForget(
+        (async () => {
+          try {
+            const submissionResult = await SupabaseCompetitionService.submitWorkoutSimple({
+              eventId: ndkEvent.id || workout.id,
+              npub: npub,
+              type: exerciseType,
+              distance: workout.distance,
+              duration: workout.duration,
+              calories: workout.calories,
+              startTime: workout.startTime,
+              tags: ndkEvent.tags,
+            });
+            if (submissionResult.success) {
+              console.log('[WorkoutPublishing] ✅ Direct Supabase submission successful');
+            } else {
+              console.warn('[WorkoutPublishing] ⚠️ Direct Supabase submission failed:', submissionResult.error);
+              // Non-blocking - sync-nostr-workouts will pick it up as fallback
+            }
+          } catch (supabaseError) {
+            console.warn('[WorkoutPublishing] ⚠️ Direct Supabase submission error:', supabaseError);
+            // Non-blocking - sync-nostr-workouts will pick it up as fallback
+          }
+        })(),
+        'directSupabaseSubmission'
+      );
+
+      // ============================================================================
       // FIRE-AND-FORGET: Non-critical operations that should NEVER block UI
       // ============================================================================
 
@@ -272,6 +306,14 @@ export class WorkoutPublishingService {
               const autoPayResult = await RunningBitcoinService.checkAndAutoPayReward(npub);
               if (autoPayResult.paid) {
                 console.log('🏃⚡ Running Bitcoin: Auto-paid 1000 sats for 21km completion!');
+                // Show toast notification so user knows they got paid
+                Toast.show({
+                  type: 'success',
+                  text1: '🏃 21km Complete!',
+                  text2: '1,000 sats sent to your Lightning address!',
+                  position: 'bottom',
+                  visibilityTime: 5000,
+                });
               }
             } catch (rbError) {
               console.error('[WorkoutPublishing] Running Bitcoin auto-pay failed:', rbError);

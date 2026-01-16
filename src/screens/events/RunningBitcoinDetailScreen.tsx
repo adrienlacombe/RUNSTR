@@ -13,14 +13,13 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  FlatList,
   Linking,
-  Alert,
 } from 'react-native';
+
+// Batch rendering for performance (same pattern as Season II)
+const BATCH_SIZE = 21;
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
 import { theme } from '../../styles/theme';
 import {
   RUNNING_BITCOIN_CONFIG,
@@ -33,10 +32,9 @@ import {
 } from '../../services/challenge/RunningBitcoinService';
 import { Avatar } from '../../components/ui/Avatar';
 import { useRunningBitcoin } from '../../hooks/useRunningBitcoin';
-import { RewardLightningAddressService } from '../../services/rewards/RewardLightningAddressService';
 
-// Storage key for tracking share completion
-const SHARE_COMPLETION_KEY = '@runstr:running_bitcoin_shared';
+// Note: Reward claiming is now fully automatic via auto-pay on workout publish
+// No manual claim button needed - just show status
 
 interface RunningBitcoinDetailScreenProps {
   navigation: any;
@@ -57,9 +55,8 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [hasSharedCompletion, setHasSharedCompletion] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-  const [hasLightningAddress, setHasLightningAddress] = useState(false);
+  const [hasClaimedReward, setHasClaimedReward] = useState(false);
+  const [visibleBatches, setVisibleBatches] = useState(1);
 
   // Get current user's participant data
   const currentUserParticipant = leaderboard?.participants.find(
@@ -67,25 +64,19 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
   );
   const isFinisher = currentUserParticipant?.isFinisher ?? false;
 
-  // Check if user has shared completion and has Lightning address
+  // Check if user has already claimed their reward (auto-paid)
   useEffect(() => {
-    const checkStatus = async () => {
+    const checkRewardStatus = async () => {
       if (!currentUserPubkey) return;
 
-      // Check if already shared
       try {
-        const sharedUsers = await AsyncStorage.getItem(SHARE_COMPLETION_KEY);
-        const parsed = sharedUsers ? JSON.parse(sharedUsers) : [];
-        setHasSharedCompletion(parsed.includes(currentUserPubkey));
+        const claimed = await RunningBitcoinService.hasClaimedReward(currentUserPubkey);
+        setHasClaimedReward(claimed);
       } catch (error) {
-        console.error('[RunningBitcoinDetail] Error checking share status:', error);
+        console.error('[RunningBitcoinDetail] Error checking reward status:', error);
       }
-
-      // Check if has Lightning address
-      const hasLn = await RewardLightningAddressService.hasRewardLightningAddress();
-      setHasLightningAddress(hasLn);
     };
-    checkStatus();
+    checkRewardStatus();
   }, [currentUserPubkey]);
 
   const handleJoinChallenge = async () => {
@@ -112,70 +103,8 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
     Linking.openURL(RUNNING_BITCOIN_CONFIG.donateUrl);
   };
 
-  const handleShareCompletion = async () => {
-    if (!currentUserPubkey || isSharing || hasSharedCompletion) return;
-
-    // Check if user has Lightning address for reward
-    if (!hasLightningAddress) {
-      Alert.alert(
-        'Lightning Address Required',
-        'Please set up your Lightning address in Settings to receive your 1,000 sats reward!',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Go to Settings',
-            onPress: () => navigation.navigate('Settings'),
-          },
-        ]
-      );
-      return;
-    }
-
-    setIsSharing(true);
-
-    try {
-      // Step 1: Post completion to Nostr
-      console.log('[RunningBitcoinDetail] Sharing completion...');
-
-      // For now, we'll call the service to handle posting and payment
-      const result = await RunningBitcoinService.shareCompletionAndClaimReward(currentUserPubkey);
-
-      if (result.success) {
-        // Mark as shared locally
-        const sharedUsers = await AsyncStorage.getItem(SHARE_COMPLETION_KEY);
-        const parsed = sharedUsers ? JSON.parse(sharedUsers) : [];
-        parsed.push(currentUserPubkey);
-        await AsyncStorage.setItem(SHARE_COMPLETION_KEY, JSON.stringify(parsed));
-        setHasSharedCompletion(true);
-
-        Toast.show({
-          type: 'success',
-          text1: 'Shared! 🎉',
-          text2: result.rewardPaid
-            ? 'Your completion is posted and 1,000 sats are on the way!'
-            : 'Your completion is posted to Nostr!',
-          position: 'bottom',
-        });
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Share Failed',
-          text2: result.error || 'Please try again',
-          position: 'bottom',
-        });
-      }
-    } catch (error) {
-      console.error('[RunningBitcoinDetail] Share error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to share completion',
-        position: 'bottom',
-      });
-    } finally {
-      setIsSharing(false);
-    }
-  };
+  // Note: Manual claim button removed - rewards are now auto-paid when user reaches 21km
+  // and publishes any workout. The reward status is checked via hasClaimedReward().
 
   const status = getRunningBitcoinStatus();
   const daysRemaining = getDaysRemaining();
@@ -201,6 +130,11 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
   // Show all participants from baseline (demo baseline may have finishers with distance=0)
   const activeParticipants = leaderboard?.participants || [];
   const finisherCount = leaderboard?.finishers.length || 0;
+
+  // Batch rendering: show 21 at a time with "See More" button
+  const visibleParticipants = activeParticipants.slice(0, visibleBatches * BATCH_SIZE);
+  const hasMore = visibleParticipants.length < activeParticipants.length;
+  const remainingCount = activeParticipants.length - visibleParticipants.length;
 
   const renderParticipant = ({ item, index }: { item: RunningBitcoinParticipant; index: number }) => {
     const progressPercent = Math.min(100, (item.totalDistanceKm / RUNNING_BITCOIN_CONFIG.goalDistanceKm) * 100);
@@ -339,31 +273,21 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
             </View>
           )}
 
-          {/* Share Completion Button - Show for finishers who haven't shared yet */}
-          {isFinisher && !hasSharedCompletion && (
-            <TouchableOpacity
-              style={styles.shareCompletionButton}
-              onPress={handleShareCompletion}
-              disabled={isSharing}
-            >
-              {isSharing ? (
-                <ActivityIndicator size="small" color={theme.colors.accentText} />
-              ) : (
-                <>
-                  <Ionicons name="trophy" size={20} color="#000" />
-                  <Text style={styles.shareCompletionButtonText}>
-                    Claim Reward
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Already Shared Badge */}
-          {isFinisher && hasSharedCompletion && (
+          {/* Finisher Status - Reward is auto-paid on workout publish */}
+          {isFinisher && hasClaimedReward && (
             <View style={styles.sharedBadge}>
               <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
-              <Text style={styles.sharedBadgeText}>Reward Claimed!</Text>
+              <Text style={styles.sharedBadgeText}>21km Complete - Reward Paid!</Text>
+            </View>
+          )}
+
+          {/* Finisher pending reward - will be paid on next workout */}
+          {isFinisher && !hasClaimedReward && (
+            <View style={styles.pendingRewardBadge}>
+              <Ionicons name="flash" size={20} color={theme.colors.accent} />
+              <Text style={styles.pendingRewardText}>
+                21km Complete! Reward will be sent on next workout.
+              </Text>
             </View>
           )}
 
@@ -391,12 +315,25 @@ export const RunningBitcoinDetailScreen: React.FC<RunningBitcoinDetailScreenProp
               <Text style={styles.emptySubtext}>Start running or walking to appear on the leaderboard!</Text>
             </View>
           ) : (
-            <FlatList
-              data={activeParticipants}
-              renderItem={renderParticipant}
-              keyExtractor={(item) => item.pubkey}
-              scrollEnabled={false}
-            />
+            <>
+              {visibleParticipants.map((item, index) => (
+                <React.Fragment key={item.pubkey}>
+                  {renderParticipant({ item, index })}
+                </React.Fragment>
+              ))}
+              {hasMore && (
+                <TouchableOpacity
+                  style={styles.seeMoreButton}
+                  onPress={() => setVisibleBatches(b => b + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.seeMoreText}>
+                    See More ({remainingCount} remaining)
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={theme.colors.accent} />
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
 
@@ -582,6 +519,24 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weights.medium,
     color: theme.colors.success, // Orange (theme.colors.success is #FF9D42)
   },
+  pendingRewardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 157, 66, 0.15)', // Accent tint
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  pendingRewardText: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.accent,
+    flex: 1,
+    textAlign: 'center',
+  },
   donateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -706,6 +661,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textMuted,
     lineHeight: 18,
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  seeMoreText: {
+    color: theme.colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

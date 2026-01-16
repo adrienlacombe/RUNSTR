@@ -431,7 +431,7 @@ export class SupabaseCompetitionService {
       }
 
       // Get workouts for participants within date range
-      const { data: workouts } = await supabase!
+      const { data: rawWorkouts } = await supabase!
         .from('workout_submissions')
         .select('*')
         .in('npub', npubs)
@@ -439,6 +439,30 @@ export class SupabaseCompetitionService {
         .gte('created_at', competition.start_date)
         .lte('created_at', competition.end_date)
         .order('created_at', { ascending: false }); // Most recent first
+
+      // CRITICAL: Deduplicate workouts by (npub, distance, date) to prevent double-counting
+      // Same workout can be submitted multiple times from different sources (GPS, HealthKit, Health Connect)
+      const seenWorkoutKeys = new Set<string>();
+      const workouts = rawWorkouts?.filter((w: WorkoutSubmission) => {
+        // Round distance to nearest 10 meters (or use 0 for null/undefined)
+        const roundedDist = Math.round((w.distance_meters || 0) / 10) * 10;
+        // Extract date portion from timestamp
+        const dateStr = w.created_at ? w.created_at.split('T')[0] : 'unknown';
+        // Create unique key: npub + distance + date
+        const key = `${w.npub}:${roundedDist}:${dateStr}`;
+
+        if (seenWorkoutKeys.has(key)) {
+          console.log(`[SupabaseCompetition] Skipping duplicate workout: ${w.npub.slice(0, 12)}... ${roundedDist}m on ${dateStr}`);
+          return false; // Skip duplicate
+        }
+        seenWorkoutKeys.add(key);
+        return true;
+      });
+
+      const duplicatesRemoved = (rawWorkouts?.length || 0) - (workouts?.length || 0);
+      if (duplicatesRemoved > 0) {
+        console.log(`[SupabaseCompetition] Deduplication: removed ${duplicatesRemoved} duplicate workouts`);
+      }
 
       // Aggregate scores and track charity per user
       const scores = new Map<string, {

@@ -233,6 +233,15 @@ class NativeStepCounterService {
   }
 
   /**
+   * Check if background step tracking service is currently running
+   * Used by DailyStepCounterService to bypass privacy ROM check when service is active
+   * If the service is running, it means the native sensor IS working (regardless of ROM detection)
+   */
+  isServiceRunning(): boolean {
+    return this.isTracking;
+  }
+
+  /**
    * Get tracking start time (if tracking)
    */
   getTrackingStartTime(): Date | null {

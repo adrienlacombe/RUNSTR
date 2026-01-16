@@ -13,8 +13,10 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  FlatList,
 } from 'react-native';
+
+// Batch rendering for performance
+const BATCH_SIZE = 21;
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -49,6 +51,7 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [visibleBatches, setVisibleBatches] = useState(1);
   const userPubkey = currentUserPubkey || null;
 
   // Check if user has joined (separate from leaderboard loading)
@@ -146,7 +149,12 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
   };
 
   // Combine participants with current user entry if needed
-  const displayParticipants = [...(leaderboard?.participants || [])];
+  const allParticipants = [...(leaderboard?.participants || [])];
+
+  // Batch rendering: show 21 at a time with "See More" button
+  const visibleParticipants = allParticipants.slice(0, visibleBatches * BATCH_SIZE);
+  const hasMore = visibleParticipants.length < allParticipants.length;
+  const remainingCount = allParticipants.length - visibleParticipants.length;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -268,7 +276,7 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
               <ActivityIndicator color={theme.colors.accent} />
               <Text style={styles.loadingText}>Loading participants...</Text>
             </View>
-          ) : displayParticipants.length === 0 ? (
+          ) : allParticipants.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="walk-outline" size={48} color={theme.colors.textMuted} />
               <Text style={styles.emptyText}>No walking data yet</Text>
@@ -276,12 +284,24 @@ export const JanuaryWalkingDetailScreen: React.FC<JanuaryWalkingDetailScreenProp
             </View>
           ) : (
             <>
-              <FlatList
-                data={displayParticipants}
-                renderItem={renderParticipant}
-                keyExtractor={(item) => item.pubkey}
-                scrollEnabled={false}
-              />
+              {visibleParticipants.map((item, index) => (
+                <React.Fragment key={item.pubkey}>
+                  {renderParticipant({ item, index })}
+                </React.Fragment>
+              ))}
+
+              {hasMore && (
+                <TouchableOpacity
+                  style={styles.seeMoreButton}
+                  onPress={() => setVisibleBatches(b => b + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.seeMoreText}>
+                    See More ({remainingCount} remaining)
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={theme.colors.accent} />
+                </TouchableOpacity>
+              )}
 
               {/* Show current user's position if not in top 25 */}
               {leaderboard?.currentUserEntry && leaderboard.currentUserRank && leaderboard.currentUserRank > 25 && (
@@ -566,6 +586,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textMuted,
     lineHeight: 18,
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  seeMoreText: {
+    color: theme.colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

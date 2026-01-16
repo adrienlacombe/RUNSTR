@@ -968,12 +968,29 @@ ${progress.finisherRank ? `Finisher #${progress.finisherRank}` : ''}
 
   /**
    * Check if user has already claimed their reward
+   * Checks AsyncStorage first (fast), then Supabase as fallback (survives reinstall)
    */
   async hasClaimedReward(pubkey: string): Promise<boolean> {
     try {
+      // Step 1: Check AsyncStorage (fast, local)
       const claimed = await AsyncStorage.getItem(REWARDS_CLAIMED_KEY);
       const claimedList = claimed ? JSON.parse(claimed) : [];
-      return claimedList.includes(pubkey);
+      if (claimedList.includes(pubkey)) {
+        return true;
+      }
+
+      // Step 2: Check Supabase as fallback (survives app reinstall/logout)
+      const npub = nip19.npubEncode(pubkey);
+      const supabaseClaimed = await this.checkSupabaseRewardClaimed(npub);
+      if (supabaseClaimed) {
+        // Sync to local storage so we don't hit Supabase again
+        claimedList.push(pubkey);
+        await AsyncStorage.setItem(REWARDS_CLAIMED_KEY, JSON.stringify(claimedList));
+        console.log('[RunningBitcoin] Synced claimed status from Supabase');
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error('[RunningBitcoin] Error checking claimed status:', error);
       return false;
@@ -981,19 +998,110 @@ ${progress.finisherRank ? `Finisher #${progress.finisherRank}` : ''}
   }
 
   /**
+   * Check Supabase for reward_claimed status
+   */
+  private async checkSupabaseRewardClaimed(npub: string): Promise<boolean> {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return false;
+    }
+
+    try {
+      // Get competition ID for running-bitcoin
+      const compUrl = `${supabaseUrl}/rest/v1/competitions?external_id=eq.running-bitcoin&select=id`;
+      const compRes = await fetch(compUrl, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
+      const compData = await compRes.json();
+      if (!compData || compData.length === 0) return false;
+      const competitionId = compData[0].id;
+
+      // Check reward_claimed for this participant
+      const url = `${supabaseUrl}/rest/v1/competition_participants?competition_id=eq.${competitionId}&npub=eq.${npub}&select=reward_claimed`;
+      const response = await fetch(url, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
+      const data = await response.json();
+      return data && data.length > 0 && data[0].reward_claimed === true;
+    } catch (error) {
+      console.warn('[RunningBitcoin] Error checking Supabase reward status:', error);
+      return false;
+    }
+  }
+
+  /**
    * Mark reward as claimed for user
+   * Updates both AsyncStorage (fast) and Supabase (persistent)
    */
   private async markRewardClaimed(pubkey: string): Promise<void> {
     try {
+      // Step 1: Update AsyncStorage (fast, local)
       const claimed = await AsyncStorage.getItem(REWARDS_CLAIMED_KEY);
       const claimedList = claimed ? JSON.parse(claimed) : [];
       if (!claimedList.includes(pubkey)) {
         claimedList.push(pubkey);
         await AsyncStorage.setItem(REWARDS_CLAIMED_KEY, JSON.stringify(claimedList));
-        console.log('[RunningBitcoin] Marked reward as claimed for:', pubkey.slice(0, 8));
+        console.log('[RunningBitcoin] Marked reward as claimed locally:', pubkey.slice(0, 8));
       }
+
+      // Step 2: Update Supabase (persistent, survives reinstall)
+      const npub = nip19.npubEncode(pubkey);
+      await this.markSupabaseRewardClaimed(npub);
     } catch (error) {
       console.error('[RunningBitcoin] Error marking reward claimed:', error);
+    }
+  }
+
+  /**
+   * Mark reward_claimed in Supabase
+   */
+  private async markSupabaseRewardClaimed(npub: string): Promise<void> {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return;
+    }
+
+    try {
+      // Get competition ID for running-bitcoin
+      const compUrl = `${supabaseUrl}/rest/v1/competitions?external_id=eq.running-bitcoin&select=id`;
+      const compRes = await fetch(compUrl, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
+      const compData = await compRes.json();
+      if (!compData || compData.length === 0) return;
+      const competitionId = compData[0].id;
+
+      // Update reward_claimed for this participant
+      const url = `${supabaseUrl}/rest/v1/competition_participants?competition_id=eq.${competitionId}&npub=eq.${npub}`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          reward_claimed: true,
+          reward_claimed_at: new Date().toISOString(),
+        }),
+      });
+      console.log('[RunningBitcoin] Marked reward as claimed in Supabase:', npub.slice(0, 12));
+    } catch (error) {
+      console.warn('[RunningBitcoin] Error marking Supabase reward claimed (non-blocking):', error);
     }
   }
 }

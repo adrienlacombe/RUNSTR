@@ -10,16 +10,14 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
-  TextInput,
   Alert,
+  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { theme } from '../styles/theme';
-import { Card } from '../components/ui/Card';
 import { CustomAlert } from '../components/ui/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NWCStorageService } from '../services/wallet/NWCStorageService';
@@ -31,38 +29,24 @@ import { HistoryModal } from '../components/wallet/HistoryModal';
 import { QRScannerModal } from '../components/qr/QRScannerModal';
 import { NWCQRConfirmationModal } from '../components/wallet/NWCQRConfirmationModal';
 import type { QRData } from '../services/qr/QRCodeService';
-import { RewardLightningAddressService } from '../services/rewards/RewardLightningAddressService';
 import { getCharityById } from '../constants/charities';
 import { Avatar } from '../components/ui/Avatar';
 import { ExternalZapModal } from '../components/nutzap/ExternalZapModal';
 import Toast from 'react-native-toast-message';
-import { TotalRewardsCard } from '../components/rewards/TotalRewardsCard';
 import { ImpactLevelCard } from '../components/rewards/ImpactLevelCard';
 import { PersonalImpactSection } from '../components/rewards/PersonalImpactSection';
-import localWorkoutStorage from '../services/fitness/LocalWorkoutStorageService';
-import type { LocalWorkout } from '../services/fitness/LocalWorkoutStorageService';
-import { DailyRewardService } from '../services/rewards/DailyRewardService';
-import { StepRewardService } from '../services/rewards/StepRewardService';
 import { NWCGatewayService } from '../services/rewards/NWCGatewayService';
-import { dailyStepCounterService } from '../services/activity/DailyStepCounterService';
 import { PledgeService } from '../services/pledge/PledgeService';
 import { ActivePledgeCard } from '../components/pledge/ActivePledgeCard';
 import type { Pledge } from '../types/pledge';
-import WorkoutPublishingService from '../services/nostr/workoutPublishingService';
-import type { PublishableWorkout } from '../services/nostr/workoutPublishingService';
-import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
-import { EnhancedSocialShareModal } from '../components/profile/shared/EnhancedSocialShareModal';
-import { useAuth } from '../contexts/AuthContext';
 
 // Storage keys for donation settings
 // Note: Teams are now charities (rebranded)
 const SELECTED_TEAM_KEY = '@runstr:selected_team_id';
-const DONATION_PERCENTAGE_KEY = '@runstr:donation_percentage';
 
 // ✅ PERFORMANCE: React.memo prevents re-renders when props haven't changed
 const RewardsScreenComponent: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { currentUser } = useAuth();
 
   // NWC Wallet state
   const [hasNWC, setHasNWC] = useState(false);
@@ -88,41 +72,18 @@ const RewardsScreenComponent: React.FC = () => {
   // User pubkey for Impact Level
   const [userHexPubkey, setUserHexPubkey] = useState<string>('');
 
-  // Lightning Address state
-  const [rewardLightningAddress, setRewardLightningAddress] = useState<string>('');
-  const [isValidLightningAddress, setIsValidLightningAddress] = useState(false);
-  const [isSavingLightningAddress, setIsSavingLightningAddress] = useState(false);
 
-  // Donation settings state (teams are charities now)
-  // Default: 100% donation to ALS Network for new users
-  const [donationPercentage, setDonationPercentage] = useState<number>(100);
+  // Donation settings state (for zap modal)
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>('als-foundation');
-
-  // Streak rewards state
-  const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
-  const [weeklyRewardsEarned, setWeeklyRewardsEarned] = useState(0);
 
   // Active pledge state
   const [activePledge, setActivePledge] = useState<Pledge | null>(null);
 
-  // Step rewards state
-  const [currentSteps, setCurrentSteps] = useState(0);
-  const [stepTodaySats, setStepTodaySats] = useState(0);
-  const [isPublishingSteps, setIsPublishingSteps] = useState(false);
-
-  // Step social post modal state (kept for potential future use)
-  const [showStepSocialModal, setShowStepSocialModal] = useState(false);
-  const [stepWorkoutForPost, setStepWorkoutForPost] = useState<PublishableWorkout | null>(null);
-
-  // Default zap amount state
-  const [defaultZapAmount, setDefaultZapAmount] = useState(21);
-
-  // Accordion section states (collapsed by default)
-  const [donationExpanded, setDonationExpanded] = useState(false);
-  const [lightningExpanded, setLightningExpanded] = useState(false);
-
-  // Charity zap modal state
+  // Charity zap modal state (for Teams tab zap functionality)
   const [showZapModal, setShowZapModal] = useState(false);
+
+  // Team accordion state (collapsed by default)
+  const [isTeamExpanded, setIsTeamExpanded] = useState(false);
 
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
@@ -152,40 +113,18 @@ const RewardsScreenComponent: React.FC = () => {
         setUserNpub(npub);
       }
 
-      // Check NWC wallet status (DON'T auto-fetch balance - blocks UI)
+      // Check NWC wallet status
       const nwcAvailable = await NWCStorageService.hasNWC();
       setHasNWC(nwcAvailable);
-      // Balance loaded on-demand when user taps refresh button
 
-      // Load reward lightning address
-      const savedLightningAddress = await RewardLightningAddressService.getRewardLightningAddress();
-      if (savedLightningAddress) {
-        setRewardLightningAddress(savedLightningAddress);
-        setIsValidLightningAddress(true);
-      }
-
-      // Load donation settings (teams are charities now)
-      // Default: 100% donation to ALS Network for new users
-      const [teamId, donationPct, storedZapAmount] = await Promise.all([
-        AsyncStorage.getItem(SELECTED_TEAM_KEY),
-        AsyncStorage.getItem(DONATION_PERCENTAGE_KEY),
-        AsyncStorage.getItem('@runstr:default_zap_amount'),
-      ]);
-      // Use stored values if they exist, otherwise keep defaults (100% to ALS)
+      // Load selected team for zap modal
+      const teamId = await AsyncStorage.getItem(SELECTED_TEAM_KEY);
       if (teamId !== null) setSelectedTeamId(teamId || 'als-foundation');
-      if (donationPct !== null) setDonationPercentage(parseInt(donationPct, 10));
-      if (storedZapAmount) setDefaultZapAmount(parseInt(storedZapAmount, 10) || 21);
 
-      // Load workouts for streak calculation
-      const allWorkouts = await localWorkoutStorage.getAllWorkouts();
-      setWorkouts(allWorkouts);
-
-      // Load weekly rewards earned and active pledge
+      // Load user pubkey and active pledge
       const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
       if (pubkey) {
         setUserHexPubkey(pubkey);
-        const weeklyRewards = await DailyRewardService.getWeeklyRewardsEarned(pubkey);
-        setWeeklyRewardsEarned(weeklyRewards);
 
         // Load active pledge
         const pledge = await PledgeService.getActivePledge(pubkey);
@@ -193,19 +132,6 @@ const RewardsScreenComponent: React.FC = () => {
       }
     } catch (error) {
       console.error('[RewardsScreen] Error loading settings:', error);
-    }
-  };
-
-  const loadWalletBalance = async () => {
-    try {
-      const result = await NWCWalletService.getBalance();
-      if (!result.error) {
-        setWalletBalance(result.balance);
-      } else {
-        console.error('[RewardsScreen] Failed to load wallet balance:', result.error);
-      }
-    } catch (error) {
-      console.error('[RewardsScreen] Error loading wallet balance:', error);
     }
   };
 
@@ -229,61 +155,11 @@ const RewardsScreenComponent: React.FC = () => {
     }
   };
 
-  /**
-   * Load step data and check for new milestones to reward
-   */
-  const loadStepData = async (checkMilestones: boolean = false) => {
-    try {
-      // Get current steps from device
-      const stepData = await dailyStepCounterService.getTodaySteps();
-      const steps = stepData?.steps ?? 0;
-      setCurrentSteps(steps);
-
-      // Get user pubkey for reward tracking
-      const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-      if (!pubkey) {
-        return;
-      }
-
-      // Load step reward stats
-      const stats = await StepRewardService.getStats(pubkey);
-      setStepTodaySats(stats.todaySats);
-
-      // Check and reward new milestones if requested
-      if (checkMilestones && steps > 0) {
-        console.log(`[RewardsScreen] Checking step milestones for ${steps} steps`);
-        await StepRewardService.checkAndRewardMilestones(steps, pubkey);
-
-        // Reload stats after potential rewards
-        const updatedStats = await StepRewardService.getStats(pubkey);
-        setStepTodaySats(updatedStats.todaySats);
-      }
-    } catch (error) {
-      console.error('[RewardsScreen] Error loading step data:', error);
-    }
-  };
-
-  // Periodic step polling while screen is active
-  useFocusEffect(
-    useCallback(() => {
-      // Initial load with milestone check
-      loadStepData(true);
-
-      // Poll every 30 seconds while screen is focused
-      const interval = setInterval(() => {
-        loadStepData(true);
-      }, 30000);
-
-      return () => clearInterval(interval);
-    }, [])
-  );
-
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       await Promise.all([
         loadSettings(),
-        loadStepData(true),
         loadPrizePoolBalance(),
       ]);
     } finally {
@@ -292,91 +168,11 @@ const RewardsScreenComponent: React.FC = () => {
   };
 
   /**
-   * Create a synthetic walking workout from current step count
-   * Note: distance is set to 0 so card generator shows only steps (not duration/distance)
+   * Toggle team accordion
    */
-  const createStepWorkout = async (): Promise<PublishableWorkout | null> => {
-    const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
-    if (!pubkey) return null;
-
-    const now = new Date();
-
-    return {
-      id: `steps_${now.toISOString().split('T')[0]}_${Date.now()}`,
-      userId: pubkey,
-      type: 'walking',
-      source: 'manual',
-      startTime: now.toISOString(),
-      endTime: now.toISOString(),
-      duration: 0, // Step counter post - duration not relevant
-      distance: 0, // Must be 0 for isStepCounterPost() to return true
-      calories: 0, // Step counter post - calories not relevant
-      syncedAt: now.toISOString(),
-      metadata: {
-        steps: currentSteps,
-      },
-      unitSystem: 'metric',
-    };
-  };
-
-  /**
-   * Open social share modal for steps
-   */
-  const handleStepShare = async () => {
-    const stepWorkout = await createStepWorkout();
-    if (stepWorkout) {
-      setStepWorkoutForPost(stepWorkout);
-      setShowStepSocialModal(true);
-    }
-  };
-
-  /**
-   * Publish today's steps as a kind 1301 walking workout event (competition entry)
-   */
-  const handleStepCompete = async () => {
-    setIsPublishingSteps(true);
-    try {
-      // Get user's signer using singleton instance
-      const signingService = UnifiedSigningService.getInstance();
-      const signer = await signingService.getSigner();
-      if (!signer) {
-        throw new Error('No signer available');
-      }
-
-      const stepWorkout = await createStepWorkout();
-      if (!stepWorkout) {
-        throw new Error('No user pubkey found');
-      }
-
-      // Publish to Nostr as kind 1301
-      const result = await WorkoutPublishingService.saveWorkoutToNostr(
-        stepWorkout,
-        signer,
-        stepWorkout.userId
-      );
-
-      if (result.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Steps Published!',
-          text2: `${currentSteps.toLocaleString()} steps entered into competition`,
-          position: 'top',
-          visibilityTime: 3000,
-        });
-      } else {
-        throw new Error(result.error || 'Failed to publish');
-      }
-    } catch (error) {
-      console.error('[RewardsScreen] Step compete error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Publish Failed',
-        text2: error instanceof Error ? error.message : 'Could not publish steps',
-        position: 'top',
-      });
-    } finally {
-      setIsPublishingSteps(false);
-    }
+  const toggleTeamAccordion = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsTeamExpanded(!isTeamExpanded);
   };
 
   const formatBalance = (sats: number): string => {
@@ -397,29 +193,6 @@ const RewardsScreenComponent: React.FC = () => {
     if (!result.error) {
       setWalletBalance(result.balance);
     }
-  };
-
-  const handleDisconnectWallet = () => {
-    setAlertTitle('Disconnect Wallet');
-    setAlertMessage('Are you sure you want to disconnect your wallet? You can reconnect anytime.');
-    setAlertButtons([
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disconnect',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await NWCStorageService.clearNWC();
-            NWCWalletService.forceReset();
-            setHasNWC(false);
-            setWalletBalance(0);
-          } catch (error) {
-            console.error('[RewardsScreen] Disconnect error:', error);
-          }
-        },
-      },
-    ]);
-    setAlertVisible(true);
   };
 
   const handleQRScanned = (qrData: QRData) => {
@@ -451,58 +224,7 @@ const RewardsScreenComponent: React.FC = () => {
     // Balance will be 0 until user taps refresh - this is intentional
   };
 
-  const handleLightningAddressChange = (text: string) => {
-    setRewardLightningAddress(text);
-    setIsValidLightningAddress(RewardLightningAddressService.isValidLightningAddress(text));
-  };
-
-  const handleSaveLightningAddress = async () => {
-    if (!isValidLightningAddress || !rewardLightningAddress.trim()) {
-      return;
-    }
-
-    setIsSavingLightningAddress(true);
-    try {
-      await RewardLightningAddressService.setRewardLightningAddress(rewardLightningAddress.trim());
-      setAlertTitle('Saved');
-      setAlertMessage('Your rewards lightning address has been saved.');
-      setAlertButtons([{ text: 'OK' }]);
-      setAlertVisible(true);
-    } catch (error) {
-      console.error('[RewardsScreen] Error saving lightning address:', error);
-      setAlertTitle('Error');
-      setAlertMessage('Failed to save lightning address. Please try again.');
-      setAlertButtons([{ text: 'OK' }]);
-      setAlertVisible(true);
-    } finally {
-      setIsSavingLightningAddress(false);
-    }
-  };
-
-  const handleDonationPercentageChange = async (percentage: number) => {
-    try {
-      setDonationPercentage(percentage);
-      await AsyncStorage.setItem(DONATION_PERCENTAGE_KEY, percentage.toString());
-      console.log('[RewardsScreen] Saved donation percentage:', percentage);
-    } catch (error) {
-      console.error('[RewardsScreen] Error saving donation percentage:', error);
-    }
-  };
-
-  const handleZapAmountSelect = async (amount: number) => {
-    setDefaultZapAmount(amount);
-    try {
-      await AsyncStorage.setItem('@runstr:default_zap_amount', amount.toString());
-      console.log('[RewardsScreen] Saved default zap amount:', amount);
-    } catch (error) {
-      console.error('[RewardsScreen] Error saving zap amount:', error);
-    }
-  };
-
-  // Preset zap amount options
-  const ZAP_AMOUNT_OPTIONS = [21, 100, 500, 1000];
-
-  // Get selected team (charity) data
+  // Get selected team (charity) data for zap modal
   const selectedTeam = selectedTeamId
     ? getCharityById(selectedTeamId)
     : null;
@@ -526,11 +248,6 @@ const RewardsScreenComponent: React.FC = () => {
     }
     setShowZapModal(false);
   };
-
-  // Calculate reward split based on donation percentage
-  const baseReward = 50; // 50 sats per day
-  const teamDonation = Math.floor(baseReward * (donationPercentage / 100));
-  const userReward = baseReward - teamDonation;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -556,21 +273,70 @@ const RewardsScreenComponent: React.FC = () => {
           </View>
         )}
 
-        {/* Total Rewards Card - Unified Hero Section */}
-        <TotalRewardsCard
-          workouts={workouts}
-          weeklyRewardsEarned={weeklyRewardsEarned}
-          stepRewardsEarned={stepTodaySats}
-          currentSteps={currentSteps}
-          onShare={handleStepShare}
-          onCompete={handleStepCompete}
-          isPublishing={isPublishingSteps}
-        />
-
-        {/* Impact Level Card */}
+        {/* Impact Level Card - Now first after rewards pool */}
         {userHexPubkey && (
           <ImpactLevelCard pubkey={userHexPubkey} />
         )}
+
+        {/* Your Team Card - Collapsible accordion */}
+        <View style={styles.teamCard}>
+          <TouchableOpacity
+            style={styles.teamCardHeader}
+            onPress={toggleTeamAccordion}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.teamCardTitle}>YOUR TEAM</Text>
+            <Ionicons
+              name={isTeamExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#FF9D42"
+            />
+          </TouchableOpacity>
+          {isTeamExpanded && (
+            <View style={styles.teamCardContent}>
+              <TouchableOpacity
+                style={styles.teamInfoRow}
+                onPress={() => navigation.navigate('Teams')}
+                activeOpacity={0.7}
+              >
+                {selectedTeam ? (
+                  <>
+                    <Avatar
+                      name={selectedTeam.name}
+                      size={44}
+                      imageSource={selectedTeam.image}
+                    />
+                    <View style={styles.teamTextSection}>
+                      <Text style={styles.teamName}>{selectedTeam.name}</Text>
+                      <Text style={styles.teamSupportText}>
+                        All rewards support this team
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.emptyAvatarPlaceholder}>
+                      <Ionicons name="add" size={24} color="#666" />
+                    </View>
+                    <View style={styles.teamTextSection}>
+                      <Text style={styles.teamNameEmpty}>Select a team</Text>
+                      <Text style={styles.teamSupportText}>Tap to choose</Text>
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+              {selectedTeam && (
+                <TouchableOpacity
+                  style={styles.zapButton}
+                  onPress={handleZapCharity}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="flash" size={22} color="#FF9D42" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Personal Impact Section (collapsed by default) */}
         {userHexPubkey && (
@@ -584,180 +350,6 @@ const RewardsScreenComponent: React.FC = () => {
             <ActivePledgeCard pledge={activePledge} />
           </View>
         )}
-
-        {/* Donation Splits Section - Collapsible */}
-        <View style={styles.accordionContainer}>
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => setDonationExpanded(!donationExpanded)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              <Ionicons name="git-branch-outline" size={18} color="#FF9D42" />
-              <Text style={styles.accordionTitle}>DONATION SPLITS</Text>
-            </View>
-            <Ionicons
-              name={donationExpanded ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={theme.colors.textMuted}
-            />
-          </TouchableOpacity>
-          {donationExpanded && (
-            <View style={styles.accordionContent}>
-              <View style={styles.donationCard}>
-                {/* Team Header Row - Avatar + Name + Zap Button */}
-                <View style={styles.teamHeaderRow}>
-                  <TouchableOpacity
-                    style={styles.teamInfoSection}
-                    onPress={() => navigation.navigate('Teams')}
-                    activeOpacity={0.7}
-                  >
-                    {selectedTeam ? (
-                      <>
-                        <Avatar
-                          name={selectedTeam.name}
-                          size={44}
-                          imageSource={selectedTeam.image}
-                        />
-                        <View style={styles.teamTextSection}>
-                          <Text style={styles.teamName}>{selectedTeam.name}</Text>
-                          <Text style={styles.teamLightningAddress}>
-                            {selectedTeam.lightningAddress}
-                          </Text>
-                        </View>
-                      </>
-                    ) : (
-                      <>
-                        <View style={styles.emptyAvatarPlaceholder}>
-                          <Ionicons name="add" size={24} color="#666" />
-                        </View>
-                        <View style={styles.teamTextSection}>
-                          <Text style={styles.teamNameEmpty}>Select a charity</Text>
-                          <Text style={styles.teamLightningAddress}>Tap to choose</Text>
-                        </View>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                  {selectedTeam && (
-                    <TouchableOpacity
-                      style={styles.zapButton}
-                      onPress={handleZapCharity}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="flash-outline" size={22} color="#FF9D42" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Percentage Selector */}
-                <View style={styles.percentageSection}>
-                  <View style={styles.percentageButtons}>
-                    {[0, 10, 25, 50, 100].map((pct) => (
-                      <TouchableOpacity
-                        key={pct}
-                        style={[
-                          styles.percentageButton,
-                          donationPercentage === pct && styles.percentageButtonActive,
-                        ]}
-                        onPress={() => handleDonationPercentageChange(pct)}
-                      >
-                        <Text
-                          style={[
-                            styles.percentageButtonText,
-                            donationPercentage === pct && styles.percentageButtonTextActive,
-                          ]}
-                        >
-                          {pct}%
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Reward Split Preview */}
-                {selectedTeam && (
-                  <View style={styles.rewardSplitPreview}>
-                    <Text style={styles.splitTextLabel}>You</Text>
-                    <Text style={styles.splitTextValue}>{userReward} sats</Text>
-                    {donationPercentage > 0 && (
-                      <>
-                        <Ionicons name="arrow-forward" size={14} color="#666" style={styles.splitArrow} />
-                        <Text style={styles.splitTextLabel}>{selectedTeam.displayName}</Text>
-                        <Text style={styles.splitTextValue}>{teamDonation} sats</Text>
-                      </>
-                    )}
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Lightning Address Section - Collapsible */}
-        <View style={styles.accordionContainer}>
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => setLightningExpanded(!lightningExpanded)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              <Ionicons name="wallet-outline" size={18} color="#FF9D42" />
-              <Text style={styles.accordionTitle}>REWARDS ADDRESS</Text>
-            </View>
-            <Ionicons
-              name={lightningExpanded ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={theme.colors.textMuted}
-            />
-          </TouchableOpacity>
-          {lightningExpanded && (
-            <View style={styles.accordionContent}>
-              <Card style={styles.card}>
-                <Text style={styles.lightningAddressDescription}>
-                  Your Lightning address for receiving payments and tips
-                </Text>
-                <View style={styles.lightningAddressInputRow}>
-                  <TextInput
-                    style={[
-                      styles.lightningAddressInput,
-                      rewardLightningAddress && !isValidLightningAddress && styles.lightningAddressInputError,
-                    ]}
-                    value={rewardLightningAddress}
-                    onChangeText={handleLightningAddressChange}
-                    placeholder="user@getalby.com"
-                    placeholderTextColor={theme.colors.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.lightningAddressSaveButton,
-                      (!isValidLightningAddress || isSavingLightningAddress) && styles.lightningAddressSaveButtonDisabled,
-                    ]}
-                    onPress={handleSaveLightningAddress}
-                    disabled={!isValidLightningAddress || isSavingLightningAddress}
-                  >
-                    {isSavingLightningAddress ? (
-                      <ActivityIndicator size="small" color={theme.colors.accentText} />
-                    ) : (
-                      <Ionicons
-                        name={isValidLightningAddress ? 'checkmark' : 'save-outline'}
-                        size={20}
-                        color={isValidLightningAddress ? '#000' : theme.colors.textMuted}
-                      />
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {rewardLightningAddress && !isValidLightningAddress && (
-                  <Text style={styles.lightningAddressError}>
-                    Invalid format. Use: user@domain.com
-                  </Text>
-                )}
-              </Card>
-            </View>
-          )}
-        </View>
 
       </ScrollView>
 
@@ -824,21 +416,6 @@ const RewardsScreenComponent: React.FC = () => {
           onClose={() => setShowNWCConfirmation(false)}
           connectionString={scannedNWCString}
           onSuccess={handleNWCConnected}
-        />
-      )}
-
-      {/* Step Social Share Modal - for screenshot sharing only */}
-      {stepWorkoutForPost && (
-        <EnhancedSocialShareModal
-          visible={showStepSocialModal}
-          workout={stepWorkoutForPost}
-          userId={stepWorkoutForPost.userId}
-          userAvatar={currentUser?.picture}
-          userName={currentUser?.name}
-          onClose={() => {
-            setShowStepSocialModal(false);
-            setStepWorkoutForPost(null);
-          }}
         />
       )}
     </SafeAreaView>
@@ -1100,7 +677,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 2,
   },
-  teamLightningAddress: {
+  teamSupportText: {
     fontSize: 12,
     color: '#888',
   },
@@ -1122,61 +699,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  percentageSection: {
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-    marginBottom: 14,
-  },
-  percentageButtons: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  percentageButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  percentageButtonActive: {
-    backgroundColor: theme.colors.orangeBright,
-    borderColor: theme.colors.orangeBright,
-  },
-  percentageButtonText: {
-    fontSize: 13,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-  },
-  percentageButtonTextActive: {
-    color: '#000',
-  },
-  rewardSplitPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  splitTextLabel: {
-    fontSize: 13,
-    color: '#888',
-  },
-  splitTextValue: {
-    fontSize: 13,
-    fontWeight: theme.typography.weights.semiBold,
-    color: theme.colors.text,
-  },
-  splitArrow: {
-    marginHorizontal: 4,
   },
 
   // Prize Pool card styles
@@ -1206,6 +728,42 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.orangeBright,
+  },
+
+  // Team card styles
+  teamCard: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    padding: 14,
+    marginBottom: 12,
+  },
+  teamCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  teamCardTitle: {
+    fontSize: 12,
+    fontWeight: theme.typography.weights.bold,
+    color: '#FF9D42',
+    letterSpacing: 1,
+  },
+  teamCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1a1a1a',
+  },
+  teamInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
   },
 
   // Accordion styles

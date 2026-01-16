@@ -81,14 +81,11 @@ export const PersonalImpactSection: React.FC<PersonalImpactSectionProps> = ({
         onPress={() => setIsExpanded(!isExpanded)}
         activeOpacity={0.7}
       >
-        <View style={styles.headerLeft}>
-          <Ionicons name="heart" size={18} color="#FF9D42" />
-          <Text style={styles.headerTitle}>YOUR IMPACT</Text>
-        </View>
+        <Text style={styles.headerTitle}>YOUR IMPACT</Text>
         <Ionicons
           name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={theme.colors.textMuted}
+          size={18}
+          color="#FF9D42"
         />
       </TouchableOpacity>
 

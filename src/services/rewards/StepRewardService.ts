@@ -23,6 +23,8 @@ import { ProfileService } from '../user/profileService';
 import Toast from 'react-native-toast-message';
 import { REWARD_CONFIG } from '../../config/rewards';
 import { supabase } from '../../utils/supabase';
+import { StepRewardsPreferencesService } from '../activity/StepRewardsPreferencesService';
+import { getCharityById } from '../../constants/charities';
 
 // Step reward configuration
 const STEP_CONFIG = {
@@ -211,6 +213,9 @@ class StepRewardServiceClass {
   /**
    * Pay a milestone reward via Supabase
    * Server handles invoice request and NWC payment with 50 sat daily cap
+   *
+   * By default, step rewards go to the user's selected charity (normie-friendly).
+   * Power users can toggle this in Advanced Settings to receive step rewards themselves.
    */
   private async payMilestoneReward(
     userPubkey: string,
@@ -219,8 +224,29 @@ class StepRewardServiceClass {
     const amount = STEP_CONFIG.SATS_PER_MILESTONE;
 
     try {
-      // Get user's Lightning address
-      const lightningAddress = await this.getUserLightningAddress(userPubkey);
+      // Check if step rewards should go to user or charity
+      const sendToUser = await StepRewardsPreferencesService.shouldSendToUser();
+      let lightningAddress: string | null = null;
+      let recipientType: 'user' | 'charity' = 'charity';
+
+      if (sendToUser) {
+        // Power user: send to their Lightning address
+        lightningAddress = await this.getUserLightningAddress(userPubkey);
+        recipientType = 'user';
+      } else {
+        // Default (normie): send to selected charity
+        const charityId = await AsyncStorage.getItem('@runstr:selected_team_id');
+        const charity = getCharityById(charityId || 'als-foundation');
+        if (charity?.lightningAddress) {
+          lightningAddress = charity.lightningAddress;
+          console.log(`[StepReward] Routing to charity: ${charity.name}`);
+        } else {
+          // Fallback: try user's address if no charity
+          lightningAddress = await this.getUserLightningAddress(userPubkey);
+          recipientType = 'user';
+        }
+      }
+
       if (!lightningAddress) {
         console.log('[StepReward] No Lightning address configured');
         return {
@@ -232,12 +258,12 @@ class StepRewardServiceClass {
       }
 
       // Call Supabase to handle payment (server enforces 50 sat cap)
-      console.log(`[StepReward] Claiming ${amount} sats for milestone ${milestone}`);
+      console.log(`[StepReward] Claiming ${amount} sats for milestone ${milestone} (to ${recipientType})`);
       const result = await this.claimStepRewardViaSupabase(lightningAddress, amount);
 
       if (result.success) {
         const amountPaid = result.amount_paid || amount;
-        console.log(`[StepReward] ✅ Milestone ${milestone} paid: ${amountPaid} sats to user`);
+        console.log(`[StepReward] ✅ Milestone ${milestone} paid: ${amountPaid} sats to ${recipientType}`);
         return { milestone, amount: amountPaid, success: true };
       }
 

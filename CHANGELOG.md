@@ -2,6 +2,78 @@
 
 All notable changes to RUNSTR will be documented in this file.
 
+## [1.6.3-debug] - 2026-01-16 - Pre-Release Testing
+
+### UI Improvements
+- **Unified Workout History**: Single view merges local + health app workouts
+  - New `UnifiedWorkoutsTab` component with source badges
+  - Automatic deduplication (1 min time window + same type + 10s duration tolerance)
+  - Sync button in header replaces tab toggle
+- **Rewards Screen Reorganization**:
+  - Impact Level section moved up for prominence
+  - "Your Team" and "Your Impact" now collapsible accordions
+  - Rewards Pool displays at top when available
+- **YOUR ACTIVITY Card**: New stats card in WorkoutHistoryScreen showing weekly workouts, streak, and steps today
+- **Settings UI**: Rewards-related features moved to Advanced Features section
+
+### Bug Fixes (Android)
+- **Step Counter Fix**: Fixed "0 steps today" display when native service is running
+  - Root cause: Privacy ROM detection was incorrectly bypassing native step counter
+  - Fix: Now checks if native service is running before applying ROM check
+  - Files: `NativeStepCounterService.ts`, `DailyStepCounterService.ts`
+
+### Bug Fixes (Competitions)
+- **Leaderboard Deduplication**: Prevents inflated distances from duplicate workout submissions
+  - Added deduplication logic to `SupabaseCompetitionService.getLeaderboard()`
+  - Matches by (npub, rounded distance, date)
+- **Double Zap Prevention**: Running Bitcoin rewards now use Supabase-backed claim tracking
+  - Prevents duplicate reward claims across app reinstalls
+
+### Technical
+- New files: `src/utils/unifiedWorkoutMerge.ts`, `src/components/profile/tabs/UnifiedWorkoutsTab.tsx`
+- Modified: `WorkoutTabNavigator.tsx` simplified from ~157 to ~75 lines
+
+---
+
+## [1.6.1] - 2026-01-16 - Security, Bug Fixes & Performance
+
+### Security
+- Migrated to fresh Supabase project infrastructure
+- Removed hardcoded secrets from test scripts
+- Removed exposed API keys from source code
+
+### Performance
+- Added batch pagination to Running Bitcoin leaderboard (21 at a time + "See More")
+- Added batch pagination to January Walking leaderboard (21 at a time + "See More")
+- Faster initial render for competition screens with 100+ participants
+
+### Fixed
+- Season II leaderboard no longer stuck on loading spinner
+- Added missing competition entries for activity-specific leaderboards (running/walking/cycling)
+- Restored workout sync cron jobs with correct vault secrets
+- Fixed error handling to preserve hardcoded participant data on Supabase errors
+
+### New Features
+- **Local-First Leaderboards**: Users now appear on leaderboards immediately after hitting "Compete"
+  - No more 2-minute wait for Supabase sync
+  - Workout data pulled from local storage for instant display
+  - Gracefully merges with server data when sync completes
+- **Auto-Compete Default**: New users now have auto-compete enabled by default
+  - Workouts automatically publish to competitions when finished
+  - Toggle available in Settings → Fitness Tracking
+
+### Technical
+- 7 edge functions deployed to new Supabase project
+- Vault secrets updated for new project URL and service role key
+- Participant data migrated (134 Running Bitcoin, 38 January Walking, 61 Einundzwanzig)
+- Local-first leaderboard improvements:
+  - Reusable loadLocalWorkouts callback with useFocusEffect integration
+  - 10-minute local cache window (up from 5 minutes)
+  - Distance and timestamp validation for local workouts
+  - Activity type detection with explicit mapping
+
+---
+
 ## [1.6.0] - 2026-01-15 - UI Improvements & Bug Fixes
 
 ### UI/UX Improvements

@@ -102,24 +102,19 @@ export const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({
   };
 
   const workoutsThisWeek = getWorkoutsThisWeek();
-  const totalSats = weeklyRewardsEarned + stepRewardsEarned;
 
   return (
     <View style={styles.container}>
-      {/* Header + Sats in one row */}
+      {/* Header row - sats hidden for normie-friendly UX (visible in Settings) */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>YOUR REWARDS</Text>
+          <Text style={styles.headerTitle}>YOUR ACTIVITY</Text>
           <TouchableOpacity
             onPress={() => setShowInfoModal(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="information-circle-outline" size={16} color="#666" />
           </TouchableOpacity>
-        </View>
-        <View style={styles.satsDisplay}>
-          <Text style={styles.satsValue}>{totalSats}</Text>
-          <Text style={styles.satsLabel}>sats</Text>
         </View>
       </View>
 
@@ -216,15 +211,6 @@ export const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({
               <Text style={styles.infoSubtitle}>Compete</Text>
               <Text style={styles.infoText}>
                 <Text style={styles.infoHighlight}>Compete</Text> pushes your steps into all eligible competitions for the day.
-              </Text>
-            </View>
-
-            <View style={styles.infoDivider} />
-
-            <View style={styles.infoSection}>
-              <Text style={styles.infoSubtitle}>Receiving Rewards</Text>
-              <Text style={styles.infoText}>
-                Set your Lightning address below to receive sats directly to your wallet.
               </Text>
             </View>
           </View>

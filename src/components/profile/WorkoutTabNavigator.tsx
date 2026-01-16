@@ -1,47 +1,24 @@
 /**
- * WorkoutTabNavigator - Simple tab switcher between Public, Local, and Apple workouts
- * Public: 1301 notes from Nostr (cache-first instant display)
- * Local: Local Activity Tracker workouts (zero loading time)
- * Apple: HealthKit workouts with post buttons
+ * WorkoutTabNavigator - Unified workout view
+ * Shows all workouts from all sources (local, Apple Health, Health Connect) in one view
+ * Previously had separate tabs - now uses UnifiedWorkoutsTab for better UX
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { theme } from '../../styles/theme';
-import { PublicWorkoutsTab } from './tabs/PublicWorkoutsTab';
-import { PrivateWorkoutsTab } from './tabs/PrivateWorkoutsTab';
-import { AppleHealthTab } from './tabs/AppleHealthTab';
-import { HealthConnectTab } from './tabs/HealthConnectTab';
-import { GarminHealthTab } from './tabs/GarminHealthTab';
-import { ToggleButtons } from '../ui/ToggleButtons';
+import { UnifiedWorkoutsTab } from './tabs/UnifiedWorkoutsTab';
 import type { LocalWorkout } from '../../services/fitness/LocalWorkoutStorageService';
-
-// GARMIN: Removed 'garmin' from WorkoutTabType until security issues fixed
-// PUBLIC TAB: Hidden from UI (local-first architecture), but code kept for potential future use
-export type WorkoutTabType = 'public' | 'private' | 'apple' | 'healthconnect'; // | 'garmin';
-
-// Export tab options builder for external use (e.g., rendering tabs in parent header)
-export const getWorkoutTabOptions = () => [
-  { key: 'private', label: 'Local' },
-  ...(Platform.OS === 'ios' ? [{ key: 'apple', label: 'Apple Health' }] : []),
-  ...(Platform.OS === 'android' ? [{ key: 'healthconnect', label: 'Health Connect' }] : []),
-];
+import type { Workout } from '../../types/workout';
 
 interface WorkoutTabNavigatorProps {
   userId: string;
   pubkey?: string;
-  initialTab?: WorkoutTabType;
-  // External tab control (when tabs are rendered in parent)
-  activeTab?: WorkoutTabType;
-  onActiveTabChange?: (tab: WorkoutTabType) => void;
-  hideInternalTabBar?: boolean;
   onRefresh?: () => void;
   onPostToNostr?: (workout: LocalWorkout) => Promise<void>;
   onPostToSocial?: (workout: LocalWorkout) => Promise<void>;
   onCompeteHealthKit?: (workout: any) => Promise<void>;
   onSocialShareHealthKit?: (workout: any) => Promise<void>;
-  onCompeteGarmin?: (workout: any) => Promise<void>;
-  onSocialShareGarmin?: (workout: any) => Promise<void>;
   onCompeteHealthConnect?: (workout: any) => Promise<void>;
   onSocialShareHealthConnect?: (workout: any) => Promise<void>;
   onNavigateToAnalytics?: () => void;
@@ -50,91 +27,42 @@ interface WorkoutTabNavigatorProps {
 export const WorkoutTabNavigator: React.FC<WorkoutTabNavigatorProps> = ({
   userId,
   pubkey,
-  initialTab = 'private',
-  activeTab: externalActiveTab,
-  onActiveTabChange,
-  hideInternalTabBar = false,
   onRefresh,
   onPostToNostr,
   onPostToSocial,
   onCompeteHealthKit,
   onSocialShareHealthKit,
-  onCompeteGarmin,
-  onSocialShareGarmin,
   onCompeteHealthConnect,
   onSocialShareHealthConnect,
-  onNavigateToAnalytics,
 }) => {
-  const [internalActiveTab, setInternalActiveTab] = useState<WorkoutTabType>(initialTab);
-
-  // Use external tab state if provided, otherwise use internal state
-  const activeTab = externalActiveTab ?? internalActiveTab;
-  const setActiveTab = (tab: WorkoutTabType) => {
-    if (onActiveTabChange) {
-      onActiveTabChange(tab);
-    } else {
-      setInternalActiveTab(tab);
+  // Determine which health app callback to use based on platform
+  const handleCompeteHealthApp = async (workout: Workout) => {
+    if (Platform.OS === 'ios' && onCompeteHealthKit) {
+      await onCompeteHealthKit(workout);
+    } else if (Platform.OS === 'android' && onCompeteHealthConnect) {
+      await onCompeteHealthConnect(workout);
     }
   };
 
-  // Build tab options based on platform
-  const tabOptions = getWorkoutTabOptions();
+  const handleSocialShareHealthApp = async (workout: Workout) => {
+    if (Platform.OS === 'ios' && onSocialShareHealthKit) {
+      await onSocialShareHealthKit(workout);
+    } else if (Platform.OS === 'android' && onSocialShareHealthConnect) {
+      await onSocialShareHealthConnect(workout);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Tab Switcher - can be hidden when parent renders tabs */}
-      {!hideInternalTabBar && (
-        <View style={styles.tabBar}>
-          <ToggleButtons
-            options={tabOptions}
-            activeKey={activeTab}
-            onSelect={(key) => setActiveTab(key as WorkoutTabType)}
-          />
-        </View>
-      )}
-
-      {/* Tab Content - Lazy load tabs (only render when active) */}
-      {/* This ensures loading spinners are visible when switching tabs */}
-      <View style={styles.tabContent}>
-        {activeTab === 'public' && (
-          <PublicWorkoutsTab
-            userId={userId}
-            pubkey={pubkey}
-            onRefresh={onRefresh}
-          />
-        )}
-        {activeTab === 'private' && (
-          <PrivateWorkoutsTab
-            userId={userId}
-            pubkey={pubkey}
-            onRefresh={onRefresh}
-            onPostToNostr={onPostToNostr}
-            onPostToSocial={onPostToSocial}
-            onNavigateToAnalytics={onNavigateToAnalytics}
-          />
-        )}
-        {activeTab === 'apple' && (
-          <AppleHealthTab
-            userId={userId}
-            onCompete={onCompeteHealthKit}
-            onSocialShare={onSocialShareHealthKit}
-          />
-        )}
-        {activeTab === 'healthconnect' && (
-          <HealthConnectTab
-            userId={userId}
-            onCompete={onCompeteHealthConnect}
-            onSocialShare={onSocialShareHealthConnect}
-          />
-        )}
-        {activeTab === 'garmin' && (
-          <GarminHealthTab
-            userId={userId}
-            onCompete={onCompeteGarmin}
-            onSocialShare={onSocialShareGarmin}
-          />
-        )}
-      </View>
+      <UnifiedWorkoutsTab
+        userId={userId}
+        pubkey={pubkey}
+        onRefresh={onRefresh}
+        onPostToNostr={onPostToNostr}
+        onPostToSocial={onPostToSocial}
+        onCompeteHealthApp={handleCompeteHealthApp}
+        onSocialShareHealthApp={handleSocialShareHealthApp}
+      />
     </View>
   );
 };
@@ -143,14 +71,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-  },
-  tabBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  tabContent: {
-    flex: 1,
   },
 });

@@ -7,11 +7,11 @@
  * Tabs are displayed in the header row next to the back button.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CustomAlertManager } from '../components/ui/CustomAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../styles/theme';
 import { WorkoutPublishingService } from '../services/nostr/workoutPublishingService';
 import localWorkoutStorage from '../services/fitness/LocalWorkoutStorageService';
@@ -19,19 +19,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UnifiedSigningService } from '../services/auth/UnifiedSigningService';
 import { nostrProfileService } from '../services/nostr/NostrProfileService';
 import type { NostrProfile } from '../services/nostr/NostrProfileService';
+import Toast from 'react-native-toast-message';
+
+// Rewards & Steps
+import { TotalRewardsCard } from '../components/rewards/TotalRewardsCard';
+import { DailyRewardService } from '../services/rewards/DailyRewardService';
+import { StepRewardService } from '../services/rewards/StepRewardService';
+import { dailyStepCounterService } from '../services/activity/DailyStepCounterService';
+import type { PublishableWorkout } from '../services/nostr/workoutPublishingService';
 
 // UI Components
 import { LoadingOverlay } from '../components/ui/LoadingStates';
 import { Ionicons } from '@expo/vector-icons';
 import { EnhancedSocialShareModal } from '../components/profile/shared/EnhancedSocialShareModal';
-import { ToggleButtons } from '../components/ui/ToggleButtons';
 
-// Two-Tab Workout Components
-import {
-  WorkoutTabNavigator,
-  getWorkoutTabOptions,
-  type WorkoutTabType,
-} from '../components/profile/WorkoutTabNavigator';
+// Unified Workout Components
+import { WorkoutTabNavigator } from '../components/profile/WorkoutTabNavigator';
 
 // Import type from the service file (not from the default export)
 import type { LocalWorkout } from '../services/fitness/LocalWorkoutStorageService';
@@ -50,7 +53,6 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
   route,
 }) => {
   const navigation = useNavigation<any>();
-  const [activeWorkoutTab, setActiveWorkoutTab] = useState<WorkoutTabType>('private');
   const [pubkey, setPubkey] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   // Note: signer is no longer cached in state - we get a fresh signer at publish time
@@ -59,6 +61,15 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<NostrProfile | null>(null);
+
+  // Activity stats state (for TotalRewardsCard)
+  const [workouts, setWorkouts] = useState<LocalWorkout[]>([]);
+  const [weeklyRewardsEarned, setWeeklyRewardsEarned] = useState(0);
+  const [stepTodaySats, setStepTodaySats] = useState(0);
+  const [currentSteps, setCurrentSteps] = useState(0);
+  const [isPublishingSteps, setIsPublishingSteps] = useState(false);
+  const [showStepSocialModal, setShowStepSocialModal] = useState(false);
+  const [stepWorkoutForPost, setStepWorkoutForPost] = useState<PublishableWorkout | null>(null);
 
   // Services - localWorkoutStorage is already a singleton instance
   const publishingService = WorkoutPublishingService.getInstance();
@@ -124,6 +135,138 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
         });
     }
   }, [pubkey]);
+
+  /**
+   * Load activity stats data (workouts, rewards, steps)
+   */
+  const loadActivityStats = async (checkMilestones: boolean = false) => {
+    try {
+      // Load workouts for streak calculation
+      const allWorkouts = await localWorkoutStorage.getAllWorkouts();
+      setWorkouts(allWorkouts);
+
+      // Get current steps from device
+      const stepData = await dailyStepCounterService.getTodaySteps();
+      const steps = stepData?.steps ?? 0;
+      setCurrentSteps(steps);
+
+      // Load rewards and step stats if we have pubkey
+      if (pubkey) {
+        const weeklyRewards = await DailyRewardService.getWeeklyRewardsEarned(pubkey);
+        setWeeklyRewardsEarned(weeklyRewards);
+
+        const stats = await StepRewardService.getStats(pubkey);
+        setStepTodaySats(stats.todaySats);
+
+        // Check and reward new milestones if requested
+        if (checkMilestones && steps > 0) {
+          await StepRewardService.checkAndRewardMilestones(steps, pubkey);
+          const updatedStats = await StepRewardService.getStats(pubkey);
+          setStepTodaySats(updatedStats.todaySats);
+        }
+      }
+    } catch (error) {
+      console.error('[WorkoutHistory] Error loading activity stats:', error);
+    }
+  };
+
+  // Periodic step polling while screen is active
+  useFocusEffect(
+    useCallback(() => {
+      // Initial load with milestone check
+      loadActivityStats(true);
+
+      // Poll every 30 seconds while screen is focused
+      const interval = setInterval(() => {
+        loadActivityStats(true);
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }, [pubkey])
+  );
+
+  /**
+   * Create a synthetic walking workout from current step count
+   */
+  const createStepWorkout = async (): Promise<PublishableWorkout | null> => {
+    if (!pubkey) return null;
+
+    const now = new Date();
+
+    return {
+      id: `steps_${now.toISOString().split('T')[0]}_${Date.now()}`,
+      userId: pubkey,
+      type: 'walking',
+      source: 'manual',
+      startTime: now.toISOString(),
+      endTime: now.toISOString(),
+      duration: 0,
+      distance: 0,
+      calories: 0,
+      syncedAt: now.toISOString(),
+      metadata: {
+        steps: currentSteps,
+      },
+      unitSystem: 'metric',
+    };
+  };
+
+  /**
+   * Open social share modal for steps
+   */
+  const handleStepShare = async () => {
+    const stepWorkout = await createStepWorkout();
+    if (stepWorkout) {
+      setStepWorkoutForPost(stepWorkout);
+      setShowStepSocialModal(true);
+    }
+  };
+
+  /**
+   * Publish today's steps as a kind 1301 walking workout event (competition entry)
+   */
+  const handleStepCompete = async () => {
+    setIsPublishingSteps(true);
+    try {
+      const freshSigner = await UnifiedSigningService.getInstance().getSigner();
+      if (!freshSigner) {
+        throw new Error('No signer available');
+      }
+
+      const stepWorkout = await createStepWorkout();
+      if (!stepWorkout) {
+        throw new Error('No user pubkey found');
+      }
+
+      const result = await publishingService.saveWorkoutToNostr(
+        stepWorkout,
+        freshSigner,
+        stepWorkout.userId
+      );
+
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Steps Published!',
+          text2: `${currentSteps.toLocaleString()} steps entered into competition`,
+          position: 'top',
+          visibilityTime: 3000,
+        });
+      } else {
+        throw new Error(result.error || 'Failed to publish');
+      }
+    } catch (error) {
+      console.error('[WorkoutHistory] Step compete error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Publish Failed',
+        text2: error instanceof Error ? error.message : 'Could not publish steps',
+        position: 'top',
+      });
+    } finally {
+      setIsPublishingSteps(false);
+    }
+  };
 
   /**
    * Handle posting a HealthKit workout to Nostr as kind 1301 competition entry
@@ -422,27 +565,31 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with back button and Local/Apple Health tabs */}
+      {/* Header with back button and title */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <View style={styles.headerTabs}>
-          <ToggleButtons
-            options={getWorkoutTabOptions()}
-            activeKey={activeWorkoutTab}
-            onSelect={(key) => setActiveWorkoutTab(key as WorkoutTabType)}
-          />
-        </View>
+        <Text style={styles.headerTitle}>Workout History</Text>
       </View>
 
-      {/* Workout List - tabs are controlled externally from header */}
+      {/* Activity Stats Card - YOUR ACTIVITY */}
+      <View style={styles.activityCardContainer}>
+        <TotalRewardsCard
+          workouts={workouts}
+          weeklyRewardsEarned={weeklyRewardsEarned}
+          stepRewardsEarned={stepTodaySats}
+          currentSteps={currentSteps}
+          onShare={handleStepShare}
+          onCompete={handleStepCompete}
+          isPublishing={isPublishingSteps}
+        />
+      </View>
+
+      {/* Unified Workout List - all sources merged into one view */}
       <WorkoutTabNavigator
         userId={userId}
         pubkey={pubkey}
-        activeTab={activeWorkoutTab}
-        onActiveTabChange={setActiveWorkoutTab}
-        hideInternalTabBar={true}
         onPostToNostr={handlePostToNostr}
         onPostToSocial={handlePostToSocial}
         onCompeteHealthKit={handleCompeteHealthKit}
@@ -469,6 +616,21 @@ export const WorkoutHistoryScreen: React.FC<WorkoutHistoryScreenProps> = ({
           // Success alert handled by child component (PrivateWorkoutsTab)
         }}
       />
+
+      {/* Step Social Share Modal */}
+      {stepWorkoutForPost && (
+        <EnhancedSocialShareModal
+          visible={showStepSocialModal}
+          workout={stepWorkoutForPost}
+          userId={stepWorkoutForPost.userId}
+          userAvatar={userProfile?.picture}
+          userName={userProfile?.name || userProfile?.display_name}
+          onClose={() => {
+            setShowStepSocialModal(false);
+            setStepWorkoutForPost(null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -487,15 +649,23 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    gap: 12,
   },
 
   backButton: {
     padding: 8,
   },
 
-  headerTabs: {
+  headerTitle: {
     flex: 1,
+    fontSize: 18,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginLeft: 8,
+  },
+
+  activityCardContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
 
   errorContainer: {

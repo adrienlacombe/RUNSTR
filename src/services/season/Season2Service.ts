@@ -312,8 +312,27 @@ class Season2ServiceClass {
     const officialParticipants = await this.getStoredOfficialParticipants();
 
     // Fetch workouts
-    const workouts = await this.fetchWorkouts(participants, activityType);
-    console.log(`[Season2] Found ${workouts.length} ${activityType} workouts`);
+    const rawWorkouts = await this.fetchWorkouts(participants, activityType);
+
+    // Deduplicate by (pubkey, distance, date) to prevent counting same workout multiple times
+    // Same workout can be published with DIFFERENT event IDs (from GPS, HealthKit, Health Connect)
+    const seenWorkoutKeys = new Set<string>();
+    const workouts = rawWorkouts.filter(workout => {
+      const roundedDistance = Math.round(workout.distance * 10) / 10;
+      const dateStr = workout.createdAt
+        ? new Date(workout.createdAt * 1000).toISOString().split('T')[0]
+        : 'unknown';
+      const key = `${workout.pubkey}:${roundedDistance}:${dateStr}`;
+
+      if (seenWorkoutKeys.has(key)) {
+        console.log(`[Season2] Skipping duplicate: ${key.slice(0, 20)}...`);
+        return false;
+      }
+      seenWorkoutKeys.add(key);
+      return true;
+    });
+    const duplicatesRemoved = rawWorkouts.length - workouts.length;
+    console.log(`[Season2] Found ${rawWorkouts.length} ${activityType} workouts (${duplicatesRemoved} duplicates removed)`);
 
     // Calculate user distances and charity attribution
     const userStats = new Map<
@@ -443,7 +462,7 @@ class Season2ServiceClass {
     participants: string[],
     activityType: Season2ActivityType
   ): Promise<
-    Array<{ pubkey: string; distance: number; charityId?: string }>
+    Array<{ id: string; pubkey: string; distance: number; charityId?: string; createdAt: number }>
   > {
     if (participants.length === 0) return [];
 
@@ -481,9 +500,11 @@ class Season2ServiceClass {
     const workouts = cachedWorkouts
       .filter(w => hexPubkeys.includes(w.pubkey))
       .map(w => ({
+        id: w.id,
         pubkey: w.pubkey,
         distance: w.distance,
         charityId: w.charityId,
+        createdAt: w.createdAt,
       }));
 
     console.log(`[Season2] Found ${workouts.length} ${activityType} workouts from cache (filtered from ${cachedWorkouts.length})`);
@@ -497,7 +518,7 @@ class Season2ServiceClass {
   private async fetchAllWorkouts(
     participants: string[]
   ): Promise<
-    Array<{ pubkey: string; distance: number; charityId?: string; activityType: Season2ActivityType }>
+    Array<{ id: string; pubkey: string; distance: number; charityId?: string; activityType: Season2ActivityType; createdAt: number }>
   > {
     if (participants.length === 0) return [];
 
@@ -533,10 +554,12 @@ class Season2ServiceClass {
 
     // Filter by participants and convert to expected format
     const workouts: Array<{
+      id: string;
       pubkey: string;
       distance: number;
       charityId?: string;
       activityType: Season2ActivityType;
+      createdAt: number;
     }> = [];
 
     for (const w of allCachedWorkouts) {
@@ -558,10 +581,12 @@ class Season2ServiceClass {
 
       if (activityType) {
         workouts.push({
+          id: w.id,
           pubkey: w.pubkey,
           distance: w.distance,
           charityId: w.charityId,
           activityType,
+          createdAt: w.createdAt,
         });
       }
     }
@@ -909,6 +934,7 @@ class Season2ServiceClass {
       activityType: string;
       distance: number;
       charityId?: string;
+      createdAt?: number;
     }>,
     currentUserPubkey?: string
   ): {
@@ -984,7 +1010,7 @@ class Season2ServiceClass {
   private buildLeaderboardFromWorkouts(
     activityType: Season2ActivityType,
     participants: string[],
-    workouts: Array<{ pubkey: string; distance: number; charityId?: string }>,
+    workouts: Array<{ id?: string; pubkey: string; distance: number; charityId?: string; createdAt?: number }>,
     localJoins: LocalJoin[],
     officialParticipants: string[],
     currentUserPubkey?: string
@@ -1031,8 +1057,34 @@ class Season2ServiceClass {
     }
     t.baseline = Date.now();
 
+    // STEP 1.5: Deduplicate workouts to prevent counting same workout multiple times
+    // Same workout can be published multiple times with DIFFERENT event IDs (from GPS, HealthKit, Health Connect)
+    // So we dedupe by (pubkey, rounded distance, date) - if same user has same distance on same day, it's a dupe
+    const seenWorkoutKeys = new Set<string>();
+    const dedupedWorkouts = workouts.filter(workout => {
+      // Round distance to 1 decimal place to catch near-duplicates (5.01km and 5.02km = same workout)
+      const roundedDistance = Math.round(workout.distance * 10) / 10;
+      // Get date string from timestamp (or use a placeholder if no timestamp)
+      const dateStr = workout.createdAt
+        ? new Date(workout.createdAt * 1000).toISOString().split('T')[0]  // YYYY-MM-DD
+        : 'unknown';
+      // Create unique key: pubkey + distance + date
+      const key = `${workout.pubkey}:${roundedDistance}:${dateStr}`;
+
+      if (seenWorkoutKeys.has(key)) {
+        console.log(`[Season2] Skipping duplicate: ${key.slice(0, 20)}... (${workout.id?.slice(0, 8) || 'no-id'})`);
+        return false; // Skip duplicate
+      }
+      seenWorkoutKeys.add(key);
+      return true;
+    });
+    const duplicatesRemoved = workouts.length - dedupedWorkouts.length;
+    if (duplicatesRemoved > 0) {
+      console.log(`[Season2] Deduplication: removed ${duplicatesRemoved} duplicate ${activityType} workouts`);
+    }
+
     // STEP 2: Add FRESH workouts on top of baseline
-    for (const workout of workouts) {
+    for (const workout of dedupedWorkouts) {
       const existing = userStats.get(workout.pubkey) || {
         distance: 0,
         workoutCount: 0,

@@ -26,9 +26,9 @@ export class AutoCompetePreferencesService {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
 
       if (stored === null) {
-        // Default to false (user must opt-in)
-        this.cachedValue = false;
-        return false;
+        // Default to true (auto-compete enabled for new users)
+        this.cachedValue = true;
+        return true;
       }
 
       this.cachedValue = stored === 'true';

@@ -24,6 +24,8 @@ import {
   type TTSSettings,
 } from '../services/activity/TTSPreferencesService';
 import { AutoCompetePreferencesService } from '../services/activity/AutoCompetePreferencesService';
+import { StepRewardsPreferencesService } from '../services/activity/StepRewardsPreferencesService';
+import { RewardLightningAddressService } from '../services/rewards/RewardLightningAddressService';
 import TTSAnnouncementService from '../services/activity/TTSAnnouncementService';
 import { DeleteAccountService } from '../services/auth/DeleteAccountService';
 import { Card } from '../components/ui/Card';
@@ -37,6 +39,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as Clipboard from 'expo-clipboard';
 import RNRestart from 'react-native-restart';
 import { dailyStepCounterService } from '../services/activity/DailyStepCounterService';
+import { DailyRewardService } from '../services/rewards/DailyRewardService';
+import { StepRewardService } from '../services/rewards/StepRewardService';
 import { PPQAPIKeyModal } from '../components/ai/PPQAPIKeyModal';
 import { useCoachRunstr } from '../services/ai/useCoachRunstr';
 import { ModelManager } from '../services/ai/ModelManager';
@@ -120,6 +124,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Rewards settings state
+  const [rewardLightningAddress, setRewardLightningAddress] = useState<string>('');
+  const [isValidLightningAddress, setIsValidLightningAddress] = useState(false);
+  const [isSavingLightningAddress, setIsSavingLightningAddress] = useState(false);
+  const [stepRewardsToUser, setStepRewardsToUser] = useState(false);
+  const [donationPercentage, setDonationPercentage] = useState<number>(100);
+  const [weeklyRewardsEarned, setWeeklyRewardsEarned] = useState(0);
+  const [stepTodaySats, setStepTodaySats] = useState(0);
+
   // Alert state for CustomAlert
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
@@ -188,6 +201,31 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Load selected AI model
       const model = await ModelManager.getSelectedModel();
       setSelectedAIModel(model);
+
+      // Load rewards settings
+      const savedLightningAddress = await RewardLightningAddressService.getRewardLightningAddress();
+      if (savedLightningAddress) {
+        setRewardLightningAddress(savedLightningAddress);
+        setIsValidLightningAddress(true);
+      }
+
+      const stepToUser = await StepRewardsPreferencesService.shouldSendToUser();
+      setStepRewardsToUser(stepToUser);
+
+      const donationPct = await AsyncStorage.getItem('@runstr:donation_percentage');
+      if (donationPct !== null) {
+        setDonationPercentage(parseInt(donationPct, 10));
+      }
+
+      // Load sats earned data
+      const pubkey = await AsyncStorage.getItem('@runstr:hex_pubkey');
+      if (pubkey) {
+        const weeklyRewards = await DailyRewardService.getWeeklyRewardsEarned(pubkey);
+        setWeeklyRewardsEarned(weeklyRewards);
+
+        const stepStats = await StepRewardService.getStats(pubkey);
+        setStepTodaySats(stepStats.todaySats);
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -269,6 +307,61 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // Revert on error
       const current = await AutoCompetePreferencesService.isAutoCompeteEnabled();
       setAutoCompeteEnabled(current);
+    }
+  };
+
+  // Rewards settings handlers
+  const handleLightningAddressChange = (text: string) => {
+    setRewardLightningAddress(text);
+    setIsValidLightningAddress(RewardLightningAddressService.isValidLightningAddress(text));
+  };
+
+  const handleSaveLightningAddress = async () => {
+    if (!isValidLightningAddress || !rewardLightningAddress.trim()) {
+      return;
+    }
+
+    setIsSavingLightningAddress(true);
+    try {
+      await RewardLightningAddressService.setRewardLightningAddress(rewardLightningAddress.trim());
+      Toast.show({
+        type: 'success',
+        text1: 'Saved',
+        text2: 'Lightning address saved',
+        position: 'top',
+        visibilityTime: 2000,
+      });
+    } catch (error) {
+      console.error('Error saving lightning address:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to save address',
+        position: 'top',
+      });
+    } finally {
+      setIsSavingLightningAddress(false);
+    }
+  };
+
+  const handleStepRewardsToggle = async (enabled: boolean) => {
+    try {
+      await StepRewardsPreferencesService.setSendToUser(enabled);
+      setStepRewardsToUser(enabled);
+    } catch (error) {
+      console.error('Error saving step rewards preference:', error);
+      // Revert on error
+      const current = await StepRewardsPreferencesService.shouldSendToUser();
+      setStepRewardsToUser(current);
+    }
+  };
+
+  const handleDonationPercentageChange = async (percentage: number) => {
+    try {
+      setDonationPercentage(percentage);
+      await AsyncStorage.setItem('@runstr:donation_percentage', percentage.toString());
+    } catch (error) {
+      console.error('Error saving donation percentage:', error);
     }
   };
 
@@ -599,44 +692,38 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <SettingsAccordion title="FITNESS TRACKING" defaultExpanded={false}>
             <Card style={styles.accordionCard}>
               {/* Background Step Tracking */}
-              <View style={styles.settingItem}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>
-                    Background Step Tracking
-                  </Text>
-                  <Text style={styles.settingSubtitle}>
-                    Automatically count steps throughout the day
-                  </Text>
-                </View>
-                <Switch
-                  value={backgroundTrackingEnabled}
-                  onValueChange={handleBackgroundTrackingToggle}
-                  trackColor={{
-                    false: theme.colors.warning,
-                    true: theme.colors.accent,
-                  }}
-                  thumbColor={theme.colors.orangeBright}
-                />
-              </View>
+              <SettingItem
+                title="Background Step Tracking"
+                subtitle="Automatically count steps throughout the day"
+                rightElement={
+                  <Switch
+                    value={backgroundTrackingEnabled}
+                    onValueChange={handleBackgroundTrackingToggle}
+                    trackColor={{
+                      false: theme.colors.warning,
+                      true: theme.colors.accent,
+                    }}
+                    thumbColor={theme.colors.orangeBright}
+                  />
+                }
+              />
 
               {/* Auto-Compete */}
-              <View style={styles.settingItem}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Auto-Compete</Text>
-                  <Text style={styles.settingSubtitle}>
-                    Automatically enter workouts into competitions
-                  </Text>
-                </View>
-                <Switch
-                  value={autoCompeteEnabled}
-                  onValueChange={handleAutoCompeteToggle}
-                  trackColor={{
-                    false: theme.colors.warning,
-                    true: theme.colors.accent,
-                  }}
-                  thumbColor={theme.colors.orangeBright}
-                />
-              </View>
+              <SettingItem
+                title="Auto-Compete"
+                subtitle="Automatically enter workouts into competitions"
+                rightElement={
+                  <Switch
+                    value={autoCompeteEnabled}
+                    onValueChange={handleAutoCompeteToggle}
+                    trackColor={{
+                      false: theme.colors.warning,
+                      true: theme.colors.accent,
+                    }}
+                    thumbColor={theme.colors.orangeBright}
+                  />
+                }
+              />
 
               {/* Health Profile */}
               <SettingItem
@@ -667,100 +754,87 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <Text style={styles.subsectionTitle}>Voice Announcements</Text>
 
                 {/* Enable TTS */}
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>
-                      Enable Voice Announcements
-                    </Text>
-                    <Text style={styles.settingSubtitle}>
-                      Hear workout summaries read aloud
-                    </Text>
-                  </View>
-                  <Switch
-                    value={ttsSettings.enabled}
-                    onValueChange={(value) =>
-                      handleTTSSettingChange('enabled', value)
-                    }
-                    trackColor={{
-                      false: theme.colors.warning,
-                      true: theme.colors.accent,
-                    }}
-                    thumbColor={theme.colors.orangeBright}
-                  />
-                </View>
+                <SettingItem
+                  title="Enable Voice Announcements"
+                  subtitle="Hear workout summaries read aloud"
+                  rightElement={
+                    <Switch
+                      value={ttsSettings.enabled}
+                      onValueChange={(value) =>
+                        handleTTSSettingChange('enabled', value)
+                      }
+                      trackColor={{
+                        false: theme.colors.warning,
+                        true: theme.colors.accent,
+                      }}
+                      thumbColor={theme.colors.orangeBright}
+                    />
+                  }
+                />
 
                 {/* Announce on Summary */}
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>Workout Summary</Text>
-                    <Text style={styles.settingSubtitle}>
-                      Announce stats when workout completes
-                    </Text>
-                  </View>
-                  <Switch
-                    value={ttsSettings.announceOnSummary}
-                    onValueChange={(value) =>
-                      handleTTSSettingChange('announceOnSummary', value)
-                    }
-                    trackColor={{
-                      false: theme.colors.warning,
-                      true: theme.colors.accent,
-                    }}
-                    thumbColor={theme.colors.orangeBright}
-                    disabled={!ttsSettings.enabled}
-                  />
-                </View>
+                <SettingItem
+                  title="Workout Summary"
+                  subtitle="Announce stats when workout completes"
+                  rightElement={
+                    <Switch
+                      value={ttsSettings.announceOnSummary}
+                      onValueChange={(value) =>
+                        handleTTSSettingChange('announceOnSummary', value)
+                      }
+                      trackColor={{
+                        false: theme.colors.warning,
+                        true: theme.colors.accent,
+                      }}
+                      thumbColor={theme.colors.orangeBright}
+                      disabled={!ttsSettings.enabled}
+                    />
+                  }
+                />
 
                 {/* Include Splits */}
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>
-                      Include Split Details
-                    </Text>
-                    <Text style={styles.settingSubtitle}>
-                      Announce kilometer splits in summary
-                    </Text>
-                  </View>
-                  <Switch
-                    value={ttsSettings.includeSplits}
-                    onValueChange={(value) =>
-                      handleTTSSettingChange('includeSplits', value)
-                    }
-                    trackColor={{
-                      false: theme.colors.warning,
-                      true: theme.colors.accent,
-                    }}
-                    thumbColor={theme.colors.orangeBright}
-                    disabled={!ttsSettings.enabled}
-                  />
-                </View>
+                <SettingItem
+                  title="Include Split Details"
+                  subtitle="Announce kilometer splits in summary"
+                  rightElement={
+                    <Switch
+                      value={ttsSettings.includeSplits}
+                      onValueChange={(value) =>
+                        handleTTSSettingChange('includeSplits', value)
+                      }
+                      trackColor={{
+                        false: theme.colors.warning,
+                        true: theme.colors.accent,
+                      }}
+                      thumbColor={theme.colors.orangeBright}
+                      disabled={!ttsSettings.enabled}
+                    />
+                  }
+                />
 
                 {/* Live Split Announcements */}
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>
-                      Live Split Announcements
-                    </Text>
-                    <Text style={styles.settingSubtitle}>
-                      Announce each kilometer as you run
-                    </Text>
-                  </View>
-                  <Switch
-                    value={ttsSettings.announceLiveSplits}
-                    onValueChange={(value) =>
-                      handleTTSSettingChange('announceLiveSplits', value)
-                    }
-                    trackColor={{
-                      false: theme.colors.warning,
-                      true: theme.colors.accent,
-                    }}
-                    thumbColor={theme.colors.orangeBright}
-                    disabled={!ttsSettings.enabled}
-                  />
-                </View>
+                <SettingItem
+                  title="Live Split Announcements"
+                  subtitle="Announce each kilometer as you run"
+                  rightElement={
+                    <Switch
+                      value={ttsSettings.announceLiveSplits}
+                      onValueChange={(value) =>
+                        handleTTSSettingChange('announceLiveSplits', value)
+                      }
+                      trackColor={{
+                        false: theme.colors.warning,
+                        true: theme.colors.accent,
+                      }}
+                      thumbColor={theme.colors.orangeBright}
+                      disabled={!ttsSettings.enabled}
+                    />
+                  }
+                />
 
-                {/* Speech Rate Slider */}
-                <View style={styles.settingItem}>
+                {/* Speech Speed Controls Card */}
+                <View style={styles.voiceControlsCard}>
+                  {/* Speech Rate Slider */}
                   <View style={styles.sliderContainer}>
                     <View style={styles.sliderHeader}>
                       <Text style={styles.settingTitle}>Speech Speed</Text>
@@ -790,36 +864,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       <Text style={styles.sliderLabel}>Fast</Text>
                     </View>
                   </View>
-                </View>
 
-                {/* Test Button */}
-                <TouchableOpacity
-                  style={[
-                    styles.testButton,
-                    !ttsSettings.enabled && styles.testButtonDisabled,
-                  ]}
-                  onPress={handleTestTTS}
-                  disabled={!ttsSettings.enabled}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="volume-high"
-                    size={20}
-                    color={
-                      ttsSettings.enabled
-                        ? theme.colors.text
-                        : theme.colors.textMuted
-                    }
-                  />
-                  <Text
+                  {/* Test Button */}
+                  <TouchableOpacity
                     style={[
-                      styles.testButtonText,
-                      !ttsSettings.enabled && styles.testButtonTextDisabled,
+                      styles.testButton,
+                      !ttsSettings.enabled && styles.testButtonDisabled,
                     ]}
+                    onPress={handleTestTTS}
+                    disabled={!ttsSettings.enabled}
+                    activeOpacity={0.7}
                   >
-                    Test Announcement
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons
+                      name="volume-high"
+                      size={20}
+                      color={
+                        ttsSettings.enabled
+                          ? theme.colors.text
+                          : theme.colors.textMuted
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.testButtonText,
+                        !ttsSettings.enabled && styles.testButtonTextDisabled,
+                      ]}
+                    >
+                      Test Announcement
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </Card>
           </SettingsAccordion>
@@ -902,6 +976,118 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   </View>
                 }
               />
+
+              {/* Rewards Subsection */}
+              <View style={styles.rewardsSubsection}>
+                <Text style={styles.subsectionTitle}>Rewards</Text>
+
+                {/* Sats Earned Display */}
+                <View style={styles.satsEarnedCard}>
+                  <View style={styles.satsEarnedRow}>
+                    <Text style={styles.satsEarnedLabel}>Workout rewards (this week)</Text>
+                    <Text style={styles.satsEarnedValue}>{weeklyRewardsEarned} sats</Text>
+                  </View>
+                  <View style={styles.satsEarnedRow}>
+                    <Text style={styles.satsEarnedLabel}>Step rewards (today)</Text>
+                    <Text style={styles.satsEarnedValue}>{stepTodaySats} sats</Text>
+                  </View>
+                  <View style={[styles.satsEarnedRow, styles.satsEarnedTotalRow]}>
+                    <Text style={styles.satsEarnedTotalLabel}>Total</Text>
+                    <Text style={styles.satsEarnedTotalValue}>{weeklyRewardsEarned + stepTodaySats} sats</Text>
+                  </View>
+                </View>
+
+                {/* Lightning Address Input */}
+                <View style={styles.rewardSettingRow}>
+                  <View style={styles.rewardSettingInfo}>
+                    <Text style={styles.rewardSettingTitle}>Lightning Address</Text>
+                    <Text style={styles.rewardSettingSubtitle}>Receive sats to your wallet</Text>
+                  </View>
+                </View>
+                <View style={styles.lightningAddressRow}>
+                  <View style={styles.lightningInputContainer}>
+                    <Ionicons name="flash" size={16} color="#FF9D42" style={styles.lightningIcon} />
+                    <View style={styles.lightningInputWrapper}>
+                      <Text
+                        style={[
+                          styles.lightningAddressText,
+                          !rewardLightningAddress && styles.lightningAddressPlaceholder,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {rewardLightningAddress || 'user@getalby.com'}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => {
+                      setAlertTitle('Lightning Address');
+                      setAlertMessage('Enter your Lightning address to receive rewards:');
+                      setAlertButtons([
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Save',
+                          onPress: () => {
+                            // This is handled by the prompt
+                          },
+                        },
+                      ]);
+                      // Use native prompt for text input
+                      const address = rewardLightningAddress;
+                      handleLightningAddressChange(address);
+                      if (isValidLightningAddress) {
+                        handleSaveLightningAddress();
+                      }
+                    }}
+                  >
+                    <Ionicons name="pencil" size={16} color={theme.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Donation Split Percentage */}
+                <View style={styles.rewardSettingRow}>
+                  <View style={styles.rewardSettingInfo}>
+                    <Text style={styles.rewardSettingTitle}>Workout Donation Split</Text>
+                    <Text style={styles.rewardSettingSubtitle}>Percentage of rewards to your team</Text>
+                  </View>
+                </View>
+                <View style={styles.percentageButtons}>
+                  {[0, 25, 50, 75, 100].map((pct) => (
+                    <TouchableOpacity
+                      key={pct}
+                      style={[
+                        styles.percentageButton,
+                        donationPercentage === pct && styles.percentageButtonActive,
+                      ]}
+                      onPress={() => handleDonationPercentageChange(pct)}
+                    >
+                      <Text
+                        style={[
+                          styles.percentageButtonText,
+                          donationPercentage === pct && styles.percentageButtonTextActive,
+                        ]}
+                      >
+                        {pct}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Step Rewards Toggle */}
+                <SettingItem
+                  title="Step Rewards to Me"
+                  subtitle="Send step rewards to my wallet instead of team"
+                  rightElement={
+                    <Switch
+                      value={stepRewardsToUser}
+                      onValueChange={handleStepRewardsToggle}
+                      trackColor={{ false: '#333', true: theme.colors.accent }}
+                      thumbColor={stepRewardsToUser ? theme.colors.orangeBright : '#666'}
+                    />
+                  }
+                />
+              </View>
 
             </Card>
           </SettingsAccordion>
@@ -999,7 +1185,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
         {/* App Version Info */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Version 1.6.0 (Build 160)</Text>
+          <Text style={styles.versionText}>Version 1.6.3-debug (Build 163)</Text>
         </View>
       </ScrollView>
 
@@ -1163,6 +1349,15 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+  },
+
+  voiceControlsCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
   },
 
   subsectionTitle: {
@@ -1599,5 +1794,144 @@ const styles = StyleSheet.create({
   modelNameSelected: {
     fontWeight: theme.typography.weights.semiBold,
     color: '#FF9D42',
+  },
+
+  // Rewards Subsection Styles
+  rewardsSubsection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+
+  rewardSettingRow: {
+    marginBottom: 8,
+  },
+
+  rewardSettingInfo: {
+    flex: 1,
+  },
+
+  rewardSettingTitle: {
+    fontSize: 15,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+    marginBottom: 2,
+  },
+
+  rewardSettingSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+  },
+
+  lightningAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+
+  lightningInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  lightningIcon: {
+    marginRight: 8,
+  },
+
+  lightningInputWrapper: {
+    flex: 1,
+  },
+
+  lightningAddressText: {
+    fontSize: 14,
+    color: theme.colors.text,
+  },
+
+  lightningAddressPlaceholder: {
+    color: theme.colors.textMuted,
+  },
+
+  editButton: {
+    padding: 8,
+  },
+
+  percentageButtons: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 16,
+  },
+
+  percentageButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+
+  percentageButtonActive: {
+    backgroundColor: theme.colors.orangeBright,
+    borderColor: theme.colors.orangeBright,
+  },
+
+  percentageButtonText: {
+    fontSize: 13,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+
+  percentageButtonTextActive: {
+    color: '#000',
+  },
+
+  // Sats Earned Display Styles
+  satsEarnedCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  satsEarnedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  satsEarnedLabel: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+  },
+  satsEarnedValue: {
+    fontSize: 13,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+  satsEarnedTotalRow: {
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+  },
+  satsEarnedTotalLabel: {
+    fontSize: 14,
+    fontWeight: theme.typography.weights.semiBold,
+    color: theme.colors.text,
+  },
+  satsEarnedTotalValue: {
+    fontSize: 16,
+    fontWeight: theme.typography.weights.bold,
+    color: '#FFB366',
   },
 });
