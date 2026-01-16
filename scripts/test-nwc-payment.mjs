@@ -6,19 +6,23 @@
 
 import { NWCClient } from '@getalby/sdk';
 
-// Test configurations
+// SECURITY: NWC must be provided via environment variable
+const NWC_URL = process.env.TEST_NWC_URL;
+if (!NWC_URL) {
+  console.error('Error: Set TEST_NWC_URL environment variable');
+  console.error('Example: TEST_NWC_URL="nostr+walletconnect://..." node scripts/test-nwc-payment.mjs');
+  process.exit(1);
+}
+
+// Test configurations - uses single NWC from env
 const NWC_STRINGS = [
   {
-    name: 'Working Script NWC (secret a50e5e32...)',
-    url: 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=a50e5e32b590939a3cea777ab87cf3591f9dbde3841395900c5d723e64f1934f&lud16=RUNSTR@coinos.io',
-  },
-  {
-    name: 'Old NWC (secret e827878f...)',
-    url: 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=e827878f1a5b3ab0a65d47fc8301d78a5e3f586c6ab5b5f4f1fd565338c22aa4&lud16=RUNSTR@coinos.io',
+    name: 'Test NWC from environment',
+    url: NWC_URL,
   },
 ];
 
-const RECIPIENT = 'hustle@getalby.com';
+const RECIPIENT = process.env.TEST_RECIPIENT || 'hello@getalby.com';
 const AMOUNT_SATS = 21;
 
 // LNURL invoice request (same as working script)

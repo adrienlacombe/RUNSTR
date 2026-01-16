@@ -1,11 +1,16 @@
 // scripts/test-nwc-direct.js
-// Run with: node scripts/test-nwc-direct.js
+// Run with: TEST_NWC_URL="nostr+walletconnect://..." node scripts/testing/test-nwc-direct.cjs
 
 const WebSocket = require('ws');
 global.WebSocket = WebSocket;
 
-// Your actual connection string
-const CONNECTION_STRING = 'nostr+walletconnect://6257ae16115e98057b4806059cd2cc9d3bbc0c50dbac29cd797a3f211b7bc9dc?relay=wss://relay.getalby.com/v1&secret=92da1e8b8953181f6ff38f3dbf3631a9e686f48354ff4449f81b10b880ef2d53&lud16=hustle@getalby.com';
+// SECURITY: NWC must be provided via environment variable
+const CONNECTION_STRING = process.env.TEST_NWC_URL;
+if (!CONNECTION_STRING) {
+  console.error('Error: Set TEST_NWC_URL environment variable');
+  console.error('Example: TEST_NWC_URL="nostr+walletconnect://..." node scripts/testing/test-nwc-direct.cjs');
+  process.exit(1);
+}
 
 async function testDirectConnection() {
   console.log('Testing NWC connection directly...\n');

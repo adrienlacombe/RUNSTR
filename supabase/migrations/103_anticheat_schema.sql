@@ -1,5 +1,55 @@
 -- Migration: Anti-Cheat Schema
--- Adds verification columns to workout_submissions and creates flagged_workouts table
+-- Creates workout_submissions table, adds verification columns, and creates flagged_workouts table
+
+-- First, create the workout_submissions table if it doesn't exist
+CREATE TABLE IF NOT EXISTS workout_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  npub TEXT NOT NULL,                              -- Nostr public key
+  event_id TEXT UNIQUE,                            -- Nostr event ID (for deduplication)
+  activity_type TEXT NOT NULL,                     -- Exercise type (running, walking, cycling, etc.)
+  distance_meters NUMERIC,                         -- Distance in meters
+  duration_seconds NUMERIC,                        -- Duration in seconds
+  calories INTEGER,                                -- Calories burned
+  raw_event JSONB,                                 -- Full Nostr event for reference
+  created_at TIMESTAMPTZ DEFAULT NOW(),            -- When workout was recorded
+
+  CONSTRAINT workout_submissions_npub_not_empty CHECK (npub <> '')
+);
+
+-- Performance indexes for workout_submissions
+CREATE INDEX IF NOT EXISTS idx_workout_submissions_npub ON workout_submissions(npub);
+CREATE INDEX IF NOT EXISTS idx_workout_submissions_activity_type ON workout_submissions(activity_type);
+CREATE INDEX IF NOT EXISTS idx_workout_submissions_created_at ON workout_submissions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workout_submissions_event_id ON workout_submissions(event_id);
+
+-- Row Level Security for workout_submissions
+ALTER TABLE workout_submissions ENABLE ROW LEVEL SECURITY;
+
+-- Service role can do everything (Edge Functions)
+CREATE POLICY "Service role can do everything on workout_submissions"
+ON workout_submissions
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+
+-- Anon can read for leaderboards
+CREATE POLICY "Anon can read workout_submissions"
+ON workout_submissions
+FOR SELECT
+TO anon
+USING (true);
+
+-- Anon can insert (for submit-workout Edge Function)
+CREATE POLICY "Anon can insert workout_submissions"
+ON workout_submissions
+FOR INSERT
+TO anon
+WITH CHECK (true);
+
+COMMENT ON TABLE workout_submissions IS 'Workout data from Nostr events for competition leaderboards and verification';
+COMMENT ON COLUMN workout_submissions.event_id IS 'Nostr event ID for deduplication';
+COMMENT ON COLUMN workout_submissions.raw_event IS 'Full Nostr event JSON for audit and verification';
 
 -- Add verification columns to workout_submissions
 ALTER TABLE workout_submissions

@@ -6,7 +6,13 @@
 
 import { NWCClient } from '@getalby/sdk';
 
-const NWC_URL = 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=a50e5e32b590939a3cea777ab87cf3591f9dbde3841395900c5d723e64f1934f&lud16=RUNSTR@coinos.io';
+// SECURITY: NWC must be provided via environment variable
+const NWC_URL = process.env.TEST_NWC_URL;
+if (!NWC_URL) {
+  console.error('Error: Set TEST_NWC_URL environment variable');
+  console.error('Example: TEST_NWC_URL="nostr+walletconnect://..." node scripts/test-nwc-multi-recipient.mjs');
+  process.exit(1);
+}
 
 const TEST_RECIPIENTS = [
   { name: 'Coinos (same provider)', address: 'RUNSTR@coinos.io' },

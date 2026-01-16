@@ -7,9 +7,14 @@
 
 const { NWCClient } = require('@getalby/sdk');
 
-// Test configuration
-const NWC_URL = 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=e827878f1a5b3ab0a65d47fc8301d78a5e3f586c6ab5b5f4f1fd565338c22aa4&lud16=RUNSTR@coinos.io';
-const TEST_LIGHTNING_ADDRESS = 'RUNSTR@coinos.io'; // Testing with RUNSTR wallet (sends to self - net zero)
+// SECURITY: NWC must be provided via environment variable
+const NWC_URL = process.env.TEST_NWC_URL;
+if (!NWC_URL) {
+  console.error('Error: Set TEST_NWC_URL environment variable');
+  console.error('Example: TEST_NWC_URL="nostr+walletconnect://..." node scripts/testing/test-reward-flow.cjs');
+  process.exit(1);
+}
+const TEST_LIGHTNING_ADDRESS = process.env.TEST_LIGHTNING_ADDRESS || 'hello@getalby.com';
 const REWARD_AMOUNT = 21; // sats
 
 async function fetchLNURLPayDetails(lightningAddress) {

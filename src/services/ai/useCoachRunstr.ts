@@ -19,8 +19,9 @@ const CACHE_PREFIX = '@runstr:coach_cache:';
 const API_KEY_STORAGE_KEY = '@runstr:ppq_api_key';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Default PPQ.AI API key for RUNSTR Premium (all users get AI features by default)
-const DEFAULT_PPQ_API_KEY = 'sk-cHbG30uYuFdQGvKGKSHBP6';
+// PPQ.AI API key - users must configure their own key via settings
+// To get a key, visit https://ppq.ai and create an account
+const DEFAULT_PPQ_API_KEY = '';
 
 interface CachedInsight extends CoachInsight {
   expiresAt: number;

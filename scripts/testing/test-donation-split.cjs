@@ -18,12 +18,20 @@
 
 const { NWCClient } = require('@getalby/sdk');
 
+// SECURITY: NWC must be provided via environment variable
+const NWC_URL = process.env.TEST_NWC_URL;
+if (!NWC_URL) {
+  console.error('Error: Set TEST_NWC_URL environment variable');
+  console.error('Example: TEST_NWC_URL="nostr+walletconnect://..." node scripts/testing/test-donation-split.cjs');
+  process.exit(1);
+}
+
 // ============================================================
 // TEST CONFIGURATION
 // ============================================================
 const CONFIG = {
   // User being tested
-  userLightningAddress: 'thewildhustle@strike.me',
+  userLightningAddress: process.env.TEST_USER_ADDRESS || 'hello@getalby.com',
 
   // Team/Charity selection (Bitcoin District)
   selectedTeamId: 'bitcoin-district',
@@ -34,8 +42,8 @@ const CONFIG = {
   // Total reward amount
   rewardAmount: 50,
 
-  // NWC for reward sender wallet (from src/config/rewards.ts)
-  nwcUrl: 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=a50e5e32b590939a3cea777ab87cf3591f9dbde3841395900c5d723e64f1934f&lud16=RUNSTR@coinos.io',
+  // NWC for reward sender wallet (from environment)
+  nwcUrl: NWC_URL,
 };
 
 // ============================================================
